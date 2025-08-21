@@ -1,3 +1,8 @@
+// ==========================================
+// 📁 react-app/src/pages/GamificationPage.jsx
+// GAMIFICATION PAGE - VUE D'ENSEMBLE AVEC VRAIES DONNÉES FIREBASE
+// ==========================================
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -10,53 +15,168 @@ import {
   Activity,
   Crown,
   Zap,
-  RefreshCw
+  RefreshCw,
+  CheckCircle2,
+  Calendar,
+  BarChart3,
+  Users,
+  ArrowUp,
+  Gift,
+  Clock
 } from 'lucide-react';
 import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useFirebaseGamification } from '../shared/hooks/useUnifiedFirebaseData.js';
+import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy, 
+  limit 
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 
 const GamificationPage = () => {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  // Hook Firebase pour les données de gamification
+  // 🔥 UTILISER LES VRAIES DONNÉES FIREBASE
   const {
-    gamificationData,
-    loading,
-    refreshData,
-    totalXp,
-    level,
-    xpToNextLevel,
-    progressToNextLevel,
-    badges,
-    weeklyXp,
-    loginStreak,
-    recentActivities
-  } = useFirebaseGamification(user?.uid);
+    gamification,
+    isLoading: firebaseLoading,
+    isReady,
+    error: firebaseError,
+    actions
+  } = useUnifiedFirebaseData();
+
+  /**
+   * 🔥 CHARGER LES ACTIVITÉS RÉCENTES RÉELLES
+   */
+  const loadRecentActivities = async () => {
+    if (!user?.uid || !isReady) return;
+
+    try {
+      console.log('📊 Chargement activités récentes pour:', user.uid);
+
+      // Récupérer les tâches récemment complétées
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('userId', '==', user.uid),
+        where('status', '==', 'completed'),
+        orderBy('updatedAt', 'desc'),
+        limit(5)
+      );
+      const tasksSnapshot = await getDocs(tasksQuery);
+      
+      const activities = [];
+      tasksSnapshot.forEach(doc => {
+        const task = doc.data();
+        activities.push({
+          id: doc.id,
+          type: 'task_completed',
+          title: task.title,
+          xpGained: task.xpReward || 0,
+          date: task.updatedAt?.toDate?.() || new Date(task.updatedAt),
+          icon: CheckCircle2,
+          color: 'text-green-400'
+        });
+      });
+
+      // Récupérer les projets récents
+      const projectsQuery = query(
+        collection(db, 'projects'),
+        where('createdBy', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(3)
+      );
+      const projectsSnapshot = await getDocs(projectsQuery);
+      
+      projectsSnapshot.forEach(doc => {
+        const project = doc.data();
+        activities.push({
+          id: doc.id,
+          type: 'project_created',
+          title: `Projet créé: ${project.title}`,
+          xpGained: 50, // XP pour création projet
+          date: project.createdAt?.toDate?.() || new Date(project.createdAt),
+          icon: Target,
+          color: 'text-blue-400'
+        });
+      });
+
+      // Trier par date
+      activities.sort((a, b) => b.date - a.date);
+      setRecentActivities(activities.slice(0, 8));
+
+    } catch (error) {
+      console.error('❌ Erreur chargement activités:', error);
+    }
+  };
+
+  /**
+   * 🔄 ACTUALISER LES DONNÉES
+   */
+  const refreshData = async () => {
+    setLoading(true);
+    await loadRecentActivities();
+    if (actions?.refreshData) {
+      await actions.refreshData();
+    }
+    setLoading(false);
+  };
+
+  // Charger les données au montage
+  useEffect(() => {
+    if (isReady && user?.uid) {
+      loadRecentActivities();
+      setLoading(false);
+    }
+  }, [isReady, user?.uid]);
+
+  // ✅ UTILISER LES VRAIES DONNÉES DE GAMIFICATION
+  const totalXp = gamification.totalXp || 0;
+  const level = gamification.level || 1;
+  const weeklyXp = gamification.weeklyXp || 0;
+  const monthlyXp = gamification.monthlyXp || 0;
+  const tasksCompleted = gamification.tasksCompleted || 0;
+  const tasksCreated = gamification.tasksCreated || 0;
+  const projectsCreated = gamification.projectsCreated || 0;
+  const badges = gamification.badges || [];
+  const loginStreak = gamification.loginStreak || 0;
+  const currentStreak = gamification.currentStreak || 0;
+  
+  // Calculs dérivés
+  const currentLevelXp = totalXp % 100;
+  const nextLevelXpRequired = 100;
+  const xpProgress = (currentLevelXp / nextLevelXpRequired) * 100;
+  const nextLevel = level + 1;
+  const xpToNextLevel = nextLevelXpRequired - currentLevelXp;
+  const completionRate = tasksCreated > 0 ? Math.round((tasksCompleted / tasksCreated) * 100) : 0;
 
   const headerStats = [
     { 
       label: "XP Total", 
-      value: totalXp?.toLocaleString() || "0", 
+      value: totalXp.toLocaleString(), 
       icon: Star, 
       color: "text-yellow-400" 
     },
     { 
       label: "Niveau", 
-      value: level || "1", 
+      value: level.toString(), 
       icon: Crown, 
       color: "text-purple-400" 
     },
     { 
       label: "Badges", 
-      value: badges?.length || "0", 
+      value: badges.length.toString(), 
       icon: Award, 
       color: "text-blue-400" 
     },
     { 
       label: "Série", 
-      value: `${loginStreak || 0} jours`, 
+      value: `${loginStreak} jours`, 
       icon: Flame, 
       color: "text-orange-400" 
     }
@@ -64,7 +184,8 @@ const GamificationPage = () => {
 
   const headerActions = (
     <div className="flex space-x-3">
-      <PremiumButton variant="secondary" icon={Trophy}>
+      <PremiumButton variant="secondary" onClick={() => window.location.href = '/badges'}>
+        <Award className="w-4 h-4 mr-2" />
         Mes badges
       </PremiumButton>
       <PremiumButton variant="primary" icon={RefreshCw} onClick={refreshData}>
@@ -73,187 +194,307 @@ const GamificationPage = () => {
     </div>
   );
 
+  if (firebaseLoading || loading) {
+    return (
+      <PremiumLayout
+        title="🎮 Gamification"
+        subtitle="Votre progression et réalisations"
+        headerStats={[]}
+        headerActions={<div className="animate-pulse bg-gray-700 h-10 w-32 rounded"></div>}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <PremiumCard key={i}>
+              <div className="animate-pulse">
+                <div className="bg-gray-700 h-16 w-16 rounded-full mx-auto mb-4"></div>
+                <div className="bg-gray-700 h-8 w-20 rounded mx-auto mb-2"></div>
+                <div className="bg-gray-700 h-4 w-24 rounded mx-auto"></div>
+              </div>
+            </PremiumCard>
+          ))}
+        </div>
+      </PremiumLayout>
+    );
+  }
+
   return (
     <PremiumLayout
-      title="Gamification"
+      title="🎮 Gamification"
       subtitle="Votre progression et réalisations"
-      icon={Trophy}
+      headerStats={headerStats}
       headerActions={headerActions}
-      showStats={true}
-      stats={headerStats}
     >
-      {/* Onglets */}
-      <div className="mb-6">
+      {/* Section Niveau et Progression */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        {/* Progression vers le niveau suivant */}
         <PremiumCard>
-          <div className="flex space-x-1">
-            {[
-              { id: 'overview', label: 'Vue d\'ensemble', icon: Activity },
-              { id: 'badges', label: 'Badges', icon: Award },
-              { id: 'leaderboard', label: 'Classement', icon: Trophy },
-              { id: 'rewards', label: 'Récompenses', icon: Star }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-300 hover:bg-white/10'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
+          <div className="text-center">
+            <Crown className="w-20 h-20 text-purple-400 mx-auto mb-4" />
+            <h3 className="text-3xl font-bold text-white mb-2">Niveau {level}</h3>
+            <p className="text-gray-400 mb-4">Progression vers le niveau {nextLevel}</p>
+            
+            {/* Barre de progression XP */}
+            <div className="relative">
+              <div className="w-full bg-gray-700 rounded-full h-4 mb-2">
+                <div 
+                  className="bg-gradient-to-r from-purple-500 to-purple-300 h-4 rounded-full transition-all duration-500"
+                  style={{ width: `${xpProgress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-purple-400">{currentLevelXp} XP</span>
+                <span className="text-gray-400">{nextLevelXpRequired} XP</span>
+              </div>
+            </div>
+            
+            <p className="text-purple-300 mt-2">
+              <strong>{xpToNextLevel} XP</strong> pour atteindre le niveau {nextLevel}
+            </p>
+          </div>
+        </PremiumCard>
+
+        {/* Statistiques XP */}
+        <PremiumCard>
+          <h3 className="text-white font-semibold mb-4 flex items-center">
+            <BarChart3 className="w-5 h-5 mr-2 text-yellow-400" />
+            Statistiques XP
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+              <div className="flex items-center">
+                <Star className="w-8 h-8 text-yellow-400 mr-3" />
+                <div>
+                  <p className="text-white font-medium">XP Total</p>
+                  <p className="text-gray-400 text-sm">Depuis le début</p>
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-yellow-400">{totalXp.toLocaleString()}</p>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+              <div className="flex items-center">
+                <Calendar className="w-8 h-8 text-blue-400 mr-3" />
+                <div>
+                  <p className="text-white font-medium">XP cette semaine</p>
+                  <p className="text-gray-400 text-sm">7 derniers jours</p>
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-blue-400">{weeklyXp}</p>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+              <div className="flex items-center">
+                <TrendingUp className="w-8 h-8 text-green-400 mr-3" />
+                <div>
+                  <p className="text-white font-medium">XP ce mois</p>
+                  <p className="text-gray-400 text-sm">30 derniers jours</p>
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-green-400">{monthlyXp}</p>
+            </div>
           </div>
         </PremiumCard>
       </div>
 
-      {/* Contenu selon l'onglet actif */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Progression niveau */}
-          <PremiumCard>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white text-xl font-semibold flex items-center">
-                <Crown className="w-6 h-6 mr-2 text-purple-400" />
-                Niveau {level}
-              </h3>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-white">{totalXp} XP</div>
-                <div className="text-gray-400 text-sm">XP Total</div>
-              </div>
+      {/* Métriques de performance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        
+        {/* Tâches complétées */}
+        <PremiumCard>
+          <div className="text-center">
+            <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-1">{tasksCompleted}</h3>
+            <p className="text-gray-400 text-sm mb-2">Tâches terminées</p>
+            <div className="flex items-center justify-center text-green-400">
+              <ArrowUp className="w-4 h-4 mr-1" />
+              <span className="text-sm">+{Math.round(tasksCompleted / Math.max(1, (Date.now() - new Date().setHours(0,0,0,0)) / (1000*60*60*24)))} par jour</span>
             </div>
-            
-            {/* Barre de progression */}
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-300">Progression vers le niveau {level + 1}</span>
-                <span className="text-white font-medium">{xpToNextLevel} XP restants</span>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-4">
-                <div 
-                  className="bg-gradient-to-r from-purple-500 to-blue-500 h-4 rounded-full transition-all duration-1000"
-                  style={{ width: `${progressToNextLevel}%` }}
-                />
-              </div>
-              <div className="text-center">
-                <span className="text-lg font-bold text-white">{Math.round(progressToNextLevel)}%</span>
-              </div>
-            </div>
-          </PremiumCard>
-
-          {/* Stats de la semaine */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <PremiumCard>
-              <div className="text-center">
-                <Target className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                <div className="text-2xl font-bold text-white">{gamificationData?.tasksCompleted || 0}</div>
-                <div className="text-gray-400 text-sm">Tâches terminées</div>
-              </div>
-            </PremiumCard>
-
-            <PremiumCard>
-              <div className="text-center">
-                <Flame className="w-12 h-12 text-orange-400 mx-auto mb-3" />
-                <div className="text-2xl font-bold text-white">{loginStreak}</div>
-                <div className="text-gray-400 text-sm">Jours consécutifs</div>
-              </div>
-            </PremiumCard>
-
-            <PremiumCard>
-              <div className="text-center">
-                <Award className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-                <div className="text-2xl font-bold text-white">{badges?.length || 0}</div>
-                <div className="text-gray-400 text-sm">Badges obtenus</div>
-              </div>
-            </PremiumCard>
-
-            <PremiumCard>
-              <div className="text-center">
-                <TrendingUp className="w-12 h-12 text-blue-400 mx-auto mb-3" />
-                <div className="text-2xl font-bold text-white">{weeklyXp}</div>
-                <div className="text-gray-400 text-sm">XP cette semaine</div>
-              </div>
-            </PremiumCard>
           </div>
+        </PremiumCard>
 
-          {/* Activité récente */}
-          <PremiumCard>
-            <h3 className="text-white text-xl font-semibold mb-6 flex items-center">
-              <Activity className="w-6 h-6 mr-2 text-green-400" />
-              Activité récente
-            </h3>
-            
-            {recentActivities?.length > 0 ? (
-              <div className="space-y-3">
-                {recentActivities.slice(0, 5).map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <div>
-                        <p className="text-white text-sm">{activity.description}</p>
-                        <p className="text-gray-400 text-xs">
-                          {new Date(activity.timestamp).toLocaleDateString('fr-FR')}
-                        </p>
-                      </div>
+        {/* Projets créés */}
+        <PremiumCard>
+          <div className="text-center">
+            <Target className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-1">{projectsCreated}</h3>
+            <p className="text-gray-400 text-sm mb-2">Projets créés</p>
+            <p className="text-blue-400 text-sm">Leadership actif</p>
+          </div>
+        </PremiumCard>
+
+        {/* Taux de completion */}
+        <PremiumCard>
+          <div className="text-center">
+            <Activity className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-1">{completionRate}%</h3>
+            <p className="text-gray-400 text-sm mb-2">Taux de réussite</p>
+            <p className="text-purple-400 text-sm">
+              {completionRate >= 80 ? 'Excellent' : completionRate >= 60 ? 'Très bien' : 'En progression'}
+            </p>
+          </div>
+        </PremiumCard>
+
+        {/* Série de connexion */}
+        <PremiumCard>
+          <div className="text-center">
+            <Flame className="w-16 h-16 text-orange-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-1">{loginStreak}</h3>
+            <p className="text-gray-400 text-sm mb-2">Jours consécutifs</p>
+            <div className="flex items-center justify-center text-orange-400">
+              <Zap className="w-4 h-4 mr-1" />
+              <span className="text-sm">Série active!</span>
+            </div>
+          </div>
+        </PremiumCard>
+      </div>
+
+      {/* Badges récents */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        {/* Mes badges */}
+        <PremiumCard>
+          <h3 className="text-white font-semibold mb-4 flex items-center">
+            <Award className="w-5 h-5 mr-2 text-blue-400" />
+            Mes Badges ({badges.length})
+          </h3>
+          <div className="space-y-3">
+            {badges.length > 0 ? (
+              badges.slice(0, 5).map((badge, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mr-3">
+                      <Award className="w-5 h-5 text-white" />
                     </div>
-                    <div className="text-right">
-                      <span className="text-yellow-400 text-sm font-medium">+{activity.xp} XP</span>
+                    <div>
+                      <p className="text-white font-medium">{badge.name || badge.title || 'Badge'}</p>
+                      <p className="text-gray-400 text-sm">{badge.description || 'Badge débloqué'}</p>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="text-yellow-400">
+                    <Star className="w-5 h-5" />
+                  </div>
+                </div>
+              ))
             ) : (
-              <div className="text-center py-8 text-gray-400">
-                <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Aucune activité récente</p>
+              <div className="text-center py-8">
+                <Award className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400">Aucun badge débloqué</p>
+                <p className="text-gray-500 text-sm">Complétez des tâches pour gagner des badges !</p>
               </div>
             )}
-          </PremiumCard>
+            {badges.length > 5 && (
+              <div className="text-center pt-2">
+                <PremiumButton variant="secondary" onClick={() => window.location.href = '/badges'}>
+                  Voir tous les badges
+                </PremiumButton>
+              </div>
+            )}
+          </div>
+        </PremiumCard>
+
+        {/* Activité récente */}
+        <PremiumCard>
+          <h3 className="text-white font-semibold mb-4 flex items-center">
+            <Clock className="w-5 h-5 mr-2 text-green-400" />
+            Activité Récente
+          </h3>
+          <div className="space-y-3">
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div className="flex items-center">
+                    <activity.icon className={`w-8 h-8 ${activity.color} mr-3`} />
+                    <div>
+                      <p className="text-white font-medium">{activity.title}</p>
+                      <p className="text-gray-400 text-sm">
+                        {activity.date.toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-yellow-400 font-medium">
+                    +{activity.xpGained} XP
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Activity className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400">Aucune activité récente</p>
+                <p className="text-gray-500 text-sm">Vos actions apparaîtront ici</p>
+              </div>
+            )}
+          </div>
+        </PremiumCard>
+      </div>
+
+      {/* Actions rapides */}
+      <PremiumCard>
+        <h3 className="text-white font-semibold mb-4 flex items-center">
+          <Zap className="w-5 h-5 mr-2 text-purple-400" />
+          Actions Rapides
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <PremiumButton 
+            variant="primary" 
+            className="flex-col h-20"
+            onClick={() => window.location.href = '/tasks'}
+          >
+            <CheckCircle2 className="w-6 h-6 mb-2" />
+            Créer une tâche
+          </PremiumButton>
+          
+          <PremiumButton 
+            variant="secondary" 
+            className="flex-col h-20"
+            onClick={() => window.location.href = '/projects'}
+          >
+            <Target className="w-6 h-6 mb-2" />
+            Nouveau projet
+          </PremiumButton>
+          
+          <PremiumButton 
+            variant="secondary" 
+            className="flex-col h-20"
+            onClick={() => window.location.href = '/badges'}
+          >
+            <Award className="w-6 h-6 mb-2" />
+            Voir mes badges
+          </PremiumButton>
+          
+          <PremiumButton 
+            variant="secondary" 
+            className="flex-col h-20"
+            onClick={() => window.location.href = '/leaderboard'}
+          >
+            <Trophy className="w-6 h-6 mb-2" />
+            Classement
+          </PremiumButton>
         </div>
-      )}
+      </PremiumCard>
 
-      {/* Autres onglets avec contenu basique */}
-      {activeTab === 'badges' && (
+      {/* Message d'encouragement */}
+      {totalXp === 0 && (
         <PremiumCard>
-          <div className="text-center py-8">
-            <Award className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-            <h3 className="text-white text-xl font-semibold mb-2">Collection de badges</h3>
-            <p className="text-gray-400">Consultez la page Badges pour voir votre collection complète</p>
-            <div className="mt-6">
-              <PremiumButton variant="primary" icon={Award}>
-                Voir tous les badges
-              </PremiumButton>
-            </div>
-          </div>
-        </PremiumCard>
-      )}
-
-      {activeTab === 'leaderboard' && (
-        <PremiumCard>
-          <div className="text-center py-8">
+          <div className="text-center py-12">
             <Trophy className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-            <h3 className="text-white text-xl font-semibold mb-2">Classement</h3>
-            <p className="text-gray-400">Consultez la page Classement pour voir votre position</p>
-            <div className="mt-6">
-              <PremiumButton variant="primary" icon={Trophy}>
-                Voir le classement
+            <h3 className="text-xl font-semibold text-white mb-2">Bienvenue dans la gamification !</h3>
+            <p className="text-gray-400 mb-6">
+              Commencez à gagner de l'XP en complétant des tâches et en créant des projets.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <PremiumButton variant="primary" onClick={() => window.location.href = '/tasks'}>
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Ma première tâche
               </PremiumButton>
-            </div>
-          </div>
-        </PremiumCard>
-      )}
-
-      {activeTab === 'rewards' && (
-        <PremiumCard>
-          <div className="text-center py-8">
-            <Star className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-            <h3 className="text-white text-xl font-semibold mb-2">Récompenses</h3>
-            <p className="text-gray-400">Consultez la page Récompenses pour échanger vos points</p>
-            <div className="mt-6">
-              <PremiumButton variant="primary" icon={Star}>
-                Voir les récompenses
+              <PremiumButton variant="secondary" onClick={() => window.location.href = '/projects'}>
+                <Target className="w-4 h-4 mr-2" />
+                Mon premier projet
               </PremiumButton>
             </div>
           </div>
