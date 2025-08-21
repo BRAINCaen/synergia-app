@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/ui/TaskDetailModal.jsx
-// MODAL DÉTAILS TÂCHE - CORRECTION BOUTONS VOLONTAIRE/SOUMETTRE
+// MODAL DÉTAILS TÂCHE - CORRECTION COMPLÈTE FINALE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -462,7 +462,7 @@ const TaskDetailModal = ({
                 </div>
 
                 {/* Informations supplémentaires */}
-                {(task.projectId || task.isRecurring) && (
+                {(task.projectId || task.openToVolunteers || task.isRecurring) && (
                   <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                     <div className="flex items-center gap-2 mb-3">
                       <Info className="w-4 h-4 text-blue-400" />
@@ -474,6 +474,12 @@ const TaskDetailModal = ({
                           <MapPin className="w-4 h-4 text-gray-400" />
                           <span className="text-gray-400">Projet:</span>
                           <span className="text-blue-400 font-medium">{task.projectId}</span>
+                        </div>
+                      )}
+                      {task.openToVolunteers && (
+                        <div className="flex items-center gap-2 text-green-400">
+                          <Users className="w-4 h-4" />
+                          <span className="font-medium">Ouvert aux volontaires</span>
                         </div>
                       )}
                       {task.isRecurring && (
@@ -630,7 +636,7 @@ const TaskDetailModal = ({
           )}
         </div>
 
-        {/* Footer avec actions */}
+        {/* Footer avec actions - CORRIGÉ */}
         <div className="bg-gray-800 border-t border-gray-700 p-4">
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-400">
