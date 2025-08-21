@@ -187,11 +187,17 @@ const TasksPage = () => {
       return !isAssignedToMe && hasAssignment && !t.openToVolunteers;
     });
 
+    // ✅ CORRECTION : Calcul correct de l'historique
+    const history = tasks.filter(t => 
+      t.status === 'completed' || t.status === 'validated' || t.status === 'cancelled'
+    );
+
     return {
       total: tasks.length,
       myTasks: myTasks.length,
       available: available.length,
       others: others.length,
+      history: history.length, // ✅ Ajout du calcul de l'historique
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed' || t.status === 'validated').length,
       pending: tasks.filter(t => t.status === 'todo' || t.status === 'pending').length,
@@ -377,7 +383,7 @@ const TasksPage = () => {
           const count = key === 'my_tasks' ? taskStats.myTasks : 
                        key === 'available' ? taskStats.available :
                        key === 'others' ? taskStats.others :
-                       taskStats.total - taskStats.myTasks - taskStats.available - taskStats.others;
+                       key === 'history' ? taskStats.history : 0;
 
           return (
             <button
