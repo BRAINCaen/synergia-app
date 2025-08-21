@@ -28,7 +28,7 @@ import { useThemeStore } from './shared/stores/themeStore.js';
 // 🏗️ LAYOUT ET NAVIGATION
 // ==========================================
 import Layout from './components/layout/Layout.jsx';
-import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
+import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
 // ==========================================
 // 📄 PAGES PRINCIPALES - IMPORTS OPTIMISÉS
