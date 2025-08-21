@@ -133,7 +133,7 @@ const TasksPage = () => {
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
-  // 📊 Statistiques calculées
+  // 📊 Statistiques calculées - LOGIQUE CORRIGÉE POUR ÉVITER DUPLICATION
   const taskStats = useMemo(() => {
     const myTasks = tasks.filter(t => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
@@ -142,15 +142,23 @@ const TasksPage = () => {
     
     const available = tasks.filter(t => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const isAssignedToMe = assignedTo.includes(user?.uid);
       const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-      return (t.openToVolunteers === true || hasNoAssignment) && t.status === 'todo';
+      const isOpenToVolunteers = t.openToVolunteers === true;
+      
+      // ✅ CORRECTION : PAS assignée à moi ET (ouverte aux volontaires OU sans assignation) ET statut todo
+      return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && t.status === 'todo';
     });
     
     const others = tasks.filter(t => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-      const hasAssignment = assignedTo.some(id => id && id !== '');
-      const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
-      return hasAssignment && isAssignedToOthers;
+      const isAssignedToMe = assignedTo.includes(user?.uid);
+      const hasAssignment = assignedTo.length > 0 && assignedTo.some(id => id && id !== '');
+      const isAssignedToOthers = hasAssignment && !isAssignedToMe;
+      const isOpenToVolunteers = t.openToVolunteers === true;
+      
+      // ✅ CORRECTION : PAS assignée à moi ET assignée à d'autres ET PAS ouverte aux volontaires
+      return !isAssignedToMe && hasAssignment && isAssignedToOthers && !isOpenToVolunteers;
     });
     
     const history = tasks.filter(t => 
@@ -217,14 +225,14 @@ const TasksPage = () => {
     return () => unsubscribe();
   }, [user]);
 
-  // 🔍 Filtrage et tri des tâches avec onglets
+  // 🔍 Filtrage et tri des tâches avec onglets - LOGIQUE EXCLUSIVE CORRIGÉE
   useEffect(() => {
     let filtered = [...tasks];
 
-    // 🆕 Filtrage par onglet actif
+    // 🆕 Filtrage par onglet actif - LOGIQUE EXCLUSIVE POUR ÉVITER DUPLICATION
     switch (activeTab) {
       case 'my_tasks':
-        // Mes tâches : tâches assignées à l'utilisateur actuel
+        // Mes tâches : UNIQUEMENT les tâches assignées à l'utilisateur actuel
         filtered = filtered.filter(task => {
           const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
           return assignedTo.includes(user?.uid);
@@ -232,26 +240,34 @@ const TasksPage = () => {
         break;
       
       case 'available':
-        // Tâches disponibles : ouvertes aux volontaires OU sans assignation
+        // Tâches disponibles : PAS assignées à moi ET (ouvertes aux volontaires OU sans assignation) ET statut todo
         filtered = filtered.filter(task => {
           const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+          const isAssignedToMe = assignedTo.includes(user?.uid);
           const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-          return (task.openToVolunteers === true || hasNoAssignment) && task.status === 'todo';
+          const isOpenToVolunteers = task.openToVolunteers === true;
+          
+          // ✅ EXCLUSION : Si assignée à moi, elle ne peut PAS être disponible
+          return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && task.status === 'todo';
         });
         break;
       
       case 'others':
-        // Autres tâches : assignées à d'autres personnes (pas à moi)
+        // Autres tâches : PAS assignées à moi ET assignées à d'autres ET PAS ouvertes aux volontaires
         filtered = filtered.filter(task => {
           const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-          const hasAssignment = assignedTo.some(id => id && id !== '');
-          const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
-          return hasAssignment && isAssignedToOthers;
+          const isAssignedToMe = assignedTo.includes(user?.uid);
+          const hasAssignment = assignedTo.length > 0 && assignedTo.some(id => id && id !== '');
+          const isAssignedToOthers = hasAssignment && !isAssignedToMe;
+          const isOpenToVolunteers = task.openToVolunteers === true;
+          
+          // ✅ EXCLUSION : Si assignée à moi OU ouverte aux volontaires, elle ne peut PAS être dans "autres"
+          return !isAssignedToMe && hasAssignment && isAssignedToOthers && !isOpenToVolunteers;
         });
         break;
       
       case 'history':
-        // Historique : tâches terminées ou annulées
+        // Historique : tâches terminées ou annulées UNIQUEMENT
         filtered = filtered.filter(task => 
           task.status === 'completed' || 
           task.status === 'validated' || 
