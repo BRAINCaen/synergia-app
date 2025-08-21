@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC LES VRAIS COMPOSANTS QUI MARCHAIENT
+// PAGE TÂCHES AVEC LES VRAIS COMPOSANTS QUI MARCHAIENT - DUPLICATION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -668,7 +668,7 @@ const TasksPage = () => {
         </div>
       )}
 
-      {/* Modal nouvelle tâche */}
+      {/* ✅ Modal nouvelle tâche - CORRECTION DUPLICATION APPLIQUÉE */}
       {showNewTaskModal && (
         <NewTaskModal
           isOpen={showNewTaskModal}
@@ -676,7 +676,6 @@ const TasksPage = () => {
             setShowNewTaskModal(false);
             setSelectedTaskForEdit(null);
           }}
-          onSubmit={handleCreateTask}
           onSuccess={handleCreateTask}
           currentUser={user}
           initialData={selectedTaskForEdit}
