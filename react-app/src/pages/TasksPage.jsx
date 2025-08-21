@@ -1,100 +1,58 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES AVEC LES VRAIS COMPOSANTS QUI MARCHAIENT
+// PAGE PRINCIPALE DES TÂCHES AVEC INITIALISATION RÉCURRENCE
 // ==========================================
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  CheckSquare,
-  Plus,
-  Search,
-  Filter,
-  SortAsc,
-  SortDesc,
-  User,
-  Users,
-  Heart,
-  Archive,
-  FileText,
-  Play,
-  Image as ImageIcon,
-  MessageCircle,
-  Calendar,
-  Target,
-  Zap,
-  Clock,
-  AlertCircle,
-  ChevronDown,
-  Star,
-  Eye,
-  Edit,
-  Trash2,
-  X
-} from 'lucide-react';
+  PlusIcon, 
+  FunnelIcon, 
+  MagnifyingGlassIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
+  CalendarDaysIcon,
+  ClockIcon,
+  UserGroupIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon
+} from '@heroicons/react/24/outline';
 
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
-
-// 🔥 IMPORT DES VRAIS COMPOSANTS QUI MARCHAIENT
-import TaskCard from '../modules/tasks/TaskCard.jsx';
-import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
-import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
-
-// 🔥 HOOKS ET SERVICES (conservés)
+// ==========================================
+// 🔧 IMPORTS STORES ET SERVICES
+// ==========================================
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { useTaskStore } from '../shared/stores/taskStore.js';
+import weeklyRecurrenceService from '../core/services/weeklyRecurrenceService.js';
 
-// 📊 FIREBASE (conservé)
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp,
-  where,
-  getDocs
-} from 'firebase/firestore';
-import { db } from '../core/firebase.js';
+// ==========================================
+// 🎭 IMPORTS COMPOSANTS UI
+// ==========================================
+import Layout from '../shared/components/Layout.jsx';
+import LoadingSpinner from '../shared/components/ui/LoadingSpinner.jsx';
+import Card from '../shared/components/ui/Card.jsx';
+import Badge from '../shared/components/ui/Badge.jsx';
+import Button from '../shared/components/ui/Button.jsx';
 
-// 🎮 SERVICES ET CONSTANTES (corrigé)
-import { SYNERGIA_ROLES } from '../core/data/roles.js';
-import { taskService } from '../core/services/taskService.js';
+// ==========================================
+// 🔧 IMPORTS COMPOSANTS TÂCHES
+// ==========================================
+import TaskCard from '../components/tasks/TaskCard.jsx';
+import TaskList from '../components/tasks/TaskList.jsx';
+import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
+import TaskDetailsModal from '../components/tasks/TaskDetailsModal.jsx';
+import TaskFilters from '../components/tasks/TaskFilters.jsx';
 
-// 📊 CONSTANTES TÂCHES (conservées)
-const TASK_STATUS = {
-  todo: { label: 'À faire', color: 'gray', icon: '⏳' },
-  in_progress: { label: 'En cours', color: 'blue', icon: '⚡' },
-  review: { label: 'En révision', color: 'yellow', icon: '👀' },
-  completed: { label: 'Terminée', color: 'green', icon: '✅' },
-  validated: { label: 'Validée', color: 'purple', icon: '🏆' },
-  cancelled: { label: 'Annulée', color: 'red', icon: '❌' },
-  validation_pending: { label: 'En attente validation', color: 'orange', icon: '⏰' }
-};
+// ==========================================
+// 🎯 UTILITAIRES
+// ==========================================
 
-const TASK_PRIORITY = {
-  low: { label: 'Basse', color: 'gray', icon: '🟢' },
-  medium: { label: 'Moyenne', color: 'yellow', icon: '🟡' },
-  high: { label: 'Haute', color: 'orange', icon: '🟠' },
-  urgent: { label: 'Urgente', color: 'red', icon: '🔴' }
-};
-
-// 🆕 ONGLETS DE TRI DES TÂCHES
-const TASK_TABS = {
-  my_tasks: { label: 'Mes tâches', icon: User, color: 'blue' },
-  available: { label: 'Disponibles', icon: Users, color: 'green' },
-  others: { label: 'Autres', icon: Eye, color: 'purple' },
-  history: { label: 'Historique', icon: Archive, color: 'gray' }
-};
-
-// 🔧 FONCTION HELPER POUR CONVERTIR LES TIMESTAMPS
-const convertFirebaseTimestamp = (timestamp) => {
+/**
+ * Convertir un timestamp Firestore en Date
+ */
+const convertTimestamp = (timestamp) => {
   if (!timestamp) return new Date();
-  if (timestamp instanceof Date) return timestamp;
-  if (timestamp && typeof timestamp.toDate === 'function') {
+  if (timestamp.toDate) {
     try {
       return timestamp.toDate();
     } catch (error) {
@@ -133,7 +91,7 @@ const TasksPage = () => {
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
-  // 📊 Statistiques calculées
+  // 📊 Statistiques calculées - CORRIGÉES
   const taskStats = useMemo(() => {
     const myTasks = tasks.filter(t => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
@@ -142,562 +100,497 @@ const TasksPage = () => {
     
     const available = tasks.filter(t => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const isAssignedToMe = assignedTo.includes(user?.uid);
       const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-      return (t.openToVolunteers === true || hasNoAssignment) && t.status === 'todo';
+      const isOpenToVolunteers = t.openToVolunteers === true;
+      
+      return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && t.status === 'todo';
     });
     
     const others = tasks.filter(t => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-      const hasAssignment = assignedTo.some(id => id && id !== '');
-      const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
-      return hasAssignment && isAssignedToOthers;
+      const isAssignedToMe = assignedTo.includes(user?.uid);
+      const hasAssignment = assignedTo.length > 0 && assignedTo.some(id => id && id !== '');
+      const isAssignedToOthers = hasAssignment && !isAssignedToMe;
+      const isOpenToVolunteers = t.openToVolunteers === true;
+      
+      return !isAssignedToMe && hasAssignment && isAssignedToOthers && !isOpenToVolunteers;
     });
     
-    const history = tasks.filter(t => 
-      t.status === 'completed' || 
-      t.status === 'validated' || 
-      t.status === 'cancelled'
-    );
+    const history = tasks.filter(t => ['completed', 'validated', 'cancelled'].includes(t.status));
 
     return {
-      total: tasks.length,
-      todo: tasks.filter(t => t.status === 'todo').length,
-      inProgress: tasks.filter(t => t.status === 'in_progress').length,
-      completed: tasks.filter(t => t.status === 'completed').length,
-      urgent: tasks.filter(t => t.priority === 'urgent').length,
       myTasks: myTasks.length,
-      pending: tasks.filter(t => t.status === 'validation_pending').length,
       available: available.length,
       others: others.length,
-      history: history.length
+      history: history.length,
+      total: tasks.length
     };
-  }, [tasks, user]);
+  }, [tasks, user?.uid]);
 
-  // 🔥 Charger les tâches depuis Firebase
-  useEffect(() => {
-    if (!user) return;
-
-    console.log('🔄 [TASKS] Démarrage chargement tâches...');
-    
-    const tasksRef = collection(db, 'tasks');
-    const q = query(tasksRef, orderBy('createdAt', 'desc'));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log(`📊 [TASKS] Snapshot reçu: ${snapshot.size} documents`);
-      
-      try {
-        const tasksData = snapshot.docs.map(doc => {
-          const data = doc.data();
-          
-          const taskData = {
-            id: doc.id,
-            ...data,
-            createdAt: convertFirebaseTimestamp(data.createdAt),
-            updatedAt: convertFirebaseTimestamp(data.updatedAt),
-            dueDate: data.dueDate ? convertFirebaseTimestamp(data.dueDate) : null
-          };
-          
-          return taskData;
-        });
-
-        console.log(`✅ [TASKS] ${tasksData.length} tâches traitées avec succès`);
-        setTasks(tasksData);
-        setIsLoading(false);
-        
-      } catch (error) {
-        console.error('❌ [TASKS] Erreur traitement données:', error);
-        setTasks([]);
-        setIsLoading(false);
-      }
-    }, (error) => {
-      console.error('❌ [TASKS] Erreur écoute Firebase:', error);
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // 🔍 Filtrage et tri des tâches avec onglets
+  // 🔍 Filtrage et tri des tâches avec onglets - CORRIGÉ
   useEffect(() => {
     let filtered = [...tasks];
 
-    // 🆕 Filtrage par onglet actif
+    // 🆕 Filtrage par onglet actif - LOGIQUE CORRIGÉE
     switch (activeTab) {
       case 'my_tasks':
-        // Mes tâches : tâches assignées à l'utilisateur actuel
-        filtered = filtered.filter(task => {
-          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        // Mes tâches : tâches assignées à moi
+        filtered = filtered.filter(t => {
+          const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
           return assignedTo.includes(user?.uid);
         });
         break;
-      
+        
       case 'available':
-        // Tâches disponibles : ouvertes aux volontaires OU sans assignation
-        filtered = filtered.filter(task => {
-          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        // Disponibles : PAS assignées à moi ET (ouvertes aux volontaires OU sans assignation) ET statut "todo"
+        filtered = filtered.filter(t => {
+          const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+          const isAssignedToMe = assignedTo.includes(user?.uid);
           const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-          return (task.openToVolunteers === true || hasNoAssignment) && task.status === 'todo';
+          const isOpenToVolunteers = t.openToVolunteers === true;
+          
+          return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && t.status === 'todo';
         });
         break;
-      
+        
       case 'others':
-        // Autres tâches : assignées à d'autres personnes (pas à moi)
-        filtered = filtered.filter(task => {
-          const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-          const hasAssignment = assignedTo.some(id => id && id !== '');
-          const isAssignedToOthers = assignedTo.some(id => id && id !== '' && id !== user?.uid);
-          return hasAssignment && isAssignedToOthers;
+        // Autres : PAS assignées à moi ET assignées à d'autres ET PAS ouvertes aux volontaires
+        filtered = filtered.filter(t => {
+          const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+          const isAssignedToMe = assignedTo.includes(user?.uid);
+          const hasAssignment = assignedTo.length > 0 && assignedTo.some(id => id && id !== '');
+          const isAssignedToOthers = hasAssignment && !isAssignedToMe;
+          const isOpenToVolunteers = t.openToVolunteers === true;
+          
+          return !isAssignedToMe && hasAssignment && isAssignedToOthers && !isOpenToVolunteers;
         });
         break;
-      
+        
       case 'history':
-        // Historique : tâches terminées ou annulées
-        filtered = filtered.filter(task => 
-          task.status === 'completed' || 
-          task.status === 'validated' || 
-          task.status === 'cancelled'
-        );
+        // Historique : tâches terminées/validées/annulées
+        filtered = filtered.filter(t => ['completed', 'validated', 'cancelled'].includes(t.status));
         break;
         
       default:
-        // Par défaut, afficher toutes les tâches
+        // Toutes les tâches
         break;
     }
 
-    // Filtrage par recherche
+    // 🔍 Filtrage par terme de recherche
     if (searchTerm) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(task => 
-        task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+        task.title?.toLowerCase().includes(term) ||
+        task.description?.toLowerCase().includes(term) ||
+        task.notes?.toLowerCase().includes(term)
       );
     }
 
-    // Filtrage par statut
+    // 🔍 Filtrage par statut
     if (selectedStatus !== 'all') {
       filtered = filtered.filter(task => task.status === selectedStatus);
     }
 
-    // Filtrage par priorité
+    // 🔍 Filtrage par priorité
     if (selectedPriority !== 'all') {
       filtered = filtered.filter(task => task.priority === selectedPriority);
     }
 
-    // Filtrage par rôle
+    // 🔍 Filtrage par rôle
     if (selectedRole !== 'all') {
-      filtered = filtered.filter(task => task.role === selectedRole);
+      filtered = filtered.filter(task => task.roleId === selectedRole);
     }
 
-    // Tri sécurisé
+    // 📊 Tri
     filtered.sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
 
-      if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'dueDate') {
-        aValue = aValue instanceof Date ? aValue.getTime() : 0;
-        bValue = bValue instanceof Date ? bValue.getTime() : 0;
+      // Gestion spéciale pour les dates
+      if (sortBy === 'dueDate' || sortBy === 'createdAt' || sortBy === 'updatedAt') {
+        aVal = aVal ? convertTimestamp(aVal) : new Date(0);
+        bVal = bVal ? convertTimestamp(bVal) : new Date(0);
       }
 
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
+      // Comparaison
+      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
     });
 
     setFilteredTasks(filtered);
-  }, [tasks, searchTerm, selectedStatus, selectedPriority, selectedRole, sortBy, sortOrder, activeTab, user]);
+  }, [tasks, activeTab, searchTerm, selectedStatus, selectedPriority, selectedRole, sortBy, sortOrder, user?.uid]);
 
-  // 🎯 Gestionnaires d'événements pour TaskCard
-  const handleViewDetails = (task) => {
-    console.log('👁️ Voir détails tâche:', task.title);
-    setSelectedTaskForDetails(task);
-  };
+  // 🔄 Chargement initial et écoute temps réel
+  const { 
+    loadUserTasks, 
+    subscribeToTasks, 
+    createTask, 
+    updateTask, 
+    deleteTask,
+    completeTask 
+  } = useTaskStore();
 
-  const handleEdit = (task) => {
-    console.log('✏️ Modifier tâche:', task.title);
-    setSelectedTaskForEdit(task);
-    setShowNewTaskModal(true); // Ouvrir le modal avec la tâche à modifier
-  };
+  // 🚀 INITIALISATION AVEC SERVICE DE RÉCURRENCE
+  useEffect(() => {
+    if (!user?.uid) return;
 
-  const handleDelete = async (taskId) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
+    const initializeTasks = async () => {
+      try {
+        setIsLoading(true);
+        
+        // 🔄 INITIALISER LE SERVICE DE RÉCURRENCE POUR GÉNÉRER LES TÂCHES MANQUANTES
+        console.log('🔄 [TASKS-PAGE] Initialisation service de récurrence...');
+        await weeklyRecurrenceService.initialize();
+        
+        // Charger les tâches après l'initialisation de la récurrence
+        await loadUserTasks(user.uid);
+        
+        console.log('✅ [TASKS-PAGE] Initialisation terminée avec succès');
+      } catch (error) {
+        console.error('❌ [TASKS-PAGE] Erreur initialisation:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    try {
-      await deleteDoc(doc(db, 'tasks', taskId));
-      console.log('✅ [TASKS] Tâche supprimée');
-    } catch (error) {
-      console.error('❌ [TASKS] Erreur suppression tâche:', error);
-    }
-  };
+    initializeTasks();
 
-  const handleVolunteer = async (task) => {
-    try {
-      console.log('🙋 Volontariat pour tâche:', task.title);
-      
-      // Ajouter l'utilisateur aux assignés
-      const currentAssigned = Array.isArray(task.assignedTo) ? task.assignedTo : [];
-      const updatedAssigned = [...currentAssigned, user.uid];
-      
-      await updateDoc(doc(db, 'tasks', task.id), {
-        assignedTo: updatedAssigned,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Volontariat enregistré');
-    } catch (error) {
-      console.error('❌ Erreur volontariat:', error);
-    }
-  };
+    // Écoute temps réel
+    const unsubscribe = subscribeToTasks(user.uid, (updatedTasks) => {
+      setTasks(updatedTasks);
+    });
 
-  const handleUnvolunteer = async (task) => {
-    try {
-      console.log('🚪 Retrait volontariat:', task.title);
-      
-      const currentAssigned = Array.isArray(task.assignedTo) ? task.assignedTo : [];
-      const updatedAssigned = currentAssigned.filter(id => id !== user.uid);
-      
-      await updateDoc(doc(db, 'tasks', task.id), {
-        assignedTo: updatedAssigned,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Retrait enregistré');
-    } catch (error) {
-      console.error('❌ Erreur retrait:', error);
-    }
-  };
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user?.uid, loadUserTasks, subscribeToTasks]);
 
-  const handleSubmit = async (task) => {
-    try {
-      console.log('📤 Soumission tâche:', task.title);
-      
-      await updateDoc(doc(db, 'tasks', task.id), {
-        status: 'validation_pending',
-        submittedAt: serverTimestamp(),
-        submittedBy: user.uid,
-        updatedAt: serverTimestamp()
-      });
-      
-      console.log('✅ Tâche soumise pour validation');
-      alert(`✅ Tâche "${task.title}" soumise pour validation !`);
-    } catch (error) {
-      console.error('❌ Erreur soumission:', error);
-      alert('❌ Erreur lors de la soumission');
-    }
-  };
+  // 🎯 GESTIONNAIRES D'ÉVÉNEMENTS
 
-  const handleTaskUpdate = () => {
-    console.log('🔄 Mise à jour des tâches demandée');
-    // Les tâches se mettent à jour automatiquement via onSnapshot
-  };
-
+  // 📝 Créer ou modifier une tâche
   const handleCreateTask = async (taskData) => {
     try {
       if (selectedTaskForEdit) {
-        // Mode édition : mettre à jour la tâche existante
-        await updateDoc(doc(db, 'tasks', selectedTaskForEdit.id), {
-          ...taskData,
-          updatedAt: serverTimestamp()
-        });
-        console.log('✅ [TASKS] Tâche modifiée avec succès');
+        // Mode édition
+        await updateTask(selectedTaskForEdit.id, taskData, user.uid);
       } else {
-        // Mode création : créer une nouvelle tâche
-        const newTask = {
-          ...taskData,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          createdBy: user.uid,
-          creatorName: user.displayName || user.email,
-          status: 'todo'
-        };
-        await addDoc(collection(db, 'tasks'), newTask);
-        console.log('✅ [TASKS] Tâche créée avec succès');
+        // Mode création
+        await createTask(taskData, user.uid);
       }
       
+      // Fermer le modal et réinitialiser
       setShowNewTaskModal(false);
       setSelectedTaskForEdit(null);
     } catch (error) {
-      console.error('❌ [TASKS] Erreur traitement tâche:', error);
+      console.error('Erreur lors de la sauvegarde:', error);
     }
   };
 
-  // 🆕 Rendu des onglets de tri
-  const renderTabs = () => (
-    <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg mb-6">
-      {Object.entries(TASK_TABS).map(([key, tab]) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === key;
-        const count = key === 'my_tasks' ? taskStats.myTasks : 
-                     key === 'available' ? taskStats.available :
-                     key === 'others' ? taskStats.others :
-                     taskStats.history;
-        
-        return (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              isActive
-                ? `bg-${tab.color}-600 text-white shadow-md`
-                : 'text-gray-400 hover:text-white hover:bg-gray-700'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            <span>{tab.label}</span>
-            <span className={`px-2 py-1 text-xs rounded-full ${
-              isActive 
-                ? 'bg-white/20 text-white' 
-                : 'bg-gray-600 text-gray-300'
-            }`}>
-              {count}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  // ✅ Terminer une tâche
+  const handleCompleteTask = async (taskId) => {
+    try {
+      await completeTask(taskId, user.uid);
+    } catch (error) {
+      console.error('Erreur lors de la completion:', error);
+    }
+  };
 
-  // 🎨 Rendu de la barre de filtres (sans catégories)
-  const renderFilters = () => (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      {/* Statut */}
-      <select
-        value={selectedStatus}
-        onChange={(e) => setSelectedStatus(e.target.value)}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="all">Tous les statuts</option>
-        {Object.entries(TASK_STATUS).map(([key, status]) => (
-          <option key={key} value={key}>{status.icon} {status.label}</option>
-        ))}
-      </select>
+  // 🗑️ Supprimer une tâche
+  const handleDeleteTask = async (taskId) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+      try {
+        await deleteTask(taskId, user.uid);
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error);
+      }
+    }
+  };
 
-      {/* Priorité */}
-      <select
-        value={selectedPriority}
-        onChange={(e) => setSelectedPriority(e.target.value)}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="all">Toutes priorités</option>
-        {Object.entries(TASK_PRIORITY).map(([key, priority]) => (
-          <option key={key} value={key}>{priority.icon} {priority.label}</option>
-        ))}
-      </select>
+  // ✏️ Éditer une tâche
+  const handleEditTask = (task) => {
+    setSelectedTaskForEdit(task);
+    setShowNewTaskModal(true);
+  };
 
-      {/* Rôle */}
-      <select
-        value={selectedRole}
-        onChange={(e) => setSelectedRole(e.target.value)}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="all">Tous les rôles</option>
-        {Object.entries(SYNERGIA_ROLES).map(([key, role]) => (
-          <option key={key} value={key}>{role.icon} {role.name}</option>
-        ))}
-      </select>
+  // 👁️ Voir les détails d'une tâche
+  const handleViewTask = (task) => {
+    setSelectedTaskForDetails(task);
+  };
 
-      {/* Tri */}
-      <div className="flex space-x-2">
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 flex-1"
-        >
-          <option value="createdAt">Date création</option>
-          <option value="updatedAt">Date modification</option>
-          <option value="dueDate">Date échéance</option>
-          <option value="priority">Priorité</option>
-          <option value="title">Titre</option>
-        </select>
-        <button
-          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white hover:bg-gray-700 transition-colors"
-        >
-          {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
-        </button>
-      </div>
-    </div>
-  );
+  // 🔄 Actualiser les données
+  const handleRefresh = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Re-initialiser le service de récurrence
+      await weeklyRecurrenceService.initialize();
+      
+      // Recharger les tâches
+      await loadUserTasks(user.uid);
+    } catch (error) {
+      console.error('Erreur actualisation:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // 🎨 RENDER
   return (
-    <PremiumLayout
-      title="Gestion des Tâches"
-      subtitle="Organisez et suivez vos tâches avec efficacité"
-      icon={CheckSquare}
-      showStats={true}
-      stats={[
-        { title: 'Total', value: taskStats.total, icon: FileText, color: 'blue' },
-        { title: 'En cours', value: taskStats.inProgress, icon: Play, color: 'yellow' },
-        { title: 'Terminées', value: taskStats.completed, icon: CheckSquare, color: 'green' },
-        { title: 'En attente', value: taskStats.pending, icon: Clock, color: 'orange' },
-        { title: 'Urgentes', value: taskStats.urgent, icon: AlertCircle, color: 'red' },
-        { title: 'Mes tâches', value: taskStats.myTasks, icon: User, color: 'purple' }
-      ]}
-      headerActions={
-        <div className="flex items-center space-x-3">
-          {/* Modes d'affichage */}
-          <div className="flex items-center space-x-1 bg-gray-800 rounded-lg p-1">
+    <Layout>
+      <div className="space-y-6">
+        {/* 📊 En-tête avec statistiques */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Gestion des Tâches</h1>
+            <p className="text-gray-600">
+              {taskStats.total} tâche{taskStats.total > 1 ? 's' : ''} au total
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              disabled={isLoading}
+            >
+              <ClockIcon className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
+            
+            <Button
+              onClick={() => setShowNewTaskModal(true)}
+              disabled={isLoading}
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Nouvelle tâche
+            </Button>
+          </div>
+        </div>
+
+        {/* 📈 Onglets avec statistiques */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setViewMode('cards')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              onClick={() => setActiveTab('my_tasks')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'my_tasks'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <CheckSquare className="w-4 h-4" />
+              <span className="flex items-center">
+                <UserGroupIcon className="h-4 w-4 mr-2" />
+                Mes tâches
+                <Badge variant="default" className="ml-2">{taskStats.myTasks}</Badge>
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('available')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'available'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center">
+                <CheckCircleIcon className="h-4 w-4 mr-2" />
+                Disponibles
+                <Badge variant="success" className="ml-2">{taskStats.available}</Badge>
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('others')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'others'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center">
+                <ExclamationCircleIcon className="h-4 w-4 mr-2" />
+                Autres
+                <Badge variant="warning" className="ml-2">{taskStats.others}</Badge>
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'history'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center">
+                <CalendarDaysIcon className="h-4 w-4 mr-2" />
+                Historique
+                <Badge variant="secondary" className="ml-2">{taskStats.history}</Badge>
+              </span>
+            </button>
+          </nav>
+        </div>
+
+        {/* 🔍 Barre de recherche et filtres */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Recherche */}
+          <div className="flex-1 relative">
+            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher des tâches..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* Filtres */}
+          <TaskFilters
+            selectedStatus={selectedStatus}
+            selectedPriority={selectedPriority}
+            selectedRole={selectedRole}
+            onStatusChange={setSelectedStatus}
+            onPriorityChange={setSelectedPriority}
+            onRoleChange={setSelectedRole}
+          />
+
+          {/* Vue */}
+          <div className="flex rounded-md shadow-sm">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-4 py-2 text-sm font-medium rounded-l-md border ${
+                viewMode === 'cards'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  : 'bg-white text-gray-500 border-gray-300 hover:text-gray-700'
+              }`}
+            >
+              <Squares2X2Icon className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              className={`px-4 py-2 text-sm font-medium rounded-r-md border-t border-b border-r ${
+                viewMode === 'list'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  : 'bg-white text-gray-500 border-gray-300 hover:text-gray-700'
               }`}
             >
-              <FileText className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <Target className="w-4 h-4" />
+              <ListBulletIcon className="h-4 w-4" />
             </button>
           </div>
-
-          <PremiumButton
-            onClick={() => {
-              setSelectedTaskForEdit(null);
-              setShowNewTaskModal(true);
-            }}
-            icon={Plus}
-            variant="primary"
-          >
-            Nouvelle tâche
-          </PremiumButton>
         </div>
-      }
-    >
-      {/* Barre de recherche */}
-      <div className="mb-6">
-        <PremiumSearchBar
-          value={searchTerm}
-          onChange={setSearchTerm}
-          placeholder="Rechercher des tâches..."
-        />
-      </div>
 
-      {/* 🆕 Onglets de tri */}
-      {renderTabs()}
-
-      {/* Filtres (sans catégories) */}
-      {renderFilters()}
-
-      {/* Contenu principal */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-          <span className="ml-3 text-white">Chargement des tâches...</span>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Liste des tâches avec VRAIS TaskCard */}
-          {viewMode === 'cards' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <AnimatePresence>
-                {filteredTasks.map(task => (
-                  <motion.div
-                    key={task.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                  >
-                    <TaskCard
-                      task={task}
-                      currentUser={user}
-                      onViewDetails={handleViewDetails}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onVolunteer={handleVolunteer}
-                      onUnvolunteer={handleUnvolunteer}
-                      onSubmit={handleSubmit}
-                      onTaskUpdate={handleTaskUpdate}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+        {/* 📋 Liste des tâches */}
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : filteredTasks.length === 0 ? (
+          <Card className="p-12 text-center">
+            <div className="mx-auto h-12 w-12 text-gray-400">
+              <CheckCircleIcon />
             </div>
-          )}
-
-          {/* Vue liste (à implémenter) */}
-          {viewMode === 'list' && (
-            <PremiumCard className="p-6">
-              <p className="text-gray-400 text-center">Vue liste en cours de développement...</p>
-            </PremiumCard>
-          )}
-
-          {/* Vue Kanban (à implémenter) */}
-          {viewMode === 'kanban' && (
-            <PremiumCard className="p-6">
-              <p className="text-gray-400 text-center">Vue Kanban en cours de développement...</p>
-            </PremiumCard>
-          )}
-
-          {/* Message si aucune tâche */}
-          {filteredTasks.length === 0 && !isLoading && (
-            <PremiumCard className="text-center py-12">
-              <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
-              <p className="text-gray-400 mb-6">
-                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedRole !== 'all'
-                  ? 'Aucune tâche ne correspond à vos critères de recherche.'
-                  : `Aucune tâche dans la catégorie "${TASK_TABS[activeTab].label}".`}
-              </p>
-              <PremiumButton
-                onClick={() => {
-                  setSelectedTaskForEdit(null);
-                  setShowNewTaskModal(true);
-                }}
-                icon={Plus}
-                variant="primary"
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              Aucune tâche trouvée
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {activeTab === 'my_tasks' && "Vous n'avez aucune tâche assignée."}
+              {activeTab === 'available' && "Aucune tâche disponible en ce moment."}
+              {activeTab === 'others' && "Aucune tâche assignée à d'autres."}
+              {activeTab === 'history' && "Aucune tâche dans l'historique."}
+            </p>
+            <div className="mt-6">
+              <Button
+                onClick={() => setShowNewTaskModal(true)}
               >
+                <PlusIcon className="h-4 w-4 mr-2" />
                 Créer une tâche
-              </PremiumButton>
-            </PremiumCard>
-          )}
-        </div>
-      )}
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <AnimatePresence mode="wait">
+            {viewMode === 'cards' ? (
+              <motion.div
+                key="cards"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              >
+                {filteredTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onComplete={() => handleCompleteTask(task.id)}
+                    onEdit={() => handleEditTask(task)}
+                    onDelete={() => handleDeleteTask(task.id)}
+                    onView={() => handleViewTask(task)}
+                    currentUser={user}
+                  />
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="list"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <TaskList
+                  tasks={filteredTasks}
+                  onComplete={handleCompleteTask}
+                  onEdit={handleEditTask}
+                  onDelete={handleDeleteTask}
+                  onView={handleViewTask}
+                  currentUser={user}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
 
-      {/* Modal nouvelle tâche */}
-      {showNewTaskModal && (
-        <NewTaskModal
-          isOpen={showNewTaskModal}
-          onClose={() => {
-            setShowNewTaskModal(false);
-            setSelectedTaskForEdit(null);
-          }}
-          onSubmit={handleCreateTask}
-          onSuccess={handleCreateTask}
-          currentUser={user}
-          initialData={selectedTaskForEdit}
-          mode={selectedTaskForEdit ? 'edit' : 'create'}
-        />
-      )}
+        {/* 📱 Modals */}
+        
+        {/* Modal nouvelle tâche - CORRECTION DUPLICATION */}
+        {showNewTaskModal && (
+          <NewTaskModal
+            isOpen={showNewTaskModal}
+            onClose={() => {
+              setShowNewTaskModal(false);
+              setSelectedTaskForEdit(null);
+            }}
+            onSuccess={handleCreateTask}
+            currentUser={user}
+            initialData={selectedTaskForEdit}
+            mode={selectedTaskForEdit ? 'edit' : 'create'}
+          />
+        )}
 
-      {/* Modal détails tâche */}
-      {selectedTaskForDetails && (
-        <TaskDetailModal
-          isOpen={!!selectedTaskForDetails}
-          onClose={() => setSelectedTaskForDetails(null)}
-          task={selectedTaskForDetails}
-          currentUser={user}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onSubmit={handleSubmit}
-          onTaskUpdate={handleTaskUpdate}
-        />
-      )}
-    </PremiumLayout>
+        {/* Modal détails de tâche */}
+        {selectedTaskForDetails && (
+          <TaskDetailsModal
+            task={selectedTaskForDetails}
+            isOpen={!!selectedTaskForDetails}
+            onClose={() => setSelectedTaskForDetails(null)}
+            onEdit={() => {
+              handleEditTask(selectedTaskForDetails);
+              setSelectedTaskForDetails(null);
+            }}
+            onComplete={() => handleCompleteTask(selectedTaskForDetails.id)}
+            onDelete={() => handleDeleteTask(selectedTaskForDetails.id)}
+            currentUser={user}
+          />
+        )}
+      </div>
+    </Layout>
   );
 };
 
