@@ -9,7 +9,7 @@ import {
   Plus as PlusIcon, 
   Filter as FunnelIcon, 
   Search as MagnifyingGlassIcon,
-  Grid2X2 as Squares2X2Icon,
+  LayoutGrid as Squares2X2Icon,
   List as ListBulletIcon,
   Calendar as CalendarDaysIcon,
   Clock as ClockIcon,
