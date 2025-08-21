@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/components/gamification/BadgeNotification.jsx
-// COMPOSANT NOTIFICATION BADGES - VERSION CORRIGÉE SANS ERREURS
+// COMPOSANT NOTIFICATION BADGES - VERSION BUILD NETLIFY
+// SANS EXPORTS DUPLIQUÉS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -329,8 +330,9 @@ const BadgeNotification = ({
 
 /**
  * 🎯 HOOK POUR GÉRER LES NOTIFICATIONS DE BADGES
+ * Version simplifiée pour éviter les conflits d'exports
  */
-export const useBadgeNotifications = () => {
+const useBadgeNotifications = () => {
   const [activeNotifications, setActiveNotifications] = useState([]);
 
   const showNotification = useCallback((badge) => {
@@ -360,9 +362,17 @@ export const useBadgeNotifications = () => {
 
 /**
  * 🎊 CONTAINER GLOBAL POUR LES NOTIFICATIONS
+ * Version simplifiée pour éviter les conflits d'exports
  */
-export const BadgeNotificationContainer = () => {
-  return <BadgeNotification />;
+const BadgeNotificationContainer = () => {
+  return React.createElement(BadgeNotification);
 };
 
+// ==========================================
+// 🔄 EXPORTS UNIQUES - SANS DUPLICATION
+// ==========================================
 export default BadgeNotification;
+
+// Exports nommés séparés pour éviter les conflits
+export { useBadgeNotifications };
+export { BadgeNotificationContainer };
