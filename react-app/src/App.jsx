@@ -3,7 +3,6 @@
 // APP PRINCIPAL AVEC TOUTES LES ROUTES CORRIGÉES
 // ==========================================
 
-import './core/roleRecoveryDiagnostic.js';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -11,6 +10,8 @@ import { AnimatePresence } from 'framer-motion';
 // ==========================================
 // 🚨 CORRECTIFS D'URGENCE COMPLETS
 // ==========================================
+
+import './core/roleRecoveryDiagnostic.js';
 import './core/emergencyFixUnified.js';
 import './core/arrayMapFix.js';
 import './core/assignRoleFinalFix.js';
