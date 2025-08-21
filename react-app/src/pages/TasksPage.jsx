@@ -6,17 +6,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  PlusIcon, 
-  FunnelIcon, 
-  MagnifyingGlassIcon,
-  Squares2X2Icon,
-  ListBulletIcon,
-  CalendarDaysIcon,
-  ClockIcon,
-  UserGroupIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon
-} from '@heroicons/react/24/outline';
+  Plus as PlusIcon, 
+  Filter as FunnelIcon, 
+  Search as MagnifyingGlassIcon,
+  Grid3X3 as Squares2X2Icon,
+  List as ListBulletIcon,
+  Calendar as CalendarDaysIcon,
+  Clock as ClockIcon,
+  Users as UserGroupIcon,
+  CheckCircle as CheckCircleIcon,
+  AlertCircle as ExclamationCircleIcon
+} from 'lucide-react';
 
 // ==========================================
 // 🔧 IMPORTS STORES ET SERVICES
