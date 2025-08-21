@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/SubmitTaskButton.jsx
-// BOUTON DE SOUMISSION CORRIGÉ - VERSION FONCTIONNELLE
+// BOUTON DE SOUMISSION CORRIGÉ - LOGIQUE FIXÉE
 // ==========================================
 
 import React, { useState } from 'react';
@@ -11,8 +11,10 @@ import {
   Trophy,
   AlertTriangle,
   Eye,
-  Loader
+  Loader,
+  Play
 } from 'lucide-react';
+import { taskService } from '../../core/services/taskService.js';
 
 /**
  * 🎯 BOUTON INTELLIGENT DE SOUMISSION DE TÂCHE - VERSION CORRIGÉE
@@ -32,20 +34,33 @@ const SubmitTaskButton = ({
     title: task.title
   });
 
-  // Déterminer l'apparence selon le statut - VERSION CORRIGÉE
+  // ✅ CORRECTION PRINCIPALE : Logique fixée pour afficher le bon bouton
   const getButtonConfig = () => {
     const status = task.status || 'todo';
     
     console.log('🔍 getButtonConfig - Statut analysé:', status);
     
-    // Vérifier tous les statuts possibles
-    if (status === 'todo' || status === 'pending' || status === 'in_progress' || !status) {
+    // Si la tâche n'est pas encore commencée
+    if (status === 'todo' || status === 'pending' || !status) {
       return {
         text: 'Commencer',
-        icon: Send,
+        icon: Play,
         className: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600',
         disabled: false,
-        tooltip: 'Commencer cette tâche'
+        tooltip: 'Commencer cette tâche',
+        action: 'start'
+      };
+    }
+    
+    // ✅ CORRECTION : Si la tâche est en cours, afficher SOUMETTRE
+    if (status === 'in_progress') {
+      return {
+        text: 'Soumettre',
+        icon: Send,
+        className: 'bg-green-600 hover:bg-green-700 text-white border-green-600',
+        disabled: false,
+        tooltip: 'Soumettre cette tâche terminée pour validation',
+        action: 'submit'
       };
     }
     
@@ -53,19 +68,21 @@ const SubmitTaskButton = ({
       return {
         text: 'En validation',
         icon: Clock,
-        className: 'bg-orange-500 hover:bg-orange-600 text-white border-orange-500',
+        className: 'bg-orange-500 text-white border-orange-500 cursor-not-allowed',
         disabled: true,
-        tooltip: 'Tâche en cours de validation par un admin'
+        tooltip: 'Tâche en cours de validation par un administrateur',
+        action: 'none'
       };
     }
     
     if (status === 'completed') {
       return {
-        text: 'Terminée',
+        text: 'Validée',
         icon: CheckCircle,
-        className: 'bg-green-600 hover:bg-green-700 text-white border-green-600',
+        className: 'bg-green-600 text-white border-green-600 cursor-not-allowed',
         disabled: true,
-        tooltip: 'Tâche terminée avec succès'
+        tooltip: 'Tâche terminée et validée',
+        action: 'none'
       };
     }
     
@@ -75,61 +92,118 @@ const SubmitTaskButton = ({
         icon: AlertTriangle,
         className: 'bg-red-600 hover:bg-red-700 text-white border-red-600',
         disabled: false,
-        tooltip: 'Tâche rejetée - cliquer pour recommencer'
+        tooltip: 'Tâche rejetée - Cliquer pour recommencer',
+        action: 'restart'
       };
     }
     
-    // Statut inconnu
+    // Statut inconnu - par défaut commencer
     return {
-      text: 'Action',
-      icon: Eye,
-      className: 'bg-gray-600 hover:bg-gray-700 text-white border-gray-600',
+      text: 'Commencer',
+      icon: Play,
+      className: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600',
       disabled: false,
-      tooltip: `Statut: ${status}`
+      tooltip: 'Commencer cette tâche',
+      action: 'start'
     };
   };
 
   const buttonConfig = getButtonConfig();
   const IconComponent = buttonConfig.icon;
-
+  
   console.log('🔍 ButtonConfig généré:', buttonConfig);
+  
+  // Calculer l'XP attendu
+  const expectedXP = task.xpReward || 25;
 
-  // VERSION CORRIGÉE : Gestionnaire de clic simplifié qui MARCHE
+  // ✅ GESTIONNAIRE DE CLIC CORRIGÉ SELON L'ACTION
   const handleClick = async () => {
-    console.log('🎯 Clic sur SubmitTaskButton:', {
-      disabled: buttonConfig.disabled,
-      status: task.status,
-      taskId: task.id
-    });
-    
-    if (buttonConfig.disabled) {
-      console.log('🔒 Bouton désactivé - action ignorée');
+    if (buttonConfig.disabled || isSubmitting) {
+      console.log('🔒 Bouton désactivé ou en cours de traitement');
       return;
     }
 
     setIsSubmitting(true);
     
     try {
-      // Simuler le démarrage/soumission de la tâche
-      console.log('✅ Démarrage/soumission de la tâche:', task.title);
-      
-      // Attendre un peu pour simuler l'action
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Notifier le succès
-      if (onSubmissionSuccess) {
-        onSubmissionSuccess();
+      console.log('🎯 Action demandée:', {
+        action: buttonConfig.action,
+        taskId: task.id,
+        title: task.title,
+        currentStatus: task.status
+      });
+
+      if (buttonConfig.action === 'start') {
+        // ✅ COMMENCER LA TÂCHE
+        console.log('▶️ Démarrage de la tâche...');
+        
+        const result = await taskService.updateTask(task.id, {
+          status: 'in_progress',
+          startedAt: new Date(),
+          startedBy: task.assignedTo?.[0] || task.createdBy
+        });
+
+        if (result.success) {
+          console.log('✅ Tâche démarrée avec succès');
+          alert(`✅ Tâche "${task.title}" démarrée ! Vous pouvez maintenant la soumettre une fois terminée.`);
+        }
+        
+      } else if (buttonConfig.action === 'submit') {
+        // ✅ SOUMETTRE LA TÂCHE POUR VALIDATION
+        console.log('📤 Soumission de la tâche...');
+        
+        const result = await taskService.submitTaskForValidation(
+          task.id, 
+          task.assignedTo?.[0] || task.createdBy, 
+          {
+            notes: 'Tâche soumise via l\'interface utilisateur',
+            submissionDate: new Date()
+          }
+        );
+
+        if (result.success) {
+          console.log('✅ Tâche soumise avec succès');
+          alert(`✅ Tâche "${task.title}" soumise pour validation ! Un administrateur va la vérifier.`);
+        }
+        
+      } else if (buttonConfig.action === 'restart') {
+        // ✅ RECOMMENCER LA TÂCHE
+        console.log('🔄 Redémarrage de la tâche...');
+        
+        const result = await taskService.updateTask(task.id, {
+          status: 'in_progress',
+          restartedAt: new Date(),
+          restartedBy: task.assignedTo?.[0] || task.createdBy
+        });
+
+        if (result.success) {
+          console.log('✅ Tâche redémarrée avec succès');
+          alert(`✅ Tâche "${task.title}" redémarrée ! Vous pouvez maintenant la soumettre à nouveau.`);
+        }
       }
-      
-      // Message de succès
-      alert(`✅ Tâche "${task.title}" commencée avec succès !`);
-      
+
+      // Notifier le parent du succès
+      if (onSubmissionSuccess) {
+        onSubmissionSuccess({
+          taskId: task.id,
+          action: buttonConfig.action,
+          newStatus: buttonConfig.action === 'start' || buttonConfig.action === 'restart' ? 'in_progress' : 'validation_pending'
+        });
+      }
+
     } catch (error) {
       console.error('❌ Erreur lors de l\'action:', error);
-      alert('❌ Erreur lors de l\'action. Veuillez réessayer.');
+      alert(`❌ Erreur: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // 🔧 Fonction pour obtenir la taille d'icône
+  const getIconSize = () => {
+    if (size === 'small') return 'w-3 h-3';
+    if (size === 'large') return 'w-6 h-6';
+    return 'w-4 h-4'; // default
   };
 
   return (
@@ -153,20 +227,25 @@ const SubmitTaskButton = ({
         title={buttonConfig.tooltip}
       >
         {isSubmitting ? (
-          <Loader className={`${size === 'small' ? 'w-3 h-3' : size === 'large' ? 'w-5 h-5' : 'w-4 h-4'} animate-spin`} />
+          <Loader className={`${getIconSize()} animate-spin`} />
         ) : (
-          <IconComponent className={`${size === 'small' ? 'w-3 h-3' : size === 'large' ? 'w-5 h-5' : 'w-4 h-4'}`} />
+          <IconComponent className={getIconSize()} />
         )}
         <span>
           {isSubmitting ? 'En cours...' : buttonConfig.text}
         </span>
+        {!buttonConfig.disabled && !isSubmitting && (
+          <span className="text-xs opacity-75">
+            +{expectedXP} XP
+          </span>
+        )}
       </button>
-
-      {/* Tooltip amélioré pour debug */}
+      
+      {/* Tooltip de debug amélioré */}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
         {buttonConfig.tooltip}
         <div className="text-xs text-gray-400 mt-1">
-          Status: {task.status || 'undefined'}
+          Statut: {task.status || 'undefined'} → Action: {buttonConfig.action}
         </div>
       </div>
     </div>
