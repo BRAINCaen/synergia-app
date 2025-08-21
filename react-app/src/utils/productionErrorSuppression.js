@@ -26,6 +26,10 @@ if (typeof window !== 'undefined') {
   // 📋 LISTE EXHAUSTIVE DES PATTERNS D'ERREURS
   // ==========================================
   
+  // ==========================================
+  // 📋 LISTE EXHAUSTIVE DES PATTERNS D'ERREURS - DÉCLARATION CORRECTE
+  // ==========================================
+  
   const VITE_MINIFICATION_ERRORS = [
     // Erreurs de fonction (lettres minifiées)
     'TypeError: a is not a function',
@@ -287,7 +291,7 @@ export const productionErrorSuppression = {
   name: 'ProductionErrorSuppression',
   version: '3.0.0',
   applied: true,
-  suppressedErrorCount: VITE_MINIFICATION_ERRORS?.length || 0,
+  suppressedErrorCount: 66, // Nombre fixe d'erreurs supprimées
   description: 'Supprime toutes les erreurs de minification Vite en production'
 };
 
