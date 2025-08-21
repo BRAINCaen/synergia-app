@@ -47,6 +47,7 @@ import { db } from '../core/firebase.js';
 
 // 🎯 DÉFINITION DES BADGES AVEC CONDITIONS AUTOMATIQUES
 let BADGE_DEFINITIONS = [
+  // 🚀 BADGES DE DÉMARRAGE
   {
     id: 'welcome',
     name: 'Bienvenue !',
@@ -74,6 +75,8 @@ let BADGE_DEFINITIONS = [
     ],
     autoCheck: (userData) => userData.email && userData.displayName
   },
+
+  // 📋 BADGES DE PRODUCTIVITÉ
   {
     id: 'enthusiast',
     name: 'Enthousiaste',
@@ -128,6 +131,8 @@ let BADGE_DEFINITIONS = [
     ],
     autoCheck: (userData) => (userData.gamification?.tasksCompleted || 0) >= 100
   },
+
+  // 📈 BADGES DE PROGRESSION
   {
     id: 'level_5',
     name: 'Niveau 5',
@@ -142,33 +147,192 @@ let BADGE_DEFINITIONS = [
     ],
     autoCheck: (userData) => (userData.gamification?.level || 1) >= 5
   },
+
+  // 🗓️ BADGES DE RÉGULARITÉ (ADAPTATION FRANCE 4 JOURS)
   {
-    id: 'week_warrior',
-    name: 'Guerrier Hebdomadaire',
-    description: 'Connexion quotidienne pendant 7 jours',
-    icon: '🔥',
-    rarity: 'rare',
-    xpReward: 150,
+    id: 'weekly_consistent',
+    name: 'Régularité Hebdomadaire',
+    description: 'Se connecter sur 4 jours de travail consécutifs',
+    icon: '📅',
+    rarity: 'uncommon',
+    xpReward: 100,
     category: 'consistency',
     conditions: [
-      'Se connecter 7 jours d\'affilée',
-      'Compléter au moins 1 action par jour'
+      'Se connecter 4 jours de travail d\'affilée',
+      'Respecter l\'équilibre vie pro/vie perso'
     ],
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 7
+    autoCheck: (userData) => (userData.gamification?.workdayStreak || 0) >= 4
   },
   {
-    id: 'month_champion',
-    name: 'Champion du Mois',
-    description: 'Connexion quotidienne pendant 30 jours',
-    icon: '🏆',
-    rarity: 'legendary',
-    xpReward: 500,
+    id: 'monthly_rhythm',
+    name: 'Rythme Mensuel',
+    description: 'Maintenir une présence régulière pendant un mois',
+    icon: '🗓️',
+    rarity: 'rare',
+    xpReward: 200,
     category: 'consistency',
     conditions: [
-      'Se connecter 30 jours d\'affilée',
-      'Maintenir une activité constante'
+      'Se connecter au moins 16 jours sur un mois',
+      'Respecter les 4 jours travaillés par semaine'
     ],
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 30
+    autoCheck: (userData) => (userData.gamification?.monthlyActivedays || 0) >= 16
+  },
+  {
+    id: 'work_life_balance',
+    name: 'Équilibre Pro/Perso',
+    description: 'Maintenir un bon équilibre sur 3 mois',
+    icon: '⚖️',
+    rarity: 'epic',
+    xpReward: 300,
+    category: 'consistency',
+    conditions: [
+      'Ne jamais dépasser 4 jours de travail par semaine',
+      'Maintenir une activité régulière sans surcharge'
+    ],
+    autoCheck: (userData) => (userData.gamification?.balanceStreak || 0) >= 12
+  },
+
+  // 🌟 BADGES QVCT (QUALITÉ DE VIE ET CONDITIONS DE TRAVAIL)
+  {
+    id: 'wellbeing_champion',
+    name: 'Champion du Bien-être',
+    description: 'Promouvoir activement le bien-être au travail',
+    icon: '🌱',
+    rarity: 'rare',
+    xpReward: 150,
+    category: 'qvct',
+    conditions: [
+      'Participer à des initiatives bien-être',
+      'Maintenir un score de satisfaction élevé'
+    ],
+    autoCheck: (userData) => (userData.qvct?.wellbeingScore || 0) >= 80
+  },
+  {
+    id: 'stress_buster',
+    name: 'Anti-Stress',
+    description: 'Excellente gestion du stress et de la charge de travail',
+    icon: '😌',
+    rarity: 'uncommon',
+    xpReward: 100,
+    category: 'qvct',
+    conditions: [
+      'Maintenir un niveau de stress faible',
+      'Aider ses collègues en difficulté'
+    ],
+    autoCheck: (userData) => (userData.qvct?.stressLevel || 100) <= 30
+  },
+  {
+    id: 'team_harmony',
+    name: 'Harmonie d\'Équipe',
+    description: 'Contribuer positivement à l\'ambiance de travail',
+    icon: '🤝',
+    rarity: 'rare',
+    xpReward: 175,
+    category: 'qvct',
+    conditions: [
+      'Avoir des retours positifs de l\'équipe',
+      'Participer activement à la cohésion'
+    ],
+    autoCheck: (userData) => (userData.qvct?.teamRating || 0) >= 85
+  },
+  {
+    id: 'innovation_mind',
+    name: 'Esprit d\'Innovation',
+    description: 'Proposer des améliorations pour les conditions de travail',
+    icon: '💡',
+    rarity: 'epic',
+    xpReward: 200,
+    category: 'qvct',
+    conditions: [
+      'Proposer des idées d\'amélioration',
+      'Participer aux initiatives d\'innovation'
+    ],
+    autoCheck: (userData) => (userData.qvct?.innovationContributions || 0) >= 3
+  },
+  {
+    id: 'ergonomics_expert',
+    name: 'Expert Ergonomie',
+    description: 'Excellent aménagement de l\'espace de travail',
+    icon: '🪑',
+    rarity: 'uncommon',
+    xpReward: 75,
+    category: 'qvct',
+    conditions: [
+      'Aménager correctement son poste de travail',
+      'Sensibiliser à l\'ergonomie'
+    ],
+    autoCheck: (userData) => (userData.qvct?.ergonomicsScore || 0) >= 90
+  },
+  {
+    id: 'mental_health_advocate',
+    name: 'Ambassadeur Santé Mentale',
+    description: 'Promouvoir la santé mentale au travail',
+    icon: '🧠',
+    rarity: 'legendary',
+    xpReward: 400,
+    category: 'qvct',
+    conditions: [
+      'Sensibiliser à la santé mentale',
+      'Être une personne ressource pour l\'équipe',
+      'Maintenir un équilibre personnel exemplaire'
+    ],
+    autoCheck: (userData) => (userData.qvct?.mentalHealthAdvocacy || 0) >= 90
+  },
+  {
+    id: 'feedback_master',
+    name: 'Maître du Feedback',
+    description: 'Excellence dans la communication bienveillante',
+    icon: '💬',
+    rarity: 'rare',
+    xpReward: 125,
+    category: 'qvct',
+    conditions: [
+      'Donner des feedbacks constructifs',
+      'Recevoir des retours positifs sur la communication'
+    ],
+    autoCheck: (userData) => (userData.qvct?.feedbackQuality || 0) >= 85
+  },
+  {
+    id: 'diversity_champion',
+    name: 'Champion de la Diversité',
+    description: 'Promouvoir l\'inclusion et la diversité',
+    icon: '🌈',
+    rarity: 'epic',
+    xpReward: 250,
+    category: 'qvct',
+    conditions: [
+      'Promouvoir l\'inclusion dans l\'équipe',
+      'Respecter et valoriser les différences'
+    ],
+    autoCheck: (userData) => (userData.qvct?.diversityScore || 0) >= 95
+  },
+  {
+    id: 'continuous_learner',
+    name: 'Apprenant Continu',
+    description: 'Engagement dans le développement personnel et professionnel',
+    icon: '📚',
+    rarity: 'uncommon',
+    xpReward: 100,
+    category: 'qvct',
+    conditions: [
+      'Participer à des formations',
+      'Partager ses connaissances avec l\'équipe'
+    ],
+    autoCheck: (userData) => (userData.qvct?.learningHours || 0) >= 20
+  },
+  {
+    id: 'sustainability_hero',
+    name: 'Héros de la Durabilité',
+    description: 'Promouvoir les pratiques éco-responsables au travail',
+    icon: '♻️',
+    rarity: 'rare',
+    xpReward: 150,
+    category: 'qvct',
+    conditions: [
+      'Adopter des pratiques éco-responsables',
+      'Sensibiliser l\'équipe au développement durable'
+    ],
+    autoCheck: (userData) => (userData.qvct?.sustainabilityActions || 0) >= 10
   }
 ];
 
@@ -538,18 +702,48 @@ const BadgesPage = () => {
     if (isBadgeUnlocked(badge.id)) return 100;
 
     switch (badge.id) {
+      // Badges de productivité
       case 'task_rookie':
         return Math.min(100, ((gamification.tasksCompleted || 0) / 5) * 100);
       case 'expert':
         return Math.min(100, ((gamification.tasksCompleted || 0) / 25) * 100);
       case 'task_master':
         return Math.min(100, ((gamification.tasksCompleted || 0) / 100) * 100);
+      
+      // Badges de progression
       case 'level_5':
         return Math.min(100, ((gamification.level || 1) / 5) * 100);
-      case 'week_warrior':
-        return Math.min(100, ((gamification.loginStreak || 0) / 7) * 100);
-      case 'month_champion':
-        return Math.min(100, ((gamification.loginStreak || 0) / 30) * 100);
+      
+      // Badges de régularité (adaptés à la semaine de 4 jours)
+      case 'weekly_consistent':
+        return Math.min(100, ((gamification.workdayStreak || 0) / 4) * 100);
+      case 'monthly_rhythm':
+        return Math.min(100, ((gamification.monthlyActivedays || 0) / 16) * 100);
+      case 'work_life_balance':
+        return Math.min(100, ((gamification.balanceStreak || 0) / 12) * 100);
+      
+      // Badges QVCT
+      case 'wellbeing_champion':
+        return Math.min(100, ((gamification.qvct?.wellbeingScore || 0) / 80) * 100);
+      case 'stress_buster':
+        return Math.max(0, (100 - (gamification.qvct?.stressLevel || 100)) / 70 * 100);
+      case 'team_harmony':
+        return Math.min(100, ((gamification.qvct?.teamRating || 0) / 85) * 100);
+      case 'innovation_mind':
+        return Math.min(100, ((gamification.qvct?.innovationContributions || 0) / 3) * 100);
+      case 'ergonomics_expert':
+        return Math.min(100, ((gamification.qvct?.ergonomicsScore || 0) / 90) * 100);
+      case 'mental_health_advocate':
+        return Math.min(100, ((gamification.qvct?.mentalHealthAdvocacy || 0) / 90) * 100);
+      case 'feedback_master':
+        return Math.min(100, ((gamification.qvct?.feedbackQuality || 0) / 85) * 100);
+      case 'diversity_champion':
+        return Math.min(100, ((gamification.qvct?.diversityScore || 0) / 95) * 100);
+      case 'continuous_learner':
+        return Math.min(100, ((gamification.qvct?.learningHours || 0) / 20) * 100);
+      case 'sustainability_hero':
+        return Math.min(100, ((gamification.qvct?.sustainabilityActions || 0) / 10) * 100);
+      
       default:
         return badge.autoCheck ? (badge.autoCheck(gamification) ? 100 : 0) : 0;
     }
@@ -593,7 +787,8 @@ const BadgesPage = () => {
     { id: 'onboarding', name: 'Démarrage', icon: Target },
     { id: 'productivity', name: 'Productivité', icon: CheckCircle },
     { id: 'progression', name: 'Progression', icon: Star },
-    { id: 'consistency', name: 'Régularité', icon: Flame }
+    { id: 'consistency', name: 'Régularité', icon: Calendar },
+    { id: 'qvct', name: 'QVCT', icon: Users }
   ];
 
   const headerStats = [
