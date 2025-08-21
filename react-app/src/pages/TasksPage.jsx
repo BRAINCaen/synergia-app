@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE PRINCIPALE DES TÂCHES AVEC INITIALISATION RÉCURRENCE
+// PAGE PRINCIPALE DES TÂCHES AVEC IMPORTS CORRIGÉS
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -26,22 +26,139 @@ import { useTaskStore } from '../shared/stores/taskStore.js';
 import weeklyRecurrenceService from '../core/services/weeklyRecurrenceService.js';
 
 // ==========================================
-// 🎭 IMPORTS COMPOSANTS UI
+// 🎭 IMPORTS COMPOSANTS UI - CHEMINS CORRIGÉS
 // ==========================================
 import Layout from '../components/layout/Layout.jsx';
-import LoadingSpinner from '../shared/components/ui/LoadingSpinner.jsx';
-import Card from '../shared/components/ui/Card.jsx';
-import Badge from '../shared/components/ui/Badge.jsx';
-import Button from '../shared/components/ui/Button.jsx';
 
 // ==========================================
-// 🔧 IMPORTS COMPOSANTS TÂCHES
+// 🔧 IMPORTS COMPOSANTS TÂCHES - UTILISER COMPOSANTS EXISTANTS
 // ==========================================
-import TaskCard from '../components/tasks/TaskCard.jsx';
-import TaskList from '../components/tasks/TaskList.jsx';
+import TaskCard from '../modules/tasks/TaskCard.jsx';
 import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
-import TaskDetailsModal from '../components/tasks/TaskDetailsModal.jsx';
-import TaskFilters from '../components/tasks/TaskFilters.jsx';
+import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
+
+// ==========================================
+// 🎯 COMPOSANTS UI INTÉGRÉS (pour éviter les imports manquants)
+// ==========================================
+
+const LoadingSpinner = ({ size = 'md', className = '' }) => {
+  const sizeClasses = {
+    sm: 'h-4 w-4',
+    md: 'h-8 w-8', 
+    lg: 'h-12 w-12'
+  };
+  
+  return (
+    <div className={`flex items-center justify-center ${className}`}>
+      <div className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${sizeClasses[size]}`}></div>
+    </div>
+  );
+};
+
+const Card = ({ children, className = '', ...props }) => (
+  <div className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`} {...props}>
+    {children}
+  </div>
+);
+
+const Badge = ({ children, variant = 'default', className = '' }) => {
+  const variants = {
+    default: 'bg-gray-100 text-gray-800',
+    success: 'bg-green-100 text-green-800',
+    warning: 'bg-yellow-100 text-yellow-800',
+    secondary: 'bg-gray-100 text-gray-600'
+  };
+  
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variants[variant]} ${className}`}>
+      {children}
+    </span>
+  );
+};
+
+const Button = ({ children, variant = 'primary', disabled = false, className = '', ...props }) => {
+  const variants = {
+    primary: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+  };
+  
+  return (
+    <button 
+      className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${variants[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
+
+const TaskFilters = ({ 
+  selectedStatus, 
+  selectedPriority, 
+  selectedRole,
+  onStatusChange, 
+  onPriorityChange, 
+  onRoleChange 
+}) => (
+  <div className="flex gap-3">
+    <select
+      value={selectedStatus}
+      onChange={(e) => onStatusChange(e.target.value)}
+      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+    >
+      <option value="all">Tous les statuts</option>
+      <option value="todo">À faire</option>
+      <option value="in_progress">En cours</option>
+      <option value="completed">Terminé</option>
+    </select>
+    
+    <select
+      value={selectedPriority}
+      onChange={(e) => onPriorityChange(e.target.value)}
+      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+    >
+      <option value="all">Toutes priorités</option>
+      <option value="low">Basse</option>
+      <option value="medium">Moyenne</option>
+      <option value="high">Haute</option>
+      <option value="urgent">Urgente</option>
+    </select>
+  </div>
+);
+
+const TaskList = ({ tasks, onComplete, onEdit, onDelete, onView, currentUser }) => (
+  <div className="bg-white shadow overflow-hidden sm:rounded-md">
+    <ul className="divide-y divide-gray-200">
+      {tasks.map((task) => (
+        <li key={task.id} className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircleIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                <p className="text-sm text-gray-500">{task.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge variant={task.priority === 'high' ? 'warning' : 'default'}>
+                {task.priority}
+              </Badge>
+              <button
+                onClick={() => onView(task)}
+                className="text-indigo-600 hover:text-indigo-900 text-sm"
+              >
+                Voir
+              </button>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
 
 // ==========================================
 // 🎯 UTILITAIRES
@@ -576,7 +693,7 @@ const TasksPage = () => {
 
         {/* Modal détails de tâche */}
         {selectedTaskForDetails && (
-          <TaskDetailsModal
+          <TaskDetailModal
             task={selectedTaskForDetails}
             isOpen={!!selectedTaskForDetails}
             onClose={() => setSelectedTaskForDetails(null)}
