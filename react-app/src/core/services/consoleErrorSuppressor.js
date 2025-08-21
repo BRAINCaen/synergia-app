@@ -1,11 +1,10 @@
 // ==========================================
 // 📁 react-app/src/core/services/consoleErrorSuppressor.js
-// SUPPRESSEUR D'ERREURS - VERSION JAVASCRIPT PUR
+// SUPPRESSEUR D'ERREURS - CORRECTION PARSING JSX UNIQUEMENT
 // ==========================================
 
 /**
  * 🤫 SUPPRESSEUR D'ERREURS CONSOLE INTELLIGENT
- * Version sans JSX pour éviter les erreurs de build
  */
 class ConsoleErrorSuppressor {
   constructor() {
