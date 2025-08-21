@@ -576,15 +576,7 @@ const TasksPage = () => {
       title="Gestion des Tâches"
       subtitle="Organisez et suivez vos tâches avec efficacité"
       icon={CheckSquare}
-      showStats={true}
-      stats={[
-        { title: 'Total', value: taskStats.total, icon: FileText, color: 'blue' },
-        { title: 'En cours', value: taskStats.inProgress, icon: Play, color: 'yellow' },
-        { title: 'Terminées', value: taskStats.completed, icon: CheckSquare, color: 'green' },
-        { title: 'En attente', value: taskStats.pending, icon: Clock, color: 'orange' },
-        { title: 'Urgentes', value: taskStats.urgent, icon: AlertCircle, color: 'red' },
-        { title: 'Mes tâches', value: taskStats.myTasks, icon: User, color: 'purple' }
-      ]}
+      showStats={false}
       headerActions={
         <div className="flex items-center space-x-3">
           {/* Modes d'affichage */}
