@@ -15,6 +15,7 @@ import {
   Play
 } from 'lucide-react';
 import { taskService } from '../../core/services/taskService.js';
+import { taskValidationService } from '../../core/services/taskValidationService.js';
 
 /**
  * 🎯 BOUTON INTELLIGENT DE SOUMISSION DE TÂCHE - VERSION CORRIGÉE
@@ -152,14 +153,18 @@ const SubmitTaskButton = ({
         // ✅ SOUMETTRE LA TÂCHE POUR VALIDATION
         console.log('📤 Soumission de la tâche...');
         
-        const result = await taskService.submitTaskForValidation(
-          task.id, 
-          task.assignedTo?.[0] || task.createdBy, 
-          {
-            notes: 'Tâche soumise via l\'interface utilisateur',
-            submissionDate: new Date()
-          }
-        );
+        const validationData = {
+          taskId: task.id,
+          userId: task.assignedTo?.[0] || task.createdBy,
+          taskTitle: task.title,
+          projectId: task.projectId,
+          difficulty: task.difficulty || 'normal',
+          comment: 'Tâche soumise via l\'interface utilisateur',
+          photoFile: null,
+          videoFile: null
+        };
+        
+        const result = await taskValidationService.submitTaskForValidation(validationData);
 
         if (result.success) {
           console.log('✅ Tâche soumise avec succès');
