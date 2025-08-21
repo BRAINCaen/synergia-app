@@ -1,12 +1,11 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APPLICATION PRINCIPALE SYNERGIA v3.5 - VERSION COMPLÈTE
-// Avec système de badges corrigé et toutes les fonctionnalités
+// APPLICATION PRINCIPALE SYNERGIA v3.5 - VERSION BUILD NETLIFY
+// SANS react-hot-toast - Système de notification intégré
 // ==========================================
 
 import React, { useEffect, Suspense, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
 
 // ==========================================
 // 🔧 SYSTÈME DE BADGES CORRIGÉ - IMPORTS PRIORITAIRES
@@ -71,6 +70,94 @@ const AdminAnalyticsPage = React.lazy(() => import('./pages/AdminAnalyticsPage.j
 // 🚫 PAGE D'ERREUR
 // ==========================================
 const NotFound = React.lazy(() => import('./pages/NotFound.jsx'));
+
+// ==========================================
+// 🍞 SYSTÈME DE NOTIFICATIONS INTÉGRÉ (REMPLACEMENT REACT-HOT-TOAST)
+// ==========================================
+const NotificationContainer = () => {
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const handleNotification = (event) => {
+      const { type, message, duration = 4000 } = event.detail;
+      const id = Date.now();
+      
+      setNotifications(prev => [...prev, { id, type, message, duration }]);
+      
+      setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      }, duration);
+    };
+
+    window.addEventListener('showNotification', handleNotification);
+    return () => window.removeEventListener('showNotification', handleNotification);
+  }, []);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      {notifications.map((notification) => (
+        <div
+          key={notification.id}
+          className={`
+            max-w-sm w-full bg-white border border-gray-200 rounded-lg shadow-lg p-4
+            transform transition-all duration-300 ease-in-out
+            animate-slide-in-right
+            ${notification.type === 'success' ? 'border-green-500 bg-green-50' : ''}
+            ${notification.type === 'error' ? 'border-red-500 bg-red-50' : ''}
+            ${notification.type === 'warning' ? 'border-yellow-500 bg-yellow-50' : ''}
+          `}
+        >
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              {notification.type === 'success' && (
+                <div className="w-5 h-5 text-green-400">✅</div>
+              )}
+              {notification.type === 'error' && (
+                <div className="w-5 h-5 text-red-400">❌</div>
+              )}
+              {notification.type === 'warning' && (
+                <div className="w-5 h-5 text-yellow-400">⚠️</div>
+              )}
+              {!notification.type && (
+                <div className="w-5 h-5 text-blue-400">ℹ️</div>
+              )}
+            </div>
+            <div className="ml-3 w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900">
+                {notification.message}
+              </p>
+            </div>
+            <div className="ml-4 flex-shrink-0 flex">
+              <button
+                className="inline-flex text-gray-400 hover:text-gray-500"
+                onClick={() => {
+                  setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                }}
+              >
+                <span className="text-lg">×</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Fonctions utilitaires pour notifications
+window.showNotification = (message, type = 'info', duration = 4000) => {
+  const event = new CustomEvent('showNotification', {
+    detail: { message, type, duration }
+  });
+  window.dispatchEvent(event);
+};
+
+window.toast = {
+  success: (message) => window.showNotification(message, 'success'),
+  error: (message) => window.showNotification(message, 'error'),
+  warning: (message) => window.showNotification(message, 'warning'),
+  info: (message) => window.showNotification(message, 'info')
+};
 
 /**
  * 🚀 COMPOSANT APPLICATION PRINCIPAL
@@ -347,51 +434,8 @@ function App() {
           {/* 🎊 CONTENEUR NOTIFICATIONS BADGES - TOUJOURS VISIBLE */}
           <BadgeNotificationContainer />
           
-          {/* 🍞 SYSTÈME DE NOTIFICATIONS TOAST */}
-          <Toaster
-            position="top-right"
-            gutter={8}
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: theme === 'dark' ? '#374151' : '#ffffff',
-                color: theme === 'dark' ? '#ffffff' : '#374151',
-                border: '1px solid',
-                borderColor: theme === 'dark' ? '#4B5563' : '#D1D5DB',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '500',
-                padding: '12px 16px',
-                boxShadow: theme === 'dark' 
-                  ? '0 10px 15px -3px rgba(0, 0, 0, 0.3)' 
-                  : '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10B981',
-                  secondary: '#ffffff',
-                },
-                style: {
-                  borderColor: '#10B981',
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#EF4444',
-                  secondary: '#ffffff',
-                },
-                style: {
-                  borderColor: '#EF4444',
-                },
-              },
-              loading: {
-                iconTheme: {
-                  primary: '#3B82F6',
-                  secondary: '#ffffff',
-                },
-              },
-            }}
-          />
+          {/* 🍞 SYSTÈME DE NOTIFICATIONS INTÉGRÉ (REMPLACEMENT REACT-HOT-TOAST) */}
+          <NotificationContainer />
 
           {/* 🛣️ ROUTAGE PRINCIPAL COMPLET */}
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
@@ -499,6 +543,24 @@ function App() {
             </Suspense>
           </div>
         </Router>
+
+        {/* Styles CSS pour les animations */}
+        <style jsx>{`
+          @keyframes slide-in-right {
+            from {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+          
+          .animate-slide-in-right {
+            animation: slide-in-right 0.3s ease-out forwards;
+          }
+        `}</style>
       </div>
     </ErrorBoundary>
   );
@@ -511,7 +573,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   // Outils de debug pour les développeurs
   window.debugSynergia = {
     version: 'v3.5',
-    build: 'production-ready',
+    build: 'netlify-ready',
     
     // Tester le système de badges
     testBadges: () => {
@@ -523,72 +585,48 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       }
     },
     
+    // Tester les notifications
+    testNotifications: () => {
+      window.toast.success('Test notification success');
+      window.toast.error('Test notification error');
+      window.toast.warning('Test notification warning');
+      window.toast.info('Test notification info');
+    },
+    
     // Obtenir le statut complet de l'application
     getAppStatus: () => {
       return {
         version: 'v3.5',
+        build: 'netlify-ready',
         auth: !!window.useAuthStore,
         badges: !!window.badgeSystem,
         firebase: !!window.firebaseBadgeFix,
-        notifications: !!window.badgeTriggers,
+        notifications: !!window.toast,
         theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
         routes: 'all-loaded',
+        dependencies: {
+          'react-hot-toast': 'removed',
+          'notifications': 'integrated'
+        },
         timestamp: new Date().toISOString()
       };
-    },
-    
-    // Déclencher un badge de test
-    triggerTestBadge: () => {
-      if (window.triggerBadgeNotification) {
-        window.triggerBadgeNotification({
-          id: 'test_badge',
-          name: 'Badge de Test',
-          description: 'Test du système de notifications Synergia v3.5',
-          icon: '🧪',
-          rarity: 'common',
-          category: 'test',
-          xpReward: 10
-        });
-        return true;
-      } else {
-        console.warn('⚠️ Système de notifications non disponible');
-        return false;
-      }
-    },
-    
-    // Nettoyer la console et supprimer les erreurs
-    clearConsole: () => {
-      if (window.errorSuppressor?.clearConsole) {
-        window.errorSuppressor.clearConsole();
-      }
-      console.clear();
-      console.log('🧹 Console nettoyée');
-      console.log('🚀 Synergia v3.5 - Ready for development');
-    },
-    
-    // Obtenir les statistiques des erreurs supprimées
-    getErrorStats: () => {
-      if (window.errorSuppressor?.getStats) {
-        return window.errorSuppressor.getStats();
-      }
-      return { suppressedErrors: 0, status: 'non-actif' };
     }
   };
   
   // Message de bienvenue développeur
   console.log(`
-🚀 Synergia v3.5 - Mode Développement
+🚀 Synergia v3.5 - Build Netlify Ready
 ✅ Système de badges corrigé actif
+✅ Notifications intégrées (sans react-hot-toast)
 ✅ Suppression d'erreurs Firebase active
 ✅ Toutes les routes chargées
-✅ Outils de debug disponibles
+✅ Compatible build production
 
 📚 Commandes utiles:
 - window.debugSynergia.getAppStatus()
 - window.debugSynergia.testBadges()
-- window.debugSynergia.triggerTestBadge()
-- window.debugSynergia.clearConsole()
-- window.debugSynergia.getErrorStats()
+- window.debugSynergia.testNotifications()
+- window.toast.success('Test message')
   `);
 }
 
@@ -600,6 +638,7 @@ export default App;
 // Version et build info
 App.version = 'v3.5';
 App.buildDate = new Date().toISOString();
+App.buildType = 'netlify-production';
 App.features = [
   'badges-system-fixed',
   'firebase-errors-suppressed',
@@ -609,5 +648,7 @@ App.features = [
   'theme-system',
   'error-boundaries',
   'lazy-loading',
-  'pwa-ready'
+  'pwa-ready',
+  'netlify-compatible',
+  'integrated-notifications'
 ];
