@@ -28,7 +28,7 @@ import weeklyRecurrenceService from '../core/services/weeklyRecurrenceService.js
 // ==========================================
 // 🎭 IMPORTS COMPOSANTS UI
 // ==========================================
-import Layout from '../shared/components/Layout.jsx';
+import Layout from '../components/layout/Layout.jsx';
 import LoadingSpinner from '../shared/components/ui/LoadingSpinner.jsx';
 import Card from '../shared/components/ui/Card.jsx';
 import Badge from '../shared/components/ui/Badge.jsx';
