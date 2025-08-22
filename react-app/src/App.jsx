@@ -12,7 +12,8 @@ import './utils/consoleErrorFix.js';
 
 // 📊 Components
 import LoadingScreen from './components/ui/LoadingScreen.jsx';
-import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
+// 🔧 CORRECTION: Import correct du ProtectedRoute
+import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
 // 📁 Pages principales
 const Dashboard = React.lazy(() => import('./views/Dashboard.js'));
@@ -63,143 +64,50 @@ const App = () => {
         // 2. Attendre un court délai pour que les correctifs s'appliquent
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // 3. Initialiser les services avec gestion d'erreurs
-        await window.__SYNERGIA_SAFE_FUNCTIONS__?.safeAsync(async () => {
-          // Initialisation des services critiques ici
-          console.log('🎯 [APP] Services critiques initialisés');
-        });
-
-        // 4. Marquer l'app comme initialisée
+        // 3. Marquer l'application comme initialisée
         setAppInitialized(true);
-        console.log('✅ [APP] Synergia v3.5.3 initialisé avec succès');
+        console.log('✅ [APP] Application initialisée avec succès');
 
       } catch (error) {
-        console.error('❌ [APP] Erreur initialisation:', error);
+        console.error('❌ [APP] Erreur lors de l\'initialisation:', error);
         setInitError(error.message);
-        
-        // Même en cas d'erreur, permettre à l'app de se charger
-        setTimeout(() => {
-          setAppInitialized(true);
-        }, 2000);
       }
     };
 
-    // Listener pour les correctifs d'erreurs
-    const handleFixesApplied = (event) => {
-      console.log('✅ [APP] Correctifs d\'erreurs confirmés:', event.detail);
-    };
-
-    window.addEventListener('consoleFixesApplied', handleFixesApplied);
-    
-    // Démarrer l'initialisation
     initializeAppSafely();
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('consoleFixesApplied', handleFixesApplied);
-    };
   }, []);
 
-  // 🔍 DIAGNOSTIC EN MODE DÉVELOPPEMENT
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      // Ajouter fonction de diagnostic globale
-      window.__SYNERGIA_APP_DIAGNOSE__ = () => {
-        console.log('🔍 DIAGNOSTIC APPLICATION SYNERGIA');
-        console.log('=' .repeat(40));
-        
-        const appStatus = {
-          initialized: appInitialized,
-          error: initError,
-          errorFixesApplied: window.__SYNERGIA_ERROR_FIXES_APPLIED__,
-          safeFunctions: !!window.__SYNERGIA_SAFE_FUNCTIONS__,
-          version: 'v3.5.3',
-          environment: import.meta.env.MODE
-        };
-        
-        console.table(appStatus);
-        
-        // Test des fonctions sécurisées
-        if (window.__SYNERGIA_SAFE_FUNCTIONS__) {
-          console.log('🧪 Test fonctions sécurisées...');
-          
-          const testResult = window.__SYNERGIA_SAFE_FUNCTIONS__.safeCall(() => {
-            return 'Fonctions sécurisées opérationnelles';
-          });
-          
-          console.log('✅ Test result:', testResult);
-        }
-        
-        return appStatus;
-      };
-    }
-  }, [appInitialized, initError]);
-
-  // 🎨 COMPOSANT DE FALLBACK AMÉLIORÉ
-  const AppFallback = ({ error }) => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
-      <div className="max-w-md mx-auto text-center">
-        <div className="text-6xl mb-6">⚡</div>
-        <h1 className="text-3xl font-bold text-white mb-4">Synergia v3.5.3</h1>
-        
-        {error ? (
-          <>
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-              <p className="text-red-400 text-sm">Erreur d'initialisation détectée</p>
-              <p className="text-gray-400 text-xs mt-2">{error}</p>
-            </div>
-            <button 
-              onClick={() => window.location.reload()}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition-colors"
-            >
-              Recharger l'application
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="mb-6">
-              <div className="flex items-center justify-center space-x-2">
-                <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-3 h-3 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-            <p className="text-blue-300 text-sm">
-              Initialisation en cours...
-            </p>
-            {window.__SYNERGIA_ERROR_FIXES_APPLIED__ && (
-              <p className="text-green-400 text-xs mt-2">
-                ✅ Correctifs d'erreurs appliqués
-              </p>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-
-  // ⏳ ÉCRAN DE CHARGEMENT SI PAS ENCORE INITIALISÉ
+  // 🔄 ÉCRAN DE CHARGEMENT INITIAL
   if (!appInitialized) {
-    return <AppFallback error={initError} />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-6"></div>
+          <h1 className="text-2xl font-bold text-white mb-2">Synergia v3.5.3</h1>
+          <p className="text-gray-400">Initialisation de l'application...</p>
+          {initError && (
+            <div className="mt-4 p-4 bg-red-900/50 border border-red-700 rounded-lg max-w-md mx-auto">
+              <p className="text-red-300 text-sm">Erreur: {initError}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
+  // 🎯 APPLICATION PRINCIPALE
   return (
     <AuthProvider>
       <Router>
-        <div className="App">
-          <Suspense fallback={
-            <LoadingScreen 
-              message="Chargement des composants..." 
-              subtitle="Interface utilisateur en préparation"
-            />
-          }>
+        <div className="app">
+          <Suspense fallback={<LoadingScreen />}>
             <Routes>
               {/* 🔐 Route de connexion */}
               <Route path="/login" element={<LoginPage />} />
-              
-              {/* 🏠 Route d'accueil - Redirection vers dashboard */}
+
+              {/* 🏠 Route par défaut */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
+
               {/* 📊 Pages principales protégées */}
               <Route path="/dashboard" element={
                 <ProtectedRoute>
