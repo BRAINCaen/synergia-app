@@ -16,7 +16,7 @@ import LoadingScreen from './components/ui/LoadingScreen.jsx';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
 
 // 📁 Pages principales
-const Dashboard = React.lazy(() => import('./views/Dashboard.js'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard.jsx'));
 const TasksPage = React.lazy(() => import('./pages/TasksPage.jsx'));
 const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage.jsx'));
 const AnalyticsPage = React.lazy(() => import('./pages/AnalyticsPage.jsx'));
