@@ -41,7 +41,7 @@ const SettingsPage = React.lazy(() => import('./pages/SettingsPage.jsx'));
 const AdminPage = React.lazy(() => import('./pages/AdminPage.jsx'));
 
 // 🔐 Page de connexion
-const LoginPage = React.lazy(() => import('./pages/LoginPage.jsx'));
+const LoginPage = React.lazy(() => import('./pages/Login.jsx'));
 
 const App = () => {
   const [appInitialized, setAppInitialized] = useState(false);
