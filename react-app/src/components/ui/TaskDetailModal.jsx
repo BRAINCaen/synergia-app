@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/ui/TaskDetailModal.jsx
-// MODAL DÉTAILS TÂCHE - CORRECTION BOUTON SOUMETTRE
+// MODAL DÉTAILS TÂCHE - CORRECTION COMPTEUR MESSAGES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -28,7 +28,9 @@ import {
   MapPin,
   Paperclip,
   Send,
-  Info
+  Info,
+  UserPlus,
+  UserMinus
 } from 'lucide-react';
 
 // Imports Firebase
@@ -40,6 +42,9 @@ import { collaborationService } from '../../core/services/collaborationService.j
 
 // Import authStore
 import { useAuthStore } from '../../shared/stores/authStore.js';
+
+// Import services
+import { taskAssignmentService } from '../../core/services/taskAssignmentService.js';
 
 /**
  * 📅 FORMATAGE DATE FRANÇAIS
@@ -95,21 +100,18 @@ const TaskDetailModal = ({
   onTaskUpdate,
   initialTab = 'details'
 }) => {
-  // 🔐 Utilisateur et permissions
-  const { user } = useAuthStore();
-  const effectiveUser = currentUser || user;
+  const { user: authUser } = useAuthStore();
+  const effectiveUser = currentUser || authUser;
 
-  // 🎮 États de l'interface
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [comments, setComments] = useState([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-
-  // 👥 États pour les noms d'utilisateurs
   const [creatorName, setCreatorName] = useState('Chargement...');
   const [assigneeNames, setAssigneeNames] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [volunteerLoading, setVolunteerLoading] = useState(false);
 
   // ✅ VÉRIFICATIONS D'ASSIGNATION
   const isAssignedToMe = effectiveUser && task && Array.isArray(task.assignedTo) 
@@ -118,131 +120,157 @@ const TaskDetailModal = ({
 
   const isCreatedByMe = effectiveUser && task && task.createdBy === effectiveUser.uid;
 
-  // 🔄 Charger les noms d'utilisateurs
+  // 👥 CHARGEMENT DES NOMS D'UTILISATEURS
   useEffect(() => {
     const loadUserNames = async () => {
       if (!task) return;
-
+      
+      setLoadingUsers(true);
       try {
-        setLoadingUsers(true);
-
-        // Nom du créateur
+        // Créateur
         if (task.createdBy) {
           const creatorDoc = await getDoc(doc(db, 'users', task.createdBy));
           if (creatorDoc.exists()) {
-            const creatorData = creatorDoc.data();
-            setCreatorName(creatorData.displayName || creatorData.name || creatorData.email || 'Utilisateur anonyme');
-          } else {
-            setCreatorName('Utilisateur introuvable');
+            const userData = creatorDoc.data();
+            setCreatorName(`${userData.firstName} ${userData.lastName}`);
           }
         }
 
-        // Noms des assignés
+        // Assignés
         if (task.assignedTo && task.assignedTo.length > 0) {
           const assigneePromises = task.assignedTo.map(async (userId) => {
             const userDoc = await getDoc(doc(db, 'users', userId));
             if (userDoc.exists()) {
               const userData = userDoc.data();
-              return userData.displayName || userData.name || userData.email || 'Utilisateur anonyme';
+              return {
+                id: userId,
+                name: `${userData.firstName} ${userData.lastName}`,
+                role: userData.role || 'Membre'
+              };
             }
-            return 'Utilisateur introuvable';
+            return { id: userId, name: 'Utilisateur inconnu', role: 'Inconnu' };
           });
 
-          const names = await Promise.all(assigneePromises);
-          setAssigneeNames(names);
+          const assignees = await Promise.all(assigneePromises);
+          setAssigneeNames(assignees);
         }
-
       } catch (error) {
-        console.error('❌ Erreur chargement noms:', error);
-        setCreatorName('Erreur de chargement');
-        setAssigneeNames([]);
+        console.error('Erreur chargement utilisateurs:', error);
       } finally {
         setLoadingUsers(false);
       }
     };
 
-    loadUserNames();
-  }, [task]);
+    if (isOpen && task) {
+      loadUserNames();
+    }
+  }, [isOpen, task]);
 
-  // 💬 Charger les commentaires
+  // 💬 CHARGEMENT DES COMMENTAIRES
   useEffect(() => {
-    if (!task?.id || activeTab !== 'comments') return;
-
-    setLoadingComments(true);
-    
-    const commentsQuery = query(
-      collection(db, 'task_comments'),
-      where('taskId', '==', task.id)
-    );
-
-    const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
-      const commentsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+    const loadComments = async () => {
+      if (!task?.id) return;
       
-      // Trier par date de création
-      commentsData.sort((a, b) => {
-        const aTime = a.createdAt?.seconds || 0;
-        const bTime = b.createdAt?.seconds || 0;
-        return aTime - bTime;
-      });
-      
-      setComments(commentsData);
-      setLoadingComments(false);
-    });
+      setLoadingComments(true);
+      try {
+        console.log('🔄 Chargement commentaires pour tâche:', task.id);
+        const taskComments = await collaborationService.getComments('task', task.id);
+        console.log('✅ Commentaires chargés:', taskComments?.length || 0);
+        setComments(taskComments || []);
+      } catch (error) {
+        console.error('❌ Erreur chargement commentaires:', error);
+        setComments([]);
+      } finally {
+        setLoadingComments(false);
+      }
+    };
 
-    return () => unsubscribe();
-  }, [task?.id, activeTab]);
+    if (isOpen && task?.id) {
+      loadComments();
+    }
+  }, [isOpen, task?.id]);
 
-  // 💬 Soumettre un commentaire
+  // 📝 ENVOI D'UN NOUVEAU COMMENTAIRE
   const handleSubmitComment = async (e) => {
     e.preventDefault();
-    if (!newComment.trim() || !effectiveUser || isSubmittingComment) return;
-
+    
+    if (!newComment.trim() || !effectiveUser || !task?.id) return;
+    
+    setSubmittingComment(true);
     try {
-      setIsSubmittingComment(true);
+      console.log('📝 Envoi commentaire:', { taskId: task.id, content: newComment.trim() });
       
-      await addDoc(collection(db, 'task_comments'), {
-        taskId: task.id,
-        userId: effectiveUser.uid,
-        userName: effectiveUser.displayName || effectiveUser.email,
+      await collaborationService.addComment('task', task.id, {
         content: newComment.trim(),
-        createdAt: serverTimestamp()
+        authorId: effectiveUser.uid,
+        authorName: `${effectiveUser.firstName || 'Prénom'} ${effectiveUser.lastName || 'Nom'}`,
+        timestamp: new Date()
       });
-
+      
+      console.log('✅ Commentaire envoyé avec succès');
+      
+      // Recharger les commentaires
+      const updatedComments = await collaborationService.getComments('task', task.id);
+      setComments(updatedComments || []);
       setNewComment('');
+      
+      // Notification optionnelle
+      if (onTaskUpdate) {
+        onTaskUpdate(task.id);
+      }
+      
     } catch (error) {
-      console.error('❌ Erreur ajout commentaire:', error);
-      alert('Erreur lors de l\'ajout du commentaire');
+      console.error('❌ Erreur envoi commentaire:', error);
+      alert('Erreur lors de l\'envoi du commentaire. Veuillez réessayer.');
     } finally {
-      setIsSubmittingComment(false);
+      setSubmittingComment(false);
     }
   };
 
+  // 🎯 SE PORTER VOLONTAIRE
+  const handleVolunteer = async () => {
+    if (!effectiveUser || !task?.id || volunteerLoading) return;
+
+    setVolunteerLoading(true);
+    try {
+      await taskAssignmentService.addVolunteer(task.id, effectiveUser.uid);
+      
+      // Recharger la tâche pour avoir les données à jour
+      if (onTaskUpdate) {
+        onTaskUpdate(task.id);
+      }
+      
+      console.log('✅ Volontariat ajouté avec succès');
+    } catch (error) {
+      console.error('❌ Erreur ajout volontaire:', error);
+      alert('Erreur lors de l\'ajout du volontaire');
+    } finally {
+      setVolunteerLoading(false);
+    }
+  };
+
+  // 🚫 NE PAS AFFICHER SI PAS OUVERT OU PAS DE TÂCHE
   if (!isOpen || !task) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-700">
+      <div className="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
         
-        {/* Header */}
+        {/* En-tête */}
         <div className="bg-gray-900 border-b border-gray-700 p-6">
-          <div className="flex items-start justify-between">
+          <div className="flex justify-between items-start gap-4">
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-white mb-2">{task.title}</h2>
-              
-              {/* Badges de statut */}
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                  task.status === 'validation_pending' ? 'bg-orange-100 text-orange-800' :
-                  'bg-gray-100 text-gray-800'
+                  task.status === 'completed' ? 'bg-green-800 text-green-300' :
+                  task.status === 'in_progress' ? 'bg-blue-800 text-blue-300' :
+                  task.status === 'validation_pending' ? 'bg-yellow-800 text-yellow-300' :
+                  'bg-gray-700 text-gray-300'
                 }`}>
                   {task.status === 'completed' ? '✅ Terminée' :
-                   task.status === 'in_progress' ? '⚡ En cours' :
-                   task.status === 'validation_pending' ? '⏰ En validation' :
+                   task.status === 'in_progress' ? '🔄 En cours' :
+                   task.status === 'validation_pending' ? '⏳ En validation' :
                    '📋 À faire'}
                 </span>
                 
@@ -293,7 +321,7 @@ const TaskDetailModal = ({
             }`}
           >
             <MessageCircle className="w-4 h-4 inline mr-2" />
-            Messages ({loadingComments ? '...' : comments.length})
+            Messages ({comments.length})
           </button>
         </div>
 
@@ -347,59 +375,141 @@ const TaskDetailModal = ({
                             {loadingUsers ? (
                               <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                             ) : assigneeNames.length > 0 ? (
-                              <div className="space-y-1">
-                                {assigneeNames.map((name, index) => (
-                                  <div key={index} className="text-white font-medium">
-                                    {name}
-                                    {task.assignedTo[index] === effectiveUser?.uid && (
-                                      <span className="text-blue-400 text-xs ml-2">(vous)</span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
+                              assigneeNames.map((assignee) => (
+                                <div key={assignee.id} className="flex items-center justify-between text-white">
+                                  <span className="font-medium">{assignee.name}</span>
+                                  <span className="text-xs text-gray-400">({assignee.role})</span>
+                                </div>
+                              ))
                             ) : (
-                              <span className="text-gray-500">Aucun assigné</span>
+                              <span className="text-gray-400">Aucun assigné</span>
                             )}
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {(!task.assignedTo || task.assignedTo.length === 0) && (
-                      <div className="flex items-center text-sm">
-                        <Users className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-gray-500">Tâche non assignée</span>
-                      </div>
+                    {/* Bouton volontaire si pas assigné */}
+                    {!isAssignedToMe && effectiveUser && (
+                      <button
+                        onClick={handleVolunteer}
+                        disabled={volunteerLoading}
+                        className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                      >
+                        {volunteerLoading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Ajout...
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4" />
+                            Se porter volontaire
+                          </>
+                        )}
+                      </button>
                     )}
                   </div>
                 </div>
 
-                {/* Dates */}
+                {/* Dates et délais */}
                 <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="w-4 h-4 text-blue-400" />
                     <h4 className="font-medium text-white">Dates</h4>
                   </div>
-                  <div className="space-y-2 text-sm">
-                    <div>
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm">
+                      <Calendar className="w-4 h-4 text-gray-400 mr-2" />
                       <span className="text-gray-400">Créée:</span>
                       <span className="text-white ml-2">{formatDate(task.createdAt)}</span>
                     </div>
-                    {task.updatedAt && (
-                      <div>
-                        <span className="text-gray-400">Modifiée:</span>
-                        <span className="text-white ml-2">{formatDate(task.updatedAt)}</span>
-                      </div>
-                    )}
+                    
                     {task.dueDate && (
-                      <div>
+                      <div className="flex items-center text-sm">
+                        <Clock className="w-4 h-4 text-gray-400 mr-2" />
                         <span className="text-gray-400">Échéance:</span>
                         <span className="text-white ml-2">{formatDate(task.dueDate)}</span>
                       </div>
                     )}
+
+                    {task.estimatedTime && (
+                      <div className="flex items-center text-sm">
+                        <Target className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="text-gray-400">Temps estimé:</span>
+                        <span className="text-white ml-2">{task.estimatedTime}h</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Gamification */}
+                {(task.xpReward || task.difficulty) && (
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Trophy className="w-4 h-4 text-yellow-400" />
+                      <h4 className="font-medium text-white">Récompenses</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {task.xpReward && (
+                        <div className="flex items-center text-sm">
+                          <Star className="w-4 h-4 text-yellow-400 mr-2" />
+                          <span className="text-gray-400">XP:</span>
+                          <span className="text-yellow-400 ml-2 font-medium">+{task.xpReward} XP</span>
+                        </div>
+                      )}
+                      
+                      {task.difficulty && (
+                        <div className="flex items-center text-sm">
+                          <Shield className="w-4 h-4 text-gray-400 mr-2" />
+                          <span className="text-gray-400">Difficulté:</span>
+                          <span className="text-white ml-2">
+                            {task.difficulty === 'easy' ? '🟢 Facile' :
+                             task.difficulty === 'medium' ? '🟡 Moyenne' :
+                             task.difficulty === 'hard' ? '🟠 Difficile' :
+                             '🔴 Expert'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Localisation */}
+                {task.location && (
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="w-4 h-4 text-red-400" />
+                      <h4 className="font-medium text-white">Localisation</h4>
+                    </div>
+                    <p className="text-gray-300">{task.location}</p>
+                  </div>
+                )}
               </div>
+
+              {/* Récurrence */}
+              {task.isRecurring && (
+                <div className="bg-purple-900/20 border border-purple-600 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Repeat className="w-5 h-5 text-purple-400" />
+                    <h3 className="text-lg font-medium text-white">Tâche récurrente</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {task.recurrence?.frequency && (
+                      <div>
+                        <p className="text-gray-400">Fréquence</p>
+                        <p className="text-purple-300 font-medium">{task.recurrence.frequency}</p>
+                      </div>
+                    )}
+                    {task.recurrence?.interval && (
+                      <div>
+                        <p className="text-gray-400">Intervalle</p>
+                        <p className="text-purple-300 font-medium">Tous les {task.recurrence.interval} jour(s)</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Tags */}
               {task.tags && task.tags.length > 0 && (
@@ -447,12 +557,14 @@ const TaskDetailModal = ({
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-white">{comment.userName || 'Utilisateur anonyme'}</span>
-                            <span className="text-gray-400 text-xs">
-                              {formatDate(comment.createdAt)}
+                            <span className="font-medium text-white">
+                              {comment.userName || comment.authorName || 'Utilisateur anonyme'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatDate(comment.createdAt || comment.timestamp)}
                             </span>
                           </div>
-                          <p className="text-gray-300">{comment.content}</p>
+                          <p className="text-gray-300 whitespace-pre-wrap">{comment.content}</p>
                         </div>
                       </div>
                     </div>
@@ -461,53 +573,42 @@ const TaskDetailModal = ({
               </div>
 
               {/* Formulaire d'ajout de commentaire */}
-              <div className="border-t border-gray-700 pt-4">
-                {effectiveUser && (
-                  <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                        {effectiveUser.displayName?.charAt(0)?.toUpperCase() || effectiveUser.email?.charAt(0)?.toUpperCase() || '?'}
-                      </div>
-                      
-                      <form onSubmit={handleSubmitComment} className="flex-1">
-                        <div className="flex flex-col gap-3">
-                          <textarea
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            placeholder="Ajouter un commentaire..."
-                            className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                            rows="3"
-                          />
-                          <button
-                            type="submit"
-                            disabled={!newComment.trim() || isSubmittingComment}
-                            className="self-end px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                          >
-                            {isSubmittingComment ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Envoi...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="w-4 h-4" />
-                                Envoyer
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </form>
+              {effectiveUser && (
+                <form onSubmit={handleSubmitComment} className="border-t border-gray-700 pt-4">
+                  <div className="space-y-3">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Ajouter un commentaire à cette tâche..."
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      rows={3}
+                      disabled={submittingComment}
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 text-xs">
+                        {comments.length > 0 ? `${comments.length} commentaire${comments.length > 1 ? 's' : ''}` : 'Premier commentaire'}
+                      </span>
+                      <button
+                        type="submit"
+                        disabled={!newComment.trim() || submittingComment}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {submittingComment ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Envoi...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Envoyer
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
-                )}
-
-                {/* Message si non connecté */}
-                {!effectiveUser && (
-                  <div className="text-center py-4 text-gray-400 text-sm">
-                    Connectez-vous pour ajouter un commentaire
-                  </div>
-                )}
-              </div>
+                </form>
+              )}
             </div>
           )}
         </div>
@@ -527,7 +628,7 @@ const TaskDetailModal = ({
                     onSubmit(task);
                     onClose();
                   }}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <CheckCircle className="w-4 h-4" />
                   Soumettre
@@ -535,13 +636,13 @@ const TaskDetailModal = ({
               )}
 
               {/* Modifier */}
-              {onEdit && (
+              {onEdit && isCreatedByMe && (
                 <button
                   onClick={() => {
                     onEdit(task);
                     onClose();
                   }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
                 >
                   <Edit className="w-4 h-4" />
                   Modifier
@@ -549,7 +650,7 @@ const TaskDetailModal = ({
               )}
               
               {/* Supprimer */}
-              {onDelete && (
+              {onDelete && isCreatedByMe && (
                 <button
                   onClick={() => {
                     if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
@@ -563,6 +664,15 @@ const TaskDetailModal = ({
                   Supprimer
                 </button>
               )}
+              
+              {/* Fermer */}
+              <button
+                onClick={onClose}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Fermer
+              </button>
             </div>
           </div>
         </div>
