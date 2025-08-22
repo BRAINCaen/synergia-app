@@ -110,6 +110,7 @@ const TaskDetailModal = ({
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [volunteerLoading, setVolunteerLoading] = useState(false); // 🔧 AJOUT DE LA VARIABLE MANQUANTE
 
   // 👥 États pour les noms d'utilisateurs
   const [creatorName, setCreatorName] = useState('Chargement...');
@@ -248,19 +249,37 @@ const TaskDetailModal = ({
     
     setVolunteerLoading(true);
     try {
-      await taskAssignmentService.addVolunteer(task.id, effectiveUser.uid);
+      console.log('🎯 [VOLUNTEER] Candidature pour tâche:', task.id);
       
-      if (onTaskUpdate) {
-        onTaskUpdate();
+      // Utiliser le service d'assignation de tâches si disponible
+      if (window.taskAssignmentService && window.taskAssignmentService.addVolunteer) {
+        await window.taskAssignmentService.addVolunteer(task.id, effectiveUser.uid);
+      } else {
+        // Fallback: ajouter directement aux assignés
+        const updatedTask = {
+          ...task,
+          assignedTo: [...(task.assignedTo || []), effectiveUser.uid],
+          updatedAt: new Date()
+        };
+        
+        // Notifier le parent du changement
+        if (onTaskUpdate) {
+          onTaskUpdate(updatedTask);
+        }
       }
+      
+      console.log('✅ [VOLUNTEER] Volontariat enregistré');
       
       if (window.showNotification) {
         window.showNotification('Vous vous êtes porté volontaire pour cette tâche !', 'success');
       }
+      
     } catch (error) {
-      console.error('Erreur volontariat:', error);
+      console.error('❌ [VOLUNTEER] Erreur volontariat:', error);
       if (window.showNotification) {
         window.showNotification('Erreur lors du volontariat', 'error');
+      } else {
+        alert('Erreur lors du volontariat: ' + error.message);
       }
     } finally {
       setVolunteerLoading(false);
@@ -536,7 +555,8 @@ const TaskDetailModal = ({
                       </div>
                     )}
                     
-                    {(!task.assignedTo || task.assignedTo.length === 0) && !isAssignedToMe && effectiveUser && (
+                    {/* Bouton volontaire si pas assigné */}
+                    {!isAssignedToMe && effectiveUser && task.status !== 'completed' && (
                       <button
                         onClick={handleVolunteer}
                         disabled={volunteerLoading}
