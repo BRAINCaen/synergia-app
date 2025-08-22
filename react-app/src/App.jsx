@@ -33,11 +33,40 @@ import ProfilePage from './pages/ProfilePage.jsx';
 // 🏆 PAGES GAMIFICATION
 // ==========================================
 import GamificationPage from './pages/GamificationPage.jsx';
+import BadgesPage from './pages/BadgesPage.jsx';
+import LeaderboardPage from './pages/LeaderboardPage.jsx';
+import RewardsPage from './pages/RewardsPage.jsx';
 
 // ==========================================
 // 📊 PAGES ANALYTICS
 // ==========================================
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+
+// ==========================================
+// 👥 PAGES ÉQUIPE & UTILISATEURS
+// ==========================================
+import UsersPage from './pages/UsersPage.jsx';
+
+// ==========================================
+// 🛠️ PAGES OUTILS
+// ==========================================
+import OnboardingPage from './pages/OnboardingPage.jsx';
+import TimeTrackPage from './pages/TimeTrackPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+
+// ==========================================
+// 🛡️ PAGES ADMIN
+// ==========================================
+import AdminTaskValidationPage from './pages/AdminTaskValidationPage.jsx';
+import AdminObjectiveValidationPage from './pages/AdminObjectiveValidationPage.jsx';
+import AdminCompleteTestPage from './pages/AdminCompleteTestPage.jsx';
+import AdminProfileTestPage from './pages/AdminProfileTestPage.jsx';
+import AdminRolePermissionsPage from './pages/AdminRolePermissionsPage.jsx';
+import AdminRewardsPage from './pages/AdminRewardsPage.jsx';
+import AdminBadgesPage from './pages/AdminBadgesPage.jsx';
+import AdminUsersPage from './pages/AdminUsersPage.jsx';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage.jsx';
+import AdminSettingsPage from './pages/AdminSettingsPage.jsx';
 
 // ==========================================
 // 🧠 NAVIGATION (supprimée - plus besoin)
