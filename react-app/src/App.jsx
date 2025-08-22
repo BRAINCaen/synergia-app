@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL SANS NAVIGATION DU HAUT - VERSION CORRIGÉE
+// APP PRINCIPAL SANS NAVIGATION DU HAUT - VRAIES PAGES
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -75,52 +75,22 @@ try {
 }
 
 // ==========================================
-// 🎭 PAGES PRINCIPALES (imports sécurisés avec fallbacks)
+// 🎭 PAGES PRINCIPALES (imports directs des vraies pages)
 // ==========================================
 
-// Import sécurisé avec fallbacks
-const importPageSafely = (pagePath, fallbackName) => {
-  try {
-    return require(pagePath).default;
-  } catch (error) {
-    console.warn(`⚠️ Erreur import ${fallbackName}, utilisation de fallback:`, error);
-    return () => (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'system-ui',
-        color: 'white'
-      }}>
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>📄 {fallbackName}</h1>
-          <p style={{ marginBottom: '1rem' }}>Page en cours de développement</p>
-          <a 
-            href="/dashboard" 
-            style={{ 
-              color: '#fff', 
-              textDecoration: 'underline',
-              fontSize: '1.1rem'
-            }}
-          >
-            ← Retour au Dashboard
-          </a>
-        </div>
-      </div>
-    );
-  }
-};
+import LoginPage from './pages/Login.jsx';
+import DashboardPage from './pages/Dashboard.jsx';
+import TasksPage from './pages/TasksPage.jsx';
+import ProjectsPage from './pages/ProjectsPage.jsx';
+import TeamPage from './pages/TeamPage.jsx';
+import ProfilePage from './pages/ProfilePage.jsx';
+import GamificationPage from './pages/GamificationPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 
-const LoginPage = importPageSafely('./pages/Login.jsx', 'Login');
-const DashboardPage = importPageSafely('./pages/Dashboard.jsx', 'Dashboard');
-const TasksPage = importPageSafely('./pages/TasksPage.jsx', 'Tâches');
-const ProjectsPage = importPageSafely('./pages/ProjectsPage.jsx', 'Projets');
-const TeamPage = importPageSafely('./pages/TeamPage.jsx', 'Équipe');
-const ProfilePage = importPageSafely('./pages/ProfilePage.jsx', 'Profil');
-const GamificationPage = importPageSafely('./pages/GamificationPage.jsx', 'Gamification');
-const AnalyticsPage = importPageSafely('./pages/AnalyticsPage.jsx', 'Analytics');
+// ==========================================
+// 🏆 PAGES GAMIFICATION
+// ==========================================
+// import GamificationPage from './pages/GamificationPage.jsx'; // Déjà importé au-dessus
 
 // ==========================================
 // 🛠️ PAGE 404 SIMPLE
@@ -400,6 +370,16 @@ const App = () => {
               } 
             />
             
+            {/* 🏆 Route récompenses - ajout de la route manquante */}
+            <Route 
+              path="/rewards" 
+              element={
+                <ProtectedRoute>
+                  <GamificationPage />
+                </ProtectedRoute>
+              } 
+            />
+            
             {/* 🔄 Redirection par défaut */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
@@ -423,7 +403,7 @@ const App = () => {
           lineHeight: 1.4
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#10b981' }}>
-            ✅ VERSION RESTAURÉE
+            ✅ PAGES RÉELLES CHARGÉES
           </div>
           
           <div>🏠 Navigation: ❌ Supprimée</div>
@@ -431,7 +411,7 @@ const App = () => {
           <div>📱 Interface: ✅ Full screen</div>
           <div>🛡️ Auth: {authStore.user ? '✅ Connecté' : '❌ Mode démo'}</div>
           <div style={{ color: '#10b981', fontWeight: 'bold', marginTop: '0.5rem' }}>
-            🔧 Erreurs corrigées
+            🎯 Vraies pages actives
           </div>
         </div>
       </div>
@@ -444,9 +424,9 @@ export default App;
 // ==========================================
 // 🎉 LOGS DE CONFIRMATION
 // ==========================================
-console.log('✅ [APP] Version sans navigation du haut chargée');
+console.log('✅ [APP] Version avec vraies pages chargée');
 console.log('🚫 [APP] SimpleNavigation supprimée');
 console.log('🎯 [APP] Interface full screen activée');
 console.log('🍔 [APP] Navigation via menu hamburger uniquement');
 console.log('🛡️ [APP] Tous les correctifs d\'erreurs appliqués');
-console.log('🔧 [APP] Fallbacks complets en cas d\'erreur');
+console.log('🎨 [APP] Pages réelles (Rewards, Gamification, Analytics, Tasks) chargées');
