@@ -5,7 +5,8 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './shared/stores/authStore.js';
+// 🔧 CORRECTION: Suppression AuthProvider qui n'existe pas
+import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js';
 
 // 🛡️ IMPORT DU CORRECTIF D'ERREURS (PRIORITÉ ABSOLUE)
 import './utils/consoleErrorFix.js';
@@ -61,10 +62,13 @@ const App = () => {
           }
         }
 
-        // 2. Attendre un court délai pour que les correctifs s'appliquent
+        // 2. Initialiser le store d'authentification
+        initializeAuthStore();
+
+        // 3. Attendre un court délai pour que les correctifs s'appliquent
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // 3. Marquer l'application comme initialisée
+        // 4. Marquer l'application comme initialisée
         setAppInitialized(true);
         console.log('✅ [APP] Application initialisée avec succès');
 
