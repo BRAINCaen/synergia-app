@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/App.jsx
-// APP PRINCIPAL SANS NAVIGATION DU HAUT - VERSION ORIGINALE RESTAURÉE
+// APP PRINCIPAL VERSION STABLE D'URGENCE
 // ==========================================
 
 import React, { useEffect } from 'react';
@@ -8,29 +8,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AnimatePresence } from 'framer-motion';
 
 // ==========================================
-// 🚨 CORRECTIFS D'URGENCE COMPLETS (seuls ajouts nécessaires)
+// 🚨 CORRECTIFS D'URGENCE COMPLETS
 // ==========================================
-import './utils/productionErrorSuppression.js';
-import './utils/secureImportFix.js';
-
-// Correctifs supplémentaires (créés si ils n'existent pas)
-try {
-  import('./core/emergencyFixUnified.js');
-} catch (e) {
-  console.log('⚠️ emergencyFixUnified.js non trouvé, continuons sans');
-}
-
-try {
-  import('./core/arrayMapFix.js');
-} catch (e) {
-  console.log('⚠️ arrayMapFix.js non trouvé, continuons sans');
-}
-
-try {
-  import('./core/assignRoleFinalFix.js');
-} catch (e) {
-  console.log('⚠️ assignRoleFinalFix.js non trouvé, continuons sans');
-}
+import './core/emergencyFixUnified.js';
+import './core/arrayMapFix.js';
+import './core/assignRoleFinalFix.js';
 
 // ==========================================
 // 🔧 STORES ET SERVICES CORE (seulement les essentiels)
@@ -41,40 +23,7 @@ import { useAuthStore, initializeAuthStore } from './shared/stores/authStore.js'
 // 🎭 PAGES PRINCIPALES (imports sécurisés)
 // ==========================================
 import LoginPage from './pages/Login.jsx';
-
-// Dashboard avec import sécurisé
-let DashboardPage;
-try {
-  DashboardPage = require('./pages/Dashboard.jsx').default;
-} catch (error) {
-  console.warn('⚠️ Dashboard original problématique, utilisation de fallback');
-  DashboardPage = () => (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1e293b 0%, #7c3aed 50%, #1e293b 100%)',
-      color: 'white',
-      fontFamily: 'system-ui',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚀 Synergia v3.5</h1>
-        <p style={{ fontSize: '1.2rem', marginBottom: '2rem' }}>Dashboard en cours de chargement...</p>
-        <div style={{
-          width: '60px',
-          height: '60px',
-          border: '4px solid rgba(255,255,255,0.3)',
-          borderTop: '4px solid #3b82f6',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          margin: '0 auto'
-        }}></div>
-      </div>
-    </div>
-  );
-}
-
+import DashboardPage from './pages/Dashboard.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import TeamPage from './pages/TeamPage.jsx';
@@ -252,16 +201,6 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <ProfilePage />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* 🏆 Route récompenses */}
-            <Route 
-              path="/rewards" 
-              element={
-                <ProtectedRoute>
-                  <GamificationPage />
                 </ProtectedRoute>
               } 
             />
