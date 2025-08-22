@@ -1,5 +1,5 @@
 // ==========================================
-// 📁 react-app/src/components/ui/TaskDetailModal.jsx
+// 📁 react-app/src/components/ui/TaskDetailModal.jsx  
 // MODAL DÉTAILS TÂCHE - CORRECTION COMPTEUR MESSAGES
 // ==========================================
 
@@ -28,9 +28,7 @@ import {
   MapPin,
   Paperclip,
   Send,
-  Info,
-  UserPlus,
-  UserMinus
+  Info
 } from 'lucide-react';
 
 // Imports Firebase
@@ -42,9 +40,6 @@ import { collaborationService } from '../../core/services/collaborationService.j
 
 // Import authStore
 import { useAuthStore } from '../../shared/stores/authStore.js';
-
-// Import services
-import { taskAssignmentService } from '../../core/services/taskAssignmentService.js';
 
 /**
  * 📅 FORMATAGE DATE FRANÇAIS
@@ -100,18 +95,21 @@ const TaskDetailModal = ({
   onTaskUpdate,
   initialTab = 'details'
 }) => {
-  const { user: authUser } = useAuthStore();
-  const effectiveUser = currentUser || authUser;
+  // 🔐 Utilisateur et permissions
+  const { user } = useAuthStore();
+  const effectiveUser = currentUser || user;
 
+  // 🎮 États de l'interface
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+  // 👥 États pour les noms d'utilisateurs
   const [creatorName, setCreatorName] = useState('Chargement...');
   const [assigneeNames, setAssigneeNames] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const [volunteerLoading, setVolunteerLoading] = useState(false);
 
   // ✅ VÉRIFICATIONS D'ASSIGNATION
   const isAssignedToMe = effectiveUser && task && Array.isArray(task.assignedTo) 
@@ -196,7 +194,7 @@ const TaskDetailModal = ({
     
     if (!newComment.trim() || !effectiveUser || !task?.id) return;
     
-    setSubmittingComment(true);
+    setIsSubmittingComment(true);
     try {
       console.log('📝 Envoi commentaire:', { taskId: task.id, content: newComment.trim() });
       
@@ -223,29 +221,7 @@ const TaskDetailModal = ({
       console.error('❌ Erreur envoi commentaire:', error);
       alert('Erreur lors de l\'envoi du commentaire. Veuillez réessayer.');
     } finally {
-      setSubmittingComment(false);
-    }
-  };
-
-  // 🎯 SE PORTER VOLONTAIRE
-  const handleVolunteer = async () => {
-    if (!effectiveUser || !task?.id || volunteerLoading) return;
-
-    setVolunteerLoading(true);
-    try {
-      await taskAssignmentService.addVolunteer(task.id, effectiveUser.uid);
-      
-      // Recharger la tâche pour avoir les données à jour
-      if (onTaskUpdate) {
-        onTaskUpdate(task.id);
-      }
-      
-      console.log('✅ Volontariat ajouté avec succès');
-    } catch (error) {
-      console.error('❌ Erreur ajout volontaire:', error);
-      alert('Erreur lors de l\'ajout du volontaire');
-    } finally {
-      setVolunteerLoading(false);
+      setIsSubmittingComment(false);
     }
   };
 
@@ -388,27 +364,6 @@ const TaskDetailModal = ({
                         </div>
                       </div>
                     )}
-
-                    {/* Bouton volontaire si pas assigné */}
-                    {!isAssignedToMe && effectiveUser && (
-                      <button
-                        onClick={handleVolunteer}
-                        disabled={volunteerLoading}
-                        className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-                      >
-                        {volunteerLoading ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Ajout...
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus className="w-4 h-4" />
-                            Se porter volontaire
-                          </>
-                        )}
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -432,84 +387,9 @@ const TaskDetailModal = ({
                         <span className="text-white ml-2">{formatDate(task.dueDate)}</span>
                       </div>
                     )}
-
-                    {task.estimatedTime && (
-                      <div className="flex items-center text-sm">
-                        <Target className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-gray-400">Temps estimé:</span>
-                        <span className="text-white ml-2">{task.estimatedTime}h</span>
-                      </div>
-                    )}
                   </div>
                 </div>
-
-                {/* Gamification */}
-                {(task.xpReward || task.difficulty) && (
-                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Trophy className="w-4 h-4 text-yellow-400" />
-                      <h4 className="font-medium text-white">Récompenses</h4>
-                    </div>
-                    <div className="space-y-2">
-                      {task.xpReward && (
-                        <div className="flex items-center text-sm">
-                          <Star className="w-4 h-4 text-yellow-400 mr-2" />
-                          <span className="text-gray-400">XP:</span>
-                          <span className="text-yellow-400 ml-2 font-medium">+{task.xpReward} XP</span>
-                        </div>
-                      )}
-                      
-                      {task.difficulty && (
-                        <div className="flex items-center text-sm">
-                          <Shield className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-gray-400">Difficulté:</span>
-                          <span className="text-white ml-2">
-                            {task.difficulty === 'easy' ? '🟢 Facile' :
-                             task.difficulty === 'medium' ? '🟡 Moyenne' :
-                             task.difficulty === 'hard' ? '🟠 Difficile' :
-                             '🔴 Expert'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Localisation */}
-                {task.location && (
-                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                    <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="w-4 h-4 text-red-400" />
-                      <h4 className="font-medium text-white">Localisation</h4>
-                    </div>
-                    <p className="text-gray-300">{task.location}</p>
-                  </div>
-                )}
               </div>
-
-              {/* Récurrence */}
-              {task.isRecurring && (
-                <div className="bg-purple-900/20 border border-purple-600 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Repeat className="w-5 h-5 text-purple-400" />
-                    <h3 className="text-lg font-medium text-white">Tâche récurrente</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    {task.recurrence?.frequency && (
-                      <div>
-                        <p className="text-gray-400">Fréquence</p>
-                        <p className="text-purple-300 font-medium">{task.recurrence.frequency}</p>
-                      </div>
-                    )}
-                    {task.recurrence?.interval && (
-                      <div>
-                        <p className="text-gray-400">Intervalle</p>
-                        <p className="text-purple-300 font-medium">Tous les {task.recurrence.interval} jour(s)</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Tags */}
               {task.tags && task.tags.length > 0 && (
@@ -582,7 +462,7 @@ const TaskDetailModal = ({
                       placeholder="Ajouter un commentaire à cette tâche..."
                       className="w-full px-4 py-3 bg-gray-800 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                       rows={3}
-                      disabled={submittingComment}
+                      disabled={isSubmittingComment}
                     />
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400 text-xs">
@@ -590,10 +470,10 @@ const TaskDetailModal = ({
                       </span>
                       <button
                         type="submit"
-                        disabled={!newComment.trim() || submittingComment}
+                        disabled={!newComment.trim() || isSubmittingComment}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        {submittingComment ? (
+                        {isSubmittingComment ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             Envoi...
