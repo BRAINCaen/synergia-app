@@ -38,7 +38,7 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage.jsx'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage.jsx'));
 
 // 🛡️ Pages admin
-const AdminPage = React.lazy(() => import('./pages/admin/AdminPage.jsx'));
+const AdminPage = React.lazy(() => import('./pages/AdminPage.jsx'));
 
 // 🔐 Page de connexion
 const LoginPage = React.lazy(() => import('./pages/LoginPage.jsx'));
