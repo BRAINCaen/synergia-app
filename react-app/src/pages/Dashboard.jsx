@@ -123,7 +123,7 @@ const Dashboard = () => {
       icon: Users,
       change: 12,
       trend: 'up',
-      color: 'blue'
+      color: 'bg-gradient-to-r from-blue-500 to-purple-500'
     },
     {
       id: 'active-projects',
@@ -132,7 +132,7 @@ const Dashboard = () => {
       icon: Target,
       change: 8,
       trend: 'up',
-      color: 'green'
+      color: 'bg-gradient-to-r from-green-500 to-emerald-500'
     },
     {
       id: 'completed-tasks',
@@ -141,7 +141,7 @@ const Dashboard = () => {
       icon: Activity,
       change: 23,
       trend: 'up',
-      color: 'purple'
+      color: 'bg-gradient-to-r from-purple-500 to-pink-500'
     },
     {
       id: 'team-productivity',
@@ -150,7 +150,7 @@ const Dashboard = () => {
       icon: TrendingUp,
       change: 5,
       trend: 'up',
-      color: 'orange'
+      color: 'bg-gradient-to-r from-orange-500 to-red-500'
     }
   ];
 
