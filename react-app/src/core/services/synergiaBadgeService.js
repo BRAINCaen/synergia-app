@@ -468,6 +468,91 @@ class SynergiaBadgeService {
   }
 
   /**
+   * 🔧 FONCTION COMPATIBLE POUR BADGESPAGE.JSX
+   * Version corrigée qui peut être utilisée directement dans BadgesPage
+   */
+  static async checkAndUnlockBadgesForPage(userId, userData, badgeDefinitions) {
+    try {
+      console.log('🎯 Vérification automatique des badges...');
+      
+      const currentBadges = userData.gamification?.badges || [];
+      const earnedBadgeIds = currentBadges.map(b => b.id || b.badgeId);
+      
+      let newBadges = [];
+      let totalXpGained = 0;
+
+      // Vérifier chaque badge
+      for (const badgeDefinition of badgeDefinitions) {
+        const isAlreadyEarned = earnedBadgeIds.includes(badgeDefinition.id);
+        
+        if (!isAlreadyEarned) {
+          let shouldUnlock = false;
+          
+          if (badgeDefinition.autoCheck) {
+            if (typeof badgeDefinition.autoCheck === 'function') {
+              shouldUnlock = badgeDefinition.autoCheck(userData);
+            } else if (badgeDefinition.autoCheckCode) {
+              // Reconstruire la fonction depuis le code stocké
+              try {
+                const autoCheckFunction = new Function('userData', badgeDefinition.autoCheckCode.replace('(userData) => ', 'return '));
+                shouldUnlock = autoCheckFunction(userData);
+              } catch (error) {
+                console.warn('⚠️ Erreur évaluation autoCheck pour badge:', badgeDefinition.id);
+              }
+            }
+          }
+          
+          if (shouldUnlock) {
+            console.log(`🎉 Nouveau badge débloqué: ${badgeDefinition.name}`);
+            
+            const newBadge = {
+              id: badgeDefinition.id,
+              badgeId: badgeDefinition.id,
+              name: badgeDefinition.name,
+              description: badgeDefinition.description,
+              icon: badgeDefinition.icon,
+              rarity: badgeDefinition.rarity,
+              category: badgeDefinition.category,
+              xpReward: badgeDefinition.xpReward,
+              unlockedAt: new Date().toISOString(), // ✅ STRING au lieu de serverTimestamp
+              earnedAt: new Date().toISOString()
+            };
+            
+            newBadges.push(newBadge);
+            totalXpGained += badgeDefinition.xpReward;
+          }
+        }
+      }
+
+      // ✅ SAUVEGARDER LES NOUVEAUX BADGES AVEC setDoc + merge
+      if (newBadges.length > 0) {
+        const userRef = doc(db, 'users', userId);
+        const allBadges = [...currentBadges, ...newBadges];
+        
+        await setDoc(userRef, {
+          gamification: {
+            ...userData.gamification,
+            badges: allBadges, // ✅ Remplacer tout le tableau au lieu d'arrayUnion
+            badgesUnlocked: allBadges.length,
+            totalXp: (userData.gamification?.totalXp || 0) + totalXpGained,
+            lastBadgeCheck: new Date().toISOString() // ✅ STRING au lieu de serverTimestamp
+          }
+        }, { merge: true });
+
+        console.log(`✅ ${newBadges.length} nouveaux badges débloqués, +${totalXpGained} XP`);
+        return { success: true, newBadges, totalXpGained };
+      } else {
+        console.log('📋 Aucun nouveau badge à débloquer');
+        return { success: true, newBadges: [], totalXpGained: 0 };
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur vérification badges:', error);
+      return { success: false, error: error.message, newBadges: [] };
+    }
+  }
+
+  /**
    * 🎊 DÉCLENCHER LA NOTIFICATION DE BADGE
    */
   triggerBadgeNotification(badge) {
