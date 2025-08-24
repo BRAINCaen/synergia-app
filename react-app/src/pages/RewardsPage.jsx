@@ -83,9 +83,9 @@ const useSimpleXP = () => {
 };
 
 /**
- * 🎁 RÉCOMPENSES DISPONIBLES - Gaming Style
+ * 🎁 RÉCOMPENSES INDIVIDUELLES - Gaming Style
  */
-const AVAILABLE_REWARDS = [
+const INDIVIDUAL_REWARDS = [
   // Récompenses Common (Gaming Green)
   { 
     id: 'sticker_pack', 
@@ -94,7 +94,8 @@ const AVAILABLE_REWARDS = [
     cost: 50, 
     icon: '🎮', 
     rarity: 'common',
-    category: 'digital'
+    category: 'digital',
+    type: 'individual'
   },
   { 
     id: 'badge_collector', 
@@ -103,7 +104,8 @@ const AVAILABLE_REWARDS = [
     cost: 100, 
     icon: '🏆', 
     rarity: 'common',
-    category: 'digital'
+    category: 'digital',
+    type: 'individual'
   },
 
   // Récompenses Uncommon (Electric Blue)
@@ -114,7 +116,8 @@ const AVAILABLE_REWARDS = [
     cost: 200, 
     icon: '🌟', 
     rarity: 'uncommon',
-    category: 'digital'
+    category: 'digital',
+    type: 'individual'
   },
   { 
     id: 'coffee_voucher', 
@@ -123,7 +126,8 @@ const AVAILABLE_REWARDS = [
     cost: 250, 
     icon: '☕', 
     rarity: 'uncommon',
-    category: 'physical'
+    category: 'physical',
+    type: 'individual'
   },
 
   // Récompenses Rare (Gaming Purple)
@@ -134,7 +138,8 @@ const AVAILABLE_REWARDS = [
     cost: 400, 
     icon: '🖱️', 
     rarity: 'rare',
-    category: 'physical'
+    category: 'physical',
+    type: 'individual'
   },
   { 
     id: 'private_coaching', 
@@ -143,7 +148,8 @@ const AVAILABLE_REWARDS = [
     cost: 500, 
     icon: '🎯', 
     rarity: 'rare',
-    category: 'experience'
+    category: 'experience',
+    type: 'individual'
   },
 
   // Récompenses Epic (Fire Orange/Red)
@@ -154,16 +160,8 @@ const AVAILABLE_REWARDS = [
     cost: 750, 
     icon: '🎧', 
     rarity: 'epic',
-    category: 'physical'
-  },
-  { 
-    id: 'team_dinner', 
-    name: '🍽️ Dîner d\'Équipe VIP', 
-    description: 'Dîner dans un restaurant haut de gamme avec toute l\'équipe !',
-    cost: 800, 
-    icon: '🍽️', 
-    rarity: 'epic',
-    category: 'experience'
+    category: 'physical',
+    type: 'individual'
   },
 
   // Récompenses Legendary (Legendary Gold)
@@ -174,27 +172,199 @@ const AVAILABLE_REWARDS = [
     cost: 1200, 
     icon: '💺', 
     rarity: 'legendary',
-    category: 'physical'
-  },
-  { 
-    id: 'weekend_getaway', 
-    name: '🏖️ Week-end Détente', 
-    description: 'Week-end tout compris dans un lieu de rêve !',
-    cost: 1500, 
-    icon: '🏖️', 
-    rarity: 'legendary',
-    category: 'experience'
+    category: 'physical',
+    type: 'individual'
   }
 ];
 
 /**
- * 🎨 CATÉGORIES DE RÉCOMPENSES
+ * 👥 RÉCOMPENSES D'ÉQUIPE - Système Collectif
  */
-const REWARD_CATEGORIES = [
-  { id: 'all', name: 'Toutes', icon: Gift, count: AVAILABLE_REWARDS.length },
-  { id: 'digital', name: 'Digital', icon: Star, count: AVAILABLE_REWARDS.filter(r => r.category === 'digital').length },
-  { id: 'physical', name: 'Physique', icon: Trophy, count: AVAILABLE_REWARDS.filter(r => r.category === 'physical').length },
-  { id: 'experience', name: 'Expérience', icon: Crown, count: AVAILABLE_REWARDS.filter(r => r.category === 'experience').length }
+const TEAM_REWARDS = [
+  // 🥉 BRONZE (1000-2499 XP collectifs)
+  { 
+    id: 'team_pizza_party', 
+    name: '🍕 Pizza Party Équipe', 
+    description: 'Pizzas pour tout le monde + boissons pour célébrer nos victoires !',
+    cost: 1200, 
+    icon: '🍕', 
+    rarity: 'common',
+    category: 'food',
+    type: 'team',
+    level: 'BRONZE',
+    participants: 'Toute l\'équipe',
+    duration: '2h'
+  },
+  { 
+    id: 'team_movie_night', 
+    name: '🎬 Soirée Cinéma Équipe', 
+    description: 'Séance ciné privatisée avec popcorn et snacks pour toute l\'équipe !',
+    cost: 1500, 
+    icon: '🎬', 
+    rarity: 'common',
+    category: 'entertainment',
+    type: 'team',
+    level: 'BRONZE',
+    participants: 'Toute l\'équipe',
+    duration: '3h'
+  },
+
+  // 🥈 SILVER (2500-4999 XP collectifs)
+  { 
+    id: 'team_laser_game', 
+    name: '🎯 Sortie Laser Game Équipe', 
+    description: 'Session laser game épique pour toute l\'équipe + repas après !',
+    cost: 2000, 
+    icon: '🎯', 
+    rarity: 'uncommon',
+    category: 'activity',
+    type: 'team',
+    level: 'SILVER',
+    participants: 'Toute l\'équipe',
+    duration: '4h'
+  },
+  { 
+    id: 'team_coffee_machine', 
+    name: '☕ Machine à Café Premium', 
+    description: 'Machine à café haut de gamme pour l\'espace de pause commun !',
+    cost: 2800, 
+    icon: '☕', 
+    rarity: 'uncommon',
+    category: 'equipment',
+    type: 'team',
+    level: 'SILVER',
+    participants: 'Toute l\'équipe',
+    duration: 'Permanent'
+  },
+  { 
+    id: 'team_bowling', 
+    name: '🎳 Tournoi Bowling Équipe', 
+    description: 'Tournoi bowling avec champagne pour l\'équipe gagnante !',
+    cost: 3200, 
+    icon: '🎳', 
+    rarity: 'uncommon',
+    category: 'activity',
+    type: 'team',
+    level: 'SILVER',
+    participants: 'Toute l\'équipe',
+    duration: '4h'
+  },
+
+  // 🥇 GOLD (5000-9999 XP collectifs)
+  { 
+    id: 'team_escape_game', 
+    name: '🔐 Escape Game Géant', 
+    description: 'Escape game privatisé pour toute l\'équipe + repas gastronomique !',
+    cost: 4500, 
+    icon: '🔐', 
+    rarity: 'rare',
+    category: 'activity',
+    type: 'team',
+    level: 'GOLD',
+    participants: 'Toute l\'équipe',
+    duration: '6h'
+  },
+  { 
+    id: 'team_gaming_setup', 
+    name: '🎮 Setup Gaming Équipe', 
+    description: 'Console + jeux + écran géant pour l\'espace détente commun !',
+    cost: 6000, 
+    icon: '🎮', 
+    rarity: 'rare',
+    category: 'equipment',
+    type: 'team',
+    level: 'GOLD',
+    participants: 'Toute l\'équipe',
+    duration: 'Permanent'
+  },
+  { 
+    id: 'team_paintball', 
+    name: '🎨 Bataille Paintball', 
+    description: 'Session paintball épique avec matériel pro + barbecue !',
+    cost: 5500, 
+    icon: '🎨', 
+    rarity: 'rare',
+    category: 'activity',
+    type: 'team',
+    level: 'GOLD',
+    participants: 'Toute l\'équipe',
+    duration: '5h'
+  },
+
+  // 💎 PLATINUM (10000-19999 XP collectifs)
+  { 
+    id: 'team_weekend_resort', 
+    name: '🏨 Weekend Équipe Resort', 
+    description: 'Weekend team-building dans un resort avec activités et spa !',
+    cost: 12000, 
+    icon: '🏨', 
+    rarity: 'epic',
+    category: 'travel',
+    type: 'team',
+    level: 'PLATINUM',
+    participants: 'Toute l\'équipe',
+    duration: '2 jours'
+  },
+  { 
+    id: 'team_office_upgrade', 
+    name: '🏢 Upgrade Espace de Travail', 
+    description: 'Amélioration complète de l\'espace de travail (mobilier, déco, tech) !',
+    cost: 15000, 
+    icon: '🏢', 
+    rarity: 'epic',
+    category: 'equipment',
+    type: 'team',
+    level: 'PLATINUM',
+    participants: 'Toute l\'équipe',
+    duration: 'Permanent'
+  },
+
+  // 💎 DIAMOND (20000+ XP collectifs)
+  { 
+    id: 'team_cruise', 
+    name: '🚢 Croisière Équipe', 
+    description: 'Croisière de 3 jours pour toute l\'équipe avec toutes les activités !',
+    cost: 25000, 
+    icon: '🚢', 
+    rarity: 'legendary',
+    category: 'travel',
+    type: 'team',
+    level: 'DIAMOND',
+    participants: 'Toute l\'équipe',
+    duration: '3 jours'
+  },
+  { 
+    id: 'team_company_retreat', 
+    name: '🏔️ Retraite Entreprise', 
+    description: 'Séminaire de 5 jours dans un château avec team-building et formation !',
+    cost: 30000, 
+    icon: '🏔️', 
+    rarity: 'legendary',
+    category: 'travel',
+    type: 'team',
+    level: 'DIAMOND',
+    participants: 'Toute l\'équipe',
+    duration: '5 jours'
+  }
+];
+
+/**
+ * 🎨 CATÉGORIES POUR LES DEUX TYPES
+ */
+const INDIVIDUAL_CATEGORIES = [
+  { id: 'all', name: 'Toutes', icon: Gift, count: INDIVIDUAL_REWARDS.length },
+  { id: 'digital', name: 'Digital', icon: Star, count: INDIVIDUAL_REWARDS.filter(r => r.category === 'digital').length },
+  { id: 'physical', name: 'Physique', icon: Trophy, count: INDIVIDUAL_REWARDS.filter(r => r.category === 'physical').length },
+  { id: 'experience', name: 'Expérience', icon: Crown, count: INDIVIDUAL_REWARDS.filter(r => r.category === 'experience').length }
+];
+
+const TEAM_CATEGORIES = [
+  { id: 'all', name: 'Toutes', icon: Gift, count: TEAM_REWARDS.length },
+  { id: 'food', name: 'Nourriture', icon: Star, count: TEAM_REWARDS.filter(r => r.category === 'food').length },
+  { id: 'activity', name: 'Activités', icon: Trophy, count: TEAM_REWARDS.filter(r => r.category === 'activity').length },
+  { id: 'equipment', name: 'Équipement', icon: Crown, count: TEAM_REWARDS.filter(r => r.category === 'equipment').length },
+  { id: 'travel', name: 'Voyages', icon: Zap, count: TEAM_REWARDS.filter(r => r.category === 'travel').length },
+  { id: 'entertainment', name: 'Divertissement', icon: Star, count: TEAM_REWARDS.filter(r => r.category === 'entertainment').length }
 ];
 
 /**
@@ -202,9 +372,11 @@ const REWARD_CATEGORIES = [
  */
 const RewardsPage = () => {
   // États locaux
+  const [rewardType, setRewardType] = useState('individual'); // 'individual' ou 'team'
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseHistory, setPurchaseHistory] = useState([]);
+  const [teamXP, setTeamXP] = useState(8750); // XP collectifs de l'équipe (simulation)
 
   // Hooks
   const { user } = useAuthStore();
@@ -261,7 +433,7 @@ const RewardsPage = () => {
   };
 
   /**
-   * 🛒 GÉRER L'ACHAT D'UNE RÉCOMPENSE
+   * 🛒 GÉRER L'ACHAT D'UNE RÉCOMPENSE (INDIVIDUELLE OU ÉQUIPE)
    */
   const handlePurchase = async (reward) => {
     if (!user?.uid) {
@@ -269,15 +441,20 @@ const RewardsPage = () => {
       return;
     }
 
-    if (userPoints < reward.cost) {
-      alert(`❌ Pas assez d'XP ! Tu as ${userPoints} XP, il t'en faut ${reward.cost}. Time to grind ! 💪`);
+    const requiredPoints = reward.cost;
+    const availablePoints = reward.type === 'individual' ? userPoints : teamXP;
+
+    if (availablePoints < requiredPoints) {
+      const pointsType = reward.type === 'individual' ? 'XP individuels' : 'XP d\'équipe';
+      alert(`❌ Pas assez de ${pointsType} ! Il faut ${requiredPoints} XP, il y en a ${availablePoints}. ${reward.type === 'team' ? 'L\'équipe doit contribuer plus !' : 'Time to grind !'} 💪`);
       return;
     }
 
-    const confirmation = confirm(
-      `🎮 GG ! Tu veux vraiment acheter "${reward.name}" pour ${reward.cost} XP ? \n\n💡 Après validation admin, ça sera à toi !`
-    );
+    const confirmMessage = reward.type === 'individual' 
+      ? `🎮 GG ! Tu veux acheter "${reward.name}" pour ${reward.cost} XP personnels ?`
+      : `👥 Confirmation Équipe ! Acheter "${reward.name}" pour ${reward.cost} XP d'équipe ? \n\n🎉 Toute l'équipe en profitera ! (${reward.participants}, durée: ${reward.duration})`;
     
+    const confirmation = confirm(confirmMessage);
     if (!confirmation) return;
 
     setPurchasing(true);
@@ -286,8 +463,9 @@ const RewardsPage = () => {
       console.log('🛒 [REWARDS] Achat récompense:', {
         userId: user.uid,
         rewardId: reward.id,
+        rewardType: reward.type,
         cost: reward.cost,
-        userPointsBefore: userPoints
+        availablePointsBefore: availablePoints
       });
 
       // Tenter de créer une demande Firebase
@@ -298,8 +476,12 @@ const RewardsPage = () => {
           rewardName: reward.name,
           rewardDescription: reward.description,
           xpCost: reward.cost,
-          rewardType: 'individual',
-          status: 'pending', // En attente de validation admin
+          rewardType: reward.type, // 'individual' ou 'team'
+          rewardCategory: reward.category,
+          rewardLevel: reward.level || 'N/A',
+          participants: reward.participants || 'Individuel',
+          duration: reward.duration || 'Instantané',
+          status: 'pending',
           requestedAt: serverTimestamp(),
           approvedBy: null
         });
@@ -313,7 +495,7 @@ const RewardsPage = () => {
           id: `local_${Date.now()}`,
           userId: user.uid,
           rewardName: reward.name,
-          rewardDescription: reward.description,
+          rewardType: reward.type,
           xpCost: reward.cost,
           status: 'local_pending',
           purchaseDate: new Date()
@@ -324,13 +506,19 @@ const RewardsPage = () => {
         localStorage.setItem(`rewards_${user.uid}`, JSON.stringify(existingHistory));
       }
 
-      // Déduire les XP (simulation)
-      const result = await addXP(-reward.cost, 'reward_purchase');
-      
-      if (result.success) {
-        alert(`🎉 "${reward.name}" acheté avec succès ! 🎮 ${reward.cost} XP déduits ! Total restant: ${result.newTotal} XP`);
+      // Déduire les XP selon le type
+      if (reward.type === 'individual') {
+        const result = await addXP(-reward.cost, 'reward_purchase');
+        if (result.success) {
+          alert(`🎉 "${reward.name}" acheté ! 🎮 ${reward.cost} XP déduits ! Reste: ${result.newTotal} XP`);
+        }
       } else {
-        throw new Error('Erreur déduction XP');
+        // Pour les récompenses d'équipe, simuler la déduction des XP d'équipe
+        setTeamXP(prev => prev - reward.cost);
+        alert(`🎉 "${reward.name}" acheté pour l'équipe ! 👥 ${reward.cost} XP d'équipe déduits ! \n\n🎊 Toute l'équipe va adorer ! (${reward.participants}, ${reward.duration})`);
+        
+        // Sauvegarder les XP d'équipe
+        localStorage.setItem('team_xp', (teamXP - reward.cost).toString());
       }
       
     } catch (error) {
@@ -341,18 +529,24 @@ const RewardsPage = () => {
     }
   };
 
-  // 🎯 FILTRER LES RÉCOMPENSES
+  // 🎯 FILTRER LES RÉCOMPENSES SELON LE TYPE ET CATÉGORIE
+  const currentRewards = rewardType === 'individual' ? INDIVIDUAL_REWARDS : TEAM_REWARDS;
+  const currentCategories = rewardType === 'individual' ? INDIVIDUAL_CATEGORIES : TEAM_CATEGORIES;
+  
   const filteredRewards = selectedCategory === 'all' 
-    ? AVAILABLE_REWARDS 
-    : AVAILABLE_REWARDS.filter(reward => reward.category === selectedCategory);
+    ? currentRewards 
+    : currentRewards.filter(reward => reward.category === selectedCategory);
+
+  // Points utilisés selon le type
+  const currentPoints = rewardType === 'individual' ? userPoints : teamXP;
 
   // 📊 STATISTIQUES POUR LE HEADER
   const headerStats = [
     { 
-      label: "XP Disponibles", 
-      value: userPoints?.toLocaleString() || '0', 
+      label: rewardType === 'individual' ? "Mes XP" : "XP Équipe", 
+      value: currentPoints?.toLocaleString() || '0', 
       icon: Zap, 
-      color: "text-yellow-400" 
+      color: rewardType === 'individual' ? "text-yellow-400" : "text-blue-400"
     },
     { 
       label: "Récompenses Achetées", 
@@ -362,17 +556,26 @@ const RewardsPage = () => {
     },
     { 
       label: "Accessibles", 
-      value: `${filteredRewards.filter(r => r.cost <= userPoints).length}/${filteredRewards.length}`, 
+      value: `${filteredRewards.filter(r => r.cost <= currentPoints).length}/${filteredRewards.length}`, 
       icon: Gift, 
       color: "text-blue-400" 
     },
     { 
-      label: "Niveau", 
-      value: gamificationData?.level || 1, 
+      label: rewardType === 'individual' ? "Mon Niveau" : "Niveau Équipe", 
+      value: rewardType === 'individual' ? (gamificationData?.level || 1) : getTeamLevel(), 
       icon: Crown, 
       color: "text-purple-400" 
     }
   ];
+
+  // Fonction pour obtenir le niveau d'équipe basé sur les XP collectifs
+  function getTeamLevel() {
+    if (teamXP >= 20000) return 'DIAMOND';
+    if (teamXP >= 10000) return 'PLATINUM';
+    if (teamXP >= 5000) return 'GOLD';
+    if (teamXP >= 2500) return 'SILVER';
+    return 'BRONZE';
+  }
 
   // 🚨 GESTION CHARGEMENT
   if (!isReady) {
@@ -399,20 +602,93 @@ const RewardsPage = () => {
   return (
     <PremiumLayout
       title="🎁 Boutique de Récompenses"
-      subtitle="Échangez vos XP contre des récompenses exclusives !"
+      subtitle={rewardType === 'individual' ? "Échangez vos XP contre des récompenses personnelles !" : "Utilisez les XP d'équipe pour des récompenses collectives !"}
       icon={Gift}
       showStats={true}
       stats={headerStats}
     >
-      {/* 🎮 FILTRES PAR CATÉGORIE - Gaming Style */}
+      {/* 🔄 ONGLETS INDIVIDUEL / ÉQUIPE */}
+      <div className="mb-8">
+        <PremiumCard>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white text-lg font-semibold flex items-center">
+              <Gift className="w-5 h-5 mr-2 text-yellow-400" />
+              Type de Récompenses
+            </h3>
+            
+            {/* Indicateur XP d'équipe */}
+            <div className="text-right">
+              <p className="text-gray-400 text-sm">Cagnotte Équipe</p>
+              <p className="text-blue-400 text-xl font-bold">{teamXP.toLocaleString()} XP</p>
+              <p className="text-gray-500 text-xs">Niveau: {getTeamLevel()}</p>
+            </div>
+          </div>
+          
+          <div className="flex space-x-4 mb-6">
+            <button
+              onClick={() => {
+                setRewardType('individual');
+                setSelectedCategory('all');
+              }}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all duration-200 flex-1 ${
+                rewardType === 'individual'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <Star className="w-5 h-5" />
+              <div className="text-left">
+                <div className="font-semibold">🎯 Récompenses Individuelles</div>
+                <div className="text-xs opacity-75">Utilisez vos XP personnels</div>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => {
+                setRewardType('team');
+                setSelectedCategory('all');
+              }}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all duration-200 flex-1 ${
+                rewardType === 'team'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <Trophy className="w-5 h-5" />
+              <div className="text-left">
+                <div className="font-semibold">👥 Récompenses Équipe</div>
+                <div className="text-xs opacity-75">Cagnotte collective ({teamXP.toLocaleString()} XP)</div>
+              </div>
+            </button>
+          </div>
+
+          {/* Message informatif selon le type */}
+          {rewardType === 'team' && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+              <div className="flex items-start space-x-3">
+                <Crown className="w-5 h-5 text-blue-400 mt-0.5" />
+                <div>
+                  <h4 className="text-blue-400 font-medium mb-1">Comment fonctionne la cagnotte d'équipe ?</h4>
+                  <p className="text-gray-300 text-sm">
+                    Chaque membre contribue automatiquement 5% de ses XP à la cagnotte d'équipe. 
+                    Les récompenses d'équipe profitent à tous et créent de vrais moments de convivialité ! 🎉
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </PremiumCard>
+      </div>
+
+      {/* 🎮 FILTRES PAR CATÉGORIE */}
       <div className="mb-8">
         <PremiumCard>
           <h3 className="text-white text-lg font-semibold mb-4 flex items-center">
             <Star className="w-5 h-5 mr-2 text-yellow-400" />
-            Catégories Gaming
+            Catégories {rewardType === 'individual' ? 'Individuelles' : 'Équipe'}
           </h3>
           <div className="flex flex-wrap gap-3">
-            {REWARD_CATEGORIES.map((category) => (
+            {currentCategories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
@@ -442,6 +718,13 @@ const RewardsPage = () => {
               {reward.rarity.toUpperCase()}
             </div>
 
+            {/* Badge type pour récompenses équipe */}
+            {reward.type === 'team' && (
+              <div className="absolute top-0 left-0 px-2 py-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-xs font-bold text-white rounded-br-lg z-10 shadow-lg">
+                👥 ÉQUIPE
+              </div>
+            )}
+
             {/* Effet de brillance pour les récompenses épiques+ */}
             {(reward.rarity === 'epic' || reward.rarity === 'legendary' || reward.rarity === 'mythic') && (
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse pointer-events-none"></div>
@@ -457,6 +740,23 @@ const RewardsPage = () => {
                 <p className="text-gray-400 text-sm mb-4 leading-relaxed">
                   {reward.description}
                 </p>
+
+                {/* Informations spéciales pour les récompenses d'équipe */}
+                {reward.type === 'team' && (
+                  <div className="mb-4 space-y-2">
+                    <div className="text-xs text-cyan-400 font-medium">
+                      👥 {reward.participants}
+                    </div>
+                    <div className="text-xs text-yellow-400 font-medium">
+                      ⏱️ Durée: {reward.duration}
+                    </div>
+                    {reward.level && (
+                      <div className="text-xs text-purple-400 font-medium">
+                        🏆 Niveau requis: {reward.level}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Prix et disponibilité */}
@@ -465,35 +765,37 @@ const RewardsPage = () => {
                   <div className="text-yellow-400 font-bold text-xl">
                     {reward.cost.toLocaleString()}
                   </div>
-                  <div className="text-gray-400 text-xs">XP</div>
+                  <div className="text-gray-400 text-xs">
+                    {reward.type === 'individual' ? 'XP perso' : 'XP équipe'}
+                  </div>
                 </div>
                 
                 {/* Indicateur de disponibilité gaming */}
                 <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  userPoints >= reward.cost 
+                  currentPoints >= reward.cost 
                     ? 'bg-green-600 text-green-100 animate-pulse' 
                     : 'bg-red-600 text-red-100'
                 }`}>
-                  {userPoints >= reward.cost ? '🎯 DISPO !' : '🔒 Pas assez d\'XP'}
+                  {currentPoints >= reward.cost ? '🎯 DISPO !' : '🔒 Pas assez d\'XP'}
                 </div>
               </div>
 
               {/* Bouton d'achat gaming style */}
               <PremiumButton
-                variant={userPoints >= reward.cost ? "primary" : "secondary"}
-                disabled={userPoints < reward.cost || purchasing}
+                variant={currentPoints >= reward.cost ? "primary" : "secondary"}
+                disabled={currentPoints < reward.cost || purchasing}
                 onClick={() => handlePurchase(reward)}
-                className={`w-full transition-all duration-200 ${userPoints >= reward.cost ? 'hover:shadow-lg hover:shadow-blue-500/50' : ''}`}
+                className={`w-full transition-all duration-200 ${currentPoints >= reward.cost ? 'hover:shadow-lg hover:shadow-blue-500/50' : ''}`}
               >
                 {purchasing ? (
                   <div className="flex items-center justify-center space-x-2">
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     <span>En cours...</span>
                   </div>
-                ) : userPoints >= reward.cost ? (
+                ) : currentPoints >= reward.cost ? (
                   <div className="flex items-center justify-center space-x-2">
                     <ShoppingBag className="w-4 h-4" />
-                    <span>ACHETER !</span>
+                    <span>{reward.type === 'team' ? 'ACHETER POUR L\'ÉQUIPE !' : 'ACHETER !'}</span>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center space-x-2">
@@ -543,24 +845,29 @@ const RewardsPage = () => {
         </div>
       )}
 
-      {/* 💡 MESSAGE D'ENCOURAGEMENT SI PAS ASSEZ D'XP */}
-      {userPoints < 50 && (
+      {/* 💡 MESSAGE D'ENCOURAGEMENT SELON LE TYPE */}
+      {((rewardType === 'individual' && userPoints < 50) || (rewardType === 'team' && teamXP < 1000)) && (
         <div className="mt-8">
           <PremiumCard>
             <div className="text-center py-8">
               <Zap className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Commencez à gagner de l'XP !</h3>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {rewardType === 'individual' ? 'Commencez à gagner de l\'XP !' : 'L\'équipe a besoin de plus d\'XP !'}
+              </h3>
               <p className="text-gray-400 mb-6">
-                Complétez des tâches et créez des projets pour débloquer vos premières récompenses !
+                {rewardType === 'individual' 
+                  ? 'Complétez des tâches et créez des projets pour débloquer vos premières récompenses !'
+                  : 'Chaque membre contribue automatiquement 5% de ses XP à la cagnotte d\'équipe. Plus vous êtes actifs, plus de récompenses collectives seront disponibles !'
+                }
               </p>
               <div className="flex justify-center space-x-4">
                 <PremiumButton variant="primary" onClick={() => window.location.href = '/tasks'}>
                   <Award className="w-4 h-4 mr-2" />
-                  Mes Tâches
+                  {rewardType === 'individual' ? 'Mes Tâches' : 'Contribuer via les Tâches'}
                 </PremiumButton>
                 <PremiumButton variant="secondary" onClick={() => window.location.href = '/projects'}>
                   <Trophy className="w-4 h-4 mr-2" />
-                  Mes Projets
+                  {rewardType === 'individual' ? 'Mes Projets' : 'Contribuer via les Projets'}
                 </PremiumButton>
               </div>
             </div>
@@ -575,12 +882,13 @@ const RewardsPage = () => {
             <h3 className="text-white text-lg font-semibold mb-4">🎮 Debug Console - Game Master XP</h3>
             <div className="bg-gray-800 p-4 rounded text-xs text-gray-300 font-mono border border-blue-500/20">
               <div className="text-green-400">🎯 XP utilisateur: {userPoints} (source: useSimpleXP hook)</div>
+              <div className="text-blue-400">👥 XP équipe: {teamXP} (niveau: {getTeamLevel()})</div>
               <div className="text-yellow-400">⚡ Données prêtes: {isReady ? '✅ READY TO GAME' : '❌ LOADING...'}</div>
-              <div className="text-purple-400">🏆 Niveau: {gamificationData?.level || 'N/A'}</div>
-              <div className="text-cyan-400">🎁 Historique: {purchaseHistory.length} récompenses déjà obtenues</div>
-              <div className="text-orange-400">🛒 Accessibles: {filteredRewards.filter(r => r.cost <= userPoints).length}/{filteredRewards.length} récompenses disponibles</div>
-              <div className="text-pink-400">💪 Plus chère accessible: {Math.max(...filteredRewards.filter(r => r.cost <= userPoints).map(r => r.cost), 0)} XP</div>
-              <div className="text-red-400">🔥 Prochaine cible: {filteredRewards.filter(r => r.cost > userPoints).sort((a,b) => a.cost - b.cost)[0]?.name || 'Toutes débloquées !'}</div>
+              <div className="text-purple-400">🏆 Niveau perso: {gamificationData?.level || 'N/A'}</div>
+              <div className="text-cyan-400">🎁 Type actuel: {rewardType === 'individual' ? '🎯 INDIVIDUEL' : '👥 ÉQUIPE'}</div>
+              <div className="text-orange-400">🛒 Accessibles: {filteredRewards.filter(r => r.cost <= currentPoints).length}/{filteredRewards.length} récompenses disponibles</div>
+              <div className="text-pink-400">💪 Plus chère accessible: {Math.max(...filteredRewards.filter(r => r.cost <= currentPoints).map(r => r.cost), 0)} XP</div>
+              <div className="text-red-400">🔥 Prochaine cible: {filteredRewards.filter(r => r.cost > currentPoints).sort((a,b) => a.cost - b.cost)[0]?.name || 'Toutes débloquées !'}</div>
             </div>
           </PremiumCard>
         </div>
