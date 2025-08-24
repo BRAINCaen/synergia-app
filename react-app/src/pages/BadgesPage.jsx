@@ -482,6 +482,18 @@ const BadgesPage = () => {
 
   const headerActions = (
     <div className="flex space-x-3">
+      {isUserAdmin && (
+        <>
+          <PremiumButton variant="secondary" onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nouveau badge
+          </PremiumButton>
+          <PremiumButton variant="secondary" onClick={() => window.open('/admin/badges', '_blank')}>
+            <Settings className="w-4 h-4 mr-2" />
+            Admin Badges
+          </PremiumButton>
+        </>
+      )}
       <PremiumButton variant="secondary" onClick={() => checkAndUnlockBadges()}>
         <RefreshCw className="w-4 h-4 mr-2" />
         Vérifier badges
@@ -633,8 +645,79 @@ const BadgesPage = () => {
             <Trophy className="w-16 h-16 text-gray-500 mx-auto mb-4" />
             <h3 className="text-white text-xl font-semibold mb-2">Aucun badge dans cette catégorie</h3>
             <p className="text-gray-400">Sélectionnez une autre catégorie ou revenez plus tard !</p>
+            {isUserAdmin && (
+              <PremiumButton 
+                variant="secondary" 
+                className="mt-4"
+                onClick={() => window.open('/admin/badges', '_blank')}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Créer des badges
+              </PremiumButton>
+            )}
           </PremiumCard>
         )}
+
+        {/* Modal de création rapide pour admins */}
+        <AnimatePresence>
+          {showCreateModal && isUserAdmin && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+              onClick={() => setShowCreateModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.8 }}
+                className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-6 max-w-md w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold text-white">Création rapide</h3>
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="text-gray-400 hover:text-white p-1"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="text-center py-8">
+                  <Settings className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                  <h4 className="text-white text-lg font-semibold mb-2">Interface d'administration</h4>
+                  <p className="text-gray-300 text-sm mb-6">
+                    Pour créer et gérer les badges avec toutes les options avancées, 
+                    utilisez l'interface d'administration complète.
+                  </p>
+                  
+                  <div className="flex space-x-3">
+                    <PremiumButton 
+                      variant="secondary" 
+                      className="flex-1"
+                      onClick={() => setShowCreateModal(false)}
+                    >
+                      Annuler
+                    </PremiumButton>
+                    <PremiumButton 
+                      variant="primary" 
+                      className="flex-1"
+                      onClick={() => {
+                        window.open('/admin/badges', '_blank');
+                        setShowCreateModal(false);
+                      }}
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Admin Badges
+                    </PremiumButton>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Modal détail badge */}
         <AnimatePresence>
