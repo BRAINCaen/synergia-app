@@ -10,7 +10,7 @@ import {
   Plus,
   Search,
   Filter,
-  Grid3x3,
+  LayoutGrid,
   List,
   Settings,
   Users,
