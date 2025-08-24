@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/BadgesPage.jsx
-// PAGE BADGES AVEC ADMINISTRATION COMPLÈTE - VERSION CORRIGÉE
+// VERSION CORRIGÉE - DONNÉES FIREBASE RÉELLES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -37,129 +37,127 @@ import {
   getDoc,
   collection,
   setDoc,
-  deleteDoc,
-  arrayRemove
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🎯 DÉFINITION DES BADGES AVEC CONDITIONS AUTOMATIQUES
-let BADGE_DEFINITIONS = [
-  // 🚀 BADGES DE DÉMARRAGE
+// 🎯 BADGES DE RÉFÉRENCE - ADAPTÉS À LA STRUCTURE FIREBASE RÉELLE
+const REFERENCE_BADGES = [
   {
-    id: 'welcome',
+    id: 'first_login',
     name: 'Bienvenue !',
     description: 'Première connexion à Synergia',
     icon: '👋',
+    type: 'achievement',
     rarity: 'common',
-    category: 'onboarding',
     xpReward: 10,
-    conditions: ['Se connecter à Synergia'],
-    autoCheck: (userData) => true // Auto-débloqué à la première connexion
+    category: 'onboarding',
+    checkCondition: (userData) => true // Auto-débloqué
   },
   {
     id: 'profile_complete',
     name: 'Profil Complet',
-    description: 'Compléter votre profil utilisateur',
+    description: 'Profil utilisateur entièrement rempli',
     icon: '👤',
+    type: 'achievement', 
     rarity: 'common',
-    category: 'onboarding',
     xpReward: 25,
-    conditions: ['Remplir tous les champs du profil'],
-    autoCheck: (userData) => {
+    category: 'onboarding',
+    checkCondition: (userData) => {
       const profile = userData.profile || {};
       return profile.completeness >= 80;
     }
   },
   {
-    id: 'first_task',
+    id: 'task_starter',
     name: 'Premier Pas',
-    description: 'Compléter votre première tâche',
+    description: 'Première tâche complétée',
     icon: '✅',
-    rarity: 'common',
-    category: 'productivity',
+    type: 'achievement',
+    rarity: 'common', 
     xpReward: 20,
-    conditions: ['Compléter 1 tâche'],
-    autoCheck: (userData) => (userData.gamification?.tasksCompleted || 0) >= 1
+    category: 'productivity',
+    checkCondition: (userData) => (userData.gamification?.tasksCompleted || 0) >= 1
   },
   {
     id: 'task_enthusiast',
     name: 'Enthousiaste',
     description: 'Compléter 5 tâches',
     icon: '🔥',
+    type: 'milestone',
     rarity: 'uncommon',
-    category: 'productivity',
     xpReward: 50,
-    conditions: ['Compléter 5 tâches'],
-    autoCheck: (userData) => (userData.gamification?.tasksCompleted || 0) >= 5
-  },
-  {
-    id: 'task_expert',
-    name: 'Expert',
-    description: 'Compléter 25 tâches',
-    icon: '⚡',
-    rarity: 'rare',
     category: 'productivity',
-    xpReward: 100,
-    conditions: ['Compléter 25 tâches'],
-    autoCheck: (userData) => (userData.gamification?.tasksCompleted || 0) >= 25
+    checkCondition: (userData) => (userData.gamification?.tasksCompleted || 0) >= 5
   },
   {
-    id: 'level_up',
-    name: 'Montée de Niveau',
+    id: 'level_climber',
+    name: 'Grimpeur',
     description: 'Atteindre le niveau 5',
     icon: '📈',
+    type: 'progression',
     rarity: 'uncommon',
-    category: 'progression',
     xpReward: 75,
-    conditions: ['Atteindre le niveau 5'],
-    autoCheck: (userData) => (userData.gamification?.level || 1) >= 5
+    category: 'progression', 
+    checkCondition: (userData) => (userData.gamification?.level || 1) >= 5
   },
   {
     id: 'xp_collector',
     name: 'Collectionneur XP',
     description: 'Accumuler 1000 points d\'expérience',
     icon: '💎',
+    type: 'milestone',
     rarity: 'rare',
-    category: 'progression',
     xpReward: 150,
-    conditions: ['Accumuler 1000 XP'],
-    autoCheck: (userData) => (userData.gamification?.totalXp || 0) >= 1000
+    category: 'progression',
+    checkCondition: (userData) => (userData.gamification?.totalXp || 0) >= 1000
   },
   {
     id: 'consistent_user',
     name: 'Utilisateur Régulier',
-    description: 'Utiliser Synergia pendant 7 jours consécutifs',
+    description: 'Connexions régulières pendant 7 jours',
     icon: '📅',
+    type: 'streak',
     rarity: 'uncommon',
-    category: 'consistency',
     xpReward: 80,
-    conditions: ['7 jours consécutifs d\'utilisation'],
-    autoCheck: (userData) => {
-      const streaks = userData.gamification?.loginStreaks || {};
-      return streaks.current >= 7;
-    }
+    category: 'consistency',
+    checkCondition: (userData) => (userData.gamification?.loginStreak || 0) >= 7
   },
   {
     id: 'team_player',
     name: 'Esprit d\'Équipe',
-    description: 'Collaborer sur 10 projets différents',
+    description: 'Participer à plusieurs projets d\'équipe',
     icon: '🤝',
+    type: 'social',
     rarity: 'rare',
-    category: 'qvct',
     xpReward: 120,
-    conditions: ['Collaborer sur 10 projets'],
-    autoCheck: (userData) => (userData.stats?.projectsJoined || 0) >= 10
+    category: 'teamwork',
+    checkCondition: (userData) => (userData.gamification?.projectsCreated || 0) >= 3
+  },
+  {
+    id: 'badge_collector',
+    name: 'Collectionneur',
+    description: 'Débloquer 5 badges différents',
+    icon: '🏆',
+    type: 'meta',
+    rarity: 'rare',
+    xpReward: 100,
+    category: 'collection',
+    checkCondition: (userData) => {
+      const badges = userData.gamification?.badges || [];
+      return badges.length >= 5;
+    }
   },
   {
     id: 'legend',
     name: 'Légende',
     description: 'Atteindre le niveau 20',
     icon: '👑',
+    type: 'progression',
     rarity: 'legendary',
-    category: 'progression',
     xpReward: 500,
-    conditions: ['Atteindre le niveau 20'],
-    autoCheck: (userData) => (userData.gamification?.level || 1) >= 20
+    category: 'mastery',
+    checkCondition: (userData) => (userData.gamification?.level || 1) >= 20
   }
 ];
 
@@ -168,20 +166,27 @@ let BADGE_DEFINITIONS = [
  */
 const BadgesPage = () => {
   const { user } = useAuthStore();
-  const { gamification, firebaseLoading, isReady } = useUnifiedFirebaseData();
+  
+  // ✅ UTILISATION CORRECTE DU HOOK FIREBASE
+  const { 
+    gamification, 
+    isLoading: firebaseLoading, 
+    isReady,
+    error: firebaseError,
+    actions 
+  } = useUnifiedFirebaseData();
   
   // États locaux
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBadge, setSelectedBadge] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingBadge, setEditingBadge] = useState(null);
   const [badgeStats, setBadgeStats] = useState({
     earned: 0,
     total: 0,
     percentage: 0,
     byRarity: {},
-    byCategory: {}
+    byType: {}
   });
   
   // États admin
@@ -193,32 +198,20 @@ const BadgesPage = () => {
       if (user) {
         const adminStatus = await isAdmin(user.uid);
         setIsUserAdmin(adminStatus);
+        console.log('🛡️ Statut admin pour badges:', adminStatus);
       }
     };
     checkAdmin();
   }, [user]);
 
   /**
-   * 📦 CHARGER LES BADGES PERSONNALISÉS (POUR ADMINS)
-   */
-  const loadCustomBadges = async () => {
-    try {
-      // Cette fonction peut être étendue pour charger des badges personnalisés depuis Firebase
-      console.log('📦 Badges standards chargés:', BADGE_DEFINITIONS.length);
-    } catch (error) {
-      console.error('❌ Erreur chargement badges:', error);
-    }
-  };
-
-  /**
-   * 🔍 VÉRIFIER ET DÉBLOQUER LES BADGES AUTOMATIQUEMENT - VERSION CORRIGÉE
-   * ✅ Plus d'erreur serverTimestamp() avec arrayUnion()
+   * 🔍 VÉRIFIER ET DÉBLOQUER LES BADGES - VERSION CORRIGÉE FIREBASE
    */
   const checkAndUnlockBadges = async () => {
-    if (!user?.uid || !isReady) return;
+    if (!user?.uid || !isReady || !gamification) return;
 
     try {
-      console.log('🎯 Vérification automatique des badges...');
+      console.log('🎯 Vérification badges avec données Firebase réelles...');
       
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
@@ -226,70 +219,59 @@ const BadgesPage = () => {
       if (!userSnap.exists()) return;
       
       const userData = userSnap.data();
+      
+      // ✅ STRUCTURE FIREBASE RÉELLE
       const currentBadges = userData.gamification?.badges || [];
-      const earnedBadgeIds = currentBadges.map(b => b.id || b.badgeId);
+      const earnedBadgeIds = currentBadges.map(b => b.id);
       
       let newBadges = [];
       let totalXpGained = 0;
 
-      // Vérifier chaque badge
-      for (const badgeDefinition of BADGE_DEFINITIONS) {
+      // Vérifier chaque badge de référence
+      for (const badgeDefinition of REFERENCE_BADGES) {
         const isAlreadyEarned = earnedBadgeIds.includes(badgeDefinition.id);
         
-        if (!isAlreadyEarned) {
-          let shouldUnlock = false;
-          
-          if (badgeDefinition.autoCheck) {
-            if (typeof badgeDefinition.autoCheck === 'function') {
-              shouldUnlock = badgeDefinition.autoCheck(userData);
-            } else if (badgeDefinition.autoCheckCode) {
-              // Reconstruire la fonction depuis le code stocké
-              try {
-                const autoCheckFunction = new Function('userData', badgeDefinition.autoCheckCode.replace('(userData) => ', 'return '));
-                shouldUnlock = autoCheckFunction(userData);
-              } catch (error) {
-                console.warn('⚠️ Erreur évaluation autoCheck pour badge:', badgeDefinition.id);
-              }
+        if (!isAlreadyEarned && badgeDefinition.checkCondition) {
+          try {
+            const shouldUnlock = badgeDefinition.checkCondition(userData);
+            
+            if (shouldUnlock) {
+              console.log(`🎉 Nouveau badge débloqué: ${badgeDefinition.name}`);
+              
+              // ✅ STRUCTURE FIREBASE CORRECTE
+              const newBadge = {
+                id: badgeDefinition.id,
+                name: badgeDefinition.name,
+                description: badgeDefinition.description,
+                type: badgeDefinition.type,
+                rarity: badgeDefinition.rarity,
+                xpReward: badgeDefinition.xpReward,
+                unlockedAt: new Date().toISOString() // ✅ Format ISO string
+              };
+              
+              newBadges.push(newBadge);
+              totalXpGained += badgeDefinition.xpReward;
             }
-          }
-          
-          if (shouldUnlock) {
-            console.log(`🎉 Nouveau badge débloqué: ${badgeDefinition.name}`);
-            
-            const newBadge = {
-              id: badgeDefinition.id,
-              badgeId: badgeDefinition.id,
-              name: badgeDefinition.name,
-              description: badgeDefinition.description,
-              icon: badgeDefinition.icon,
-              rarity: badgeDefinition.rarity,
-              category: badgeDefinition.category,
-              xpReward: badgeDefinition.xpReward,
-              unlockedAt: new Date().toISOString(), // ✅ STRING au lieu de serverTimestamp
-              earnedAt: new Date().toISOString()
-            };
-            
-            newBadges.push(newBadge);
-            totalXpGained += badgeDefinition.xpReward;
+          } catch (error) {
+            console.warn('⚠️ Erreur vérification badge:', badgeDefinition.id, error);
           }
         }
       }
 
-      // ✅ SAUVEGARDER LES NOUVEAUX BADGES AVEC setDoc + merge (PAS arrayUnion)
+      // ✅ SAUVEGARDE FIREBASE CORRIGÉE
       if (newBadges.length > 0) {
-        // 1. Récupérer tous les badges (existants + nouveaux)
         const allBadges = [...currentBadges, ...newBadges];
         
-        // 2. Mise à jour avec setDoc pour éviter l'erreur arrayUnion + serverTimestamp
         await setDoc(userRef, {
           gamification: {
             ...userData.gamification,
-            badges: allBadges, // ✅ Remplacer tout le tableau au lieu d'arrayUnion
+            badges: allBadges,
             badgesUnlocked: allBadges.length,
             totalXp: (userData.gamification?.totalXp || 0) + totalXpGained,
-            lastBadgeCheck: new Date().toISOString() // ✅ STRING au lieu de serverTimestamp
+            totalBadgeXp: (userData.gamification?.totalBadgeXp || 0) + totalXpGained,
+            lastBadgeCheck: new Date().toISOString()
           }
-        }, { merge: true }); // ✅ merge: true pour préserver les autres données
+        }, { merge: true });
 
         // Afficher les notifications
         newBadges.forEach(badge => {
@@ -314,7 +296,7 @@ const BadgesPage = () => {
     notification.className = 'fixed top-4 right-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm';
     notification.innerHTML = `
       <div class="flex items-center">
-        <div class="text-2xl mr-3">${badge.icon}</div>
+        <div class="text-2xl mr-3">${badge.icon || '🏆'}</div>
         <div>
           <div class="font-bold">Badge débloqué !</div>
           <div class="text-sm">${badge.name}</div>
@@ -326,12 +308,8 @@ const BadgesPage = () => {
     document.body.appendChild(notification);
     
     setTimeout(() => {
-      notification.style.transform = 'translateX(-100%)';
-      notification.style.transition = 'transform 0.3s ease';
-    }, 100);
-    
-    setTimeout(() => {
       notification.style.transform = 'translateX(100%)';
+      notification.style.transition = 'transform 0.3s ease';
       setTimeout(() => {
         if (document.body.contains(notification)) {
           document.body.removeChild(notification);
@@ -341,66 +319,26 @@ const BadgesPage = () => {
   };
 
   /**
-   * 🗑️ SUPPRIMER UN BADGE PERSONNALISÉ
-   */
-  const deleteBadge = async (badgeId) => {
-    try {
-      const badgeRef = doc(db, 'customBadges', badgeId);
-      await deleteDoc(badgeRef);
-      
-      // Retirer aussi de tous les utilisateurs qui l'ont
-      // Cette partie nécessiterait une Cloud Function en production
-      
-      showNotification('Badge supprimé avec succès', 'success');
-      
-    } catch (error) {
-      console.error('❌ Erreur suppression badge:', error);
-      showNotification('Erreur lors de la suppression', 'error');
-    }
-  };
-
-  /**
-   * 🎊 NOTIFICATION SIMPLE
-   */
-  const showNotification = (message, type = 'info') => {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-sm ${
-      type === 'success' ? 'bg-green-600' : 
-      type === 'error' ? 'bg-red-600' : 'bg-blue-600'
-    } text-white`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.style.transform = 'translateX(100%)';
-      notification.style.transition = 'transform 0.3s ease';
-      setTimeout(() => {
-        if (document.body.contains(notification)) {
-          document.body.removeChild(notification);
-        }
-      }, 300);
-    }, 3000);
-  };
-
-  /**
-   * 📊 CALCULER LES STATISTIQUES DES BADGES
+   * 📊 CALCULER LES STATISTIQUES DES BADGES - VERSION CORRIGÉE
    */
   const calculateBadgeStats = () => {
-    const userBadges = gamification.badges || [];
+    // ✅ UTILISER LES VRAIES DONNÉES FIREBASE
+    const userBadges = gamification?.badges || [];
     const earnedCount = userBadges.length;
-    const totalCount = BADGE_DEFINITIONS.length;
+    const totalCount = REFERENCE_BADGES.length;
     const percentage = totalCount > 0 ? Math.round((earnedCount / totalCount) * 100) : 0;
 
+    // ✅ GROUPER PAR RARETÉ (structure Firebase)
     const byRarity = userBadges.reduce((acc, badge) => {
       const rarity = badge.rarity || 'common';
       acc[rarity] = (acc[rarity] || 0) + 1;
       return acc;
     }, {});
 
-    const byCategory = userBadges.reduce((acc, badge) => {
-      const category = badge.category || 'general';
-      acc[category] = (acc[category] || 0) + 1;
+    // ✅ GROUPER PAR TYPE (structure Firebase)
+    const byType = userBadges.reduce((acc, badge) => {
+      const type = badge.type || 'achievement';
+      acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {});
 
@@ -409,7 +347,7 @@ const BadgesPage = () => {
       total: totalCount,
       percentage,
       byRarity,
-      byCategory
+      byType
     });
   };
 
@@ -428,30 +366,48 @@ const BadgesPage = () => {
   };
 
   /**
-   * ✅ VÉRIFIER SI UN BADGE EST DÉBLOQUÉ
+   * ✅ VÉRIFIER SI UN BADGE EST DÉBLOQUÉ - VERSION FIREBASE
    */
   const isBadgeUnlocked = (badgeId) => {
-    const userBadges = gamification.badges || [];
-    return userBadges.some(badge => badge.id === badgeId || badge.badgeId === badgeId);
+    const userBadges = gamification?.badges || [];
+    return userBadges.some(badge => badge.id === badgeId);
   };
 
   /**
    * 📊 CALCULER LA PROGRESSION D'UN BADGE
    */
-  const getBadgeProgress = (badge) => {
-    if (isBadgeUnlocked(badge.id)) return 100;
+  const getBadgeProgress = (badgeRef) => {
+    if (isBadgeUnlocked(badgeRef.id)) return 100;
     
-    // Logique de progression basée sur les conditions du badge
-    if (badge.autoCheck) {
+    // Logique de progression basée sur les conditions
+    if (badgeRef.checkCondition && gamification) {
       try {
-        // Simulation de progression - peut être affinée
-        return badge.autoCheck(gamification) ? 100 : Math.random() * 60;
+        // Récupérer les données utilisateur complètes
+        const userData = { gamification };
+        
+        // Simuler une progression basée sur les métriques
+        switch (badgeRef.id) {
+          case 'task_starter':
+            return Math.min(100, ((gamification.tasksCompleted || 0) / 1) * 100);
+          case 'task_enthusiast':
+            return Math.min(100, ((gamification.tasksCompleted || 0) / 5) * 100);
+          case 'level_climber':
+            return Math.min(100, ((gamification.level || 1) / 5) * 100);
+          case 'xp_collector':
+            return Math.min(100, ((gamification.totalXp || 0) / 1000) * 100);
+          case 'consistent_user':
+            return Math.min(100, ((gamification.loginStreak || 0) / 7) * 100);
+          case 'legend':
+            return Math.min(100, ((gamification.level || 1) / 20) * 100);
+          default:
+            return badgeRef.checkCondition(userData) ? 100 : 25;
+        }
       } catch {
         return 0;
       }
     }
     
-    return Math.random() * 80; // Placeholder
+    return 0;
   };
 
   /**
@@ -459,7 +415,6 @@ const BadgesPage = () => {
    */
   const refreshData = async () => {
     setLoading(true);
-    await loadCustomBadges();
     await checkAndUnlockBadges();
     calculateBadgeStats();
     setLoading(false);
@@ -467,24 +422,24 @@ const BadgesPage = () => {
 
   // Charger les données au montage
   useEffect(() => {
-    if (isReady && user?.uid) {
-      loadCustomBadges().then(() => {
-        checkAndUnlockBadges();
-        calculateBadgeStats();
-        setLoading(false);
-      });
+    if (isReady && user?.uid && gamification) {
+      checkAndUnlockBadges();
+      calculateBadgeStats();
+      setLoading(false);
     }
-  }, [isReady, user?.uid]);
+  }, [isReady, user?.uid, gamification]);
 
   // Recalculer les stats quand les badges changent
   useEffect(() => {
-    calculateBadgeStats();
-  }, [gamification.badges]);
+    if (gamification?.badges) {
+      calculateBadgeStats();
+    }
+  }, [gamification?.badges]);
 
   // Filtrer les badges selon la catégorie
   const filteredBadges = selectedCategory === 'all' 
-    ? BADGE_DEFINITIONS 
-    : BADGE_DEFINITIONS.filter(badge => badge.category === selectedCategory);
+    ? REFERENCE_BADGES 
+    : REFERENCE_BADGES.filter(badge => badge.category === selectedCategory);
 
   // Catégories disponibles
   const categories = [
@@ -493,9 +448,11 @@ const BadgesPage = () => {
     { id: 'productivity', name: 'Productivité', icon: CheckCircle },
     { id: 'progression', name: 'Progression', icon: Star },
     { id: 'consistency', name: 'Régularité', icon: Calendar },
-    { id: 'qvct', name: 'QVCT', icon: Users }
+    { id: 'teamwork', name: 'Équipe', icon: Users },
+    { id: 'mastery', name: 'Maîtrise', icon: Crown }
   ];
 
+  // ✅ STATS HEADER CORRIGÉES
   const headerStats = [
     { 
       label: "Badges débloqués", 
@@ -516,21 +473,15 @@ const BadgesPage = () => {
       color: "text-purple-400" 
     },
     { 
-      label: "Badges rares", 
-      value: (badgeStats.byRarity.rare || 0) + (badgeStats.byRarity.epic || 0) + (badgeStats.byRarity.legendary || 0), 
-      icon: Crown, 
+      label: "XP des badges", 
+      value: (gamification?.totalBadgeXp || 0).toString(), 
+      icon: Zap, 
       color: "text-orange-400" 
     }
   ];
 
   const headerActions = (
     <div className="flex space-x-3">
-      {isUserAdmin && (
-        <PremiumButton variant="secondary" onClick={() => setShowCreateModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nouveau badge
-        </PremiumButton>
-      )}
       <PremiumButton variant="secondary" onClick={() => checkAndUnlockBadges()}>
         <RefreshCw className="w-4 h-4 mr-2" />
         Vérifier badges
@@ -572,7 +523,7 @@ const BadgesPage = () => {
         {/* Filtres */}
         <PremiumCard>
           <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 flex-wrap">
               {categories.map(category => {
                 const Icon = category.icon;
                 return (
@@ -639,7 +590,7 @@ const BadgesPage = () => {
                     </div>
                     
                     {/* Barre de progression */}
-                    {!isUnlocked && (
+                    {!isUnlocked && progress > 0 && (
                       <div>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-gray-500">Progression</span>
@@ -661,12 +612,29 @@ const BadgesPage = () => {
                         Débloqué
                       </div>
                     )}
+                    
+                    {/* Badge verrouillé sans progression */}
+                    {!isUnlocked && progress === 0 && (
+                      <div className="flex items-center justify-center text-gray-500 text-sm">
+                        <Lock className="w-4 h-4 mr-1" />
+                        Verrouillé
+                      </div>
+                    )}
                   </div>
                 </PremiumCard>
               </motion.div>
             );
           })}
         </div>
+
+        {/* Message si aucun badge dans la catégorie */}
+        {filteredBadges.length === 0 && (
+          <PremiumCard className="text-center py-12">
+            <Trophy className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+            <h3 className="text-white text-xl font-semibold mb-2">Aucun badge dans cette catégorie</h3>
+            <p className="text-gray-400">Sélectionnez une autre catégorie ou revenez plus tard !</p>
+          </PremiumCard>
+        )}
 
         {/* Modal détail badge */}
         <AnimatePresence>
@@ -707,29 +675,10 @@ const BadgesPage = () => {
                     <div className="text-yellow-400 font-semibold">
                       +{selectedBadge.xpReward} XP
                     </div>
+                    <div className="text-blue-400 text-sm">
+                      {selectedBadge.type}
+                    </div>
                   </div>
-                </div>
-
-                {/* Conditions pour obtenir le badge */}
-                <div className="mb-6">
-                  <h5 className="text-white font-medium mb-3">Conditions requises :</h5>
-                  <ul className="space-y-2">
-                    {selectedBadge.conditions.map((condition, index) => {
-                      const isConditionMet = selectedBadge.autoCheck ? selectedBadge.autoCheck(gamification) : false;
-                      return (
-                        <li key={index} className="flex items-center text-sm">
-                          {isBadgeUnlocked(selectedBadge.id) || isConditionMet ? (
-                            <CheckCircle className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
-                          ) : (
-                            <div className="w-4 h-4 border-2 border-gray-500 rounded mr-2 flex-shrink-0"></div>
-                          )}
-                          <span className={isBadgeUnlocked(selectedBadge.id) || isConditionMet ? 'text-green-300' : 'text-gray-400'}>
-                            {condition}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
                 </div>
 
                 {/* Progression actuelle */}
@@ -762,6 +711,17 @@ const BadgesPage = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Date de déverrouillage */}
+                {isBadgeUnlocked(selectedBadge.id) && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <p className="text-gray-400 text-sm text-center">
+                      Débloqué le {new Date(
+                        gamification.badges?.find(b => b.id === selectedBadge.id)?.unlockedAt || Date.now()
+                      ).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+                )}
               </motion.div>
             </motion.div>
           )}
