@@ -10,7 +10,7 @@ import {
   Plus,
   Search,
   Filter,
-  Grid3X3,
+  Grid3x3,
   List,
   Settings,
   Users,
@@ -361,7 +361,7 @@ const ProjectsPage = () => {
                   viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <Grid3X3 className="w-4 h-4" />
+                <Grid3x3 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
