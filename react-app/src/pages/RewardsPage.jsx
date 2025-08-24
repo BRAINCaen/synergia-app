@@ -5,9 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Gift, Trophy, Star, Zap, Coins, ShoppingBag, Award, History } from 'lucide-react';
-import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
-import PremiumCard from '../components/ui/PremiumCard.jsx';
-import PremiumButton from '../components/ui/PremiumButton.jsx';
+import PremiumLayout, { PremiumCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
 // ✅ IMPORTS CORRECTS pour les vraies données Firebase
 import { useAuthStore } from '../shared/stores/authStore.js';
