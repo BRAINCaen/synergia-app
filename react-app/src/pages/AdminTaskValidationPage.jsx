@@ -3,6 +3,9 @@
 // PAGE ADMIN - ACCÈS ADMIN AVEC LAYOUT STANDARD ET MENU HAMBURGER FONCTIONNEL
 // ==========================================
 
+// En haut du fichier AdminTaskValidationPage.jsx
+console.log('🔄 [AdminTaskValidationPage] Rechargé à:', new Date().toLocaleTimeString());
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
