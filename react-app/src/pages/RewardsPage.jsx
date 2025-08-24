@@ -404,17 +404,21 @@ const RewardsPage = () => {
     <div className="flex space-x-3">
       <PremiumButton 
         variant="secondary" 
-        icon={History}
         onClick={() => {/* Afficher historique */}}
       >
-        Historique
+        <div className="flex items-center space-x-2">
+          <History className="w-4 h-4" />
+          <span>Historique</span>
+        </div>
       </PremiumButton>
       <PremiumButton 
         variant="primary" 
-        icon={Zap}
         onClick={() => {/* Aller vers tâches pour gagner plus d'XP */}}
       >
-        Gagner plus d'XP
+        <div className="flex items-center space-x-2">
+          <Zap className="w-4 h-4" />
+          <span>Gagner plus d'XP</span>
+        </div>
       </PremiumButton>
     </div>
   );
@@ -570,8 +574,11 @@ const RewardsPage = () => {
               Source: useUnifiedXP → Firebase gamification.totalXp
             </div>
             <div className="mt-4">
-              <PremiumButton variant="primary" icon={Zap}>
-                Farm plus d'XP ! 💪
+              <PremiumButton variant="primary">
+                <div className="flex items-center space-x-2">
+                  <Zap className="w-4 h-4" />
+                  <span>Farm plus d'XP ! 💪</span>
+                </div>
               </PremiumButton>
             </div>
           </div>
@@ -655,9 +662,23 @@ const RewardsPage = () => {
                 disabled={userPoints < reward.cost || purchasing}
                 onClick={() => handlePurchase(reward)}
                 className={`w-full transition-all duration-200 ${userPoints >= reward.cost ? 'hover:shadow-lg hover:shadow-blue-500/50' : ''}`}
-                icon={purchasing ? RefreshCw : (userPoints >= reward.cost ? ShoppingBag : Lock)}
               >
-                {purchasing ? 'En cours...' : (userPoints >= reward.cost ? 'ACHETER !' : 'XP manquants')}
+                {purchasing ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>En cours...</span>
+                  </div>
+                ) : userPoints >= reward.cost ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>ACHETER !</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center space-x-2">
+                    <Lock className="w-4 h-4" />
+                    <span>XP manquants</span>
+                  </div>
+                )}
               </PremiumButton>
             </div>
           </PremiumCard>
