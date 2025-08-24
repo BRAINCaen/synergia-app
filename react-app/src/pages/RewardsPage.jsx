@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Gift, Trophy, Star, Zap, Coins, ShoppingBag, Award, History } from 'lucide-react';
-import PremiumLayout from '../components/layouts/PremiumLayout.jsx';
+import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 import PremiumCard from '../components/ui/PremiumCard.jsx';
 import PremiumButton from '../components/ui/PremiumButton.jsx';
 
@@ -46,210 +46,327 @@ const RewardsPage = () => {
   // ✅ DONNÉES RÉELLES - Plus de points hardcodés !
   const userPoints = totalXp || 0; // Utiliser les vraies XP comme points
 
-  // 🏪 RÉCOMPENSES DISPONIBLES - Prix basés sur les vraies données du système
+  // 🎮 RÉCOMPENSES POUR JEUNES GAME MASTERS GAMERS - Adaptées à leurs centres d'intérêts
   const availableRewards = [
-    // 🟢 MINI-PLAISIRS (50-100 XP)
+    // 🟢 GAMING & SNACKS (30-120 XP) - Ce qu'ils adorent !
     {
-      id: 'snack_personal',
-      name: 'Goûter personnalisé',
-      description: 'Un goûter choisi spécialement pour vous',
-      cost: 50,
-      category: 'mini',
-      icon: '🍪',
+      id: 'energy_drink_pack',
+      name: 'Pack Energy Drinks',
+      description: '4 boissons énergisantes au choix (Red Bull, Monster, etc.)',
+      cost: 30,
+      category: 'gaming',
+      icon: '⚡',
       rarity: 'common'
     },
     {
-      id: 'mini_game',
-      name: 'Mini-jeu de bureau',
-      description: 'Jeu relaxant pendant une pause',
+      id: 'gaming_snacks_box',
+      name: 'Box Snacks Gaming',
+      description: 'Assortiment de snacks pour tes sessions gaming',
+      cost: 45,
+      category: 'gaming',
+      icon: '🍿',
+      rarity: 'common'
+    },
+    {
+      id: 'bubble_tea',
+      name: 'Bubble Tea Premium',
+      description: 'Bubble tea artisanal de ton goût préféré',
+      cost: 60,
+      category: 'gaming',
+      icon: '🧋',
+      rarity: 'common'
+    },
+    {
+      id: 'gaming_break_extended',
+      name: 'Pause Gaming Longue',
+      description: '1h de pause gaming officielle pendant le boulot',
       cost: 80,
-      category: 'mini',
+      category: 'gaming',
       icon: '🎮',
       rarity: 'common'
     },
     {
-      id: 'unlimited_break',
-      name: 'Pause illimitée',
-      description: 'Une pause aussi longue que vous le souhaitez',
-      cost: 100,
-      category: 'mini',
-      icon: '⏰',
-      rarity: 'common'
-    },
-
-    // 🔵 PETITS AVANTAGES (120-180 XP)
-    {
-      id: 'time_off_15min',
-      name: '15 min off',
-      description: '15 minutes de liberté totale',
+      id: 'setup_upgrade',
+      name: 'Upgrade Setup Perso',
+      description: 'Accessoire gaming pour ton setup (tapis souris, etc.)',
       cost: 120,
-      category: 'avantages',
-      icon: '⏱️',
+      category: 'gaming',
+      icon: '⌨️',
       rarity: 'uncommon'
     },
+
+    // 🟡 TEMPS LIBRE & AVANTAGES (150-280 XP) - Liberté et flexibilité
     {
-      id: 'nap_authorized',
-      name: 'Pause sieste autorisée',
-      description: 'Droit à une micro-sieste officielle',
+      id: 'morning_off',
+      name: 'Matinée OFF',
+      description: 'Commencer à 14h au lieu de 9h, officiellement',
       cost: 150,
-      category: 'avantages',
-      icon: '😴',
+      category: 'liberte',
+      icon: '🌅',
       rarity: 'uncommon'
     },
     {
-      id: 'light_shift',
-      name: 'Shift "super light"',
-      description: 'Journée de travail allégée',
+      id: 'afternoon_gaming',
+      name: 'Aprem Gaming Session',
+      description: 'Après-midi gaming avec les collègues sur les heures de boulot',
       cost: 180,
-      category: 'avantages',
-      icon: '🌤️',
+      category: 'liberte',
+      icon: '🕹️',
       rarity: 'uncommon'
     },
-
-    // 🟡 PLAISIRS UTILES (220-380 XP)
     {
-      id: 'action_voucher',
-      name: 'Bon "action"',
-      description: 'Bon à utiliser pour une action spéciale',
+      id: 'wfh_day',
+      name: 'Télétravail Gaming Day',
+      description: 'Journée de télétravail dédiée gaming',
       cost: 220,
-      category: 'utiles',
-      icon: '🎯',
+      category: 'liberte',
+      icon: '🏠',
       rarity: 'rare'
     },
     {
-      id: 'breakfast_surprise',
-      name: 'Petit-déj surprise',
-      description: 'Petit-déjeuner préparé spécialement',
+      id: 'netflix_chill',
+      name: 'Netflix & Chill officiel',
+      description: '2h de Netflix/streaming pendant les heures de travail',
+      cost: 250,
+      category: 'liberte',
+      icon: '📺',
+      rarity: 'rare'
+    },
+    {
+      id: 'custom_schedule',
+      name: 'Horaires à la carte',
+      description: 'Planning 100% flexible pendant 1 semaine',
       cost: 280,
-      category: 'utiles',
-      icon: '🥐',
+      category: 'liberte',
+      icon: '⏰',
       rarity: 'rare'
     },
+
+    // 🔵 FOOD & DELIVERY (320-580 XP) - Ils mangent souvent en livraison
     {
-      id: 'book_choice',
-      name: 'Livre au choix',
-      description: 'Un livre de votre choix offert',
+      id: 'sushi_delivery',
+      name: 'Livraison Sushi Premium',
+      description: 'Plateau sushi haut de gamme livré au travail',
       cost: 320,
-      category: 'utiles',
-      icon: '📚',
+      category: 'food',
+      icon: '🍣',
       rarity: 'rare'
     },
     {
-      id: 'pizza_lunch',
-      name: 'Pizza du midi',
-      description: 'Déjeuner pizza livré sur le lieu de travail',
+      id: 'burger_gourmet',
+      name: 'Burger Gourmet + Frites',
+      description: 'Le meilleur burger de la ville livré',
       cost: 380,
-      category: 'utiles',
-      icon: '🍕',
+      category: 'food',
+      icon: '🍔',
       rarity: 'rare'
     },
-
-    // 🟠 PLAISIRS FOOD & CADEAUX (450-680 XP)
     {
-      id: 'restaurant_voucher',
-      name: 'Bon d\'achat "restauration"',
-      description: 'Crédit pour restaurant de votre choix',
-      cost: 450,
+      id: 'pizza_party_solo',
+      name: 'Pizza Party Solo',
+      description: 'Pizza XL + boissons + dessert, juste pour toi',
+      cost: 420,
       category: 'food',
-      icon: '🍽️',
+      icon: '🍕',
       rarity: 'epic'
     },
     {
-      id: 'poke_bowl',
-      name: 'Poke bowl/burger livré',
-      description: 'Repas healthy ou gourmand livré',
-      cost: 520,
+      id: 'ramen_authentic',
+      name: 'Ramen Authentique',
+      description: 'Vrai ramen japonais du meilleur resto de la ville',
+      cost: 480,
       category: 'food',
-      icon: '🥙',
+      icon: '🍜',
       rarity: 'epic'
     },
     {
-      id: 'gift_voucher',
-      name: 'Bon cadeau magasins',
-      description: 'Carte cadeau utilisable en magasin',
-      cost: 600,
+      id: 'meal_credits',
+      name: 'Crédits Uber Eats',
+      description: '50€ de crédit sur l\'app de livraison de ton choix',
+      cost: 580,
       category: 'food',
-      icon: '🎁',
-      rarity: 'epic'
-    },
-    {
-      id: 'board_game',
-      name: 'Jeu de société offert',
-      description: 'Jeu de société de votre choix',
-      cost: 680,
-      category: 'food',
-      icon: '🎲',
+      icon: '💳',
       rarity: 'epic'
     },
 
-    // 🔴 LOISIRS & SORTIES (1100-1350 XP)
+    // 🟠 SORTIES & ACTIVITÉS (650-1500 XP) - Activités qu'ils kiffent
     {
-      id: 'cinema_tickets',
-      name: '2 places de cinéma',
-      description: 'Séance de cinéma pour deux personnes',
+      id: 'arcade_session',
+      name: 'Session Arcade Retro',
+      description: 'Après-midi dans une salle d\'arcade vintage',
+      cost: 650,
+      category: 'sorties',
+      icon: '🕹️',
+      rarity: 'epic'
+    },
+    {
+      id: 'laser_game',
+      name: 'Laser Game + Collègues',
+      description: 'Session laser game avec 3 collègues de ton choix',
+      cost: 750,
+      category: 'sorties',
+      icon: '🎯',
+      rarity: 'epic'
+    },
+    {
+      id: 'karting_race',
+      name: 'Course de Karting',
+      description: 'Session karting intense sur circuit',
+      cost: 880,
+      category: 'sorties',
+      icon: '🏎️',
+      rarity: 'legendary'
+    },
+    {
+      id: 'vr_experience',
+      name: 'Expérience VR Premium',
+      description: '2h de réalité virtuelle dans un centre spécialisé',
+      cost: 950,
+      category: 'sorties',
+      icon: '🥽',
+      rarity: 'legendary'
+    },
+    {
+      id: 'paintball_battle',
+      name: 'Bataille Paintball',
+      description: 'Après-midi paintball avec équipe contre équipe',
       cost: 1100,
-      category: 'loisirs',
-      icon: '🎬',
+      category: 'sorties',
+      icon: '🎨',
       rarity: 'legendary'
     },
     {
-      id: 'escape_game',
-      name: 'Place d\'escape game',
-      description: 'Session d\'escape game entre collègues',
+      id: 'trampoline_park',
+      name: 'Trampoline Park Fun',
+      description: 'Session défouloir au trampoline park',
       cost: 1200,
-      category: 'loisirs',
-      icon: '🔐',
+      category: 'sorties',
+      icon: '🤸',
       rarity: 'legendary'
     },
     {
-      id: 'discovery_activity',
-      name: 'Initiation/découverte',
-      description: 'Activité de découverte au choix',
+      id: 'gaming_tournament',
+      name: 'Tournoi Gaming Organisé',
+      description: 'Tournoi gaming privé avec cash prize',
       cost: 1350,
-      category: 'loisirs',
-      icon: '🎭',
+      category: 'sorties',
+      icon: '🏆',
+      rarity: 'legendary'
+    },
+    {
+      id: 'adventure_park',
+      name: 'Parc d\'Aventures',
+      description: 'Accrobranche, tyrolienne et sensations fortes',
+      cost: 1500,
+      category: 'sorties',
+      icon: '🌲',
       rarity: 'legendary'
     },
 
-    // 🟣 PREMIUM (6500-12500 XP)
+    // 🔴 TECH & GEAR (1800-5000 XP) - Matériel qu'ils convoitent
     {
-      id: 'premium_card',
-      name: 'Carte cadeau premium',
-      description: 'Carte cadeau haut de gamme',
-      cost: 6500,
-      category: 'premium',
-      icon: '💎',
+      id: 'mechanical_keyboard',
+      name: 'Clavier Mécanique Gaming',
+      description: 'Clavier gaming haut de gamme avec switches au choix',
+      cost: 1800,
+      category: 'tech',
+      icon: '⌨️',
       rarity: 'mythic'
     },
     {
-      id: 'hotel_night',
-      name: '1 nuit d\'hôtel pour 2',
-      description: 'Nuit d\'hôtel romantique',
-      cost: 8000,
+      id: 'gaming_headset',
+      name: 'Casque Gaming Pro',
+      description: 'Casque audio gaming premium (SteelSeries, Razer...)',
+      cost: 2200,
+      category: 'tech',
+      icon: '🎧',
+      rarity: 'mythic'
+    },
+    {
+      id: 'rgb_setup_kit',
+      name: 'Kit RGB Setup',
+      description: 'Kit éclairage RGB pour setup gaming épique',
+      cost: 2800,
+      category: 'tech',
+      icon: '🌈',
+      rarity: 'mythic'
+    },
+    {
+      id: 'gaming_chair',
+      name: 'Chaise Gaming Ergonomique',
+      description: 'Fauteuil gaming de qualité pro pour le confort ultime',
+      cost: 3500,
+      category: 'tech',
+      icon: '🪑',
+      rarity: 'mythic'
+    },
+    {
+      id: 'console_next_gen',
+      name: 'Console Next-Gen',
+      description: 'PS5, Xbox Series X ou Steam Deck selon dispo',
+      cost: 5000,
+      category: 'tech',
+      icon: '🎮',
+      rarity: 'mythic'
+    },
+
+    // 🟣 EXPÉRIENCES PREMIUM (6000-15000 XP) - Récompenses ultimes
+    {
+      id: 'gaming_weekend',
+      name: 'Weekend Gaming Resort',
+      description: '2 jours dans un resort avec setup gaming premium',
+      cost: 6000,
       category: 'premium',
       icon: '🏨',
       rarity: 'mythic'
     },
     {
-      id: 'spa_day',
-      name: 'Journée spa',
-      description: 'Journée détente et bien-être',
-      cost: 12500,
+      id: 'festival_pass',
+      name: 'Pass Festival Gaming',
+      description: 'Billet VIP pour événement gaming (Japan Expo, PGW...)',
+      cost: 8000,
       category: 'premium',
-      icon: '💆‍♀️',
+      icon: '🎪',
+      rarity: 'mythic'
+    },
+    {
+      id: 'team_building_epic',
+      name: 'Team Building Épique',
+      description: 'Organisation d\'un événement gaming pour toute l\'équipe',
+      cost: 10000,
+      category: 'premium',
+      icon: '👥',
+      rarity: 'mythic'
+    },
+    {
+      id: 'custom_pc_build',
+      name: 'PC Gaming Custom',
+      description: 'PC gaming assemblé sur mesure selon tes specs',
+      cost: 12000,
+      category: 'premium',
+      icon: '💻',
+      rarity: 'mythic'
+    },
+    {
+      id: 'japan_gaming_trip',
+      name: 'Voyage Gaming au Japon',
+      description: '1 semaine au Japon avec visites gaming (Nintendo, arcades...)',
+      cost: 15000,
+      category: 'premium',
+      icon: '🗾',
       rarity: 'mythic'
     }
   ];
 
-  // 📊 CATÉGORIES AVEC VRAIES DONNÉES
+  // 📊 CATÉGORIES SPÉCIALEMENT CONÇUES POUR JEUNES GAME MASTERS GAMERS
   const categories = [
     { id: 'all', name: 'Toutes', icon: Trophy, count: availableRewards.length },
-    { id: 'mini', name: 'Mini-plaisirs', icon: Coins, count: availableRewards.filter(r => r.category === 'mini').length },
-    { id: 'avantages', name: 'Petits avantages', icon: Star, count: availableRewards.filter(r => r.category === 'avantages').length },
-    { id: 'utiles', name: 'Plaisirs utiles', icon: Gift, count: availableRewards.filter(r => r.category === 'utiles').length },
-    { id: 'food', name: 'Food & Cadeaux', icon: ShoppingBag, count: availableRewards.filter(r => r.category === 'food').length },
-    { id: 'loisirs', name: 'Loisirs & Sorties', icon: Award, count: availableRewards.filter(r => r.category === 'loisirs').length },
-    { id: 'premium', name: 'Premium', icon: Trophy, count: availableRewards.filter(r => r.category === 'premium').length }
+    { id: 'gaming', name: '🎮 Gaming & Snacks', icon: Zap, count: availableRewards.filter(r => r.category === 'gaming').length },
+    { id: 'liberte', name: '⏰ Temps Libre', icon: Star, count: availableRewards.filter(r => r.category === 'liberte').length },
+    { id: 'food', name: '🍕 Food & Delivery', icon: ShoppingBag, count: availableRewards.filter(r => r.category === 'food').length },
+    { id: 'sorties', name: '🎯 Sorties Fun', icon: Award, count: availableRewards.filter(r => r.category === 'sorties').length },
+    { id: 'tech', name: '💻 Tech & Gear', icon: Gift, count: availableRewards.filter(r => r.category === 'tech').length },
+    { id: 'premium', name: '🌟 Expériences Premium', icon: Trophy, count: availableRewards.filter(r => r.category === 'premium').length }
   ];
 
   // 🎯 STATISTIQUES HEADER AVEC VRAIES DONNÉES
@@ -341,12 +458,12 @@ const RewardsPage = () => {
     if (purchasing) return;
     
     if (userPoints < reward.cost) {
-      alert(`❌ Points insuffisants ! Vous avez ${userPoints} points, il en faut ${reward.cost}.`);
+      alert(`❌ XP insuffisants ! Tu as ${userPoints} XP, il t'en faut ${reward.cost}. Time to grind ! 💪`);
       return;
     }
 
     const confirmation = confirm(
-      `🎁 Confirmer l'achat de "${reward.name}" pour ${reward.cost} points ?`
+      `🎮 GG ! Tu veux vraiment acheter "${reward.name}" pour ${reward.cost} XP ? \n\n💡 Après validation admin, ça sera à toi !`
     );
     
     if (!confirmation) return;
@@ -378,7 +495,7 @@ const RewardsPage = () => {
 
       console.log('✅ [REWARDS] Demande créée avec succès !');
       
-      alert(`🎉 "${reward.name}" acheté avec succès ! La déduction d'XP sera effectuée par l'admin.`);
+      alert(`🎉 "${reward.name}" acheté avec succès ! 🎮 La récompense sera validée par l'admin et tes XP seront déduits !`);
       
     } catch (error) {
       console.error('❌ [REWARDS] Erreur achat:', error);
@@ -388,15 +505,15 @@ const RewardsPage = () => {
     }
   };
 
-  // 🎨 COULEURS SELON RARETÉ
+  // 🎨 COULEURS SELON RARETÉ - Ajustées pour l'univers gaming
   const getRarityColor = (rarity) => {
     switch (rarity) {
-      case 'common': return 'from-gray-400 to-gray-600';
-      case 'uncommon': return 'from-green-400 to-green-600';
-      case 'rare': return 'from-blue-400 to-blue-600';
-      case 'epic': return 'from-purple-400 to-purple-600';
-      case 'legendary': return 'from-yellow-400 to-orange-500';
-      case 'mythic': return 'from-pink-400 to-red-500';
+      case 'common': return 'from-emerald-400 to-green-600'; // Gaming green
+      case 'uncommon': return 'from-blue-400 to-cyan-600'; // Electric blue
+      case 'rare': return 'from-purple-400 to-indigo-600'; // Gaming purple
+      case 'epic': return 'from-orange-400 to-red-600'; // Fire orange/red
+      case 'legendary': return 'from-yellow-400 to-orange-500'; // Legendary gold
+      case 'mythic': return 'from-pink-400 to-purple-500'; // Mythic rainbow
       default: return 'from-gray-400 to-gray-600';
     }
   };
@@ -446,17 +563,17 @@ const RewardsPage = () => {
               <Coins className="w-16 h-16 text-yellow-400" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">
-              {userPoints.toLocaleString()} Points
+              {userPoints.toLocaleString()} XP
             </h2>
             <p className="text-gray-400">
-              Votre solde XP disponible (Firebase: {gamificationData ? '✅' : '❌'})
+              Tes XP disponibles pour des récompenses de ouf ! 🎮
             </p>
             <div className="mt-4 text-xs text-gray-500">
               Source: useUnifiedXP → Firebase gamification.totalXp
             </div>
             <div className="mt-4">
               <PremiumButton variant="primary" icon={Zap}>
-                Gagner plus de points
+                Farm plus d'XP ! 💪
               </PremiumButton>
             </div>
           </div>
@@ -466,21 +583,21 @@ const RewardsPage = () => {
       {/* 📂 FILTRES PAR CATÉGORIE */}
       <div className="mb-6">
         <PremiumCard>
-          <h3 className="text-white text-lg font-semibold mb-4">Catégories</h3>
+          <h3 className="text-white text-lg font-semibold mb-4">🎯 Catégories de Récompenses</h3>
           <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105 ${
                   selectedCategory === category.id
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
                 <category.icon className="w-4 h-4" />
                 <span>{category.name}</span>
-                <span className="bg-gray-600 text-xs px-2 py-1 rounded-full">
+                <span className="bg-gray-600 text-xs px-2 py-1 rounded-full font-bold">
                   {category.count}
                 </span>
               </button>
@@ -489,23 +606,28 @@ const RewardsPage = () => {
         </PremiumCard>
       </div>
 
-      {/* 🏪 GRILLE DES RÉCOMPENSES */}
+      // 🏪 GRILLE DES RÉCOMPENSES - Style Gaming
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredRewards.map((reward) => (
-          <PremiumCard key={reward.id} className="relative overflow-hidden">
-            {/* Badge de rareté */}
-            <div className={`absolute top-0 right-0 px-3 py-1 bg-gradient-to-r ${getRarityColor(reward.rarity)} text-xs font-bold text-white rounded-bl-lg`}>
-              {reward.rarity}
+          <PremiumCard key={reward.id} className="relative overflow-hidden group hover:scale-105 transition-transform duration-200">
+            {/* Badge de rareté gaming */}
+            <div className={`absolute top-0 right-0 px-3 py-1 bg-gradient-to-r ${getRarityColor(reward.rarity)} text-xs font-bold text-white rounded-bl-lg z-10 shadow-lg`}>
+              {reward.rarity.toUpperCase()}
             </div>
 
-            <div className="p-4">
+            {/* Effet de brillance pour les récompenses épiques+ */}
+            {(reward.rarity === 'epic' || reward.rarity === 'legendary' || reward.rarity === 'mythic') && (
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 animate-pulse pointer-events-none"></div>
+            )}
+
+            <div className="p-4 relative z-10">
               {/* Icône de la récompense */}
               <div className="text-center mb-4">
-                <div className="text-4xl mb-2">{reward.icon}</div>
-                <h4 className="text-white font-semibold text-lg mb-2">
+                <div className="text-4xl mb-2 group-hover:animate-bounce transition-all duration-200">{reward.icon}</div>
+                <h4 className="text-white font-semibold text-lg mb-2 group-hover:text-blue-300 transition-colors">
                   {reward.name}
                 </h4>
-                <p className="text-gray-400 text-sm mb-4">
+                <p className="text-gray-400 text-sm mb-4 leading-relaxed">
                   {reward.description}
                 </p>
               </div>
@@ -516,46 +638,48 @@ const RewardsPage = () => {
                   <div className="text-yellow-400 font-bold text-xl">
                     {reward.cost.toLocaleString()}
                   </div>
-                  <div className="text-gray-400 text-xs">Points</div>
+                  <div className="text-gray-400 text-xs">XP</div>
                 </div>
                 
-                {/* Indicateur de disponibilité */}
+                {/* Indicateur de disponibilité gaming */}
                 <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                   userPoints >= reward.cost 
-                    ? 'bg-green-600 text-green-100' 
+                    ? 'bg-green-600 text-green-100 animate-pulse' 
                     : 'bg-red-600 text-red-100'
                 }`}>
-                  {userPoints >= reward.cost ? '✅ Disponible' : '❌ Insuffisant'}
+                  {userPoints >= reward.cost ? '🎯 DISPO !' : '🔒 Pas assez d\'XP'}
                 </div>
               </div>
 
-              {/* Bouton d'achat */}
+              {/* Bouton d'achat gaming style */}
               <PremiumButton
                 variant={userPoints >= reward.cost ? "primary" : "secondary"}
                 disabled={userPoints < reward.cost || purchasing}
                 onClick={() => handlePurchase(reward)}
-                className="w-full"
-                icon={purchasing ? null : ShoppingBag}
+                className={`w-full transition-all duration-200 ${userPoints >= reward.cost ? 'hover:shadow-lg hover:shadow-blue-500/50' : ''}`}
+                icon={purchasing ? null : (userPoints >= reward.cost ? '🛒' : '🔒')}
               >
-                {purchasing ? 'Achat en cours...' : 'Acheter'}
+                {purchasing ? 'En cours...' : (userPoints >= reward.cost ? 'ACHETER !' : 'XP manquants')}
               </PremiumButton>
             </div>
           </PremiumCard>
         ))}
       </div>
 
-      {/* 📊 DIAGNOSTIC DES DONNÉES */}
+      {/* 📊 DIAGNOSTIC DES DONNÉES GAMING */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-8">
           <PremiumCard>
-            <h3 className="text-white text-lg font-semibold mb-4">🔍 Diagnostic des données</h3>
-            <div className="bg-gray-800 p-4 rounded text-xs text-gray-300 font-mono">
-              <div>Points utilisateur: {userPoints} (source: useUnifiedXP)</div>
-              <div>XP total Firebase: {totalXp}</div>
-              <div>Données prêtes: {isReady ? '✅' : '❌'}</div>
-              <div>Niveau: {gamificationData?.level || 'N/A'}</div>
-              <div>Historique chargé: {purchaseHistory.length} récompenses</div>
-              <div>Récompenses accessibles: {filteredRewards.filter(r => r.cost <= userPoints).length}/{filteredRewards.length}</div>
+            <h3 className="text-white text-lg font-semibold mb-4">🎮 Debug Console - Game Master XP</h3>
+            <div className="bg-gray-800 p-4 rounded text-xs text-gray-300 font-mono border border-blue-500/20">
+              <div className="text-green-400">🎯 XP utilisateur: {userPoints} (source: useUnifiedXP hook)</div>
+              <div className="text-blue-400">💎 XP total Firebase: {totalXp}</div>
+              <div className="text-yellow-400">⚡ Données prêtes: {isReady ? '✅ READY TO GAME' : '❌ LOADING...'}</div>
+              <div className="text-purple-400">🏆 Niveau: {gamificationData?.level || 'N/A'}</div>
+              <div className="text-cyan-400">🎁 Historique: {purchaseHistory.length} récompenses déjà obtenues</div>
+              <div className="text-orange-400">🛒 Accessibles: {filteredRewards.filter(r => r.cost <= userPoints).length}/{filteredRewards.length} récompenses disponibles</div>
+              <div className="text-pink-400">💪 Plus chère accessible: {Math.max(...filteredRewards.filter(r => r.cost <= userPoints).map(r => r.cost), 0)} XP</div>
+              <div className="text-red-400">🔥 Prochaine cible: {filteredRewards.filter(r => r.cost > userPoints).sort((a,b) => a.cost - b.cost)[0]?.name || 'Toutes débloquées !'}</div>
             </div>
           </PremiumCard>
         </div>
