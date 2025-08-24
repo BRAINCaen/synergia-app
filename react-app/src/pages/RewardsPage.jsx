@@ -655,7 +655,7 @@ const RewardsPage = () => {
                 disabled={userPoints < reward.cost || purchasing}
                 onClick={() => handlePurchase(reward)}
                 className={`w-full transition-all duration-200 ${userPoints >= reward.cost ? 'hover:shadow-lg hover:shadow-blue-500/50' : ''}`}
-                icon={purchasing ? null : (userPoints >= reward.cost ? '🛒' : '🔒')}
+                icon={purchasing ? RefreshCw : (userPoints >= reward.cost ? ShoppingBag : Lock)}
               >
                 {purchasing ? 'En cours...' : (userPoints >= reward.cost ? 'ACHETER !' : 'XP manquants')}
               </PremiumButton>
