@@ -30,7 +30,7 @@ import {
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useProjectService } from '../core/services/projectService.js';
 import ProjectForm from '../components/forms/ProjectForm.jsx';
-import MainLayout from '../shared/layouts/MainLayout.jsx';
+import MainLayout from '../layouts/MainLayout.jsx';
 
 /**
  * 📁 PAGE PROJETS PREMIUM
