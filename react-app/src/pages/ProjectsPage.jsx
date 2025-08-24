@@ -1,239 +1,92 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// PAGE PROJETS AVEC DESIGN PREMIUM HARMONISÉ
+// PAGE PROJETS AVEC DESIGN PREMIUM - VERSION CORRIGÉE
 // ==========================================
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FolderOpen,
+import {
   Plus,
   Search,
   Filter,
+  Grid3X3,
+  List,
+  Settings,
   Users,
-  Target,
-  Clock,
-  TrendingUp,
   Calendar,
+  Target,
   Star,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  PlayCircle,
+  XCircle,
   Eye,
   Edit,
   Trash2,
-  PlayCircle,
-  PauseCircle,
-  CheckCircle,
-  AlertCircle,
-  BarChart3,
-  Zap,
-  Award,
-  ChevronRight
+  TrendingUp
 } from 'lucide-react';
-
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
-
-// 🔥 HOOKS ET SERVICES (conservés)
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
-
-// 📊 FIREBASE (conservé)
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp, 
-  orderBy,
-  onSnapshot
-} from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-
-// 📊 CONSTANTES PROJETS (conservées)
-const PROJECT_STATUS = {
-  active: { label: 'Actif', color: 'green', icon: PlayCircle },
-  completed: { label: 'Terminé', color: 'blue', icon: CheckCircle },
-  pending: { label: 'En attente', color: 'yellow', icon: AlertCircle },
-  'on-hold': { label: 'En pause', color: 'orange', icon: PauseCircle },
-  planning: { label: 'Planification', color: 'purple', icon: Calendar }
-};
-
-const PROJECT_PRIORITY = {
-  low: { label: 'Faible', color: 'gray', icon: '🔽' },
-  medium: { label: 'Normale', color: 'blue', icon: '➡️' },
-  high: { label: 'Élevée', color: 'orange', icon: '🔼' },
-  urgent: { label: 'Urgente', color: 'red', icon: '🚨' }
-};
+import { useProjectService } from '../core/services/projectService.js';
+import ProjectForm from '../components/forms/ProjectForm.jsx';
+import MainLayout from '../shared/layouts/MainLayout.jsx';
 
 /**
- * 📁 PAGE PROJETS PREMIUM COMPLÈTE
+ * 📁 PAGE PROJETS PREMIUM
  */
 const ProjectsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
-  
-  // ✅ DONNÉES FIREBASE RÉELLES (conservées)
-  const { 
-    gamification,
-    userStats,
-    loading: dataLoading 
-  } = useUnifiedFirebaseData(user?.uid);
-  
-  // ✅ ÉTATS PRINCIPAUX (conservés)
-  const [realProjects, setRealProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
-  // ✅ ÉTATS UI COMPLETS (conservés)
+  const { projects, loading, createProject, updateProject, deleteProject } = useProjectService();
+
+  // États locaux
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [showFilters, setShowFilters] = useState(false);
-  
-  // ✅ ÉTATS MODALS (conservés)
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [viewMode, setViewMode] = useState('grid');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [newProject, setNewProject] = useState({
-    title: '',
-    description: '',
-    status: 'active',
-    priority: 'medium',
-    deadline: '',
-    tags: []
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Filtrage des projets
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         project.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = selectedStatus === 'all' || project.status === selectedStatus;
+    
+    return matchesSearch && matchesStatus;
   });
 
-  // ✅ CHARGEMENT DES PROJETS (conservé avec listener temps réel)
-  useEffect(() => {
-    if (!user?.uid) {
-      setLoading(false);
-      return;
-    }
+  // Statistiques des projets
+  const projectStats = {
+    total: projects.length,
+    active: projects.filter(p => p.status === 'active').length,
+    completed: projects.filter(p => p.status === 'completed').length,
+    planning: projects.filter(p => p.status === 'planning').length
+  };
 
-    console.log('📊 [PROJECTS] Configuration listener projets...');
-    
-    // Listener temps réel pour les projets
-    const projectsRef = collection(db, 'projects');
-    const q = query(
-      projectsRef,
-      where('createdBy', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const projectsData = [];
-        snapshot.forEach((doc) => {
-          projectsData.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        
-        console.log(`📊 [PROJECTS] ${projectsData.length} projets chargés`);
-        setRealProjects(projectsData);
-        setLoading(false);
-        setError('');
-      },
-      (error) => {
-        console.error('❌ [PROJECTS] Erreur listener:', error);
-        setError('Erreur de chargement des projets');
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  // ✅ FILTRAGE ET TRI DES PROJETS (conservé)
-  const filteredAndSortedProjects = useMemo(() => {
-    let filtered = realProjects.filter(project => {
-      // Filtre recherche
-      if (searchTerm && !project.title.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false;
-      }
-      
-      // Filtre statut
-      if (filterStatus !== 'all' && project.status !== filterStatus) {
-        return false;
-      }
-      
-      // Filtre priorité
-      if (filterPriority !== 'all' && project.priority !== filterPriority) {
-        return false;
-      }
-      
-      return true;
-    });
-
-    // Tri
-    filtered.sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
-
-      if (sortBy === 'createdAt' || sortBy === 'deadline') {
-        aVal = aVal ? new Date(aVal.seconds ? aVal.seconds * 1000 : aVal) : new Date(0);
-        bVal = bVal ? new Date(bVal.seconds ? bVal.seconds * 1000 : bVal) : new Date(0);
-      }
-
-      if (typeof aVal === 'string') {
-        aVal = aVal.toLowerCase();
-        bVal = bVal?.toLowerCase() || '';
-      }
-
-      if (sortOrder === 'desc') {
-        return bVal > aVal ? 1 : -1;
-      }
-      return aVal > bVal ? 1 : -1;
-    });
-
-    return filtered;
-  }, [realProjects, searchTerm, filterStatus, filterPriority, sortBy, sortOrder]);
-
-  // ✅ STATISTIQUES CALCULÉES (conservées)
-  const realProjectStats = useMemo(() => {
-    const total = realProjects.length;
-    const active = realProjects.filter(p => p.status === 'active').length;
-    const completed = realProjects.filter(p => p.status === 'completed').length;
-    const pending = realProjects.filter(p => p.status === 'pending').length;
-    
-    return {
-      total,
-      active,
-      completed,
-      pending,
-      overallProgress: total > 0 ? Math.round((completed / total) * 100) : 0
-    };
-  }, [realProjects]);
-
-  // ✅ FONCTIONS CRUD (conservées)
+  /**
+   * 🎨 GESTIONNAIRES D'ÉVÉNEMENTS
+   */
   const handleCreateProject = async (projectData) => {
     try {
-      await addDoc(collection(db, 'projects'), {
-        ...projectData,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        teamMembers: [user.uid],
-        tasks: [],
-        progress: 0
-      });
-      console.log('✅ Projet créé avec succès');
+      await createProject(projectData);
       setShowCreateModal(false);
-      setNewProject({
-        title: '',
-        description: '',
-        status: 'active',
-        priority: 'medium',
-        deadline: '',
-        tags: []
-      });
+      console.log('✅ Projet créé avec succès');
     } catch (error) {
       console.error('❌ Erreur création projet:', error);
-      setError('Impossible de créer le projet');
+    }
+  };
+
+  const handleEditProject = async (projectData) => {
+    try {
+      await updateProject(selectedProject.id, projectData);
+      setShowEditModal(false);
+      setSelectedProject(null);
+      console.log('✅ Projet modifié avec succès');
+    } catch (error) {
+      console.error('❌ Erreur modification projet:', error);
     }
   };
 
@@ -241,483 +94,354 @@ const ProjectsPage = () => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
     
     try {
-      await deleteDoc(doc(db, 'projects', projectId));
+      await deleteProject(projectId);
       console.log('✅ Projet supprimé avec succès');
     } catch (error) {
       console.error('❌ Erreur suppression projet:', error);
-      setError('Impossible de supprimer le projet');
     }
   };
 
-  // 📊 STATISTIQUES POUR HEADER PREMIUM
-  const headerStats = [
-    { 
-      label: "Total Projets", 
-      value: realProjectStats.total, 
-      icon: FolderOpen, 
-      color: "text-blue-400" 
-    },
-    { 
-      label: "Actifs", 
-      value: realProjectStats.active, 
-      icon: PlayCircle, 
-      color: "text-green-400" 
-    },
-    { 
-      label: "Terminés", 
-      value: realProjectStats.completed, 
-      icon: CheckCircle, 
-      color: "text-purple-400" 
-    },
-    { 
-      label: "Progression", 
-      value: `${realProjectStats.overallProgress}%`, 
-      icon: TrendingUp, 
-      color: "text-yellow-400" 
-    }
-  ];
+  const openEditModal = (project) => {
+    setSelectedProject(project);
+    setShowEditModal(true);
+  };
 
-  // 🎯 ACTIONS HEADER PREMIUM
-  const headerActions = (
-    <>
-      {/* 🔍 BARRE DE RECHERCHE PREMIUM */}
-      <PremiumSearchBar
-        placeholder="Rechercher un projet..."
-        value={searchTerm}
-        onChange={setSearchTerm}
-        icon={Search}
-        className="w-64"
-      />
-
-      {/* 🎛️ BOUTON FILTRES */}
-      <PremiumButton
-        variant={showFilters ? "primary" : "secondary"}
-        icon={Filter}
-        onClick={() => setShowFilters(!showFilters)}
-      >
-        Filtres
-      </PremiumButton>
-
-      {/* ➕ NOUVEAU PROJET */}
-      <PremiumButton
-        variant="primary"
-        icon={Plus}
-        onClick={() => setShowCreateModal(true)}
-      >
-        Nouveau Projet
-      </PremiumButton>
-    </>
+  /**
+   * 🎨 COMPOSANT CARTE DE STATISTIQUES
+   */
+  const StatCard = ({ title, value, icon: Icon, color, trend }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-800/70 transition-all duration-300"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-gray-400 text-sm font-medium">{title}</p>
+          <p className="text-3xl font-bold text-white mt-1">{value}</p>
+          {trend && (
+            <div className="flex items-center mt-2 text-sm">
+              <TrendingUp className={`w-4 h-4 mr-1 ${trend > 0 ? 'text-green-400' : 'text-red-400'}`} />
+              <span className={trend > 0 ? 'text-green-400' : 'text-red-400'}>
+                {Math.abs(trend)}%
+              </span>
+            </div>
+          )}
+        </div>
+        <div className={`p-3 rounded-lg ${color}`}>
+          <Icon className="w-6 h-6 text-white" />
+        </div>
+      </div>
+    </motion.div>
   );
 
-  // 🚨 GESTION CHARGEMENT
-  if (loading) {
+  /**
+   * 🎨 COMPOSANT CARTE PROJET
+   */
+  const ProjectCard = ({ project }) => {
+    const getStatusIcon = (status) => {
+      const icons = {
+        active: <PlayCircle className="w-4 h-4 text-green-400" />,
+        completed: <CheckCircle className="w-4 h-4 text-blue-400" />,
+        planning: <AlertCircle className="w-4 h-4 text-yellow-400" />,
+        paused: <XCircle className="w-4 h-4 text-gray-400" />
+      };
+      return icons[status] || icons.planning;
+    };
+
+    const getStatusColor = (status) => {
+      const colors = {
+        active: 'bg-green-500/20 text-green-300 border-green-500/30',
+        completed: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+        planning: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+        paused: 'bg-gray-500/20 text-gray-300 border-gray-500/30'
+      };
+      return colors[status] || colors.planning;
+    };
+
+    const progress = project.tasks ? 
+      Math.round((project.tasks.filter(t => t.status === 'completed').length / project.tasks.length) * 100) : 0;
+
     return (
-      <PremiumLayout
-        title="Gestion des Projets"
-        subtitle="Chargement de vos projets..."
-        icon={FolderOpen}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ scale: 1.02 }}
+        className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300"
       >
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <p className="text-white">Synchronisation des projets...</p>
+        {/* Header avec statut */}
+        <div className="p-6 pb-3">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              {getStatusIcon(project.status)}
+              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(project.status)}`}>
+                {project.status}
+              </span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={() => navigate(`/projects/${project.id}`)}
+                className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                title="Voir"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => openEditModal(project)}
+                className="p-1 text-gray-400 hover:text-yellow-400 transition-colors"
+                title="Éditer"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDeleteProject(project.id)}
+                className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                title="Supprimer"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      </PremiumLayout>
-    );
-  }
 
-  // 🚨 GESTION ERREUR
-  if (error) {
-    return (
-      <PremiumLayout
-        title="Gestion des Projets"
-        subtitle="Erreur de chargement"
-        icon={FolderOpen}
-      >
-        <PremiumCard className="text-center py-8">
-          <div className="text-red-400 mb-4">
-            <AlertCircle className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-lg font-medium">Erreur de synchronisation</p>
-            <p className="text-gray-400 text-sm mt-1">{error}</p>
-          </div>
-          <PremiumButton variant="primary" onClick={() => window.location.reload()}>
-            Réessayer
-          </PremiumButton>
-        </PremiumCard>
-      </PremiumLayout>
-    );
-  }
+          <h3 className="text-xl font-semibold text-white mb-2 line-clamp-1">
+            {project.title}
+          </h3>
+          <p className="text-gray-400 text-sm line-clamp-2 mb-4">
+            {project.description || 'Aucune description disponible'}
+          </p>
 
-  return (
-    <PremiumLayout
-      title="Gestion des Projets"
-      subtitle="Gérez vos projets en temps réel"
-      icon={FolderOpen}
-      headerActions={headerActions}
-      showStats={true}
-      stats={headerStats}
-    >
-      
-      {/* 🎛️ PANNEAU DE FILTRES PREMIUM */}
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-8"
-          >
-            <PremiumCard>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Filtres Avancés</h3>
-                <PremiumButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setFilterStatus('all');
-                    setFilterPriority('all');
-                    setSortBy('createdAt');
-                    setSortOrder('desc');
-                  }}
-                >
-                  Réinitialiser
-                </PremiumButton>
+          {/* Barre de progression */}
+          {project.tasks && project.tasks.length > 0 && (
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-gray-400">Progression</span>
+                <span className="text-xs text-gray-300">{progress}%</span>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Filtre Statut */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Statut</label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Tous les statuts</option>
-                    {Object.entries(PROJECT_STATUS).map(([key, status]) => (
-                      <option key={key} value={key}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Filtre Priorité */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Priorité</label>
-                  <select
-                    value={filterPriority}
-                    onChange={(e) => setFilterPriority(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Toutes priorités</option>
-                    {Object.entries(PROJECT_PRIORITY).map(([key, priority]) => (
-                      <option key={key} value={key}>
-                        {priority.icon} {priority.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Tri */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Trier par</label>
-                  <div className="flex space-x-2">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="createdAt">Date de création</option>
-                      <option value="title">Titre</option>
-                      <option value="deadline">Échéance</option>
-                      <option value="priority">Priorité</option>
-                    </select>
-                    <PremiumButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    >
-                      {sortOrder === 'asc' ? '↑' : '↓'}
-                    </PremiumButton>
-                  </div>
-                </div>
-              </div>
-            </PremiumCard>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 🎉 MESSAGE DE FÉLICITATIONS */}
-      {realProjectStats.completed > 0 && realProjectStats.overallProgress >= 80 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mb-8"
-        >
-          <PremiumCard className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border-green-500/30">
-            <div className="flex items-center justify-center text-center py-4">
-              <Award className="w-8 h-8 text-yellow-400 mr-3" />
-              <div>
-                <p className="text-lg font-semibold text-white">Excellent travail !</p>
-                <p className="text-gray-300">Vous avez un taux de réussite de {realProjectStats.overallProgress}%</p>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
             </div>
-          </PremiumCard>
-        </motion.div>
-      )}
+          )}
+        </div>
 
-      {/* 📋 GRILLE DES PROJETS PREMIUM */}
-      <div className="space-y-6">
-        {filteredAndSortedProjects.length === 0 ? (
-          <PremiumCard className="text-center py-12">
-            <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">
-              {searchTerm || filterStatus !== 'all' || filterPriority !== 'all'
-                ? 'Aucun projet ne correspond aux critères'
-                : 'Aucun projet créé'
-              }
-            </h3>
-            <p className="text-gray-400 mb-4">
-              {realProjects.length === 0 
-                ? 'Créez votre premier projet pour commencer.'
-                : 'Essayez de modifier vos filtres de recherche.'
-              }
-            </p>
-            {realProjects.length === 0 && (
-              <PremiumButton
-                variant="primary"
-                icon={Plus}
-                onClick={() => setShowCreateModal(true)}
-              >
-                Créer mon premier projet
-              </PremiumButton>
+        {/* Footer avec métadonnées */}
+        <div className="px-6 pb-6">
+          <div className="flex items-center justify-between text-sm text-gray-400">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
+                <Users className="w-4 h-4" />
+                <span>{project.teamMembers?.length || 0}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Target className="w-4 h-4" />
+                <span>{project.tasks?.length || 0}</span>
+              </div>
+              {project.dueDate && (
+                <div className="flex items-center space-x-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    {new Date(project.dueDate).toLocaleDateString('fr-FR')}
+                  </span>
+                </div>
+              )}
+            </div>
+            {project.priority && (
+              <div className={`flex items-center space-x-1 ${
+                project.priority === 'high' ? 'text-red-400' : 
+                project.priority === 'medium' ? 'text-yellow-400' : 
+                'text-green-400'
+              }`}>
+                <Star className="w-4 h-4" />
+                <span>{project.priority}</span>
+              </div>
             )}
-          </PremiumCard>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAndSortedProjects.map((project, index) => {
-              const status = PROJECT_STATUS[project.status];
-              const priority = PROJECT_PRIORITY[project.priority];
-              const StatusIcon = status?.icon || FolderOpen;
-              
-              return (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="group"
-                >
-                  <PremiumCard className="h-full">
-                    {/* Header de la carte */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-white mb-2 line-clamp-2">
-                          {project.title}
-                        </h3>
-                        
-                        {/* Badges Status et Priorité */}
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {status && (
-                            <span className={`
-                              px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1
-                              ${status.color === 'green' ? 'bg-green-600 text-green-100' :
-                                status.color === 'blue' ? 'bg-blue-600 text-blue-100' :
-                                status.color === 'yellow' ? 'bg-yellow-600 text-yellow-100' :
-                                status.color === 'orange' ? 'bg-orange-600 text-orange-100' :
-                                'bg-purple-600 text-purple-100'}
-                            `}>
-                              <StatusIcon className="w-3 h-3" />
-                              {status.label}
-                            </span>
-                          )}
-                          
-                          {priority && (
-                            <span className={`
-                              px-2 py-1 rounded-full text-xs font-medium
-                              ${priority.color === 'gray' ? 'bg-gray-600 text-gray-200' :
-                                priority.color === 'blue' ? 'bg-blue-600 text-blue-100' :
-                                priority.color === 'orange' ? 'bg-orange-600 text-orange-100' :
-                                'bg-red-600 text-red-100'}
-                            `}>
-                              {priority.icon} {priority.label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Actions rapides */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex space-x-1">
-                          <button
-                            onClick={() => {
-                              // TODO: Navigation vers détails
-                              console.log('Voir projet:', project.id);
-                            }}
-                            className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
-                            title="Voir détails"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              setSelectedProject(project);
-                              setShowCreateModal(true);
-                            }}
-                            className="p-1 text-gray-400 hover:text-yellow-400 transition-colors"
-                            title="Éditer"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          
-                          <button
-                            onClick={() => handleDeleteProject(project.id)}
-                            className="p-1 text-gray-400 hover:text-red-400 transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    {project.description && (
-                      <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                        {project.description}
-                      </p>
-                    )}
-
-                    {/* Métriques du projet */}
-                    <div className="grid grid-cols-3 gap-3 mb-4 py-3 border-t border-b border-gray-700/50">
-                      <div className="text-center">
-                        <p className="text-xs text-gray-400">Équipe</p>
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <Users className="w-3 h-3 text-blue-400" />
-                          <span className="text-sm font-medium text-white">
-                            {project.teamMembers?.length || 1}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <p className="text-xs text-gray-400">Tâches</p>
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <Target className="w-3 h-3 text-green-400" />
-                          <span className="text-sm font-medium text-white">
-                            {project.tasks?.length || 0}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <p className="text-xs text-gray-400">Progrès</p>
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <BarChart3 className="w-3 h-3 text-purple-400" />
-                          <span className="text-sm font-medium text-white">
-                            {project.progress || 0}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Date d'échéance */}
-                    {project.deadline && (
-                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
-                        <Calendar className="w-4 h-4" />
-                        <span>
-                          Échéance: {new Date(project.deadline.seconds ? project.deadline.seconds * 1000 : project.deadline)
-                            .toLocaleDateString('fr-FR')}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Actions de la carte */}
-                    <div className="flex gap-2 mt-auto">
-                      <PremiumButton
-                        variant="secondary"
-                        size="sm"
-                        icon={Eye}
-                        onClick={() => {
-                          // TODO: Navigation vers détails
-                          console.log('Voir projet:', project.id);
-                        }}
-                        className="flex-1"
-                      >
-                        Détails
-                      </PremiumButton>
-                      
-                      <PremiumButton
-                        variant="primary"
-                        size="sm"
-                        icon={ChevronRight}
-                        onClick={() => {
-                          // TODO: Navigation vers gestion
-                          console.log('Gérer projet:', project.id);
-                        }}
-                        className="flex-1"
-                      >
-                        Gérer
-                      </PremiumButton>
-                    </div>
-                  </PremiumCard>
-                </motion.div>
-              );
-            })}
           </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  return (
+    <MainLayout>
+      <div className="space-y-8">
+        {/* En-tête avec statistiques */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Projets
+              </h1>
+              <p className="text-gray-400 text-lg mt-2">
+                Gérez vos projets et suivez leur progression
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
+            >
+              <Plus className="w-5 h-5" />
+              Nouveau projet
+            </button>
+          </div>
+
+          {/* Statistiques */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <StatCard
+              title="Total"
+              value={projectStats.total}
+              icon={Target}
+              color="bg-gradient-to-br from-blue-500 to-blue-600"
+              trend={5}
+            />
+            <StatCard
+              title="Actifs"
+              value={projectStats.active}
+              icon={PlayCircle}
+              color="bg-gradient-to-br from-green-500 to-green-600"
+              trend={12}
+            />
+            <StatCard
+              title="Terminés"
+              value={projectStats.completed}
+              icon={CheckCircle}
+              color="bg-gradient-to-br from-purple-500 to-purple-600"
+              trend={8}
+            />
+            <StatCard
+              title="En planning"
+              value={projectStats.planning}
+              icon={AlertCircle}
+              color="bg-gradient-to-br from-yellow-500 to-yellow-600"
+              trend={-2}
+            />
+          </div>
+        </div>
+
+        {/* Filtres et recherche */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            <div className="flex flex-1 items-center gap-4 w-full lg:w-auto">
+              {/* Barre de recherche */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un projet..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Filtre par statut */}
+              <div className="relative">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="appearance-none bg-gray-700/50 border border-gray-600/50 rounded-lg text-white px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="all">Tous les statuts</option>
+                  <option value="active">Actifs</option>
+                  <option value="completed">Terminés</option>
+                  <option value="planning">En planning</option>
+                  <option value="paused">En pause</option>
+                </select>
+                <Filter className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Mode de vue */}
+            <div className="flex items-center bg-gray-700/30 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'list' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Liste des projets */}
+        <div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3 text-white">
+                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                Chargement des projets...
+              </div>
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📁</div>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {searchTerm || selectedStatus !== 'all' ? 'Aucun projet trouvé' : 'Aucun projet'}
+              </h3>
+              <p className="text-gray-400 mb-6">
+                {searchTerm || selectedStatus !== 'all' ? 
+                  'Essayez de modifier vos critères de recherche' : 
+                  'Créez votre premier projet pour commencer'
+                }
+              </p>
+              {!searchTerm && selectedStatus === 'all' && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300"
+                >
+                  Créer mon premier projet
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className={`grid gap-6 ${
+              viewMode === 'grid' ? 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'
+            }`}>
+              <AnimatePresence>
+                {filteredProjects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <ProjectForm
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSave={handleCreateProject}
+          />
         )}
-      </div>
-
-      {/* 📊 STATISTIQUES SUPPLÉMENTAIRES */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard
-          title="Projets ce mois"
-          value={realProjects.filter(p => {
-            const createdDate = new Date(p.createdAt?.seconds ? p.createdAt.seconds * 1000 : p.createdAt);
-            const now = new Date();
-            return createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear();
-          }).length}
-          icon={Calendar}
-          color="blue"
-          trend="Nouveau"
-        />
         
-        <StatCard
-          title="Taux de Réussite"
-          value={`${realProjectStats.overallProgress}%`}
-          icon={TrendingUp}
-          color="green"
-          trend="Performance"
-        />
-        
-        <StatCard
-          title="Projets Urgents"
-          value={realProjects.filter(p => p.priority === 'urgent' && p.status !== 'completed').length}
-          icon={AlertCircle}
-          color="red"
-          trend="Action requise"
-        />
-        
-        <StatCard
-          title="XP Potentiel"
-          value={realProjects.filter(p => p.status === 'active').length * 50}
-          icon={Zap}
-          color="yellow"
-          trend="Objectifs actifs"
-        />
-      </div>
-
-      {/* TODO: Modals à créer avec design premium */}
-      {/* CreateProjectModal, ProjectDetailModal */}
-    </PremiumLayout>
+        {showEditModal && selectedProject && (
+          <ProjectForm
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedProject(null);
+            }}
+            onSave={handleEditProject}
+            project={selectedProject}
+          />
+        )}
+      </AnimatePresence>
+    </MainLayout>
   );
 };
 
