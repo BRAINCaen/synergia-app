@@ -7,6 +7,9 @@
  * 🚨 CORRECTIF CRITIQUE POUR ERREUR "Illegal constructor"
  * Cette erreur se produit quand Vite/React tente d'instancier
  * des classes ou constructeurs qui ont été mal minifiés
+ * 
+ * INTÉGRER DANS : react-app/src/index.jsx (PREMIÈRE LIGNE APRÈS IMPORTS)
+ * import './core/illegalConstructorFix.js';
  */
 
 console.log('🛡️ Chargement correctif Illegal constructor...');
