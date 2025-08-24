@@ -1,330 +1,238 @@
 // ==========================================
 // 📁 react-app/src/core/services/synergiaBadgeService.js
-// SERVICE DE BADGES SPÉCIALISÉS SYNERGIA - NOUVEAU FICHIER
+// SERVICE DE BADGES SPÉCIALISÉS SYNERGIA AVEC CORRECTION FIREBASE
 // ==========================================
 
-import { doc, updateDoc, arrayUnion, getDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc,
+  arrayUnion, 
+  serverTimestamp, 
+  increment 
+} from 'firebase/firestore';
 import { db } from '../firebase.js';
-import firebaseDataSyncService from './firebaseDataSyncService.js';
+import { firebaseDataSyncService } from './firebaseDataSyncService.js';
 
 /**
- * 🏆 DÉFINITIONS COMPLÈTES DES BADGES SYNERGIA
+ * 🏆 DÉFINITIONS DES BADGES SYNERGIA
+ * Collection complète avec conditions automatiques et récompenses XP
  */
-export const SYNERGIA_BADGE_DEFINITIONS = {
-  // 🔧 BADGES MAINTENANCE & TECHNIQUE
-  maintenance_rookie: {
-    id: 'maintenance_rookie',
-    name: 'Apprenti Mécanicien',
-    description: 'Première intervention technique réalisée avec succès',
-    icon: '🔧',
+const SYNERGIA_BADGE_DEFINITIONS = {
+  // 🚀 BADGES DE DÉMARRAGE
+  first_steps: {
+    id: 'first_steps',
+    name: 'Premiers Pas',
+    description: 'Première connexion et découverte de Synergia',
+    icon: '👋',
+    rarity: 'common',
+    xpReward: 10,
+    category: 'onboarding',
+    requirements: {
+      loginCount: 1
+    },
+    checkCondition: (userStats) => {
+      return (userStats.loginCount || 0) >= 1;
+    }
+  },
+
+  profile_complete: {
+    id: 'profile_complete',
+    name: 'Profil Complet',
+    description: 'Profil utilisateur entièrement renseigné',
+    icon: '📋',
     rarity: 'common',
     xpReward: 25,
-    category: 'maintenance',
+    category: 'onboarding',
     requirements: {
-      role: 'maintenance',
-      tasksCompleted: 1,
-      category: 'technical'
+      profileCompletion: 100
     },
     checkCondition: (userStats) => {
-      const maintenanceStats = userStats.roles?.maintenance || {};
-      return maintenanceStats.tasksCompleted >= 1;
+      return (userStats.profileCompletion || 0) >= 100;
     }
   },
 
-  repair_specialist: {
-    id: 'repair_specialist',
-    name: 'Spécialiste Réparation',
-    description: 'Expert reconnu en résolution de problèmes techniques complexes',
-    icon: '⚙️',
-    rarity: 'rare',
-    xpReward: 100,
-    category: 'maintenance',
+  first_week: {
+    id: 'first_week',
+    name: 'Première Semaine',
+    description: 'Une semaine d\'utilisation active de Synergia',
+    icon: '📅',
+    rarity: 'uncommon',
+    xpReward: 50,
+    category: 'consistency',
     requirements: {
-      role: 'maintenance',
-      tasksCompleted: 25,
-      difficulty: 'advanced',
-      successRate: 85
+      activeDays: 7
     },
     checkCondition: (userStats) => {
-      const maintenanceStats = userStats.roles?.maintenance || {};
-      return maintenanceStats.tasksCompleted >= 25 && 
-             maintenanceStats.successRate >= 85;
+      return (userStats.activeDays || 0) >= 7;
     }
   },
 
-  safety_guardian: {
-    id: 'safety_guardian',
-    name: 'Gardien de la Sécurité',
-    description: 'Vigilance exceptionnelle et zéro incident de sécurité',
-    icon: '🛡️',
-    rarity: 'epic',
-    xpReward: 200,
-    category: 'maintenance',
-    requirements: {
-      role: 'maintenance',
-      safetyChecks: 50,
-      incidents: 0,
-      trainingCompleted: 5
-    },
-    checkCondition: (userStats) => {
-      const maintenanceStats = userStats.roles?.maintenance || {};
-      return maintenanceStats.safetyChecks >= 50 && 
-             maintenanceStats.incidents === 0;
-    }
-  },
-
-  // ⭐ BADGES RÉPUTATION & AVIS
-  review_master: {
-    id: 'review_master',
-    name: 'Maître des Avis',
-    description: 'Excellence constante dans la gestion des avis clients',
-    icon: '⭐',
+  // 🎯 BADGES DE PRODUCTIVITÉ
+  task_master: {
+    id: 'task_master',
+    name: 'Maître des Tâches',
+    description: 'Excellente gestion et finalisation des tâches assignées',
+    icon: '✅',
     rarity: 'uncommon',
     xpReward: 75,
-    category: 'reputation',
+    category: 'productivity',
     requirements: {
-      role: 'reputation',
-      reviewsHandled: 10,
-      averageRating: 4.5,
-      responseTime: 'fast'
+      tasksCompleted: 50,
+      completionRate: 85
     },
     checkCondition: (userStats) => {
-      const reputationStats = userStats.roles?.reputation || {};
-      return reputationStats.reviewsHandled >= 10 && 
-             reputationStats.averageRating >= 4.5;
+      const completed = userStats.tasksCompleted || 0;
+      const rate = userStats.completionRate || 0;
+      return completed >= 50 && rate >= 85;
     }
   },
 
-  crisis_resolver: {
-    id: 'crisis_resolver',
-    name: 'Résolveur de Crise',
-    description: 'Transformation des situations difficiles en succès clients',
-    icon: '🚨',
-    rarity: 'rare',
-    xpReward: 150,
-    category: 'reputation',
-    requirements: {
-      role: 'reputation',
-      negativeReviewsResolved: 5,
-      satisfactionImprovement: 20,
-      conflictResolution: 3
-    },
-    checkCondition: (userStats) => {
-      const reputationStats = userStats.roles?.reputation || {};
-      return reputationStats.negativeReviewsResolved >= 5 && 
-             reputationStats.satisfactionImprovement >= 20;
-    }
-  },
-
-  // 📦 BADGES STOCK & LOGISTIQUE
-  inventory_ninja: {
-    id: 'inventory_ninja',
-    name: 'Ninja de l\'Inventaire',
-    description: 'Précision et rapidité exceptionnelles dans la gestion des stocks',
-    icon: '📦',
-    rarity: 'uncommon',
-    xpReward: 60,
-    category: 'stock',
-    requirements: {
-      role: 'stock',
-      inventoryAccuracy: 98,
-      auditsCompleted: 10,
-      speedRating: 'excellent'
-    },
-    checkCondition: (userStats) => {
-      const stockStats = userStats.roles?.stock || {};
-      return stockStats.inventoryAccuracy >= 98 && 
-             stockStats.auditsCompleted >= 10;
-    }
-  },
-
-  logistics_guru: {
-    id: 'logistics_guru',
-    name: 'Gourou Logistique',
-    description: 'Innovation et optimisation révolutionnaires des flux',
-    icon: '🚚',
-    rarity: 'epic',
-    xpReward: 250,
-    category: 'stock',
-    requirements: {
-      role: 'stock',
-      efficiencyImprovement: 30,
-      costReduction: 15,
-      processesOptimized: 5
-    },
-    checkCondition: (userStats) => {
-      const stockStats = userStats.roles?.stock || {};
-      return stockStats.efficiencyImprovement >= 30 && 
-             stockStats.costReduction >= 15;
-    }
-  },
-
-  // 🎮 BADGES ESCAPE GAME SPÉCIFIQUES
-  game_master: {
-    id: 'game_master',
-    name: 'Maître du Jeu',
-    description: 'Animation captivante et mémorable d\'escape games',
-    icon: '🎭',
-    rarity: 'rare',
-    xpReward: 120,
-    category: 'escape_game',
-    requirements: {
-      activity: 'escape_game',
-      gamesAnimated: 10,
-      playerSatisfaction: 4.8,
-      immersionScore: 85
-    },
-    checkCondition: (userStats) => {
-      const escapeStats = userStats.activities?.escapeGame || {};
-      return escapeStats.gamesAnimated >= 10 && 
-             escapeStats.playerSatisfaction >= 4.8;
-    }
-  },
-
-  puzzle_creator: {
-    id: 'puzzle_creator',
-    name: 'Créateur d\'Énigmes',
-    description: 'Innovation remarquable dans la conception d\'énigmes',
-    icon: '🧩',
-    rarity: 'epic',
-    xpReward: 200,
-    category: 'escape_game',
-    requirements: {
-      activity: 'escape_game',
-      puzzlesCreated: 5,
-      creativityRating: 4.5,
-      originalityScore: 90
-    },
-    checkCondition: (userStats) => {
-      const escapeStats = userStats.activities?.escapeGame || {};
-      return escapeStats.puzzlesCreated >= 5 && 
-             escapeStats.creativityRating >= 4.5;
-    }
-  },
-
-  immersion_artist: {
-    id: 'immersion_artist',
-    name: 'Artiste de l\'Immersion',
-    description: 'Création d\'expériences immersives absolument mémorables',
-    icon: '🎨',
-    rarity: 'legendary',
-    xpReward: 500,
-    category: 'escape_game',
-    requirements: {
-      activity: 'escape_game',
-      immersionScore: 95,
-      testimonials: 20,
-      repeatCustomers: 15
-    },
-    checkCondition: (userStats) => {
-      const escapeStats = userStats.activities?.escapeGame || {};
-      return escapeStats.immersionScore >= 95 && 
-             escapeStats.testimonials >= 20;
-    }
-  },
-
-  // 🧠 BADGES QUIZ GAME SPÉCIFIQUES
-  quiz_master: {
-    id: 'quiz_master',
-    name: 'Maître du Quiz',
-    description: 'Animation dynamique et engagement exceptionnel en quiz',
-    icon: '🧠',
-    rarity: 'uncommon',
-    xpReward: 80,
-    category: 'quiz_game',
-    requirements: {
-      activity: 'quiz_game',
-      quizzesAnimated: 5,
-      participantEngagement: 85,
-      energyLevel: 'high'
-    },
-    checkCondition: (userStats) => {
-      const quizStats = userStats.activities?.quizGame || {};
-      return quizStats.quizzesAnimated >= 5 && 
-             quizStats.participantEngagement >= 85;
-    }
-  },
-
-  knowledge_architect: {
-    id: 'knowledge_architect',
-    name: 'Architecte du Savoir',
-    description: 'Création de quiz éducatifs exceptionnellement enrichissants',
-    icon: '🏗️',
-    rarity: 'rare',
-    xpReward: 180,
-    category: 'quiz_game',
-    requirements: {
-      activity: 'quiz_game',
-      quizzesCreated: 10,
-      educationalValue: 4.7,
-      learningOutcomes: 'excellent'
-    },
-    checkCondition: (userStats) => {
-      const quizStats = userStats.activities?.quizGame || {};
-      return quizStats.quizzesCreated >= 10 && 
-             quizStats.educationalValue >= 4.7;
-    }
-  },
-
-  trivia_legend: {
-    id: 'trivia_legend',
-    name: 'Légende du Trivia',
-    description: 'Encyclopédie vivante et maître incontesté du trivia',
-    icon: '🎓',
-    rarity: 'legendary',
-    xpReward: 400,
-    category: 'quiz_game',
-    requirements: {
-      activity: 'quiz_game',
-      triviaWins: 50,
-      knowledgeAreas: 10,
-      difficultyLevel: 'expert'
-    },
-    checkCondition: (userStats) => {
-      const quizStats = userStats.activities?.quizGame || {};
-      return quizStats.triviaWins >= 50 && 
-             quizStats.knowledgeAreas >= 10;
-    }
-  },
-
-  // 🤝 BADGES COLLABORATION & ÉQUIPE
-  team_catalyst: {
-    id: 'team_catalyst',
-    name: 'Catalyseur d\'Équipe',
-    description: 'Inspiration et motivation exceptionnelles de l\'équipe',
+  efficiency_expert: {
+    id: 'efficiency_expert',
+    name: 'Expert en Efficacité',
+    description: 'Optimisation remarquable des processus et méthodes de travail',
     icon: '⚡',
     rarity: 'rare',
-    xpReward: 150,
-    category: 'collaboration',
+    xpReward: 120,
+    category: 'productivity',
     requirements: {
-      teamProjectsLed: 3,
-      teamSatisfaction: 4.6,
-      motivationScore: 90
+      efficiencyScore: 90,
+      processOptimizations: 5
     },
     checkCondition: (userStats) => {
-      const collabStats = userStats.collaboration || {};
-      return collabStats.teamProjectsLed >= 3 && 
-             collabStats.teamSatisfaction >= 4.6;
+      return (userStats.efficiencyScore || 0) >= 90 && 
+             (userStats.processOptimizations || 0) >= 5;
     }
   },
 
-  synergy_builder: {
-    id: 'synergy_builder',
-    name: 'Bâtisseur de Synergie',
-    description: 'Création d\'une dynamique d\'équipe parfaite et harmonieuse',
-    icon: '🌟',
+  deadline_champion: {
+    id: 'deadline_champion',
+    name: 'Champion des Délais',
+    description: 'Respect exemplaire des échéances et planifications',
+    icon: '⏰',
+    rarity: 'rare',
+    xpReward: 100,
+    category: 'productivity',
+    requirements: {
+      onTimeDeliveries: 25,
+      punctualityRate: 95
+    },
+    checkCondition: (userStats) => {
+      return (userStats.onTimeDeliveries || 0) >= 25 && 
+             (userStats.punctualityRate || 0) >= 95;
+    }
+  },
+
+  // 📈 BADGES DE PROGRESSION
+  rising_star: {
+    id: 'rising_star',
+    name: 'Étoile Montante',
+    description: 'Progression rapide et constante dans l\'organisation',
+    icon: '⭐',
+    rarity: 'uncommon',
+    xpReward: 80,
+    category: 'progression',
+    requirements: {
+      levelUps: 5,
+      xpGained: 1000
+    },
+    checkCondition: (userStats) => {
+      return (userStats.level || 1) >= 6 && 
+             (userStats.totalXp || 0) >= 1000;
+    }
+  },
+
+  knowledge_seeker: {
+    id: 'knowledge_seeker',
+    name: 'Chercheur de Connaissances',
+    description: 'Apprentissage continu et développement des compétences',
+    icon: '🎓',
+    rarity: 'rare',
+    xpReward: 150,
+    category: 'progression',
+    requirements: {
+      skillsLearned: 10,
+      certificationsEarned: 3
+    },
+    checkCondition: (userStats) => {
+      return (userStats.skillsLearned || 0) >= 10 && 
+             (userStats.certificationsEarned || 0) >= 3;
+    }
+  },
+
+  veteran: {
+    id: 'veteran',
+    name: 'Vétéran',
+    description: 'Ancienneté et expérience significative dans Synergia',
+    icon: '🏛️',
     rarity: 'epic',
-    xpReward: 300,
+    xpReward: 250,
+    category: 'progression',
+    requirements: {
+      daysSinceJoined: 365,
+      totalXp: 5000
+    },
+    checkCondition: (userStats) => {
+      return (userStats.daysSinceJoined || 0) >= 365 && 
+             (userStats.totalXp || 0) >= 5000;
+    }
+  },
+
+  // 🤝 BADGES DE COLLABORATION
+  team_player: {
+    id: 'team_player',
+    name: 'Esprit d\'Équipe',
+    description: 'Collaboration exemplaire et support aux collègues',
+    icon: '🤝',
+    rarity: 'uncommon',
+    xpReward: 60,
     category: 'collaboration',
     requirements: {
-      successfulCollaborations: 15,
-      conflictsResolved: 5,
-      teamHarmonyScore: 95
+      collaborations: 20,
+      helpProvided: 15
+    },
+    checkCondition: (userStats) => {
+      return (userStats.collaborations || 0) >= 20 && 
+             (userStats.helpProvided || 0) >= 15;
+    }
+  },
+
+  mentor: {
+    id: 'mentor',
+    name: 'Mentor',
+    description: 'Accompagnement et formation d\'autres membres de l\'équipe',
+    icon: '👨‍🏫',
+    rarity: 'rare',
+    xpReward: 130,
+    category: 'collaboration',
+    requirements: {
+      mentorships: 5,
+      trainingsProvided: 3
+    },
+    checkCondition: (userStats) => {
+      return (userStats.mentorships || 0) >= 5 && 
+             (userStats.trainingsProvided || 0) >= 3;
+    }
+  },
+
+  conflict_resolver: {
+    id: 'conflict_resolver',
+    name: 'Résolveur de Conflits',
+    description: 'Médiation efficace et résolution constructive des tensions',
+    icon: '⚖️',
+    rarity: 'epic',
+    xpReward: 200,
+    category: 'collaboration',
+    requirements: {
+      conflictsResolved: 10,
+      satisfactionRate: 90
     },
     checkCondition: (userStats) => {
       const collabStats = userStats.collaboration || {};
-      return collabStats.successfulCollaborations >= 15 && 
-             collabStats.conflictsResolved >= 5;
+      return collabStats.conflictsResolved >= 10 && 
+             collabStats.satisfactionRate >= 90;
     }
   },
 
@@ -486,38 +394,73 @@ class SynergiaBadgeService {
   }
 
   /**
-   * 💾 SAUVEGARDER LES BADGES DANS FIREBASE
+   * 💾 SAUVEGARDER LES BADGES DANS FIREBASE - VERSION CORRIGÉE
+   * 🔥 SOLUTION: Utiliser setDoc avec merge au lieu d'arrayUnion + serverTimestamp
    */
   async saveBadgesToFirebase(userId, newBadges) {
     try {
       const userRef = doc(db, 'users', userId);
       
-      // Calculer l'XP total des nouveaux badges
+      // 1. Récupérer les données actuelles
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.exists() ? userSnap.data() : {};
+      
+      // 2. Récupérer les badges existants
+      const currentBadges = userData.gamification?.badges || [];
+      
+      // 3. Créer les nouveaux badges avec timestamps corrects
+      const badgesWithTimestamps = newBadges.map(badge => ({
+        ...badge,
+        unlockedAt: new Date().toISOString(), // ✅ STRING au lieu de serverTimestamp
+        unlockedTimestamp: Date.now() // ✅ NUMBER timestamp
+      }));
+      
+      // 4. Fusionner tous les badges
+      const allBadges = [...currentBadges, ...badgesWithTimestamps];
+      
+      // 5. Calculer l'XP total des nouveaux badges
       const totalXpFromNewBadges = newBadges.reduce((total, badge) => 
         total + (badge.xpReward || 0), 0);
+      
+      // 6. Calculer les nouvelles statistiques
+      const currentTotalBadgeXp = userData.gamification?.totalBadgeXp || 0;
+      const newTotalBadgeXp = currentTotalBadgeXp + totalXpFromNewBadges;
+      
+      // 7. ✅ MISE À JOUR SÉCURISÉE AVEC setDoc + merge
+      await setDoc(userRef, {
+        gamification: {
+          ...userData.gamification,
+          badges: allBadges,
+          badgesUnlocked: allBadges.length,
+          totalBadgeXp: newTotalBadgeXp,
+          lastBadgeUnlock: new Date().toISOString() // ✅ STRING au lieu de serverTimestamp
+        },
+        stats: {
+          ...userData.stats,
+          lastBadgeUnlock: new Date().toISOString() // ✅ STRING au lieu de serverTimestamp
+        },
+        updatedAt: new Date().toISOString() // ✅ STRING au lieu de serverTimestamp
+      }, { merge: true });
 
-      const updates = {
-        'gamification.badges': arrayUnion(...newBadges),
-        'gamification.totalBadgeXp': (await this.getCurrentBadgeXp(userId)) + totalXpFromNewBadges,
-        'stats.lastBadgeUnlock': serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(userRef, updates);
-
-      // Ajouter l'XP au total de l'utilisateur
-      if (totalXpFromNewBadges > 0) {
-        await firebaseDataSyncService.addXpToUser(userId, totalXpFromNewBadges, 'badges_unlocked');
+      // 8. Ajouter l'XP au total de l'utilisateur si disponible
+      if (totalXpFromNewBadges > 0 && firebaseDataSyncService?.addXpToUser) {
+        try {
+          await firebaseDataSyncService.addXpToUser(userId, totalXpFromNewBadges, 'badges_unlocked');
+        } catch (xpError) {
+          console.warn('⚠️ Impossible d\'ajouter XP via firebaseDataSyncService:', xpError.message);
+          // Continuer sans fail - les badges sont sauvegardés
+        }
       }
 
-      // Déclencher notifications
+      // 9. Déclencher notifications
       newBadges.forEach(badge => {
         this.triggerBadgeNotification(badge);
       });
 
-      console.log(`💾 ${newBadges.length} badges sauvegardés avec +${totalXpFromNewBadges} XP`);
+      console.log(`✅ ${newBadges.length} badges sauvegardés avec +${totalXpFromNewBadges} XP`);
 
-      return { success: true };
+      return { success: true, badgesSaved: newBadges.length, xpGained: totalXpFromNewBadges };
+
     } catch (error) {
       console.error('❌ Erreur sauvegarde badges:', error);
       return { success: false, error: error.message };
@@ -658,3 +601,4 @@ if (typeof window !== 'undefined') {
 
 export default synergiaBadgeService;
 export { SynergiaBadgeService };
+export { SYNERGIA_BADGE_DEFINITIONS };
