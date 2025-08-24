@@ -28,7 +28,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useProjectService } from '../core/services/projectService.js';
+import { useProjectService } from '../shared/hooks/useProjectService.js';
 import ProjectForm from '../components/forms/ProjectForm.jsx';
 import MainLayout from '../layouts/MainLayout.jsx';
 
