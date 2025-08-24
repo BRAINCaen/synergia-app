@@ -1,6 +1,6 @@
 # ==========================================
 # 📁 netlify.toml
-# Configuration Netlify CORRIGÉE - Résolution erreur package-lock.json
+# Configuration Netlify CORRIGÉE - Résolution erreur MIME type modules
 # ==========================================
 
 [build]
@@ -31,10 +31,33 @@
   status = 200
   force = false
 
-# Headers de sécurité et performance
+# 🚨 CORRECTION CRITIQUE - Headers MIME type pour modules JavaScript
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Headers pour les modules ES (type module)
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+
+# Headers pour les fichiers TypeScript compilés
+[[headers]]
+  for = "/assets/*-*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Headers de sécurité et performance GÉNÉRAUX
 [[headers]]
   for = "/*"
   [headers.values]
+    # 🚨 CORRECTION - MIME type par défaut pour JS
+    Content-Type = "text/html; charset=utf-8"
+    
     # Sécurité
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff" 
@@ -48,24 +71,81 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
+    
+    # 🚨 NOUVEAU - Headers pour modules ES
+    Access-Control-Allow-Credentials = "false"
+    Cross-Origin-Embedder-Policy = "unsafe-none"
 
-# Cache statique pour assets
+# Cache CSS avec MIME type correct
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Content-Type = "text/css; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache statique pour autres assets
 [[headers]]
   for = "/assets/*"
   [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# 🚨 NOUVEAU - Headers spéciaux pour les fichiers avec hash Vite
+[[headers]]
+  for = "/assets/*-*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*-*.css"
+  [headers.values]
+    Content-Type = "text/css; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Headers pour les chunks dynamiques
+[[headers]]
+  for = "/assets/AdminPage*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/TasksPage*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
     Cache-Control = "public, max-age=31536000, immutable"
 
 # Cache pour service worker
 [[headers]]
   for = "/sw.js"
   [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 # Cache pour manifest
 [[headers]]
   for = "/manifest.json"
   [headers.values]
+    Content-Type = "application/json; charset=utf-8"
     Cache-Control = "public, max-age=86400"
+
+# 🚨 NOUVEAU - Headers pour les fichiers index.html dans des sous-dossiers
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    Content-Type = "text/html; charset=utf-8"
+
+# Headers pour les fichiers de polyfills
+[[headers]]
+  for = "/polyfills*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+
+# Headers pour les fichiers vendor
+[[headers]]
+  for = "/vendor*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
 
 # 🚀 CONTEXTES CORRIGÉS - Installation forcée des devDependencies
 [context.production]
@@ -78,3 +158,23 @@
 
 [context.branch-deploy]
   command = "npm install && npm run build"
+
+# 🚨 NOUVEAU - Règles de réecriture pour les routes admin
+[[redirects]]
+  from = "/admin/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+[[redirects]]
+  from = "/dashboard/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Règle catch-all finale
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
