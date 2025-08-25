@@ -1,11 +1,49 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTER MINIMALISTE FONCTIONNEL - SANS IMPORTS CASSÉS
+// SYSTÈME DE ROUTING COMPLET ET FONCTIONNEL - TOUTES LES PAGES
 // ==========================================
 
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../shared/stores/authStore.js'
+import { ROUTES } from '../core/constants.js'
+
+// ✅ PAGES PRINCIPALES - IMPORTS AVEC NOMS CORRECTS
+import LoginPage from '../pages/Login.jsx'
+import DashboardPage from '../pages/Dashboard.jsx'
+import NotFoundPage from '../pages/NotFound.jsx'
+import AnalyticsPage from '../pages/AnalyticsPage.jsx'    // ✅ AnalyticsPage.jsx (pas Analytics.jsx)
+import TeamPage from '../pages/TeamPage.jsx'
+
+// ✅ TOUTES LES PAGES STANDARDS
+import TasksPage from '../pages/TasksPage.jsx'
+import ProjectsPage from '../pages/ProjectsPage.jsx'
+import GamificationPage from '../pages/GamificationPage.jsx'
+import BadgesPage from '../pages/BadgesPage.jsx'
+import LeaderboardPage from '../pages/LeaderboardPage.jsx'
+import UsersPage from '../pages/UsersPage.jsx'
+import OnboardingPage from '../pages/OnboardingPage.jsx'
+import TimeTrackPage from '../pages/TimeTrackPage.jsx'
+import ProfilePage from '../pages/ProfilePage.jsx'
+import SettingsPage from '../pages/SettingsPage.jsx'
+import RewardsPage from '../pages/RewardsPage.jsx'
+
+// ✅ TOUTES LES PAGES ADMIN - IMPORTS COMPLETS
+import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
+import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx'
+import AdminCompleteTestPage from '../pages/AdminCompleteTestPage.jsx'
+import AdminProfileTestPage from '../pages/AdminProfileTestPage.jsx'
+import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx'
+import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'
+import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
+import AdminUsersPage from '../pages/AdminUsersPage.jsx'
+import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
+import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
+import AdminSyncPage from '../pages/AdminSync.jsx'
+import AdminQuickFixPage from '../pages/AdminQuickFixPage.jsx'
+
+// 🎯 LAYOUT PRINCIPAL
+import MainLayout from '../layouts/MainLayout.jsx'
 
 // 🔒 Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
@@ -20,153 +58,302 @@ const ProtectedRoute = ({ children }) => {
   }
   
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to={ROUTES.LOGIN} replace />
   }
   
   return children
 }
 
-// 🎯 PAGES SIMPLES EN DUR (pas d'imports cassés)
-const LoginPage = () => {
-  const { signInWithGoogle, loading } = useAuthStore();
+// 🛡️ Composant de protection admin
+const AdminRoute = ({ children }) => {
+  const { user, loading } = useAuthStore()
   
-  const handleLogin = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      console.error('Erreur connexion:', error);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-gray-900 flex items-center justify-center">
-      <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-8 max-w-md mx-4 text-center">
-        <h1 className="text-white text-3xl font-bold mb-6">🚀 Synergia v3.5</h1>
-        <p className="text-gray-300 mb-8">Application de gestion collaborative</p>
-        
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 px-6 rounded-lg font-medium transition-colors"
-        >
-          {loading ? 'Connexion...' : 'Se connecter avec Google'}
-        </button>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
       </div>
-    </div>
-  );
-};
-
-const DashboardPage = () => {
-  const { user, signOut } = useAuthStore();
+    )
+  }
   
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              🚀 Bienvenue, {user?.displayName || user?.email}
-            </h1>
-            <p className="text-gray-400">Synergia v3.5.4 - Build réussi !</p>
-          </div>
-          <button
-            onClick={signOut}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Déconnexion
-          </button>
-        </div>
+  if (!user) {
+    return <Navigate to={ROUTES.LOGIN} replace />
+  }
+  
+  // Vérification admin souple (permet l'accès pour tests)
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.isAdmin === true
+  
+  if (!isAdmin) {
+    return <Navigate to={ROUTES.DASHBOARD} replace />
+  }
+  
+  return children
+}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center">
-            <div className="text-4xl mb-4">✅</div>
-            <h3 className="text-white font-semibold mb-2">Build Réussi</h3>
-            <p className="text-gray-400 text-sm">Netlify build fonctionnel</p>
-          </div>
-          
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center">
-            <div className="text-4xl mb-4">🎯</div>
-            <h3 className="text-white font-semibold mb-2">Router Stable</h3>
-            <p className="text-gray-400 text-sm">Navigation fonctionnelle</p>
-          </div>
-          
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center">
-            <div className="text-4xl mb-4">🛡️</div>
-            <h3 className="text-white font-semibold mb-2">Auth Firebase</h3>
-            <p className="text-gray-400 text-sm">Authentification active</p>
-          </div>
-        </div>
-
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4">🎉 Router Minimal Fonctionnel</h2>
-          <p className="text-gray-400 mb-4">
-            Ce router minimaliste fonctionne sans imports cassés. Une fois le build validé, 
-            tu peux réintroduire progressivement les autres pages.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gray-700/50 rounded-lg p-4">
-              <h3 className="text-white font-medium mb-2">✅ Fonctionnel</h3>
-              <ul className="text-sm text-gray-400 space-y-1">
-                <li>• Authentification Google</li>
-                <li>• Protection des routes</li>
-                <li>• Navigation de base</li>
-                <li>• Build Netlify</li>
-              </ul>
-            </div>
-            
-            <div className="bg-gray-700/50 rounded-lg p-4">
-              <h3 className="text-white font-medium mb-2">🔄 À réintroduire</h3>
-              <ul className="text-sm text-gray-400 space-y-1">
-                <li>• Pages Analytics, Tasks, etc.</li>
-                <li>• Routes admin complètes</li>
-                <li>• Composants avancés</li>
-                <li>• Imports externes</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NotFoundPage = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-white mb-4">404</h1>
-        <p className="text-gray-400 mb-8">Page non trouvée</p>
-        <button
-          onClick={() => window.location.href = '/dashboard'}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
-        >
-          🏠 Retour au Dashboard
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// 🎯 COMPOSANT PRINCIPAL DES ROUTES
+// 🎯 COMPOSANT PRINCIPAL DES ROUTES - COMPLET
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Route de connexion */}
-      <Route path="/login" element={<LoginPage />} />
+      {/* Route de connexion (sans layout) */}
+      <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       
-      {/* Route protégée du dashboard */}
-      <Route 
-        path="/dashboard" 
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        } 
-      />
+      {/* Routes avec MainLayout */}
+      <Route element={<MainLayout />}>
+        
+        {/* ✅ PAGES PRINCIPALES COMPLÈTES */}
+        <Route 
+          path={ROUTES.DASHBOARD} 
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.TASKS} 
+          element={
+            <ProtectedRoute>
+              <TasksPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.PROJECTS} 
+          element={
+            <ProtectedRoute>
+              <ProjectsPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ANALYTICS} 
+          element={
+            <ProtectedRoute>
+              <AnalyticsPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* ✅ PAGES GAMIFICATION COMPLÈTES */}
+        <Route 
+          path={ROUTES.GAMIFICATION} 
+          element={
+            <ProtectedRoute>
+              <GamificationPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.BADGES} 
+          element={
+            <ProtectedRoute>
+              <BadgesPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.LEADERBOARD} 
+          element={
+            <ProtectedRoute>
+              <LeaderboardPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.REWARDS} 
+          element={
+            <ProtectedRoute>
+              <RewardsPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* ✅ PAGES ÉQUIPE COMPLÈTES */}
+        <Route 
+          path={ROUTES.TEAM} 
+          element={
+            <ProtectedRoute>
+              <TeamPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.USERS} 
+          element={
+            <ProtectedRoute>
+              <UsersPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* ✅ PAGES OUTILS COMPLÈTES */}
+        <Route 
+          path={ROUTES.ONBOARDING} 
+          element={
+            <ProtectedRoute>
+              <OnboardingPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.TIMETRACK} 
+          element={
+            <ProtectedRoute>
+              <TimeTrackPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.PROFILE} 
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.SETTINGS} 
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* ✅ TOUTES LES ROUTES ADMIN COMPLÈTES */}
+        <Route 
+          path={ROUTES.ADMIN_TASK_VALIDATION} 
+          element={
+            <AdminRoute>
+              <AdminTaskValidationPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_OBJECTIVE_VALIDATION} 
+          element={
+            <AdminRoute>
+              <AdminObjectiveValidationPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_COMPLETE_TEST} 
+          element={
+            <AdminRoute>
+              <AdminCompleteTestPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_PROFILE_TEST} 
+          element={
+            <AdminRoute>
+              <AdminProfileTestPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
+          element={
+            <AdminRoute>
+              <AdminRolePermissionsPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_REWARDS} 
+          element={
+            <AdminRoute>
+              <AdminRewardsPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_BADGES} 
+          element={
+            <AdminRoute>
+              <AdminBadgesPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_USERS} 
+          element={
+            <AdminRoute>
+              <AdminUsersPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_ANALYTICS} 
+          element={
+            <AdminRoute>
+              <AdminAnalyticsPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_SETTINGS} 
+          element={
+            <AdminRoute>
+              <AdminSettingsPage />
+            </AdminRoute>
+          } 
+        />
+        
+        <Route 
+          path={ROUTES.ADMIN_SYNC} 
+          element={
+            <AdminRoute>
+              <AdminSyncPage />
+            </AdminRoute>
+          } 
+        />
+        
+        {/* Route Quick Fix Admin */}
+        <Route 
+          path="/admin-quick-fix" 
+          element={
+            <ProtectedRoute>
+              <AdminQuickFixPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Routes supplémentaires pour compatibilité */}
+        <Route 
+          path="/admin" 
+          element={
+            <AdminRoute>
+              <AdminTaskValidationPage />
+            </AdminRoute>
+          } 
+        />
+      
+      </Route>
       
       {/* Redirection par défaut */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       
       {/* Page 404 */}
       <Route path="*" element={<NotFoundPage />} />
@@ -176,7 +363,10 @@ const AppRoutes = () => {
 
 export default AppRoutes
 
-console.log('✅ [ROUTES] Router minimaliste fonctionnel chargé')
-console.log('🎯 [ROUTES] Pages disponibles: /login, /dashboard')
-console.log('🛡️ [ROUTES] Authentification et protection actives')
-console.log('🚀 [ROUTES] Prêt pour build Netlify !');
+console.log('✅ [ROUTES] Router COMPLET chargé avec TOUTES les pages')
+console.log('🎯 [ROUTES] Pages principales: Dashboard, Tasks, Projects, Analytics, Team')
+console.log('🎮 [ROUTES] Pages gamification: Gamification, Badges, Leaderboard, Rewards')
+console.log('👥 [ROUTES] Pages équipe: Team, Users')
+console.log('🔧 [ROUTES] Pages outils: Onboarding, TimeTrack, Profile, Settings')
+console.log('🛡️ [ROUTES] Pages admin: Task Validation, Objective Validation, Complete Test, Profile Test, Role Permissions, Rewards, Badges, Users, Analytics, Settings, Sync')
+console.log('🚀 [ROUTES] TOUTES les routes fonctionnelles - Version complète !');
