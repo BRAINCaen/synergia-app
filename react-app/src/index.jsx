@@ -1,178 +1,401 @@
 // ==========================================
-// 📁 react-app/src/index.jsx
-// POINT D'ENTRÉE PRINCIPAL AVEC CORRECTIF ILLEGAL CONSTRUCTOR
+// 📁 react-app/src/routes/index.jsx
+// ROUTES COMPLÈTES AVEC TOUTES LES PAGES ADMIN - IMPORT CORRIGÉ
 // ==========================================
 
-// 🚨 CORRECTIF CRITIQUE - PREMIÈRE LIGNE OBLIGATOIRE
-import './core/illegalConstructorFix.js';
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from '../shared/stores/authStore.js'
+import { ROUTES } from '../core/constants.js'
 
-// ==========================================
-// 🎯 IMPORTS STANDARDS REACT
-// ==========================================
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.jsx';
-import './index.css';
+// Pages principales
+import Login from '../pages/Login.jsx'
+import Dashboard from '../pages/Dashboard.jsx'
+import NotFound from '../pages/NotFound.jsx'
+import Analytics from '../pages/Analytics.jsx'
+import TeamPage from '../pages/TeamPage.jsx'
 
-// ==========================================
-// 🎯 IMPORTS SYSTÈME DE BADGES V3.5
-// ==========================================
-// Import automatique du service de déclenchement des badges
-import './core/services/badgeTriggerService.js';
+// Pages existantes
+import TasksPage from '../pages/TasksPage.jsx'
+import ProjectsPage from '../pages/ProjectsPage.jsx'
+import GamificationPage from '../pages/GamificationPage.jsx'
+import BadgesPage from '../pages/BadgesPage.jsx'
+import LeaderboardPage from '../pages/LeaderboardPage.jsx'
+import UsersPage from '../pages/UsersPage.jsx'
+import OnboardingPage from '../pages/OnboardingPage.jsx'
+import TimeTrackPage from '../pages/TimeTrackPage.jsx'
+import ProfilePage from '../pages/ProfilePage.jsx'
+import SettingsPage from '../pages/SettingsPage.jsx'
+import RewardsPage from '../pages/RewardsPage.jsx'
 
-// Import du service principal de badges Synergia
-import './core/services/synergiaBadgeService.js';
+// ✅ TOUTES LES PAGES ADMIN - IMPORTS COMPLETS ET CORRIGÉS
+import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
+import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx'
+import AdminCompleteTestPage from '../pages/AdminCompleteTestPage.jsx'
+import AdminProfileTestPage from '../pages/AdminProfileTestPage.jsx'
+import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx'
+import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'
+import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
+import AdminUsersPage from '../pages/AdminUsersPage.jsx'
+import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
+// ✅ CORRECTION : Import AdminSettingsPage complet (était tronqué)
+import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
+import AdminSync from '../pages/AdminSync.jsx'
+import AdminDashboardTuteurPage from '../pages/AdminDashboardTuteurPage.jsx'
+import AdminDashboardManagerPage from '../pages/AdminDashboardManagerPage.jsx'
+import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
 
-// Import du gestionnaire d'assets et effets
-import './core/config/assetsConfig.js';
+// Pages de nettoyage (si elle existe dans admin/)
+// import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
 
-// ==========================================
-// 🔥 IMPORTS SERVICES CORE EXISTANTS
-// ==========================================
-import './core/firebase.js';
-import firebaseDataSyncService from './core/services/firebaseDataSyncService.js';
+// Components utilisés comme pages (fallback)
+import TaskList from '../modules/tasks/TaskList.jsx'
+import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
 
-// ==========================================
-// 🎨 IMPORTS STYLES ET CONFIGURATION
-// ==========================================
-import './assets/styles/globals.css';
-
-// Fix pour les composants motion (si vous l'avez)
-// import './core/motionComponentFix.js';
-
-// ==========================================
-// 🚀 INITIALISATION GLOBALE DE L'APPLICATION
-// ==========================================
-
-/**
- * 🔧 Configuration globale de l'environnement
- */
-const initializeGlobalEnvironment = () => {
-  console.log('🚀 Initialisation environnement global Synergia v3.5...');
-
-  // ==========================================
-  // 📱 DÉTECTION MOBILE ET CONFIGURATION ADAPTÉE
-  // ==========================================
+// Composant de protection des routes
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuthStore()
   
-  const isMobile = window.innerWidth <= 768;
-  if (isMobile) {
-    console.log('📱 Dispositif mobile détecté');
-    document.body.classList.add('mobile-mode');
-  }
-
-  // ==========================================
-  // 🏆 CONFIGURATION SYSTÈME DE BADGES
-  // ==========================================
-  
-  // Exposer les services pour debug (développement uniquement)
-  if (import.meta.env.DEV) {
-    console.log('🔧 Mode développement - Exposition des services debug');
-    
-    // Services de badges
-    window.addEventListener('DOMContentLoaded', () => {
-      // Ces variables seront disponibles dans la console développeur
-      window.firebaseDataSyncService = firebaseDataSyncService;
-      
-      console.log('🔧 Services debug disponibles dans window:');
-      console.log('- firebaseDataSyncService');
-      console.log('🎮 Système de badges et gamification activé');
-    });
-  }
-
-  console.log('✅ Environnement global initialisé');
-};
-
-// ==========================================
-// 🚀 DÉMARRAGE DE L'APPLICATION
-// ==========================================
-
-/**
- * 🎯 Point d'entrée principal de l'application
- */
-const startApplication = () => {
-  console.log('🚀 Démarrage Synergia v3.5...');
-  
-  // Initialiser l'environnement global
-  initializeGlobalEnvironment();
-
-  // Obtenir le container root
-  const container = document.getElementById('root');
-  if (!container) {
-    console.error('❌ Container root non trouvé');
-    return;
-  }
-
-  // Créer le root React 18
-  const root = createRoot(container);
-
-  // ==========================================
-  // 🎨 RENDU DE L'APPLICATION AVEC GESTION D'ERREURS
-  // ==========================================
-  
-  try {
-    root.render(
-      <StrictMode>
-        <App />
-      </StrictMode>
-    );
-
-    console.log('✅ Synergia v3.5 démarré avec succès !');
-    console.log('🏆 Système de badges premium activé');
-    console.log('🎮 Gamification avancée prête');
-    console.log('🔥 Déclenchement automatique en marche');
-
-    // Mesurer le temps de chargement
-    const loadTime = performance.now();
-    console.log(`⚡ Temps de chargement: ${Math.round(loadTime)}ms`);
-
-  } catch (error) {
-    console.error('❌ Erreur lors du démarrage:', error);
-    
-    // Affichage d'erreur fallback
-    container.innerHTML = `
-      <div style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        flex-direction: column;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      ">
-        <div style="text-align: center; padding: 2rem;">
-          <h1 style="font-size: 3rem; margin-bottom: 1rem;">🚀 Synergia</h1>
-          <p style="font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.9;">
-            Erreur lors du chargement de l'application
-          </p>
-          <button 
-            onclick="window.location.reload()" 
-            style="
-              background: rgba(255,255,255,0.2);
-              border: 1px solid rgba(255,255,255,0.3);
-              color: white;
-              padding: 1rem 2rem;
-              border-radius: 0.5rem;
-              cursor: pointer;
-              font-size: 1rem;
-              backdrop-filter: blur(10px);
-            "
-          >
-            🔄 Recharger l'application
-          </button>
-        </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
-    `;
+    )
   }
-};
-
-// ==========================================
-// 🎬 DÉMARRAGE AUTOMATIQUE
-// ==========================================
-
-// Démarrer l'application quand le DOM est prêt
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', startApplication);
-} else {
-  startApplication();
+  
+  if (!user) {
+    return <Navigate to={ROUTES.LOGIN} replace />
+  }
+  
+  return children
 }
+
+// Composant principal des routes
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* Route de connexion */}
+      <Route path={ROUTES.LOGIN} element={<Login />} />
+      
+      {/* ✅ PAGES PRINCIPALES */}
+      <Route 
+        path={ROUTES.DASHBOARD} 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.TASKS} 
+        element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.PROJECTS} 
+        element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ANALYTICS} 
+        element={
+          <ProtectedRoute>
+            <Analytics />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ✅ PAGES GAMIFICATION */}
+      <Route 
+        path={ROUTES.GAMIFICATION} 
+        element={
+          <ProtectedRoute>
+            <GamificationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.BADGES} 
+        element={
+          <ProtectedRoute>
+            <BadgesPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.LEADERBOARD} 
+        element={
+          <ProtectedRoute>
+            <LeaderboardPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.REWARDS} 
+        element={
+          <ProtectedRoute>
+            <RewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ✅ PAGES ÉQUIPE */}
+      <Route 
+        path={ROUTES.TEAM} 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.USERS} 
+        element={
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* ✅ PAGES OUTILS */}
+      <Route 
+        path={ROUTES.ONBOARDING} 
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.TIMETRACK} 
+        element={
+          <ProtectedRoute>
+            <TimeTrackPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.PROFILE} 
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.SETTINGS} 
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ✅ TOUTES LES ROUTES ADMIN - COMPLÈTES ET FONCTIONNELLES ! */}
+      
+      {/* 🛡️ Validation */}
+      <Route 
+        path={ROUTES.ADMIN_TASK_VALIDATION} 
+        element={
+          <ProtectedRoute>
+            <AdminTaskValidationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ADMIN_OBJECTIVE_VALIDATION} 
+        element={
+          <ProtectedRoute>
+            <AdminObjectiveValidationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* 🧪 Tests */}
+      <Route 
+        path={ROUTES.ADMIN_COMPLETE_TEST} 
+        element={
+          <ProtectedRoute>
+            <AdminCompleteTestPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ADMIN_PROFILE_TEST} 
+        element={
+          <ProtectedRoute>
+            <AdminProfileTestPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🔐 Permissions et Rôles */}
+      <Route 
+        path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
+        element={
+          <ProtectedRoute>
+            <AdminRolePermissionsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🎁 Gamification Admin */}
+      <Route 
+        path={ROUTES.ADMIN_REWARDS} 
+        element={
+          <ProtectedRoute>
+            <AdminRewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ADMIN_BADGES} 
+        element={
+          <ProtectedRoute>
+            <AdminBadgesPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 👥 Gestion */}
+      <Route 
+        path={ROUTES.ADMIN_USERS} 
+        element={
+          <ProtectedRoute>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 📊 Analytics et Monitoring */}
+      <Route 
+        path={ROUTES.ADMIN_ANALYTICS} 
+        element={
+          <ProtectedRoute>
+            <AdminAnalyticsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ⚙️ Configuration */}
+      <Route 
+        path={ROUTES.ADMIN_SETTINGS} 
+        element={
+          <ProtectedRoute>
+            <AdminSettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🔄 Synchronisation */}
+      <Route 
+        path={ROUTES.ADMIN_SYNC} 
+        element={
+          <ProtectedRoute>
+            <AdminSync />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 📊 Dashboards Spécialisés */}
+      <Route 
+        path={ROUTES.ADMIN_DASHBOARD_TUTEUR} 
+        element={
+          <ProtectedRoute>
+            <AdminDashboardTuteurPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path={ROUTES.ADMIN_DASHBOARD_MANAGER} 
+        element={
+          <ProtectedRoute>
+            <AdminDashboardManagerPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 💼 Fonctionnalités Spéciales */}
+      <Route 
+        path={ROUTES.ADMIN_INTERVIEW} 
+        element={
+          <ProtectedRoute>
+            <AdminInterviewPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🧹 Nettoyage (si le fichier existe) */}
+      {/* 
+      <Route 
+        path={ROUTES.ADMIN_DEMO_CLEANER} 
+        element={
+          <ProtectedRoute>
+            <DemoDataCleanerPage />
+          </ProtectedRoute>
+        } 
+      />
+      */}
+
+      {/* Routes de fallback pour anciens liens */}
+      <Route 
+        path="/task-list" 
+        element={
+          <ProtectedRoute>
+            <TaskList />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/badge-collection" 
+        element={
+          <ProtectedRoute>
+            <BadgeCollection />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Redirection par défaut */}
+      <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+      
+      {/* Page 404 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
+}
+
+export default AppRoutes
+
+// ==========================================
+// 📊 RÉCAPITULATIF DES ROUTES ACTIVES
+// ==========================================
+
+console.log('✅ [ROUTES] AppRoutes chargé - TOUTES les routes sont disponibles:');
+console.log('🏠 [ROUTES] Pages principales: dashboard, tasks, projects, analytics');
+console.log('🎮 [ROUTES] Gamification: gamification, badges, leaderboard, rewards');
+console.log('👥 [ROUTES] Équipe: team, users');
+console.log('🛠️ [ROUTES] Outils: onboarding, timetrack, profile, settings');
+console.log('🛡️ [ROUTES] Administration: 14 pages admin complètes');
+console.log('🚀 [ROUTES] Toutes les routes admin maintenant routées via App.jsx !');
