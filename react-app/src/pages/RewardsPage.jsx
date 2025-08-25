@@ -1,608 +1,638 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
-// PAGE RÉCOMPENSES CORRIGÉE - AUCUNE ERREUR UNDEFINED
+// PAGE RÉCOMPENSES AVEC IMPORTS CORRIGÉS POUR LE BUILD
 // ==========================================
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Gift, 
-  Zap, 
-  Crown, 
-  Users, 
-  Search, 
-  Filter, 
-  RefreshCw, 
-  Star, 
-  Clock,
-  CheckCircle,
-  XCircle,
-  Calendar,
-  TrendingUp,
-  User,
+  Gift,
+  Star,
+  Trophy,
+  Crown,
+  Zap,
   Heart,
-  Target
+  Target,
+  Award,
+  Coins,
+  Gem,
+  Sparkles,
+  Lock,
+  Unlock,
+  ShoppingCart,
+  Calendar,
+  Clock,
+  Eye,
+  Plus,
+  Search,
+  Filter,
+  RefreshCw,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 
-// Layout premium
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
+// Layout premium - IMPORTS CORRIGÉS POUR BUILD
+import PremiumLayout, { PremiumCard, PremiumStatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
 // Hooks
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useGameStore } from '../shared/stores/gameStore.js';
+import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 
 // Firebase
 import { 
   collection, 
-  addDoc, 
   query, 
   where, 
-  orderBy, 
-  onSnapshot,
-  serverTimestamp 
+  getDocs, 
+  doc, 
+  getDoc,
+  updateDoc,
+  addDoc,
+  serverTimestamp,
+  orderBy,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
+// 🎁 TYPES DE RÉCOMPENSES
+const REWARD_TYPES = {
+  badge: { label: 'Badge', icon: Award, color: 'yellow' },
+  xp: { label: 'XP Bonus', icon: Zap, color: 'blue' },
+  title: { label: 'Titre', icon: Crown, color: 'purple' },
+  cosmetic: { label: 'Cosmétique', icon: Sparkles, color: 'pink' },
+  privilege: { label: 'Privilège', icon: Star, color: 'green' }
+};
+
+const REWARD_RARITY = {
+  common: { label: 'Commune', color: 'gray', glow: false },
+  rare: { label: 'Rare', color: 'blue', glow: true },
+  epic: { label: 'Épique', color: 'purple', glow: true },
+  legendary: { label: 'Légendaire', color: 'orange', glow: true },
+  mythic: { label: 'Mythique', color: 'red', glow: true }
+};
+
+// 🎁 RÉCOMPENSES PAR DÉFAUT
+const DEFAULT_REWARDS = [
+  {
+    id: 'first_task',
+    title: 'Première Tâche',
+    description: 'Complétez votre première tâche',
+    type: 'badge',
+    rarity: 'common',
+    cost: 0,
+    requirement: 'complete_task',
+    icon: '🎯',
+    unlocked: false
+  },
+  {
+    id: 'task_master',
+    title: 'Maître des Tâches',
+    description: 'Complétez 10 tâches',
+    type: 'badge',
+    rarity: 'rare',
+    cost: 0,
+    requirement: 'complete_10_tasks',
+    icon: '🏆',
+    unlocked: false
+  },
+  {
+    id: 'xp_boost',
+    title: 'Boost XP',
+    description: '+50 XP bonus',
+    type: 'xp',
+    rarity: 'common',
+    cost: 100,
+    requirement: 'purchase',
+    icon: '⚡',
+    unlocked: false,
+    consumable: true
+  },
+  {
+    id: 'golden_star',
+    title: 'Étoile Dorée',
+    description: 'Titre prestigieux pour les meilleurs',
+    type: 'title',
+    rarity: 'legendary',
+    cost: 1000,
+    requirement: 'purchase',
+    icon: '⭐',
+    unlocked: false
+  },
+  {
+    id: 'rainbow_theme',
+    title: 'Thème Arc-en-ciel',
+    description: 'Personnalisez votre interface',
+    type: 'cosmetic',
+    rarity: 'epic',
+    cost: 500,
+    requirement: 'purchase',
+    icon: '🌈',
+    unlocked: false
+  }
+];
+
 /**
- * 🛍️ PAGE RÉCOMPENSES PRINCIPALE
+ * 🔍 COMPOSANT BARRE DE RECHERCHE PERSONNALISÉE
+ */
+const SearchBar = ({ 
+  searchTerm, 
+  onSearchChange, 
+  className = "" 
+}) => {
+  return (
+    <div className={`relative ${className}`}>
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Search className="h-4 w-4 text-gray-400" />
+      </div>
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Rechercher des récompenses..."
+        className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+      />
+    </div>
+  );
+};
+
+/**
+ * 🎁 COMPOSANT CARTE RÉCOMPENSE
+ */
+const RewardCard = ({ reward, userXp = 0, onClaim, onPurchase, userRewards = [] }) => {
+  const type = REWARD_TYPES[reward.type] || REWARD_TYPES.badge;
+  const rarity = REWARD_RARITY[reward.rarity] || REWARD_RARITY.common;
+  const TypeIcon = type.icon;
+  
+  const isOwned = userRewards.includes(reward.id);
+  const canAfford = userXp >= (reward.cost || 0);
+  const canClaim = reward.requirement !== 'purchase' && !isOwned;
+  const canPurchase = reward.requirement === 'purchase' && canAfford && !isOwned;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5, scale: 1.02 }}
+      className={`relative bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 transition-all duration-300 hover:shadow-xl ${
+        rarity.glow ? `hover:shadow-${rarity.color}-500/20` : ''
+      }`}
+    >
+      {/* Badge de rareté */}
+      <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-bold bg-${rarity.color}-100 text-${rarity.color}-800`}>
+        {rarity.label}
+      </div>
+
+      {/* Icône principale */}
+      <div className="text-center mb-4">
+        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-${type.color}-400 to-${type.color}-600 mb-3`}>
+          <span className="text-2xl">{reward.icon}</span>
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-1">{reward.title}</h3>
+        <p className="text-sm text-gray-400 line-clamp-2">{reward.description}</p>
+      </div>
+
+      {/* Type de récompense */}
+      <div className="flex items-center justify-center space-x-2 mb-4">
+        <TypeIcon className="w-4 h-4 text-gray-400" />
+        <span className="text-sm text-gray-400">{type.label}</span>
+      </div>
+
+      {/* Statut et actions */}
+      <div className="space-y-3">
+        {isOwned ? (
+          <div className="flex items-center justify-center space-x-2 py-2 bg-green-600/20 rounded-lg">
+            <CheckCircle className="w-4 h-4 text-green-400" />
+            <span className="text-sm font-medium text-green-400">Possédée</span>
+          </div>
+        ) : (
+          <>
+            {/* Coût */}
+            {reward.cost > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">Coût:</span>
+                <div className="flex items-center space-x-1">
+                  <Coins className="w-4 h-4 text-yellow-400" />
+                  <span className={`font-medium ${canAfford ? 'text-white' : 'text-red-400'}`}>
+                    {reward.cost} XP
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Condition */}
+            {reward.requirement !== 'purchase' && (
+              <div className="text-xs text-gray-500 text-center">
+                Condition: {reward.requirement}
+              </div>
+            )}
+
+            {/* Bouton d'action */}
+            {canClaim && (
+              <PremiumButton
+                variant="success"
+                size="sm"
+                className="w-full"
+                onClick={() => onClaim(reward)}
+              >
+                Réclamer
+              </PremiumButton>
+            )}
+
+            {canPurchase && (
+              <PremiumButton
+                variant="primary"
+                size="sm"
+                className="w-full"
+                onClick={() => onPurchase(reward)}
+                icon={ShoppingCart}
+              >
+                Acheter
+              </PremiumButton>
+            )}
+
+            {!canAfford && reward.cost > 0 && (
+              <PremiumButton
+                variant="secondary"
+                size="sm"
+                className="w-full opacity-50 cursor-not-allowed"
+                disabled
+                icon={Lock}
+              >
+                XP insuffisant
+              </PremiumButton>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Effet de brillance pour les raretés élevées */}
+      {rarity.glow && (
+        <div className={`absolute inset-0 rounded-xl bg-gradient-to-r from-${rarity.color}-400/5 to-${rarity.color}-600/5 pointer-events-none`}></div>
+      )}
+    </motion.div>
+  );
+};
+
+/**
+ * 📊 PAGE PRINCIPALE RÉCOMPENSES
  */
 const RewardsPage = () => {
-  const { user, isAuthenticated } = useAuthStore();
-  const { userStats, loading: xpLoading } = useGameStore();
-
-  // États principaux
-  const [purchaseHistory, setPurchaseHistory] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [purchasing, setPurchasing] = useState(false);
+  // 👤 AUTHENTIFICATION
+  const { user } = useAuthStore();
+  
+  // 📊 ÉTATS
+  const [rewards, setRewards] = useState(DEFAULT_REWARDS);
+  const [userRewards, setUserRewards] = useState([]);
+  const [userXp, setUserXp] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // 🎯 FILTRES ET RECHERCHE
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
-  const [activeTab, setActiveTab] = useState('shop');
+  const [selectedRarity, setSelectedRarity] = useState('all');
+  const [showOwned, setShowOwned] = useState(false);
 
-  // ✅ DONNÉES SÉCURISÉES - INITIALISATION AVEC FALLBACKS
-  const userPoints = userStats?.totalXp || 0;
-  const userLevel = userStats?.level || 1;
-
-  // Stats d'équipe simulées (en attendant l'intégration complète)
-  const teamStats = {
-    totalXP: 5000, // XP d'équipe simulée
-    members: 8
-  };
-
-  // ✅ DONNÉES RÉCOMPENSES STATIQUES SÉCURISÉES
-  const rewardsData = useMemo(() => ({
-    individual: [
-      { 
-        id: 'coffee_voucher', 
-        name: 'Bon café premium', 
-        description: 'Un délicieux café premium offert par l\'entreprise', 
-        cost: 50, 
-        category: 'Mini-plaisirs', 
-        rarity: 'common',
-        type: 'individual',
-        icon: '☕',
-        availability: 'Immédiat',
-        estimatedDelivery: 'Instantané'
-      },
-      { 
-        id: 'snack_box', 
-        name: 'Box snacks healthy', 
-        description: 'Sélection de snacks sains et gourmands', 
-        cost: 120, 
-        category: 'Mini-plaisirs', 
-        rarity: 'common',
-        type: 'individual',
-        icon: '🍎',
-        availability: 'Stock limité',
-        estimatedDelivery: '24h'
-      },
-      { 
-        id: 'lunch_voucher', 
-        name: 'Déjeuner restaurant', 
-        description: 'Repas dans un restaurant partenaire au choix', 
-        cost: 300, 
-        category: 'Plaisirs food', 
-        rarity: 'uncommon',
-        type: 'individual',
-        icon: '🍽️',
-        availability: 'Disponible',
-        estimatedDelivery: 'À réserver'
-      },
-      { 
-        id: 'massage_session', 
-        name: 'Séance massage 30min', 
-        description: 'Massage relaxant de 30 minutes par un professionnel', 
-        cost: 800, 
-        category: 'Bien-être', 
-        rarity: 'rare',
-        type: 'individual',
-        icon: '💆',
-        availability: 'Sur RDV',
-        estimatedDelivery: '1 semaine'
-      },
-      { 
-        id: 'cinema_tickets', 
-        name: 'Places cinéma premium', 
-        description: '2 places de cinéma dans une salle premium', 
-        cost: 600, 
-        category: 'Loisirs', 
-        rarity: 'rare',
-        type: 'individual',
-        icon: '🎬',
-        availability: 'Disponible',
-        estimatedDelivery: '48h'
-      },
-      { 
-        id: 'spa_day', 
-        name: 'Journée SPA complète', 
-        description: 'Accès SPA avec soins et détente pour une journée', 
-        cost: 2000, 
-        category: 'Premium', 
-        rarity: 'epic',
-        type: 'individual',
-        icon: '🧘',
-        availability: 'Rare',
-        estimatedDelivery: '2 semaines'
-      },
-      { 
-        id: 'weekend_getaway', 
-        name: 'Weekend détente', 
-        description: 'Weekend dans un hôtel 4 étoiles avec petit-déjeuner', 
-        cost: 4000, 
-        category: 'Premium', 
-        rarity: 'legendary',
-        type: 'individual',
-        icon: '🏨',
-        availability: 'Très rare',
-        estimatedDelivery: '1 mois'
-      }
-    ],
-    team: [
-      { 
-        id: 'team_breakfast', 
-        name: 'Petit-déjeuner équipe', 
-        description: 'Petit-déjeuner convivial pour toute l\'équipe', 
-        cost: 800, 
-        category: 'Équipe', 
-        rarity: 'uncommon',
-        type: 'team',
-        icon: '🥐',
-        participants: 'Toute l\'équipe',
-        duration: '1h30',
-        estimatedDelivery: '48h'
-      },
-      { 
-        id: 'team_lunch', 
-        name: 'Déjeuner d\'équipe', 
-        description: 'Repas dans un restaurant pour célébrer les succès collectifs', 
-        cost: 1500, 
-        category: 'Équipe', 
-        rarity: 'rare',
-        type: 'team',
-        icon: '🍕',
-        participants: 'Toute l\'équipe',
-        duration: '2h',
-        estimatedDelivery: '1 semaine'
-      },
-      { 
-        id: 'team_afterwork', 
-        name: 'Afterwork premium', 
-        description: 'Soirée détente avec cocktails et animations', 
-        cost: 3000, 
-        category: 'Équipe', 
-        rarity: 'epic',
-        type: 'team',
-        icon: '🍸',
-        participants: 'Toute l\'équipe',
-        duration: '3h',
-        estimatedDelivery: 'À planifier'
-      }
-    ]
-  }), []);
-
-  // ✅ CHARGER L'HISTORIQUE DES DEMANDES
-  const loadPurchaseHistory = useCallback(async () => {
+  // 📊 CHARGEMENT DES DONNÉES UTILISATEUR
+  useEffect(() => {
     if (!user?.uid) return;
 
-    try {
-      // Écouter les demandes de récompenses en temps réel
-      const rewardsQuery = query(
-        collection(db, 'rewardRequests'),
-        where('userId', '==', user.uid),
-        orderBy('requestedAt', 'desc')
-      );
+    const loadUserData = async () => {
+      try {
+        setIsLoading(true);
 
-      const unsubscribe = onSnapshot(rewardsQuery, (snapshot) => {
-        const history = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          requestedAt: doc.data().requestedAt?.toDate ? 
-            doc.data().requestedAt.toDate() : new Date()
-        }));
+        // Charger le profil utilisateur pour l'XP
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserXp(userData.totalXp || userData.xp || 0);
+          setUserRewards(userData.rewards || []);
+        }
 
-        setPurchaseHistory(history);
+        // Charger les récompenses personnalisées (si elles existent)
+        const rewardsQuery = query(collection(db, 'rewards'));
+        const rewardsSnapshot = await getDocs(rewardsQuery);
         
-        // Séparer les demandes en attente
-        const pending = history.filter(req => req.status === 'pending');
-        setPendingRequests(pending);
-        
-        console.log('✅ Historique récompenses chargé:', {
-          total: history.length,
-          pending: pending.length
-        });
-      }, (error) => {
-        console.warn('⚠️ Erreur écoute historique:', error);
-      });
+        if (!rewardsSnapshot.empty) {
+          const customRewards = rewardsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setRewards([...DEFAULT_REWARDS, ...customRewards]);
+        }
 
-      return unsubscribe;
-    } catch (error) {
-      console.warn('⚠️ Firebase indisponible:', error);
-    }
+        setIsLoading(false);
+        setError(null);
+
+      } catch (error) {
+        console.error('❌ [REWARDS] Erreur chargement:', error);
+        setError(error.message);
+        setIsLoading(false);
+      }
+    };
+
+    loadUserData();
   }, [user?.uid]);
 
-  // ✅ COULEURS SELON RARETÉ
-  const getRarityColor = (rarity) => {
-    const rarityColors = {
-      common: 'from-emerald-400 to-green-600',
-      uncommon: 'from-blue-400 to-cyan-600', 
-      rare: 'from-purple-400 to-indigo-600',
-      epic: 'from-orange-400 to-red-600',
-      legendary: 'from-yellow-400 to-orange-500'
+  // 📊 RÉCOMPENSES FILTRÉES
+  const filteredRewards = useMemo(() => {
+    let filtered = rewards;
+
+    // Filtre par terme de recherche
+    if (searchTerm) {
+      filtered = filtered.filter(reward =>
+        reward.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reward.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtre par type
+    if (selectedType !== 'all') {
+      filtered = filtered.filter(reward => reward.type === selectedType);
+    }
+
+    // Filtre par rareté
+    if (selectedRarity !== 'all') {
+      filtered = filtered.filter(reward => reward.rarity === selectedRarity);
+    }
+
+    // Filtre par possession
+    if (showOwned) {
+      filtered = filtered.filter(reward => userRewards.includes(reward.id));
+    }
+
+    return filtered;
+  }, [rewards, searchTerm, selectedType, selectedRarity, showOwned, userRewards]);
+
+  // 📊 STATISTIQUES
+  const stats = useMemo(() => {
+    const total = rewards.length;
+    const owned = userRewards.length;
+    const available = total - owned;
+    const canAfford = rewards.filter(r => r.cost > 0 && userXp >= r.cost && !userRewards.includes(r.id)).length;
+
+    return {
+      total,
+      owned,
+      available,
+      canAfford,
+      completionRate: total > 0 ? Math.round((owned / total) * 100) : 0
     };
-    return rarityColors[rarity] || 'from-gray-400 to-gray-600';
+  }, [rewards, userRewards, userXp]);
+
+  // ⚡ ACTIONS
+  const handleClaim = async (reward) => {
+    try {
+      console.log('🎁 [REWARDS] Réclamation récompense:', reward.id);
+      
+      const newUserRewards = [...userRewards, reward.id];
+      
+      await updateDoc(doc(db, 'users', user.uid), {
+        rewards: newUserRewards,
+        updatedAt: serverTimestamp()
+      });
+
+      setUserRewards(newUserRewards);
+      console.log('✅ [REWARDS] Récompense réclamée');
+      
+    } catch (error) {
+      console.error('❌ [REWARDS] Erreur réclamation:', error);
+    }
   };
 
-  // ✅ FAIRE UNE DEMANDE DE RÉCOMPENSE
-  const handlePurchaseRequest = async (reward) => {
-    if (!user?.uid) {
-      alert('🚨 Tu dois être connecté pour demander des récompenses !');
-      return;
-    }
-
-    const requiredPoints = reward.cost;
-    const availablePoints = reward.type === 'individual' ? userPoints : teamStats.totalXP;
-
-    if (availablePoints < requiredPoints) {
-      alert(`❌ XP insuffisants ! Tu as ${availablePoints} XP mais il faut ${requiredPoints} XP.`);
-      return;
-    }
-
-    // Vérifier si déjà demandé
-    const alreadyRequested = pendingRequests.some(req => req.rewardId === reward.id);
-    if (alreadyRequested) {
-      alert('⏳ Tu as déjà une demande en cours pour cette récompense !');
-      return;
-    }
-
-    setPurchasing(true);
+  const handlePurchase = async (reward) => {
+    if (userXp < reward.cost) return;
 
     try {
-      console.log('🎁 Envoi demande récompense:', reward.name);
+      console.log('💰 [REWARDS] Achat récompense:', reward.id);
+      
+      const newUserRewards = [...userRewards, reward.id];
+      const newXp = userXp - reward.cost;
+      
+      await updateDoc(doc(db, 'users', user.uid), {
+        rewards: newUserRewards,
+        totalXp: newXp,
+        xp: newXp,
+        updatedAt: serverTimestamp()
+      });
 
-      // Créer la demande dans Firebase
-      const rewardRequest = {
-        userId: user.uid,
-        userName: user.displayName || user.email,
-        userEmail: user.email,
-        rewardId: reward.id,
-        rewardName: reward.name,
-        rewardCost: reward.cost,
-        rewardType: reward.type,
-        userXP: availablePoints,
-        status: 'pending',
-        requestedAt: serverTimestamp(),
-        metadata: {
-          userLevel: userLevel,
-          rewardCategory: reward.category,
-          rewardRarity: reward.rarity
-        }
-      };
-
-      await addDoc(collection(db, 'rewardRequests'), rewardRequest);
-
-      alert(`✅ Demande envoyée !\n\n"${reward.name}" est en attente de validation.\n⏳ Tu recevras une notification dès qu'un admin aura traité ta demande.`);
-
+      setUserRewards(newUserRewards);
+      setUserXp(newXp);
+      console.log('✅ [REWARDS] Récompense achetée');
+      
     } catch (error) {
-      console.error('❌ Erreur création demande:', error);
-      alert('❌ Erreur lors de l\'envoi. Réessaye !');
-    } finally {
-      setPurchasing(false);
+      console.error('❌ [REWARDS] Erreur achat:', error);
     }
   };
 
-  // ✅ RÉCOMPENSES FILTRÉES
-  const filteredRewards = useMemo(() => {
-    const allRewards = [...rewardsData.individual, ...rewardsData.team];
-    
-    return allRewards.filter(reward => {
-      const matchesCategory = selectedCategory === 'all' || reward.category === selectedCategory;
-      const matchesType = selectedType === 'all' || reward.type === selectedType;
-      const matchesSearch = reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          reward.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesCategory && matchesType && matchesSearch;
-    });
-  }, [rewardsData, selectedCategory, selectedType, searchTerm]);
-
-  // ✅ CATÉGORIES ET TYPES DISPONIBLES
-  const categories = useMemo(() => {
-    const allRewards = [...rewardsData.individual, ...rewardsData.team];
-    const cats = [...new Set(allRewards.map(r => r.category))];
-    return ['all', ...cats];
-  }, [rewardsData]);
-
-  const types = ['all', 'individual', 'team'];
-
-  // ✅ STATS POUR L'HEADER
+  // 📊 STATISTIQUES POUR LE HEADER
   const headerStats = [
-    {
-      title: "XP Disponibles",
-      value: userPoints,
-      icon: Zap,
-      color: "yellow"
-    },
-    {
-      title: "Niveau",
-      value: userLevel,
-      icon: Crown,
-      color: "purple"
-    },
-    {
-      title: "Demandes en cours",
-      value: pendingRequests.length,
-      icon: Clock,
-      color: "blue"
-    }
+    { title: 'Total', value: stats.total, icon: Gift, color: 'blue' },
+    { title: 'Possédées', value: stats.owned, icon: CheckCircle, color: 'green' },
+    { title: 'Disponibles', value: stats.available, icon: Star, color: 'yellow' },
+    { title: 'XP Disponibles', value: userXp, icon: Zap, color: 'purple' }
   ];
 
-  // ✅ EFFETS
-  useEffect(() => {
-    if (isAuthenticated && user?.uid) {
-      loadPurchaseHistory();
-    }
-  }, [isAuthenticated, user?.uid, loadPurchaseHistory]);
+  // ⚡ ACTIONS DU HEADER
+  const headerActions = (
+    <div className="flex space-x-3">
+      <PremiumButton
+        variant="secondary"
+        onClick={() => window.location.reload()}
+      >
+        <RefreshCw className="w-4 h-4" />
+        Actualiser
+      </PremiumButton>
+      
+      <PremiumButton
+        onClick={() => window.location.href = '/gamification'}
+        variant="primary"
+      >
+        <Trophy className="w-4 h-4" />
+        Voir Gamification
+      </PremiumButton>
+    </div>
+  );
 
-  // ✅ INTERFACE DE CHARGEMENT
-  if (xpLoading) {
+  if (isLoading) {
     return (
-      <PremiumLayout>
-        <div className="min-h-screen flex items-center justify-center">
+      <PremiumLayout
+        title="🎁 Récompenses"
+        subtitle="Débloquez et collectionnez vos récompenses"
+        icon={Gift}
+      >
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <RefreshCw className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
-            <p className="text-white">Chargement de la boutique...</p>
+            <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-400">Chargement des récompenses...</p>
           </div>
         </div>
       </PremiumLayout>
     );
   }
 
+  if (error) {
+    return (
+      <PremiumLayout
+        title="🎁 Récompenses"
+        subtitle="Débloquez et collectionnez vos récompenses"
+        icon={Gift}
+      >
+        <PremiumCard className="text-center py-12">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h3>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <PremiumButton variant="primary" onClick={() => window.location.reload()}>
+            Réessayer
+          </PremiumButton>
+        </PremiumCard>
+      </PremiumLayout>
+    );
+  }
+
   return (
     <PremiumLayout
-      title="Boutique Récompenses"
-      subtitle="Échangez vos XP contre des récompenses !"
+      title="🎁 Récompenses"
+      subtitle="Débloquez et collectionnez vos récompenses"
       icon={Gift}
-      showStats={true}
-      stats={headerStats}
+      headerActions={headerActions}
+      headerStats={headerStats}
     >
-      {/* Onglets de navigation */}
-      <div className="flex space-x-1 bg-gray-800/50 rounded-lg p-1 mb-8">
-        {[
-          { id: 'shop', label: 'Boutique', icon: Gift },
-          { id: 'history', label: 'Historique', icon: Clock }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all ${
-              activeTab === tab.id
-                ? 'bg-purple-600 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
-        ))}
+      {/* Progression globale */}
+      <div className="mb-8">
+        <PremiumCard className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Progression de Collection</h3>
+              <p className="text-sm text-gray-400">
+                {stats.owned} sur {stats.total} récompenses débloquées
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-white">{stats.completionRate}%</p>
+              <p className="text-sm text-gray-400">Complété</p>
+            </div>
+          </div>
+          
+          <div className="w-full bg-gray-700 rounded-full h-3">
+            <div 
+              className="h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
+              style={{ width: `${stats.completionRate}%` }}
+            ></div>
+          </div>
+        </PremiumCard>
       </div>
 
-      {/* Contenu des onglets */}
-      {activeTab === 'shop' && (
-        <div className="space-y-8">
-          {/* Filtres de recherche */}
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <PremiumSearchBar
-                placeholder="Rechercher une récompense..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+      {/* Contrôles de filtrage */}
+      <div className="mb-8">
+        <PremiumCard className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {/* Recherche */}
+            <div className="md:col-span-2">
+              <SearchBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
               />
-              
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category === 'all' ? 'Toutes catégories' : category}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              >
-                {types.map(type => (
-                  <option key={type} value={type}>
-                    {type === 'all' ? 'Tous types' : 
-                     type === 'individual' ? 'Individuelles' : 'Équipe'}
-                  </option>
-                ))}
-              </select>
             </div>
+
+            {/* Filtres */}
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les types</option>
+              {Object.entries(REWARD_TYPES).map(([key, type]) => (
+                <option key={key} value={key}>{type.label}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedRarity}
+              onChange={(e) => setSelectedRarity(e.target.value)}
+              className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Toutes les raretés</option>
+              {Object.entries(REWARD_RARITY).map(([key, rarity]) => (
+                <option key={key} value={key}>{rarity.label}</option>
+              ))}
+            </select>
+
+            {/* Toggle possédées */}
+            <label className="flex items-center space-x-2 px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showOwned}
+                onChange={(e) => setShowOwned(e.target.checked)}
+                className="rounded text-blue-500 focus:ring-blue-500"
+              />
+              <span className="text-white text-sm">Possédées uniquement</span>
+            </label>
           </div>
+        </PremiumCard>
+      </div>
 
-          {/* Grille des récompenses */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <AnimatePresence mode="popLayout">
-              {filteredRewards.map(reward => {
-                const canAfford = reward.type === 'individual' 
-                  ? userPoints >= reward.cost 
-                  : teamStats.totalXP >= reward.cost;
-                
-                const isAlreadyRequested = pendingRequests.some(req => req.rewardId === reward.id);
-
-                return (
-                  <motion.div
-                    key={reward.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden hover:border-purple-500 transition-all duration-300"
-                  >
-                    {/* En-tête avec rareté */}
-                    <div className={`h-32 bg-gradient-to-br ${getRarityColor(reward.rarity)} p-4 relative`}>
-                      <div className="text-white text-4xl mb-2">{reward.icon}</div>
-                      <div className="absolute top-2 right-2">
-                        {reward.type === 'team' ? (
-                          <Users className="w-5 h-5 text-white/80" />
-                        ) : (
-                          <Star className="w-5 h-5 text-white/80" />
-                        )}
-                      </div>
-                      <div className="absolute bottom-2 left-2">
-                        <span className="text-xs text-white/80 bg-black/20 px-2 py-1 rounded">
-                          {reward.rarity}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Contenu */}
-                    <div className="p-4">
-                      <h3 className="text-white font-semibold mb-2">{reward.name}</h3>
-                      <p className="text-gray-400 text-sm mb-3 line-clamp-2">{reward.description}</p>
-                      
-                      {/* Détails équipe */}
-                      {reward.type === 'team' && (
-                        <div className="text-xs text-gray-500 mb-3 space-y-1">
-                          <div>👥 {reward.participants}</div>
-                          <div>⏱️ {reward.duration}</div>
-                        </div>
-                      )}
-
-                      {/* Prix et catégorie */}
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-sm text-purple-400 bg-purple-400/10 px-2 py-1 rounded">
-                          {reward.category}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <Zap className="w-4 h-4 text-yellow-400" />
-                          <span className="text-white font-medium">{reward.cost}</span>
-                        </div>
-                      </div>
-
-                      {/* Bouton d'achat */}
-                      <button
-                        onClick={() => handlePurchaseRequest(reward)}
-                        disabled={!canAfford || purchasing || isAlreadyRequested}
-                        className={`w-full px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
-                          isAlreadyRequested
-                            ? 'bg-yellow-600/20 text-yellow-400 cursor-not-allowed'
-                            : canAfford && !purchasing
-                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white' 
-                            : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                        } ${purchasing ? 'opacity-50' : ''}`}
-                      >
-                        {purchasing ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            <span>Envoi...</span>
-                          </>
-                        ) : isAlreadyRequested ? (
-                          <>
-                            <Clock className="w-4 h-4" />
-                            <span>En attente</span>
-                          </>
-                        ) : canAfford ? (
-                          <>
-                            <Gift className="w-4 h-4" />
-                            <span>Demander</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-4 h-4" />
-                            <span>XP insuffisants</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
-
-          {filteredRewards.length === 0 && (
-            <div className="text-center py-12">
-              <Gift className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-400 mb-2">Aucune récompense trouvée</h3>
-              <p className="text-gray-500">Modifiez vos filtres pour voir plus de récompenses</p>
-            </div>
-          )}
+      {/* Grille des récompenses */}
+      {filteredRewards.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredRewards.map((reward) => (
+            <RewardCard
+              key={reward.id}
+              reward={reward}
+              userXp={userXp}
+              userRewards={userRewards}
+              onClaim={handleClaim}
+              onPurchase={handlePurchase}
+            />
+          ))}
         </div>
+      ) : (
+        /* Message si aucune récompense */
+        <PremiumCard className="text-center py-12">
+          <Gift className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Aucune récompense trouvée</h3>
+          <p className="text-gray-400 mb-6">
+            {searchTerm || selectedType !== 'all' || selectedRarity !== 'all'
+              ? 'Aucune récompense ne correspond à vos critères de recherche.'
+              : 'Aucune récompense disponible pour le moment.'}
+          </p>
+          <PremiumButton
+            onClick={() => {
+              setSearchTerm('');
+              setSelectedType('all');
+              setSelectedRarity('all');
+              setShowOwned(false);
+            }}
+            variant="primary"
+          >
+            Réinitialiser les filtres
+          </PremiumButton>
+        </PremiumCard>
       )}
 
-      {/* Onglet Historique */}
-      {activeTab === 'history' && (
-        <div className="space-y-6">
-          <PremiumCard>
-            <h2 className="text-2xl font-bold text-white mb-6">Historique des demandes</h2>
-            
-            {purchaseHistory.length === 0 ? (
-              <div className="text-center py-8">
-                <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-400 mb-2">Aucune demande</h3>
-                <p className="text-gray-500">Tes demandes de récompenses apparaîtront ici</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {purchaseHistory.map(request => (
-                  <div
-                    key={request.id}
-                    className="flex items-center justify-between p-4 bg-gray-800/30 rounded-lg border border-gray-700/50"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                        <Gift className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-white">{request.rewardName}</h4>
-                        <p className="text-sm text-gray-400">{request.rewardCost} XP</p>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                        request.status === 'approved'
-                          ? 'bg-green-600/20 text-green-400'
-                          : request.status === 'rejected'
-                          ? 'bg-red-600/20 text-red-400'
-                          : 'bg-yellow-600/20 text-yellow-400'
-                      }`}>
-                        {request.status === 'approved' ? '✅ Approuvée' :
-                         request.status === 'rejected' ? '❌ Rejetée' : '⏳ En attente'}
-                      </div>
-                      <p className="text-gray-500 text-xs mt-1">
-                        {request.requestedAt.toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+      {/* Message d'encouragement pour les nouveaux utilisateurs */}
+      {stats.owned === 0 && !isLoading && (
+        <div className="mt-8">
+          <PremiumCard className="text-center py-12">
+            <Sparkles className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">Commencez votre collection !</h3>
+            <p className="text-gray-400 mb-6">
+              Complétez des tâches et gagnez de l'XP pour débloquer vos premières récompenses.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <PremiumButton
+                onClick={() => window.location.href = '/tasks'}
+                variant="primary"
+              >
+                Créer une tâche
+              </PremiumButton>
+              <PremiumButton
+                onClick={() => window.location.href = '/gamification'}
+                variant="secondary"
+              >
+                Voir la gamification
+              </PremiumButton>
+            </div>
           </PremiumCard>
         </div>
       )}
