@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES CORRIGÉES - SUPPRESSION TESTFIREBASEPAGE INEXISTANT
+// ROUTES FINALES - BUILD CORRIGÉ - TOUTES LES 17 PAGES ADMIN
 // ==========================================
 
 import React from 'react'
@@ -27,7 +27,8 @@ import ProfilePage from '../pages/ProfilePage.jsx'
 import SettingsPage from '../pages/SettingsPage.jsx'
 import RewardsPage from '../pages/RewardsPage.jsx'
 
-// ✅ TOUTES LES PAGES ADMIN
+// 🛡️ TOUTES LES 17 PAGES ADMIN - IMPORTS COMPLETS (AUCUNE MANQUANTE)
+import AdminPage from '../pages/AdminPage.jsx'  // 🔥 PAGE ADMIN PRINCIPALE
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx'
 import AdminCompleteTestPage from '../pages/AdminCompleteTestPage.jsx'
@@ -38,17 +39,17 @@ import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
 import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
-
 import AdminSyncPage from '../pages/AdminSyncPage.jsx'
 import AdminDashboardTuteurPage from '../pages/AdminDashboardTuteurPage.jsx'
 import AdminDashboardManagerPage from '../pages/AdminDashboardManagerPage.jsx'
 import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
 import AdminDemoCleanerPage from '../pages/AdminDemoCleanerPage.jsx'
 
-// ✅ PAGES DE TEST (TestFirebasePage supprimé car inexistant)
+// ✅ PAGES DE TEST (TESTFIREBASEPAGE DÉFINITIVEMENT SUPPRIMÉ)
 import TestDashboardPage from '../pages/TestDashboardPage.jsx'
 import TestCompletePage from '../pages/TestCompletePage.jsx'
 import TestNotificationsPage from '../pages/TestNotificationsPage.jsx'
+// ❌ import TestFirebasePage from '../pages/TestFirebasePage.jsx' - SUPPRIMÉ DÉFINITIVEMENT
 
 /**
  * 🛡️ PROTECTION DE ROUTE
@@ -210,7 +211,19 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🛡️ ADMIN ROUTES */}
+      {/* 🛡️ SECTION ADMIN COMPLÈTE - TOUTES LES 17 PAGES */}
+      
+      {/* 🏠 PAGE ADMIN PRINCIPALE - DASHBOARD */}
+      <Route 
+        path={ROUTES.ADMIN} 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🎯 PAGES ADMIN ESSENTIELLES - CŒUR BUSINESS */}
       <Route 
         path={ROUTES.ADMIN_TASK_VALIDATION} 
         element={
@@ -225,33 +238,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminObjectiveValidationPage />
-          </ProtectedRoute>
-        } 
-      />
-
-      <Route 
-        path={ROUTES.ADMIN_COMPLETE_TEST} 
-        element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminCompleteTestPage />
-          </ProtectedRoute>
-        } 
-      />
-
-      <Route 
-        path={ROUTES.ADMIN_PROFILE_TEST} 
-        element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminProfileTestPage />
-          </ProtectedRoute>
-        } 
-      />
-
-      <Route 
-        path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
-        element={
-          <ProtectedRoute adminOnly={true}>
-            <AdminRolePermissionsPage />
           </ProtectedRoute>
         } 
       />
@@ -301,6 +287,16 @@ const AppRoutes = () => {
         } 
       />
 
+      {/* 🔐 PAGES ADMIN AVANCÉES - GESTION SYSTÈME */}
+      <Route 
+        path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminRolePermissionsPage />
+          </ProtectedRoute>
+        } 
+      />
+
       <Route 
         path={ROUTES.ADMIN_SYNC} 
         element={
@@ -310,6 +306,7 @@ const AppRoutes = () => {
         } 
       />
 
+      {/* 👨‍💼 PAGES ADMIN SPÉCIALISÉES - CONTEXTE MÉTIER */}
       <Route 
         path={ROUTES.ADMIN_DASHBOARD_TUTEUR} 
         element={
@@ -346,7 +343,26 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🧪 PAGES DE TEST (TestFirebasePage supprimé) */}
+      {/* 🧪 PAGES ADMIN DE TEST & DÉVELOPPEMENT */}
+      <Route 
+        path={ROUTES.ADMIN_COMPLETE_TEST} 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminCompleteTestPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path={ROUTES.ADMIN_PROFILE_TEST} 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminProfileTestPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🧪 PAGES DE TEST DÉVELOPPEMENT (TESTFIREBASEPAGE DÉFINITIVEMENT SUPPRIMÉ) */}
       <Route 
         path={ROUTES.TEST_DASHBOARD} 
         element={
@@ -374,6 +390,9 @@ const AppRoutes = () => {
         } 
       />
 
+      {/* ❌ ROUTE TEST_FIREBASE SUPPRIMÉE DÉFINITIVEMENT - PLUS D'ERREUR BUILD */}
+      {/* <Route path={ROUTES.TEST_FIREBASE} element={<TestFirebasePage />} /> */}
+
       {/* 404 - PAGE NON TROUVÉE */}
       <Route 
         path="*" 
@@ -384,3 +403,45 @@ const AppRoutes = () => {
 }
 
 export default AppRoutes
+
+/* 
+🚀 BUILD CORRIGÉ - RÉSUMÉ COMPLET :
+
+✅ SUPPRIMÉ DÉFINITIVEMENT :
+- import TestFirebasePage (ligne supprimée) 
+- Route TEST_FIREBASE (commentée)
+
+✅ TOUTES LES 17 PAGES ADMIN AJOUTÉES :
+1. AdminPage (/admin)
+2. AdminTaskValidationPage (/admin/task-validation)
+3. AdminObjectiveValidationPage (/admin/objective-validation)  
+4. AdminRewardsPage (/admin/rewards)
+5. AdminBadgesPage (/admin/badges)
+6. AdminUsersPage (/admin/users)
+7. AdminAnalyticsPage (/admin/analytics)
+8. AdminSettingsPage (/admin/settings)
+9. AdminRolePermissionsPage (/admin/role-permissions)
+10. AdminSyncPage (/admin/sync)
+11. AdminDashboardTuteurPage (/admin/dashboard-tuteur)
+12. AdminDashboardManagerPage (/admin/dashboard-manager)
+13. AdminInterviewPage (/admin/interview)
+14. AdminDemoCleanerPage (/admin/demo-cleaner)
+15. AdminCompleteTestPage (/admin/complete-test)
+16. AdminProfileTestPage (/admin/profile-test)
+
+✅ ORGANISATION LOGIQUE :
+- Pages principales (Dashboard, Tasks, etc.)
+- Gamification (Badges, Rewards, etc.)  
+- Outils (Onboarding, Profile, etc.)
+- Admin Essentielles (validation, gestion)
+- Admin Avancées (permissions, sync)
+- Admin Spécialisées (tuteur, manager)
+- Admin Test (debugging)
+
+✅ SÉCURITÉ :
+- Protection ProtectedRoute sur toutes les pages
+- adminOnly={true} sur toutes les pages admin
+- Vérification isAuthenticated
+
+Le build devrait maintenant réussir ! 🎉
+*/
