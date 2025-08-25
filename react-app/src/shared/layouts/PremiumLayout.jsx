@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM AVEC MENU HAMBURGER INTÉGRÉ
+// LAYOUT PREMIUM AVEC MENU HAMBURGER SIMPLIFIÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -43,7 +43,7 @@ const PremiumLayout = ({
     }
   };
 
-  // 🧭 NAVIGATION STRUCTURE (identique à Layout.jsx)
+  // 🧭 NAVIGATION STRUCTURE SIMPLIFIÉE - SUPPRESSION USERS ET TIME-TRACK
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -58,18 +58,18 @@ const PremiumLayout = ({
       { path: '/rewards', label: 'Récompenses', icon: '🎁' }
     ]},
     { section: 'ÉQUIPE', items: [
-      { path: '/team', label: 'Équipe', icon: '👥' },
-      { path: '/users', label: 'Utilisateurs', icon: '👤' }
+      { path: '/team', label: 'Équipe', icon: '👥' }
+      // ❌ SUPPRIMÉ : { path: '/users', label: 'Utilisateurs', icon: '👤' }
     ]},
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '📚' },
-      { path: '/time-track', label: 'Pointeuse', icon: '⏰' },
+      // ❌ SUPPRIMÉ : { path: '/time-track', label: 'Pointeuse', icon: '⏰' },
       { path: '/profile', label: 'Mon Profil', icon: '👨‍💼' },
       { path: '/settings', label: 'Paramètres', icon: '⚙️' }
     ]}
   ];
 
-  // ✅ ADMIN ITEMS
+  // ✅ ADMIN ITEMS (inchangés)
   if (userIsAdmin) {
     menuItems.push({
       section: 'ADMINISTRATION',
@@ -84,7 +84,7 @@ const PremiumLayout = ({
     });
   }
 
-  // 🍔 CRÉATION DU MENU HAMBURGER (copié de Layout.jsx)
+  // 🍔 CRÉATION DU MENU HAMBURGER
   useEffect(() => {
     if (menuOpen) {
       // Créer le menu directement dans le body
@@ -247,7 +247,7 @@ const PremiumLayout = ({
             ">
               <span style="font-size: 18px;">${item.icon}</span>
               <span style="flex: 1;">${item.label}</span>
-              ${isAdminSection ? '<span style="color: #fca5a5; font-size: 12px;">🛡️</span>' : ''}
+              ${isAdminSection ? '<span style="color: #fbbf24; font-size: 12px;">🛡️</span>' : ''}
             </a>
           `;
         });
@@ -257,46 +257,52 @@ const PremiumLayout = ({
           </div>
         `;
       });
+
       navigation.innerHTML = navHTML;
 
-      // Bouton de déconnexion
-      const logoutSection = document.createElement('div');
-      logoutSection.style.cssText = `
+      // Footer avec déconnexion
+      const footer = document.createElement('div');
+      footer.style.cssText = `
         padding: 20px !important;
         border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
         background: rgba(0, 0, 0, 0.2) !important;
       `;
-      logoutSection.innerHTML = `
+      footer.innerHTML = `
         <button id="premium-logout-btn" style="
-          width: 100% !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 10px !important;
-          padding: 15px !important;
-          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 10px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          transition: all 0.2s !important;
-          font-size: 16px !important;
-        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 25px rgba(220, 38, 38, 0.3)'" 
-           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+          width: 100%;
+          padding: 15px;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          border: none;
+          color: white;
+          border-radius: 10px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 20px rgba(239, 68, 68, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
           <span style="font-size: 18px;">🚪</span>
-          <span>DÉCONNEXION</span>
+          <span>Se déconnecter</span>
         </button>
+        <div style="
+          text-align: center;
+          margin-top: 15px;
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 12px;
+        ">
+          Synergia v3.5.3 - Premium ✨
+        </div>
       `;
 
       // Assembler le menu
       menuContainer.appendChild(header);
       menuContainer.appendChild(userInfo);
       menuContainer.appendChild(navigation);
-      menuContainer.appendChild(logoutSection);
+      menuContainer.appendChild(footer);
       menuOverlay.appendChild(menuContainer);
-
-      // Ajouter au DOM
       document.body.appendChild(menuOverlay);
 
       // Animation d'entrée
@@ -304,7 +310,7 @@ const PremiumLayout = ({
         menuContainer.style.transform = 'translateX(0)';
       }, 10);
 
-      // Event listeners
+      // Gestion des événements
       const closeBtn = document.getElementById('close-premium-menu-btn');
       const logoutBtn = document.getElementById('premium-logout-btn');
       
@@ -424,27 +430,9 @@ const PremiumLayout = ({
 
             {/* Statistiques */}
             {showStats && stats.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
                 {stats.map((stat, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-gray-400 text-sm">{stat.label}</p>
-                        <p className="text-white text-2xl font-bold">{stat.value}</p>
-                      </div>
-                      {stat.icon && (
-                        <div className={`p-2 rounded-lg ${stat.color || 'text-blue-400'}`}>
-                          <stat.icon className="w-6 h-6" />
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
+                  <PremiumStatCard key={index} {...stat} />
                 ))}
               </div>
             )}
@@ -452,9 +440,9 @@ const PremiumLayout = ({
 
           {/* Contenu principal */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
             className={className}
           >
             {children}
@@ -466,40 +454,58 @@ const PremiumLayout = ({
 };
 
 /**
- * 🎨 COMPOSANTS PREMIUM RÉUTILISABLES
+ * 📊 COMPOSANT STAT CARD PREMIUM
  */
-export const PremiumCard = ({ children, className = "", onClick = null }) => (
+export const PremiumStatCard = ({ title, value, icon: Icon, color = "blue", trend }) => {
+  const colorClasses = {
+    yellow: 'from-yellow-400 to-orange-500',
+    green: 'from-green-400 to-emerald-500',
+    red: 'from-red-400 to-pink-500',
+    blue: 'from-blue-400 to-cyan-500',
+    purple: 'from-purple-400 to-violet-500'
+  };
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -5 }}
+      className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-xl transition-all duration-300"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-400 mb-1">{title}</p>
+          <p className="text-3xl font-bold text-white">{value}</p>
+          {trend && (
+            <p className={`text-xs mt-1 ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {trend > 0 ? '↗' : '↘'} {Math.abs(trend)}%
+            </p>
+          )}
+        </div>
+        {Icon && (
+          <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${colorClasses[color]} flex items-center justify-center shadow-lg`}>
+            <Icon className="w-6 h-6 text-white" />
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+/**
+ * 🎨 COMPOSANT CARTE PREMIUM
+ */
+export const PremiumCard = ({ children, className = "" }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    whileHover={{ scale: 1.02, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)' }}
-    transition={{ duration: 0.3 }}
-    className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-800/70 transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${className}`}
-    onClick={onClick}
+    className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-xl transition-all duration-300 ${className}`}
   >
     {children}
   </motion.div>
 );
 
-export const StatCard = ({ title, value, icon: Icon, color = "blue", trend = null }) => (
-  <PremiumCard className="text-center">
-    <div className="flex items-center justify-center mb-4">
-      {Icon && (
-        <div className={`p-3 rounded-lg bg-${color}-500/20`}>
-          <Icon className={`w-6 h-6 text-${color}-400`} />
-        </div>
-      )}
-    </div>
-    <p className="text-gray-400 text-sm mb-1">{title}</p>
-    <p className="text-white text-2xl font-bold">{value}</p>
-    {trend && (
-      <p className={`text-sm mt-1 ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
-        {trend > 0 ? '↗' : '↘'} {Math.abs(trend)}%
-      </p>
-    )}
-  </PremiumCard>
-);
-
+/**
+ * 🔘 COMPOSANT BOUTON PREMIUM
+ */
 export const PremiumButton = ({ children, variant = "primary", size = "md", icon: Icon, className = "", ...props }) => {
   const variants = {
     primary: "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white",
@@ -532,6 +538,9 @@ export const PremiumButton = ({ children, variant = "primary", size = "md", icon
   );
 };
 
+/**
+ * 🔍 COMPOSANT BARRE DE RECHERCHE PREMIUM
+ */
 export const PremiumSearchBar = ({ placeholder = "Rechercher...", value, onChange, className = "" }) => (
   <div className={`relative ${className}`}>
     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
