@@ -16,7 +16,7 @@ import { db } from '../core/firebase.js';
 
 // Hooks et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useXP } from '../shared/hooks/useXP.js';
+import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
 
 // Layout
 import PremiumLayout from '../components/layout/PremiumLayout.jsx';
@@ -24,7 +24,7 @@ import PremiumLayout from '../components/layout/PremiumLayout.jsx';
 const RewardsPage = () => {
   // ✅ ÉTATS ET HOOKS
   const { user, isAuthenticated } = useAuthStore();
-  const { userPoints, teamStats, loading: xpLoading } = useXP();
+  const { userPoints, teamStats, loading: xpLoading } = useUnifiedXP();
   
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
@@ -260,8 +260,9 @@ const RewardsPage = () => {
     if (!user?.uid || purchasing) return;
     
     // Vérifier si l'utilisateur a suffisamment de points
-    if (userPoints.current < reward.cost) {
-      alert(`Vous n'avez pas suffisamment de points ! Il vous manque ${reward.cost - userPoints.current} points.`);
+    const currentPoints = userPoints?.current || 0;
+    if (currentPoints < reward.cost) {
+      alert(`Vous n'avez pas suffisamment de points ! Il vous manque ${reward.cost - currentPoints} points.`);
       return;
     }
 
@@ -319,8 +320,8 @@ const RewardsPage = () => {
     return [
       {
         title: 'Points actuels',
-        value: userPoints.current || 0,
-        change: userPoints.change || 0,
+        value: userPoints?.current || 0,
+        change: userPoints?.change || 0,
         icon: Star,
         color: 'text-yellow-400'
       },
@@ -446,7 +447,8 @@ const RewardsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence>
           {filteredRewards.map((reward, index) => {
-            const canAfford = userPoints.current >= reward.cost;
+            const currentPoints = userPoints?.current || 0;
+            const canAfford = currentPoints >= reward.cost;
             const isPending = pendingRequests.some(req => req.rewardId === reward.id);
             
             return (
