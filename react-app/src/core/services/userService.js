@@ -1,162 +1,231 @@
+// ==========================================
+// 📁 react-app/src/core/services/userService.js
+// SERVICE UTILISATEURS COMPLET AVEC GESTION DE PROFIL
+// ==========================================
+
 import { 
+  collection, 
   doc, 
   getDoc, 
   setDoc, 
   updateDoc, 
-  collection,
+  getDocs,
   query,
   where,
   orderBy,
-  limit,
-  getDocs,
   onSnapshot,
   serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
+/**
+ * 👤 SERVICE DE GESTION DES UTILISATEURS
+ */
 class UserService {
   constructor() {
-    this.listeners = new Map();
+    console.log('👤 UserService initialisé');
   }
 
   // Créer ou mettre à jour le profil utilisateur
-  async createOrUpdateUserProfile(user, additionalData = {}) {
+  async createOrUpdateUserProfile(userData) {
     try {
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      const baseProfile = {
-        email: user.email,
-        displayName: user.displayName || 'Utilisateur',
-        photoURL: user.photoURL || null,
-        lastLoginAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+      const userRef = doc(db, 'users', userData.uid);
+      
+      const profileData = {
+        uid: userData.uid,
+        email: userData.email,
+        displayName: userData.displayName || userData.email.split('@')[0],
+        photoURL: userData.photoURL || null,
+        
+        // Profil étendu
+        profile: {
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          department: userData.department || '',
+          role: userData.role || 'member',
+          joinedAt: userData.joinedAt || serverTimestamp(),
+          bio: userData.bio || '',
+          skills: userData.skills || [],
+          preferences: {
+            theme: 'dark',
+            language: 'fr',
+            notifications: true
+          }
+        },
+        
+        // Gamification
+        gamification: {
+          xp: userData.xp || 0,
+          level: userData.level || 1,
+          totalPoints: userData.totalPoints || 0,
+          weeklyXp: userData.weeklyXp || 0,
+          monthlyXp: userData.monthlyXp || 0,
+          badges: userData.badges || [],
+          achievements: userData.achievements || []
+        },
+        
+        // Métadonnées
+        lastLogin: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        isActive: true
       };
 
-      if (!userSnap.exists()) {
-        // Nouvel utilisateur - créer profil complet
-        const newUserData = {
-          ...baseProfile,
-          createdAt: serverTimestamp(),
-          profile: {
-            department: additionalData.department || 'Non défini',
-            role: additionalData.role || 'employee',
-            phone: additionalData.phone || '',
-            bio: additionalData.bio || '',
-            ...additionalData.profile
-          },
-          gamification: {
-            totalXp: 0,
-            level: 1,
-            badges: [],
-            tasksCompleted: 0,
-            projectsCreated: 0,
-            loginStreak: 1,
-            lastLoginDate: new Date().toISOString().split('T')[0],
-            weeklyXp: 0,
-            monthlyXp: 0
-          },
-          preferences: {
-            notifications: true,
-            emailUpdates: true,
-            theme: 'dark',
-            ...additionalData.preferences
-          }
-        };
-
-        await setDoc(userRef, newUserData);
-        console.log('✅ Nouveau profil utilisateur créé:', user.uid);
-        return newUserData;
-      } else {
-        // Utilisateur existant - mettre à jour connexion
-        await updateDoc(userRef, {
-          lastLoginAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-
-        const userData = userSnap.data();
-        console.log('✅ Profil utilisateur mis à jour:', user.uid);
-        return userData;
-      }
+      await setDoc(userRef, profileData, { merge: true });
+      console.log('✅ Profil utilisateur mis à jour:', userData.uid);
+      
+      return profileData;
     } catch (error) {
-      console.error('❌ Erreur création/mise à jour profil:', error);
+      console.error('❌ Erreur mise à jour profil:', error);
       throw error;
     }
   }
 
-  // Récupérer le profil utilisateur
+  // Obtenir le profil complet d'un utilisateur
   async getUserProfile(userId) {
     try {
       const userRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        return userSnap.data();
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        return { uid: userId, ...userDoc.data() };
       } else {
-        console.warn('⚠️ Profil utilisateur non trouvé:', userId);
+        console.warn(`⚠️ Profil utilisateur introuvable: ${userId}`);
         return null;
       }
     } catch (error) {
       console.error('❌ Erreur récupération profil:', error);
-      throw error;
+      return null;
     }
   }
 
-  // Mettre à jour les données de gamification
-  async updateGamificationData(userId, updates) {
+  // Obtenir tous les utilisateurs
+  async getAllUsers() {
+    try {
+      const usersRef = collection(db, 'users');
+      const snapshot = await getDocs(usersRef);
+      
+      const users = [];
+      snapshot.forEach(doc => {
+        users.push({ uid: doc.id, ...doc.data() });
+      });
+      
+      console.log(`👥 ${users.length} utilisateurs récupérés`);
+      return users;
+    } catch (error) {
+      console.error('❌ Erreur récupération utilisateurs:', error);
+      return [];
+    }
+  }
+
+  // Mettre à jour les statistiques de gamification
+  async updateGamificationStats(userId, stats) {
     try {
       const userRef = doc(db, 'users', userId);
+      
       await updateDoc(userRef, {
-        [`gamification.${Object.keys(updates)[0]}`]: Object.values(updates)[0],
+        'gamification.xp': stats.xp || 0,
+        'gamification.level': stats.level || 1,
+        'gamification.totalPoints': stats.totalPoints || 0,
+        'gamification.weeklyXp': stats.weeklyXp || 0,
+        'gamification.monthlyXp': stats.monthlyXp || 0,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ Données gamification mises à jour:', userId);
+      
+      console.log('✅ Stats gamification mises à jour:', userId);
+      return true;
     } catch (error) {
-      console.error('❌ Erreur mise à jour gamification:', error);
-      throw error;
+      console.error('❌ Erreur mise à jour stats gamification:', error);
+      return false;
     }
   }
 
-  // Récupérer le leaderboard en temps réel
-  getLeaderboard(callback, options = {}) {
+  // Ajouter un badge à un utilisateur
+  async addBadgeToUser(userId, badge) {
     try {
-      const {
-        orderField = 'gamification.totalXp',
-        limitCount = 50,
-        department = null
-      } = options;
-
-      let q = query(
-        collection(db, 'users'),
-        orderBy(orderField, 'desc'),
-        limit(limitCount)
-      );
-
-      // Filtrer par département si spécifié
-      if (department) {
-        q = query(
-          collection(db, 'users'),
-          where('profile.department', '==', department),
-          orderBy(orderField, 'desc'),
-          limit(limitCount)
-        );
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const currentBadges = userData.gamification?.badges || [];
+        
+        // Vérifier que le badge n'existe pas déjà
+        const badgeExists = currentBadges.some(b => b.id === badge.id);
+        if (badgeExists) {
+          console.warn(`⚠️ Badge ${badge.id} déjà possédé par ${userId}`);
+          return false;
+        }
+        
+        const newBadge = {
+          ...badge,
+          earnedAt: serverTimestamp(),
+          earnedDate: new Date().toISOString()
+        };
+        
+        await updateDoc(userRef, {
+          'gamification.badges': [...currentBadges, newBadge],
+          updatedAt: serverTimestamp()
+        });
+        
+        console.log(`🏆 Badge ${badge.id} ajouté à ${userId}`);
+        return true;
       }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Erreur ajout badge:', error);
+      return false;
+    }
+  }
+
+  // Obtenir les utilisateurs actifs
+  async getActiveUsers(daysActive = 7) {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysActive);
+      
+      const usersRef = collection(db, 'users');
+      const q = query(
+        usersRef,
+        where('lastLogin', '>=', cutoffDate),
+        orderBy('lastLogin', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      const activeUsers = [];
+      
+      snapshot.forEach(doc => {
+        activeUsers.push({ uid: doc.id, ...doc.data() });
+      });
+      
+      console.log(`👥 ${activeUsers.length} utilisateurs actifs trouvés`);
+      return activeUsers;
+    } catch (error) {
+      console.error('❌ Erreur récupération utilisateurs actifs:', error);
+      return [];
+    }
+  }
+
+  // Écouter les changements du leaderboard
+  onLeaderboardChange(callback) {
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(
+        usersRef,
+        where('isActive', '==', true),
+        orderBy('gamification.xp', 'desc')
+      );
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const leaderboard = [];
-        snapshot.forEach((doc, index) => {
+        snapshot.forEach(doc => {
           const userData = doc.data();
           leaderboard.push({
-            rank: index + 1,
             uid: doc.id,
-            displayName: userData.displayName || 'Utilisateur',
+            displayName: userData.displayName,
             photoURL: userData.photoURL,
-            department: userData.profile?.department || 'Non défini',
-            totalXp: userData.gamification?.totalXp || 0,
+            xp: userData.gamification?.xp || 0,
             level: userData.gamification?.level || 1,
-            badges: userData.gamification?.badges?.length || 0,
-            tasksCompleted: userData.gamification?.tasksCompleted || 0,
-            loginStreak: userData.gamification?.loginStreak || 0,
             weeklyXp: userData.gamification?.weeklyXp || 0,
             monthlyXp: userData.gamification?.monthlyXp || 0
           });
@@ -213,4 +282,11 @@ class UserService {
   }
 }
 
-export default new UserService();
+// Instance du service
+const userServiceInstance = new UserService();
+
+// Export par défaut
+export default userServiceInstance;
+
+// Export nommé pour compatibilité
+export const userService = userServiceInstance;
