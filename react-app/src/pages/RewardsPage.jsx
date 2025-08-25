@@ -19,7 +19,7 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { useUnifiedXP } from '../shared/hooks/useUnifiedXP.js';
 
 // Layout
-import PremiumLayout from '../components/layout/PremiumLayout.jsx';
+import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 
 const RewardsPage = () => {
   // ✅ ÉTATS ET HOOKS
