@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES AVEC TOUTES LES PAGES ADMIN - IMPORT CORRIGÉ
+// ROUTES COMPLÈTES AVEC NOMS DE FICHIERS HARMONISÉS
 // ==========================================
 
 import React from 'react'
@@ -8,14 +8,15 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../shared/stores/authStore.js'
 import { ROUTES } from '../core/constants.js'
 
-// Pages principales
-import Login from '../pages/Login.jsx'
-import Dashboard from '../pages/Dashboard.jsx'
-import NotFound from '../pages/NotFound.jsx'
-import Analytics from '../pages/Analytics.jsx'
+// ✅ PAGES PRINCIPALES - IMPORTS HARMONISÉS
+import LoginPage from '../pages/Login.jsx'           // ← Import Login.jsx comme LoginPage
+import DashboardPage from '../pages/Dashboard.jsx'  // ← Import Dashboard.jsx comme DashboardPage
+import NotFoundPage from '../pages/NotFound.jsx'    // ← Import NotFound.jsx comme NotFoundPage
+import AnalyticsPage from '../pages/Analytics.jsx'  // ← Import Analytics.jsx comme AnalyticsPage
+import AdminDashboard from '../pages/AdminPage.jsx' // ← Import AdminPage.jsx comme AdminDashboard (pour clarifier)
 import TeamPage from '../pages/TeamPage.jsx'
 
-// Pages existantes
+// Pages avec convention déjà correcte (suffixe Page)
 import TasksPage from '../pages/TasksPage.jsx'
 import ProjectsPage from '../pages/ProjectsPage.jsx'
 import GamificationPage from '../pages/GamificationPage.jsx'
@@ -38,9 +39,8 @@ import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'
 import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
 import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
-// ✅ CORRECTION : Import AdminSettingsPage complet (était tronqué)
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
-import AdminSync from '../pages/AdminSync.jsx'
+import AdminSyncPage from '../pages/AdminSync.jsx'  // ← Import AdminSync.jsx comme AdminSyncPage
 import AdminDashboardTuteurPage from '../pages/AdminDashboardTuteurPage.jsx'
 import AdminDashboardManagerPage from '../pages/AdminDashboardManagerPage.jsx'
 import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
@@ -49,8 +49,8 @@ import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
 // import DemoDataCleanerPage from '../pages/admin/DemoDataCleanerPage.jsx'
 
 // Components utilisés comme pages (fallback)
-import TaskList from '../modules/tasks/TaskList.jsx'
-import BadgeCollection from '../components/gamification/BadgeCollection.jsx'
+import TaskListComponent from '../modules/tasks/TaskList.jsx'
+import BadgeCollectionComponent from '../components/gamification/BadgeCollection.jsx'
 
 // Composant de protection des routes
 const ProtectedRoute = ({ children }) => {
@@ -76,14 +76,14 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Route de connexion */}
-      <Route path={ROUTES.LOGIN} element={<Login />} />
+      <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       
       {/* ✅ PAGES PRINCIPALES */}
       <Route 
         path={ROUTES.DASHBOARD} 
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <DashboardPage />
           </ProtectedRoute>
         } 
       />
@@ -110,7 +110,7 @@ const AppRoutes = () => {
         path={ROUTES.ANALYTICS} 
         element={
           <ProtectedRoute>
-            <Analytics />
+            <AnalyticsPage />
           </ProtectedRoute>
         } 
       />
@@ -208,7 +208,17 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* ✅ TOUTES LES ROUTES ADMIN - COMPLÈTES ET FONCTIONNELLES ! */}
+      {/* 🛡️ DASHBOARD ADMIN PRINCIPAL - NOUVELLE ROUTE */}
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* ✅ TOUTES LES ROUTES ADMIN SPÉCIALISÉES - COMPLÈTES ! */}
       
       {/* 🛡️ Validation */}
       <Route 
@@ -312,7 +322,7 @@ const AppRoutes = () => {
         path={ROUTES.ADMIN_SYNC} 
         element={
           <ProtectedRoute>
-            <AdminSync />
+            <AdminSyncPage />
           </ProtectedRoute>
         } 
       />
@@ -363,7 +373,7 @@ const AppRoutes = () => {
         path="/task-list" 
         element={
           <ProtectedRoute>
-            <TaskList />
+            <TaskListComponent />
           </ProtectedRoute>
         } 
       />
@@ -372,7 +382,7 @@ const AppRoutes = () => {
         path="/badge-collection" 
         element={
           <ProtectedRoute>
-            <BadgeCollection />
+            <BadgeCollectionComponent />
           </ProtectedRoute>
         } 
       />
@@ -381,7 +391,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       
       {/* Page 404 */}
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }
@@ -389,13 +399,15 @@ const AppRoutes = () => {
 export default AppRoutes
 
 // ==========================================
-// 📊 RÉCAPITULATIF DES ROUTES ACTIVES
+// 📊 RÉCAPITULATIF DES CORRECTIONS APPLIQUÉES
 // ==========================================
 
-console.log('✅ [ROUTES] AppRoutes chargé - TOUTES les routes sont disponibles:');
-console.log('🏠 [ROUTES] Pages principales: dashboard, tasks, projects, analytics');
-console.log('🎮 [ROUTES] Gamification: gamification, badges, leaderboard, rewards');
-console.log('👥 [ROUTES] Équipe: team, users');
-console.log('🛠️ [ROUTES] Outils: onboarding, timetrack, profile, settings');
-console.log('🛡️ [ROUTES] Administration: 14 pages admin complètes');
-console.log('🚀 [ROUTES] Toutes les routes admin maintenant routées via App.jsx !');
+console.log('✅ [ROUTES] Noms de fichiers harmonisés:');
+console.log('🔧 [ROUTES] Login.jsx importé comme LoginPage');
+console.log('🔧 [ROUTES] Dashboard.jsx importé comme DashboardPage');
+console.log('🔧 [ROUTES] Analytics.jsx importé comme AnalyticsPage');
+console.log('🔧 [ROUTES] AdminPage.jsx importé comme AdminDashboard');
+console.log('🔧 [ROUTES] AdminSync.jsx importé comme AdminSyncPage');
+console.log('✅ [ROUTES] Route /admin ajoutée pour dashboard admin');
+console.log('✅ [ROUTES] Convention clarifiée: fichier sans Page, import avec Page');
+console.log('🚀 [ROUTES] Toutes les routes admin fonctionnelles !');
