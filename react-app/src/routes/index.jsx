@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES CORRIGÉES - SUPPRESSION DOUBLE DÉCLARATION
+// ROUTES CORRIGÉES - SUPPRESSION TESTFIREBASEPAGE INEXISTANT
 // ==========================================
 
 import React from 'react'
@@ -38,15 +38,15 @@ import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
 import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
+
 import AdminSyncPage from '../pages/AdminSyncPage.jsx'
 import AdminDashboardTuteurPage from '../pages/AdminDashboardTuteurPage.jsx'
 import AdminDashboardManagerPage from '../pages/AdminDashboardManagerPage.jsx'
 import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
 import AdminDemoCleanerPage from '../pages/AdminDemoCleanerPage.jsx'
 
-// ✅ PAGES DE TEST
+// ✅ PAGES DE TEST (TestFirebasePage supprimé car inexistant)
 import TestDashboardPage from '../pages/TestDashboardPage.jsx'
-import TestFirebasePage from '../pages/TestFirebasePage.jsx'
 import TestCompletePage from '../pages/TestCompletePage.jsx'
 import TestNotificationsPage from '../pages/TestNotificationsPage.jsx'
 
@@ -127,6 +127,15 @@ const AppRoutes = () => {
         } 
       />
 
+      <Route 
+        path={ROUTES.TEAM} 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        } 
+      />
+
       {/* 🎮 GAMIFICATION */}
       <Route 
         path={ROUTES.GAMIFICATION} 
@@ -164,17 +173,7 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 👥 ÉQUIPE */}
-      <Route 
-        path={ROUTES.TEAM} 
-        element={
-          <ProtectedRoute>
-            <TeamPage />
-          </ProtectedRoute>
-        } 
-      />
-
-      {/* 🛠️ OUTILS & PROFIL */}
+      {/* 🛠️ OUTILS */}
       <Route 
         path={ROUTES.ONBOARDING} 
         element={
@@ -211,7 +210,7 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🛡️ ROUTES ADMIN */}
+      {/* 🛡️ ADMIN ROUTES */}
       <Route 
         path={ROUTES.ADMIN_TASK_VALIDATION} 
         element={
@@ -347,21 +346,12 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🧪 PAGES DE TEST */}
+      {/* 🧪 PAGES DE TEST (TestFirebasePage supprimé) */}
       <Route 
         path={ROUTES.TEST_DASHBOARD} 
         element={
           <ProtectedRoute>
             <TestDashboardPage />
-          </ProtectedRoute>
-        } 
-      />
-
-      <Route 
-        path={ROUTES.TEST_FIREBASE} 
-        element={
-          <ProtectedRoute>
-            <TestFirebasePage />
           </ProtectedRoute>
         } 
       />
