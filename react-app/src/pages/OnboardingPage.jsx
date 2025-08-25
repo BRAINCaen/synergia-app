@@ -64,7 +64,7 @@ import {
   serverTimestamp,
   onSnapshot 
 } from 'firebase/firestore';
-import { db } from './core/firebase.js';
+import { db } from '../core/firebase.js';
 
 // Hooks et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
