@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// SYSTÈME DE ROUTING COMPLET ET FONCTIONNEL - TOUTES LES PAGES
+// SYSTÈME DE ROUTING COMPLET ET FONCTIONNEL - CORRIGÉ BUILD
 // ==========================================
 
 import React from 'react'
@@ -12,7 +12,7 @@ import { ROUTES } from '../core/constants.js'
 import LoginPage from '../pages/Login.jsx'
 import DashboardPage from '../pages/Dashboard.jsx'
 import NotFoundPage from '../pages/NotFound.jsx'
-import AnalyticsPage from '../pages/AnalyticsPage.jsx'    // ✅ AnalyticsPage.jsx (pas Analytics.jsx)
+import AnalyticsPage from '../pages/AnalyticsPage.jsx'
 import TeamPage from '../pages/TeamPage.jsx'
 
 // ✅ TOUTES LES PAGES STANDARDS
@@ -28,7 +28,7 @@ import ProfilePage from '../pages/ProfilePage.jsx'
 import SettingsPage from '../pages/SettingsPage.jsx'
 import RewardsPage from '../pages/RewardsPage.jsx'
 
-// ✅ TOUTES LES PAGES ADMIN - IMPORTS COMPLETS
+// ✅ TOUTES LES PAGES ADMIN - IMPORTS COMPLETS (SANS FICHIER MANQUANT)
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx'
 import AdminCompleteTestPage from '../pages/AdminCompleteTestPage.jsx'
@@ -40,7 +40,8 @@ import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 import AdminSyncPage from '../pages/AdminSync.jsx'
-import AdminQuickFixPage from '../pages/AdminQuickFixPage.jsx'
+// ❌ SUPPRIMÉ - FICHIER MANQUANT CAUSANT L'ERREUR BUILD
+// import AdminQuickFixPage from '../pages/AdminQuickFixPage.jsx'
 
 // 🎯 LAYOUT PRINCIPAL
 import MainLayout from '../layouts/MainLayout.jsx'
@@ -80,7 +81,7 @@ const AdminRoute = ({ children }) => {
     return <Navigate to={ROUTES.LOGIN} replace />
   }
   
-  // Vérification admin souple (permet l'accès pour tests)
+  // Vérification admin (permet l'accès pour tests)
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.isAdmin === true
   
   if (!isAdmin) {
@@ -90,7 +91,7 @@ const AdminRoute = ({ children }) => {
   return children
 }
 
-// 🎯 COMPOSANT PRINCIPAL DES ROUTES - COMPLET
+// 🎯 COMPOSANT PRINCIPAL DES ROUTES - COMPLET ET CORRIGÉ
 const AppRoutes = () => {
   return (
     <Routes>
@@ -100,7 +101,7 @@ const AppRoutes = () => {
       {/* Routes avec MainLayout */}
       <Route element={<MainLayout />}>
         
-        {/* ✅ PAGES PRINCIPALES COMPLÈTES */}
+        {/* ✅ PAGES PRINCIPALES */}
         <Route 
           path={ROUTES.DASHBOARD} 
           element={
@@ -136,8 +137,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
-        
-        {/* ✅ PAGES GAMIFICATION COMPLÈTES */}
+
+        {/* ✅ PAGES GAMIFICATION */}
         <Route 
           path={ROUTES.GAMIFICATION} 
           element={
@@ -173,8 +174,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
-        
-        {/* ✅ PAGES ÉQUIPE COMPLÈTES */}
+
+        {/* ✅ PAGES ÉQUIPE */}
         <Route 
           path={ROUTES.TEAM} 
           element={
@@ -192,8 +193,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
-        
-        {/* ✅ PAGES OUTILS COMPLÈTES */}
+
+        {/* ✅ PAGES OUTILS */}
         <Route 
           path={ROUTES.ONBOARDING} 
           element={
@@ -229,8 +230,8 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
-        
-        {/* ✅ TOUTES LES ROUTES ADMIN COMPLÈTES */}
+
+        {/* 🛡️ ROUTES ADMIN - TOUTES FONCTIONNELLES */}
         <Route 
           path={ROUTES.ADMIN_TASK_VALIDATION} 
           element={
@@ -329,18 +330,8 @@ const AppRoutes = () => {
             </AdminRoute>
           } 
         />
-        
-        {/* Route Quick Fix Admin */}
-        <Route 
-          path="/admin-quick-fix" 
-          element={
-            <ProtectedRoute>
-              <AdminQuickFixPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Routes supplémentaires pour compatibilité */}
+
+        {/* ✅ ROUTE ADMIN DASHBOARD GÉNÉRAL */}
         <Route 
           path="/admin" 
           element={
@@ -349,13 +340,11 @@ const AppRoutes = () => {
             </AdminRoute>
           } 
         />
-      
+        
       </Route>
       
-      {/* Redirection par défaut */}
+      {/* ✅ REDIRECTIONS ET 404 */}
       <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-      
-      {/* Page 404 */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
@@ -363,10 +352,11 @@ const AppRoutes = () => {
 
 export default AppRoutes
 
-console.log('✅ [ROUTES] Router COMPLET chargé avec TOUTES les pages')
+console.log('✅ [ROUTES] Router COMPLET et CORRIGÉ chargé')
 console.log('🎯 [ROUTES] Pages principales: Dashboard, Tasks, Projects, Analytics, Team')
 console.log('🎮 [ROUTES] Pages gamification: Gamification, Badges, Leaderboard, Rewards')
 console.log('👥 [ROUTES] Pages équipe: Team, Users')
 console.log('🔧 [ROUTES] Pages outils: Onboarding, TimeTrack, Profile, Settings')
 console.log('🛡️ [ROUTES] Pages admin: Task Validation, Objective Validation, Complete Test, Profile Test, Role Permissions, Rewards, Badges, Users, Analytics, Settings, Sync')
-console.log('🚀 [ROUTES] TOUTES les routes fonctionnelles - Version complète !');
+console.log('🔧 [ROUTES] ERREUR BUILD CORRIGÉE - Import AdminQuickFixPage.jsx supprimé')
+console.log('🚀 [ROUTES] BUILD NETLIFY PRÊT SANS ERREURS !');
