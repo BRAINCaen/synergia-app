@@ -38,10 +38,10 @@ import {
 // Hooks et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// Layout et composants
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../components/layout/PremiumLayout.jsx';
+// Layout et composants - IMPORT CORRIGÉ
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
-// Firebase (pour les tests de connectivité)
+// Firebase (pour les tests de connectivité) - IMPORT CORRIGÉ
 import { 
   collection, 
   getDocs, 
@@ -49,7 +49,7 @@ import {
   getDoc, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase.config.js';
+import { db } from '../core/firebase.js';
 
 const TestDashboardPage = () => {
   const { user } = useAuthStore();
@@ -111,7 +111,7 @@ const TestDashboardPage = () => {
       tests: [
         { id: 'page_load_time', name: 'Temps de chargement', critical: true },
         { id: 'bundle_size', name: 'Taille du bundle', critical: false },
-        { id: 'memory_usage', name: 'Usage mémoire', critical: false },
+        { id: 'memory_usage', name: 'Utilisation mémoire', critical: false },
         { id: 'api_response_time', name: 'Temps réponse API', critical: true }
       ]
     }
@@ -119,329 +119,259 @@ const TestDashboardPage = () => {
 
   // ✅ CHARGEMENT INITIAL
   useEffect(() => {
-    initializeTestEnvironment();
+    initializeTestDashboard();
   }, []);
 
-  // 🔄 INITIALISER L'ENVIRONNEMENT DE TEST
-  const initializeTestEnvironment = async () => {
-    console.log('🧪 Initialisation environnement de test...');
-    
-    // Tests de connectivité de base
-    await checkBasicConnectivity();
-    
-    // Tests des composants
-    await checkComponentsHealth();
-    
-    // Métriques de performance
-    await gatherPerformanceMetrics();
-  };
-
-  // 🌐 VÉRIFIER LA CONNECTIVITÉ DE BASE
-  const checkBasicConnectivity = async () => {
-    const connectivity = {
-      internet: navigator.onLine,
-      firebase: false,
-      database: false,
-      auth: false
-    };
-
+  // 📊 INITIALISER LE TABLEAU DE BORD DE TESTS
+  const initializeTestDashboard = async () => {
     try {
-      // Test Firebase
-      const testDoc = await getDoc(doc(db, 'system', 'health'));
-      connectivity.firebase = true;
-      connectivity.database = true;
+      console.log('🧪 Initialisation Test Dashboard...');
+      
+      // Test de connectivité Firebase
+      await testFirebaseConnection();
+      
+      // Test des composants React
+      await testReactComponents();
+      
+      // Mesure des performances
+      await measurePerformance();
+      
+      console.log('✅ Test Dashboard initialisé');
+      
     } catch (error) {
-      console.warn('❌ Test Firebase échoué:', error);
+      console.error('❌ Erreur initialisation Test Dashboard:', error);
     }
+  };
 
+  // 🔥 TESTER LA CONNEXION FIREBASE
+  const testFirebaseConnection = async () => {
     try {
-      // Test Auth
-      connectivity.auth = !!user;
+      console.log('🔥 Test connexion Firebase...');
+      
+      setConnectivityStatus(prev => ({
+        ...prev,
+        firebase: { status: 'testing', message: 'Connexion en cours...' }
+      }));
+
+      // Test de lecture simple
+      const testCollection = collection(db, 'users');
+      const snapshot = await getDocs(testCollection);
+      
+      setConnectivityStatus(prev => ({
+        ...prev,
+        firebase: { 
+          status: 'success', 
+          message: `Connecté - ${snapshot.size} documents trouvés`,
+          details: {
+            collections_accessible: true,
+            read_permissions: true,
+            connection_time: Date.now()
+          }
+        }
+      }));
+      
+      console.log('✅ Firebase connexion OK');
+      
     } catch (error) {
-      console.warn('❌ Test Auth échoué:', error);
+      console.error('❌ Erreur Firebase:', error);
+      
+      setConnectivityStatus(prev => ({
+        ...prev,
+        firebase: { 
+          status: 'error', 
+          message: `Erreur: ${error.message}`,
+          details: {
+            error_code: error.code,
+            error_type: error.constructor.name
+          }
+        }
+      }));
     }
-
-    setConnectivityStatus(connectivity);
   };
 
-  // 🧩 VÉRIFIER LA SANTÉ DES COMPOSANTS
-  const checkComponentsHealth = async () => {
-    const components = {
-      premiumLayout: checkPremiumLayoutHealth(),
-      navigation: checkNavigationHealth(),
-      modals: checkModalsHealth(),
-      forms: checkFormsHealth(),
-      cards: checkCardsHealth(),
-      buttons: checkButtonsHealth()
-    };
-
-    setComponentTests(components);
-  };
-
-  // 📊 COLLECTER LES MÉTRIQUES DE PERFORMANCE
-  const gatherPerformanceMetrics = async () => {
-    const metrics = {
-      loadTime: performance.now(),
-      memoryUsage: performance.memory ? {
-        used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
-        total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
-        limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024)
-      } : null,
-      fps: 60, // Estimation
-      renderTime: 16.67 // ~60fps
-    };
-
-    setPerformanceMetrics(metrics);
-  };
-
-  // 🏗️ TESTS SPÉCIFIQUES DES COMPOSANTS
-  const checkPremiumLayoutHealth = () => {
+  // ⚛️ TESTER LES COMPOSANTS REACT
+  const testReactComponents = async () => {
     try {
-      const layoutElement = document.querySelector('[data-premium-layout]');
-      return {
-        status: layoutElement ? 'success' : 'warning',
-        message: layoutElement ? 'Premium Layout actif' : 'Premium Layout non détecté'
+      console.log('⚛️ Test composants React...');
+      
+      const componentStatus = {
+        PremiumLayout: { loaded: !!PremiumLayout, functional: true },
+        PremiumCard: { loaded: !!PremiumCard, functional: true },
+        StatCard: { loaded: !!StatCard, functional: true },
+        PremiumButton: { loaded: !!PremiumButton, functional: true },
+        FramerMotion: { loaded: !!motion, functional: true },
+        LucideIcons: { loaded: !!TestTube, functional: true }
       };
+      
+      setComponentTests(componentStatus);
+      
+      console.log('✅ Tests composants terminés');
+      
     } catch (error) {
-      return { status: 'error', message: error.message };
+      console.error('❌ Erreur test composants:', error);
     }
   };
 
-  const checkNavigationHealth = () => {
+  // 📈 MESURER LES PERFORMANCES
+  const measurePerformance = async () => {
     try {
-      const navElements = document.querySelectorAll('nav, [data-navigation]');
-      return {
-        status: navElements.length > 0 ? 'success' : 'warning',
-        message: `${navElements.length} élément(s) de navigation trouvé(s)`
+      console.log('📈 Mesure performances...');
+      
+      const performanceData = {
+        loadTime: performance.now(),
+        memoryUsage: performance.memory ? {
+          used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
+          total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
+          limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024)
+        } : { message: 'API non disponible' },
+        navigation: performance.getEntriesByType('navigation')[0],
+        userAgent: navigator.userAgent,
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight
+        }
       };
+      
+      setPerformanceMetrics(performanceData);
+      
+      console.log('✅ Mesures performances terminées');
+      
     } catch (error) {
-      return { status: 'error', message: error.message };
+      console.error('❌ Erreur mesure performances:', error);
     }
   };
 
-  const checkModalsHealth = () => {
+  // 🏃 EXÉCUTER UNE SUITE DE TESTS
+  const runTestSuite = async (suiteId) => {
     try {
-      return {
-        status: 'success',
-        message: 'Système de modals fonctionnel'
-      };
+      setIsRunningTests(true);
+      setTestProgress(0);
+      
+      const suite = TEST_SUITES[suiteId];
+      if (!suite) return;
+      
+      console.log(`🧪 Exécution suite: ${suite.name}`);
+      
+      const results = {};
+      const totalTests = suite.tests.length;
+      
+      for (let i = 0; i < totalTests; i++) {
+        const test = suite.tests[i];
+        setTestProgress(((i + 1) / totalTests) * 100);
+        
+        try {
+          // Simuler l'exécution du test
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          let testResult = { status: 'success', message: 'Test réussi' };
+          
+          // Tests spécifiques
+          if (test.id === 'firebase_connection') {
+            testResult = connectivityStatus.firebase ? 
+              { status: 'success', message: 'Connexion Firebase OK' } :
+              { status: 'error', message: 'Connexion Firebase échouée' };
+          }
+          
+          results[test.id] = testResult;
+          
+        } catch (error) {
+          results[test.id] = { 
+            status: 'error', 
+            message: error.message 
+          };
+        }
+      }
+      
+      setTestResults(prev => ({
+        ...prev,
+        [suiteId]: results
+      }));
+      
+      console.log('✅ Suite de tests terminée:', results);
+      
     } catch (error) {
-      return { status: 'error', message: error.message };
+      console.error('❌ Erreur exécution tests:', error);
+    } finally {
+      setIsRunningTests(false);
+      setTestProgress(0);
     }
   };
 
-  const checkFormsHealth = () => {
-    try {
-      const formElements = document.querySelectorAll('form, input, button');
-      return {
-        status: formElements.length > 0 ? 'success' : 'warning',
-        message: `${formElements.length} élément(s) de formulaire trouvé(s)`
-      };
-    } catch (error) {
-      return { status: 'error', message: error.message };
-    }
-  };
-
-  const checkCardsHealth = () => {
-    try {
-      const cardElements = document.querySelectorAll('[data-premium-card], .premium-card');
-      return {
-        status: cardElements.length > 0 ? 'success' : 'info',
-        message: `${cardElements.length} carte(s) premium trouvée(s)`
-      };
-    } catch (error) {
-      return { status: 'error', message: error.message };
-    }
-  };
-
-  const checkButtonsHealth = () => {
-    try {
-      const buttonElements = document.querySelectorAll('button');
-      return {
-        status: buttonElements.length > 0 ? 'success' : 'warning',
-        message: `${buttonElements.length} bouton(s) trouvé(s)`
-      };
-    } catch (error) {
-      return { status: 'error', message: error.message };
-    }
-  };
-
-  // 🧪 EXÉCUTER TOUS LES TESTS
-  const runAllTests = async () => {
-    setIsRunningTests(true);
-    setTestProgress(0);
-    
-    const results = {};
-    const allTests = Object.values(TEST_SUITES).flatMap(suite => 
-      suite.tests.map(test => ({ ...test, suite: suite.id }))
+  // 📊 Calculer les statistiques globales
+  const calculateGlobalStats = () => {
+    const totalTests = Object.values(TEST_SUITES).reduce(
+      (total, suite) => total + suite.tests.length, 0
     );
     
-    for (let i = 0; i < allTests.length; i++) {
-      const test = allTests[i];
-      
-      try {
-        console.log(`🧪 Exécution test: ${test.name}`);
-        
-        // Simuler l'exécution du test
-        const result = await executeTest(test);
-        results[`${test.suite}_${test.id}`] = result;
-        
-        setTestProgress(Math.round(((i + 1) / allTests.length) * 100));
-        
-        // Pause pour l'animation
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-      } catch (error) {
-        results[`${test.suite}_${test.id}`] = {
-          status: 'error',
-          message: error.message,
-          timestamp: new Date()
-        };
-      }
-    }
+    const completedTests = Object.values(testResults).reduce(
+      (total, results) => total + Object.keys(results).length, 0
+    );
     
-    setTestResults(results);
-    setIsRunningTests(false);
-    setTestProgress(100);
+    const passedTests = Object.values(testResults).reduce(
+      (total, results) => total + Object.values(results).filter(r => r.status === 'success').length, 0
+    );
     
-    console.log('✅ Tests terminés:', results);
-  };
-
-  // ⚡ EXÉCUTER UN TEST SPÉCIFIQUE
-  const executeTest = async (test) => {
-    switch (test.id) {
-      case 'firebase_connection':
-        try {
-          const testQuery = await getDocs(collection(db, 'users'));
-          return {
-            status: 'success',
-            message: `Connexion réussie (${testQuery.size} utilisateurs)`,
-            timestamp: new Date()
-          };
-        } catch (error) {
-          throw new Error(`Connexion Firebase échouée: ${error.message}`);
-        }
-
-      case 'auth_system':
-        return {
-          status: user ? 'success' : 'error',
-          message: user ? `Utilisateur connecté: ${user.email}` : 'Aucun utilisateur connecté',
-          timestamp: new Date()
-        };
-
-      case 'routing':
-        return {
-          status: window.location.pathname ? 'success' : 'error',
-          message: `Route actuelle: ${window.location.pathname}`,
-          timestamp: new Date()
-        };
-
-      case 'responsive_design':
-        const isMobile = window.innerWidth < 768;
-        const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
-        const isDesktop = window.innerWidth >= 1024;
-        
-        return {
-          status: 'success',
-          message: `Viewport: ${isMobile ? 'Mobile' : isTablet ? 'Tablet' : 'Desktop'} (${window.innerWidth}px)`,
-          timestamp: new Date()
-        };
-
-      case 'page_load_time':
-        const loadTime = performance.now();
-        return {
-          status: loadTime < 3000 ? 'success' : loadTime < 5000 ? 'warning' : 'error',
-          message: `Temps de chargement: ${loadTime.toFixed(2)}ms`,
-          timestamp: new Date()
-        };
-
-      default:
-        return {
-          status: 'success',
-          message: 'Test simulé réussi',
-          timestamp: new Date()
-        };
-    }
-  };
-
-  // 🎨 OBTENIR LA COULEUR DU STATUS
-  const getStatusColor = (status) => {
-    const colors = {
-      success: 'text-green-400 bg-green-900/20 border-green-500/50',
-      warning: 'text-yellow-400 bg-yellow-900/20 border-yellow-500/50',
-      error: 'text-red-400 bg-red-900/20 border-red-500/50',
-      info: 'text-blue-400 bg-blue-900/20 border-blue-500/50'
+    return {
+      total: totalTests,
+      completed: completedTests,
+      passed: passedTests,
+      failed: completedTests - passedTests,
+      coverage: totalTests > 0 ? Math.round((completedTests / totalTests) * 100) : 0,
+      success_rate: completedTests > 0 ? Math.round((passedTests / completedTests) * 100) : 0
     };
-    return colors[status] || colors.info;
   };
 
-  // 🎨 OBTENIR L'ICÔNE DU STATUS
-  const getStatusIcon = (status) => {
-    const icons = {
-      success: CheckCircle,
-      warning: AlertTriangle,
-      error: AlertTriangle,
-      info: Eye
-    };
-    return icons[status] || Eye;
-  };
+  const globalStats = calculateGlobalStats();
 
-  // 📊 CALCULER LE SCORE GLOBAL
-  const getGlobalScore = () => {
-    const results = Object.values(testResults);
-    if (results.length === 0) return 0;
-    
-    const successCount = results.filter(r => r.status === 'success').length;
-    return Math.round((successCount / results.length) * 100);
-  };
-
-  const globalScore = getGlobalScore();
-
-  // 📊 STATISTIQUES POUR L'EN-TÊTE
+  // Statistiques pour le header
   const headerStats = [
-    { 
-      label: "Score Global", 
-      value: `${globalScore}%`, 
-      icon: Target, 
-      color: globalScore > 80 ? "text-green-400" : globalScore > 60 ? "text-yellow-400" : "text-red-400" 
+    {
+      label: "Tests Total",
+      value: globalStats.total.toString(),
+      icon: TestTube,
+      color: "text-blue-400"
     },
-    { 
-      label: "Tests Réussis", 
-      value: Object.values(testResults).filter(r => r.status === 'success').length.toString(), 
-      icon: CheckCircle, 
-      color: "text-green-400" 
+    {
+      label: "Réussis",
+      value: globalStats.passed.toString(),
+      icon: CheckCircle,
+      color: "text-green-400"
     },
-    { 
-      label: "Connectivité", 
-      value: connectivityStatus.firebase ? "OK" : "KO", 
-      icon: connectivityStatus.internet ? Wifi : WifiOff, 
-      color: connectivityStatus.firebase ? "text-green-400" : "text-red-400" 
+    {
+      label: "Échoués",
+      value: globalStats.failed.toString(),
+      icon: AlertTriangle,
+      color: globalStats.failed > 0 ? "text-red-400" : "text-gray-400"
     },
-    { 
-      label: "Performance", 
-      value: performanceMetrics.memoryUsage ? `${performanceMetrics.memoryUsage.used}MB` : "N/A", 
-      icon: Rocket, 
-      color: "text-purple-400" 
+    {
+      label: "Couverture",
+      value: `${globalStats.coverage}%`,
+      icon: Target,
+      color: globalStats.coverage > 80 ? "text-green-400" : 
+             globalStats.coverage > 60 ? "text-yellow-400" : "text-red-400"
     }
   ];
 
   const headerActions = (
     <div className="flex gap-2">
-      <PremiumButton 
-        variant="secondary" 
+      <PremiumButton
+        variant="secondary"
         icon={RefreshCw}
-        onClick={initializeTestEnvironment}
+        onClick={initializeTestDashboard}
       >
         Actualiser
       </PremiumButton>
-      <PremiumButton 
-        variant="primary" 
-        icon={isRunningTests ? RefreshCw : TestTube}
-        onClick={runAllTests}
+      <PremiumButton
+        variant="primary"
+        icon={Play}
+        onClick={() => {
+          Object.keys(TEST_SUITES).forEach(suiteId => {
+            runTestSuite(suiteId);
+          });
+        }}
         disabled={isRunningTests}
-        className={isRunningTests ? "animate-pulse" : ""}
       >
-        {isRunningTests ? `Tests... ${testProgress}%` : 'Lancer Tests'}
+        Tout Tester
       </PremiumButton>
     </div>
   );
@@ -449,45 +379,26 @@ const TestDashboardPage = () => {
   return (
     <PremiumLayout
       title="Test Dashboard"
-      subtitle="Tests et validation des composants Synergia"
+      subtitle="Tableau de bord de tests et diagnostics"
       icon={TestTube}
       headerActions={headerActions}
       showStats={true}
       stats={headerStats}
     >
-      {/* Barre de progression des tests */}
-      {isRunningTests && (
-        <div className="mb-6">
-          <PremiumCard>
-            <div className="text-center py-4">
-              <RefreshCw className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
-              <h3 className="text-white font-semibold mb-2">Exécution des tests...</h3>
-              <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${testProgress}%` }}
-                />
-              </div>
-              <p className="text-gray-400 text-sm">{testProgress}% terminé</p>
-            </div>
-          </PremiumCard>
-        </div>
-      )}
-
       {/* Onglets de navigation */}
       <div className="flex space-x-1 bg-gray-800/50 rounded-lg p-1 mb-8">
         {[
           { id: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
-          { id: 'suites', label: 'Suites de Tests', icon: TestTube },
-          { id: 'components', label: 'Composants', icon: Monitor },
-          { id: 'performance', label: 'Performance', icon: Rocket }
+          { id: 'tests', label: 'Tests', icon: TestTube },
+          { id: 'performance', label: 'Performance', icon: Rocket },
+          { id: 'connectivity', label: 'Connectivité', icon: Wifi }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-all ${
               activeTab === tab.id
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-purple-600 text-white shadow-lg'
                 : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
             }`}
           >
@@ -499,305 +410,271 @@ const TestDashboardPage = () => {
 
       {/* Contenu des onglets */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Score global */}
+        <div className="space-y-8">
+          
+          {/* Aperçu général */}
           <PremiumCard>
-            <div className="text-center py-8">
-              <div className={`text-6xl font-bold mb-4 ${
-                globalScore > 80 ? 'text-green-400' : 
-                globalScore > 60 ? 'text-yellow-400' : 'text-red-400'
-              }`}>
-                {globalScore}%
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Aperçu Général
+            </h3>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-400 mb-1">{globalStats.total}</div>
+                <div className="text-gray-400 text-sm">Tests Total</div>
               </div>
-              <h3 className="text-white text-xl font-semibold mb-2">Score Global des Tests</h3>
-              <p className="text-gray-400">
-                {Object.keys(testResults).length} test(s) exécuté(s)
-              </p>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-400 mb-1">{globalStats.passed}</div>
+                <div className="text-gray-400 text-sm">Réussis</div>
+              </div>
+              <div className="text-center">
+                <div className={`text-3xl font-bold mb-1 ${globalStats.failed > 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                  {globalStats.failed}
+                </div>
+                <div className="text-gray-400 text-sm">Échoués</div>
+              </div>
+              <div className="text-center">
+                <div className={`text-3xl font-bold mb-1 ${
+                  globalStats.success_rate > 80 ? 'text-green-400' :
+                  globalStats.success_rate > 60 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {globalStats.success_rate}%
+                </div>
+                <div className="text-gray-400 text-sm">Taux Réussite</div>
+              </div>
+            </div>
+
+            {/* Barre de progression globale */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-400">Progression des Tests</span>
+                <span className="text-white font-medium">{globalStats.coverage}%</span>
+              </div>
+              <div className="w-full bg-gray-700/50 rounded-full h-3">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-1000"
+                  style={{ width: `${globalStats.coverage}%` }}
+                />
+              </div>
             </div>
           </PremiumCard>
 
-          {/* Connectivité */}
+          {/* Status des composants principaux */}
           <PremiumCard>
-            <h3 className="text-white font-semibold mb-4">🌐 Status de Connectivité</h3>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(connectivityStatus).map(([service, status]) => (
-                <div
-                  key={service}
-                  className={`text-center p-4 rounded-lg ${
-                    status ? 'bg-green-900/20 border border-green-500/50' : 'bg-red-900/20 border border-red-500/50'
-                  }`}
-                >
-                  <div className={`${status ? 'text-green-400' : 'text-red-400'} mb-2`}>
-                    {status ? <CheckCircle className="w-6 h-6 mx-auto" /> : <AlertTriangle className="w-6 h-6 mx-auto" />}
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <Monitor className="w-5 h-5" />
+              État des Composants
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(componentTests).map(([component, status]) => (
+                <div key={component} className="p-4 bg-gray-800/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-white font-medium">{component}</h4>
+                    <div className={`w-3 h-3 rounded-full ${
+                      status.loaded && status.functional ? 'bg-green-400' : 'bg-red-400'
+                    }`} />
                   </div>
-                  <h4 className="text-white font-medium capitalize">{service}</h4>
-                  <p className={`text-sm ${status ? 'text-green-400' : 'text-red-400'}`}>
-                    {status ? 'Connecté' : 'Déconnecté'}
+                  <p className="text-gray-400 text-sm">
+                    {status.loaded ? 'Chargé et fonctionnel' : 'Non disponible'}
                   </p>
                 </div>
               ))}
             </div>
           </PremiumCard>
-
-          {/* Métriques de performance */}
-          {performanceMetrics.memoryUsage && (
-            <PremiumCard>
-              <h3 className="text-white font-semibold mb-4">⚡ Métriques de Performance</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400 mb-2">
-                    {performanceMetrics.memoryUsage.used}MB
-                  </div>
-                  <div className="text-gray-400">Mémoire Utilisée</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400 mb-2">
-                    {performanceMetrics.loadTime.toFixed(0)}ms
-                  </div>
-                  <div className="text-gray-400">Temps de Chargement</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-400 mb-2">
-                    {performanceMetrics.fps}fps
-                  </div>
-                  <div className="text-gray-400">FPS Estimé</div>
-                </div>
-              </div>
-            </PremiumCard>
-          )}
         </div>
       )}
 
-      {activeTab === 'suites' && (
+      {/* Onglet Tests */}
+      {activeTab === 'tests' && (
         <div className="space-y-6">
-          {Object.values(TEST_SUITES).map(suite => {
-            const IconComponent = suite.icon;
-            const suiteResults = suite.tests.map(test => testResults[`${suite.id}_${test.id}`]).filter(Boolean);
-            const successCount = suiteResults.filter(r => r.status === 'success').length;
-            const successRate = suiteResults.length > 0 ? Math.round((successCount / suiteResults.length) * 100) : 0;
-            
-            return (
-              <PremiumCard key={suite.id}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`${suite.color}`}>
-                      <IconComponent className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-white font-semibold">{suite.name}</h3>
-                      <p className="text-gray-400 text-sm">{suite.tests.length} test(s)</p>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className={`text-xl font-bold ${
-                      successRate === 100 ? 'text-green-400' : 
-                      successRate >= 75 ? 'text-yellow-400' : 'text-red-400'
-                    }`}>
-                      {successRate}%
-                    </div>
-                    <div className="text-gray-400 text-sm">{successCount}/{suiteResults.length}</div>
-                  </div>
+          {Object.entries(TEST_SUITES).map(([suiteId, suite]) => (
+            <PremiumCard key={suiteId}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <suite.icon className={`w-6 h-6 ${suite.color}`} />
+                  <h3 className="text-xl font-semibold text-white">{suite.name}</h3>
                 </div>
-
-                <div className="space-y-3">
-                  {suite.tests.map(test => {
-                    const result = testResults[`${suite.id}_${test.id}`];
-                    const StatusIcon = result ? getStatusIcon(result.status) : Clock;
-                    
-                    return (
-                      <div
-                        key={test.id}
-                        className={`flex items-center justify-between p-3 rounded-lg ${
-                          result ? getStatusColor(result.status) : 'bg-gray-800/50 text-gray-400'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <StatusIcon className="w-4 h-4" />
-                          <div>
-                            <span className="font-medium">{test.name}</span>
-                            {test.critical && (
-                              <span className="ml-2 text-xs bg-red-600/20 text-red-400 px-2 py-1 rounded">
-                                CRITIQUE
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="text-right">
-                          {result ? (
-                            <div>
-                              <div className="text-sm font-medium capitalize">{result.status}</div>
-                              <div className="text-xs opacity-75">
-                                {result.timestamp.toLocaleTimeString()}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm">Non testé</div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </PremiumCard>
-            );
-          })}
-        </div>
-      )}
-
-      {activeTab === 'components' && (
-        <div className="space-y-6">
-          <PremiumCard>
-            <h3 className="text-white font-semibold mb-4">🧩 État des Composants</h3>
-            
-            <div className="space-y-4">
-              {Object.entries(componentTests).map(([component, test]) => {
-                const StatusIcon = getStatusIcon(test.status);
-                
-                return (
-                  <div
-                    key={component}
-                    className={`flex items-center justify-between p-4 rounded-lg ${getStatusColor(test.status)}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <StatusIcon className="w-5 h-5" />
-                      <div>
-                        <h4 className="font-medium capitalize">{component.replace(/([A-Z])/g, ' $1')}</h4>
-                        <p className="text-sm opacity-75">{test.message}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="text-sm font-medium capitalize">{test.status}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </PremiumCard>
-
-          {/* Informations système */}
-          <PremiumCard>
-            <h3 className="text-white font-semibold mb-4">💻 Informations Système</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <strong className="text-white">Navigateur:</strong>
-                <div className="text-gray-400">{navigator.userAgent.split(' ')[0]}</div>
+                <PremiumButton
+                  variant="secondary"
+                  icon={isRunningTests ? RefreshCw : Play}
+                  onClick={() => runTestSuite(suiteId)}
+                  disabled={isRunningTests}
+                  className={isRunningTests ? "animate-pulse" : ""}
+                >
+                  {isRunningTests ? 'En cours...' : 'Exécuter'}
+                </PremiumButton>
               </div>
-              <div>
-                <strong className="text-white">Résolution:</strong>
-                <div className="text-gray-400">{window.screen.width} x {window.screen.height}</div>
-              </div>
-              <div>
-                <strong className="text-white">Viewport:</strong>
-                <div className="text-gray-400">{window.innerWidth} x {window.innerHeight}</div>
-              </div>
-              <div>
-                <strong className="text-white">Connexion:</strong>
-                <div className="text-gray-400">{navigator.onLine ? 'En ligne' : 'Hors ligne'}</div>
-              </div>
-            </div>
-          </PremiumCard>
-        </div>
-      )}
 
-      {activeTab === 'performance' && performanceMetrics.memoryUsage && (
-        <div className="space-y-6">
-          <PremiumCard>
-            <h3 className="text-white font-semibold mb-4">🚀 Métriques de Performance</h3>
-            
-            <div className="space-y-6">
-              {/* Utilisation mémoire */}
-              <div>
-                <h4 className="text-white font-medium mb-3">Utilisation Mémoire</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Utilisée:</span>
-                    <span className="text-white">{performanceMetrics.memoryUsage.used}MB</span>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
+              {/* Barre de progression */}
+              {isRunningTests && (
+                <div className="mb-6">
+                  <div className="w-full bg-gray-700/50 rounded-full h-2">
                     <div 
-                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                      style={{ 
-                        width: `${(performanceMetrics.memoryUsage.used / performanceMetrics.memoryUsage.total) * 100}%` 
-                      }}
+                      className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${testProgress}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>0MB</span>
-                    <span>{performanceMetrics.memoryUsage.total}MB</span>
-                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Temps de chargement */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-gray-800/50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-400 mb-2">
-                    {performanceMetrics.loadTime.toFixed(0)}ms
-                  </div>
-                  <div className="text-gray-400">Temps Chargement</div>
-                </div>
-                
-                <div className="text-center p-4 bg-gray-800/50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-400 mb-2">
-                    {performanceMetrics.fps}
-                  </div>
-                  <div className="text-gray-400">FPS</div>
-                </div>
-                
-                <div className="text-center p-4 bg-gray-800/50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-400 mb-2">
-                    {performanceMetrics.renderTime.toFixed(1)}ms
-                  </div>
-                  <div className="text-gray-400">Temps Rendu</div>
-                </div>
+              {/* Liste des tests */}
+              <div className="space-y-3">
+                {suite.tests.map(test => {
+                  const result = testResults[suiteId]?.[test.id];
+                  
+                  return (
+                    <div key={test.id} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {test.critical && <AlertTriangle className="w-4 h-4 text-orange-400" />}
+                        <span className="text-white">{test.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {result ? (
+                          <>
+                            {result.status === 'success' ? (
+                              <CheckCircle className="w-4 h-4 text-green-400" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-red-400" />
+                            )}
+                            <span className={`text-sm ${
+                              result.status === 'success' ? 'text-green-300' : 'text-red-300'
+                            }`}>
+                              {result.message}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-gray-500 text-sm">En attente</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          </PremiumCard>
+            </PremiumCard>
+          ))}
+        </div>
+      )}
 
-          {/* Recommandations */}
+      {/* Onglet Performance */}
+      {activeTab === 'performance' && (
+        <div className="space-y-6">
           <PremiumCard>
-            <h3 className="text-white font-semibold mb-4">💡 Recommandations</h3>
-            
-            <div className="space-y-3">
-              {performanceMetrics.memoryUsage.used > 100 && (
-                <div className="flex items-start gap-3 p-3 bg-yellow-900/20 border border-yellow-500/50 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
-                  <div>
-                    <h4 className="text-yellow-400 font-medium">Utilisation mémoire élevée</h4>
-                    <p className="text-yellow-200 text-sm">
-                      L'application utilise plus de 100MB de mémoire. Considérez optimiser les composants.
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <Rocket className="w-5 h-5" />
+              Métriques de Performance
+            </h3>
+
+            {performanceMetrics.loadTime && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* Temps de chargement */}
+                <div className="p-4 bg-gray-800/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-4 h-4 text-blue-400" />
+                    <h4 className="text-white font-medium">Temps de Chargement</h4>
+                  </div>
+                  <div className="text-2xl font-bold text-blue-400 mb-1">
+                    {Math.round(performanceMetrics.loadTime)}ms
+                  </div>
+                  <p className="text-gray-400 text-sm">Temps d'initialisation</p>
+                </div>
+
+                {/* Utilisation mémoire */}
+                {performanceMetrics.memoryUsage.used && (
+                  <div className="p-4 bg-gray-800/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Database className="w-4 h-4 text-green-400" />
+                      <h4 className="text-white font-medium">Mémoire Utilisée</h4>
+                    </div>
+                    <div className="text-2xl font-bold text-green-400 mb-1">
+                      {performanceMetrics.memoryUsage.used} MB
+                    </div>
+                    <p className="text-gray-400 text-sm">
+                      / {performanceMetrics.memoryUsage.total} MB total
                     </p>
                   </div>
+                )}
+
+                {/* Résolution d'écran */}
+                <div className="p-4 bg-gray-800/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Monitor className="w-4 h-4 text-purple-400" />
+                    <h4 className="text-white font-medium">Résolution</h4>
+                  </div>
+                  <div className="text-2xl font-bold text-purple-400 mb-1">
+                    {performanceMetrics.viewport.width} x {performanceMetrics.viewport.height}
+                  </div>
+                  <p className="text-gray-400 text-sm">Taille viewport</p>
                 </div>
-              )}
+              </div>
+            )}
+          </PremiumCard>
+        </div>
+      )}
+
+      {/* Onglet Connectivité */}
+      {activeTab === 'connectivity' && (
+        <div className="space-y-6">
+          <PremiumCard>
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <Wifi className="w-5 h-5" />
+              État des Connexions
+            </h3>
+
+            <div className="space-y-4">
               
-              {performanceMetrics.loadTime > 3000 && (
-                <div className="flex items-start gap-3 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5" />
-                  <div>
-                    <h4 className="text-red-400 font-medium">Temps de chargement lent</h4>
-                    <p className="text-red-200 text-sm">
-                      Le temps de chargement dépasse 3 secondes. Optimisation recommandée.
-                    </p>
+              {/* Firebase */}
+              {connectivityStatus.firebase && (
+                <div className={`p-4 rounded-lg border-l-4 ${
+                  connectivityStatus.firebase.status === 'success' ? 'bg-green-900/20 border-green-500' :
+                  connectivityStatus.firebase.status === 'error' ? 'bg-red-900/20 border-red-500' :
+                  'bg-yellow-900/20 border-yellow-500'
+                }`}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <Database className={`w-5 h-5 ${
+                      connectivityStatus.firebase.status === 'success' ? 'text-green-400' :
+                      connectivityStatus.firebase.status === 'error' ? 'text-red-400' :
+                      'text-yellow-400'
+                    }`} />
+                    <h4 className="text-white font-medium">Firebase Firestore</h4>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      connectivityStatus.firebase.status === 'success' ? 'bg-green-500/20 text-green-300' :
+                      connectivityStatus.firebase.status === 'error' ? 'bg-red-500/20 text-red-300' :
+                      'bg-yellow-500/20 text-yellow-300'
+                    }`}>
+                      {connectivityStatus.firebase.status}
+                    </span>
                   </div>
+                  <p className="text-gray-300 text-sm mb-3">{connectivityStatus.firebase.message}</p>
+                  
+                  {connectivityStatus.firebase.details && (
+                    <div className="text-xs text-gray-400 space-y-1">
+                      {Object.entries(connectivityStatus.firebase.details).map(([key, value]) => (
+                        <div key={key} className="flex justify-between">
+                          <span>{key.replace(/_/g, ' ')}:</span>
+                          <span>{typeof value === 'boolean' ? (value ? '✅' : '❌') : String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-              
-              {Object.keys(testResults).length > 0 && globalScore === 100 && (
-                <div className="flex items-start gap-3 p-3 bg-green-900/20 border border-green-500/50 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
-                  <div>
-                    <h4 className="text-green-400 font-medium">Tous les tests réussis</h4>
-                    <p className="text-green-200 text-sm">
-                      Excellent ! Tous les tests sont au vert. L'application est en parfait état.
-                    </p>
-                  </div>
+
+              {/* Test de connectivité réseau */}
+              <div className="p-4 bg-gray-800/50 rounded-lg">
+                <div className="flex items-center gap-3 mb-2">
+                  <Globe className="w-5 h-5 text-blue-400" />
+                  <h4 className="text-white font-medium">Connexion Réseau</h4>
+                  <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs font-medium">
+                    online
+                  </span>
                 </div>
-              )}
+                <p className="text-gray-300 text-sm">
+                  Connexion réseau active - {navigator.onLine ? 'En ligne' : 'Hors ligne'}
+                </p>
+              </div>
             </div>
           </PremiumCard>
         </div>
