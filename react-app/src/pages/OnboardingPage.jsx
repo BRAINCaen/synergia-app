@@ -68,7 +68,7 @@ import { db } from '../core/firebase.js';
 
 // Hooks et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../components/layout/PremiumLayout.jsx';
+import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
 // ==========================================
 // 🎯 DONNÉES DE FORMATION PAR SALLE COMPLÈTES
