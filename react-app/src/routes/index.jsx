@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// SYSTÈME DE ROUTING COMPLET ET FONCTIONNEL - CORRIGÉ BUILD
+// ROUTES MISES À JOUR - SUPPRESSION USERSPAGE
 // ==========================================
 
 import React from 'react'
@@ -15,20 +15,20 @@ import NotFoundPage from '../pages/NotFound.jsx'
 import AnalyticsPage from '../pages/AnalyticsPage.jsx'
 import TeamPage from '../pages/TeamPage.jsx'
 
-// ✅ TOUTES LES PAGES STANDARDS
+// ✅ TOUTES LES PAGES STANDARDS (SANS USERSPAGE)
 import TasksPage from '../pages/TasksPage.jsx'
 import ProjectsPage from '../pages/ProjectsPage.jsx'
 import GamificationPage from '../pages/GamificationPage.jsx'
 import BadgesPage from '../pages/BadgesPage.jsx'
 import LeaderboardPage from '../pages/LeaderboardPage.jsx'
-import UsersPage from '../pages/UsersPage.jsx'
+// ❌ SUPPRIMÉ : import UsersPage from '../pages/UsersPage.jsx'
 import OnboardingPage from '../pages/OnboardingPage.jsx'
 import TimeTrackPage from '../pages/TimeTrackPage.jsx'
 import ProfilePage from '../pages/ProfilePage.jsx'
 import SettingsPage from '../pages/SettingsPage.jsx'
 import RewardsPage from '../pages/RewardsPage.jsx'
 
-// ✅ TOUTES LES PAGES ADMIN - IMPORTS COMPLETS (SANS FICHIER MANQUANT)
+// ✅ TOUTES LES PAGES ADMIN
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx'
 import AdminCompleteTestPage from '../pages/AdminCompleteTestPage.jsx'
@@ -39,324 +39,513 @@ import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
 import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
-import AdminSyncPage from '../pages/AdminSync.jsx'
-// ❌ SUPPRIMÉ - FICHIER MANQUANT CAUSANT L'ERREUR BUILD
-// import AdminQuickFixPage from '../pages/AdminQuickFixPage.jsx'
+import AdminSyncPage from '../pages/AdminSyncPage.jsx'
+import AdminDashboardTuteurPage from '../pages/AdminDashboardTuteurPage.jsx'
+import AdminDashboardManagerPage from '../pages/AdminDashboardManagerPage.jsx'
+import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
+import AdminDemoCleanerPage from '../pages/AdminDemoCleanerPage.jsx'
 
-// 🎯 LAYOUT PRINCIPAL
-import MainLayout from '../layouts/MainLayout.jsx'
+// ✅ PAGES DE TEST - TOUS PRÉSENTS
+import TestDashboardPage from '../pages/TestDashboardPage.jsx'
+import TestFirebasePage from '../pages/TestFirebasePage.jsx'
+import TestCompletePage from '../pages/TestCompletePage.jsx'
+import TestNotificationsPage from '../pages/TestNotificationsPage.jsx'
 
-// 🔒 Composant de protection des routes
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuthStore()
+/**
+ * 🛡️ PROTECTION DE ROUTE
+ */
+const ProtectedRoute = ({ children, adminOnly = false, requireAuth = true }) => {
+  const { user, isAuthenticated } = useAuthStore()
   
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    )
+  // Vérification authentification
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/login" replace />
   }
   
-  if (!user) {
-    return <Navigate to={ROUTES.LOGIN} replace />
+  // Vérification admin si requis
+  if (adminOnly && (!user || !user.isAdmin)) {
+    return <Navigate to="/" replace />
   }
   
   return children
 }
 
-// 🛡️ Composant de protection admin
-const AdminRoute = ({ children }) => {
-  const { user, loading } = useAuthStore()
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
-      </div>
-    )
-  }
-  
-  if (!user) {
-    return <Navigate to={ROUTES.LOGIN} replace />
-  }
-  
-  // Vérification admin (permet l'accès pour tests)
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.isAdmin === true
-  
-  if (!isAdmin) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
-  }
-  
-  return children
-}
-
-// 🎯 COMPOSANT PRINCIPAL DES ROUTES - COMPLET ET CORRIGÉ
+/**
+ * 🗺️ CONFIGURATION DES ROUTES PRINCIPALES
+ */
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Route de connexion (sans layout) */}
-      <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+      {/* 🔓 ROUTES PUBLIQUES */}
+      <Route 
+        path="/login" 
+        element={<LoginPage />} 
+      />
+
+      {/* 🏠 PAGES PRINCIPALES PROTÉGÉES */}
+      <Route 
+        path="/" 
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } 
+      />
       
-      {/* Routes avec MainLayout */}
-      <Route element={<MainLayout />}>
-        
-        {/* ✅ PAGES PRINCIPALES */}
-        <Route 
-          path={ROUTES.DASHBOARD} 
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.TASKS} 
-          element={
-            <ProtectedRoute>
-              <TasksPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.PROJECTS} 
-          element={
-            <ProtectedRoute>
-              <ProjectsPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ANALYTICS} 
-          element={
-            <ProtectedRoute>
-              <AnalyticsPage />
-            </ProtectedRoute>
-          } 
-        />
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } 
+      />
 
-        {/* ✅ PAGES GAMIFICATION */}
-        <Route 
-          path={ROUTES.GAMIFICATION} 
-          element={
-            <ProtectedRoute>
-              <GamificationPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.BADGES} 
-          element={
-            <ProtectedRoute>
-              <BadgesPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.LEADERBOARD} 
-          element={
-            <ProtectedRoute>
-              <LeaderboardPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.REWARDS} 
-          element={
-            <ProtectedRoute>
-              <RewardsPage />
-            </ProtectedRoute>
-          } 
-        />
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute>
+            <TasksPage />
+          </ProtectedRoute>
+        } 
+      />
 
-        {/* ✅ PAGES ÉQUIPE */}
-        <Route 
-          path={ROUTES.TEAM} 
-          element={
-            <ProtectedRoute>
-              <TeamPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.USERS} 
-          element={
-            <ProtectedRoute>
-              <UsersPage />
-            </ProtectedRoute>
-          } 
-        />
+      <Route 
+        path="/projects" 
+        element={
+          <ProtectedRoute>
+            <ProjectsPage />
+          </ProtectedRoute>
+        } 
+      />
 
-        {/* ✅ PAGES OUTILS */}
-        <Route 
-          path={ROUTES.ONBOARDING} 
-          element={
-            <ProtectedRoute>
-              <OnboardingPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.TIMETRACK} 
-          element={
-            <ProtectedRoute>
-              <TimeTrackPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.PROFILE} 
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.SETTINGS} 
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          } 
-        />
+      <Route 
+        path="/analytics" 
+        element={
+          <ProtectedRoute>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        } 
+      />
 
-        {/* 🛡️ ROUTES ADMIN - TOUTES FONCTIONNELLES */}
-        <Route 
-          path={ROUTES.ADMIN_TASK_VALIDATION} 
-          element={
-            <AdminRoute>
-              <AdminTaskValidationPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_OBJECTIVE_VALIDATION} 
-          element={
-            <AdminRoute>
-              <AdminObjectiveValidationPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_COMPLETE_TEST} 
-          element={
-            <AdminRoute>
-              <AdminCompleteTestPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_PROFILE_TEST} 
-          element={
-            <AdminRoute>
-              <AdminProfileTestPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
-          element={
-            <AdminRoute>
-              <AdminRolePermissionsPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_REWARDS} 
-          element={
-            <AdminRoute>
-              <AdminRewardsPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_BADGES} 
-          element={
-            <AdminRoute>
-              <AdminBadgesPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_USERS} 
-          element={
-            <AdminRoute>
-              <AdminUsersPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_ANALYTICS} 
-          element={
-            <AdminRoute>
-              <AdminAnalyticsPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_SETTINGS} 
-          element={
-            <AdminRoute>
-              <AdminSettingsPage />
-            </AdminRoute>
-          } 
-        />
-        
-        <Route 
-          path={ROUTES.ADMIN_SYNC} 
-          element={
-            <AdminRoute>
-              <AdminSyncPage />
-            </AdminRoute>
-          } 
-        />
+      {/* 🎮 GAMIFICATION */}
+      <Route 
+        path="/gamification" 
+        element={
+          <ProtectedRoute>
+            <GamificationPage />
+          </ProtectedRoute>
+        } 
+      />
 
-        {/* ✅ ROUTE ADMIN DASHBOARD GÉNÉRAL */}
-        <Route 
-          path="/admin" 
-          element={
-            <AdminRoute>
-              <AdminTaskValidationPage />
-            </AdminRoute>
-          } 
-        />
-        
-      </Route>
-      
-      {/* ✅ REDIRECTIONS ET 404 */}
-      <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-      <Route path="*" element={<NotFoundPage />} />
+      <Route 
+        path="/badges" 
+        element={
+          <ProtectedRoute>
+            <BadgesPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/leaderboard" 
+        element={
+          <ProtectedRoute>
+            <LeaderboardPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/rewards" 
+        element={
+          <ProtectedRoute>
+            <RewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 👥 ÉQUIPE (REMPLACE USERS) */}
+      <Route 
+        path="/team" 
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🔄 REDIRECTION /users VERS /team */}
+      <Route 
+        path="/users" 
+        element={<Navigate to="/team" replace />}
+      />
+
+      {/* 🛠️ OUTILS */}
+      <Route 
+        path="/onboarding" 
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/timetrack" 
+        element={
+          <ProtectedRoute>
+            <TimeTrackPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🛡️ PAGES ADMIN */}
+      <Route 
+        path="/admin/task-validation" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminTaskValidationPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/objective-validation" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminObjectiveValidationPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/complete-test" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminCompleteTestPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/profile-test" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminProfileTestPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/role-permissions" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminRolePermissionsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/rewards" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminRewardsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/badges" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminBadgesPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/users" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/analytics" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminAnalyticsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/settings" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminSettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/sync" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminSyncPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/dashboard-tuteur" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminDashboardTuteurPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/dashboard-manager" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminDashboardManagerPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/interview" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminInterviewPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/admin/demo-cleaner" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminDemoCleanerPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🧪 PAGES DE TEST */}
+      <Route 
+        path="/test/dashboard" 
+        element={
+          <ProtectedRoute>
+            <TestDashboardPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/test/firebase" 
+        element={
+          <ProtectedRoute>
+            <TestFirebasePage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/test/complete" 
+        element={
+          <ProtectedRoute>
+            <TestCompletePage />
+          </ProtectedRoute>
+        } 
+      />
+
+      <Route 
+        path="/test/notifications" 
+        element={
+          <ProtectedRoute>
+            <TestNotificationsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 🚫 PAGE 404 */}
+      <Route 
+        path="*" 
+        element={<NotFoundPage />} 
+      />
     </Routes>
   )
 }
 
 export default AppRoutes
 
-console.log('✅ [ROUTES] Router COMPLET et CORRIGÉ chargé')
-console.log('🎯 [ROUTES] Pages principales: Dashboard, Tasks, Projects, Analytics, Team')
-console.log('🎮 [ROUTES] Pages gamification: Gamification, Badges, Leaderboard, Rewards')
-console.log('👥 [ROUTES] Pages équipe: Team, Users')
-console.log('🔧 [ROUTES] Pages outils: Onboarding, TimeTrack, Profile, Settings')
-console.log('🛡️ [ROUTES] Pages admin: Task Validation, Objective Validation, Complete Test, Profile Test, Role Permissions, Rewards, Badges, Users, Analytics, Settings, Sync')
-console.log('🔧 [ROUTES] ERREUR BUILD CORRIGÉE - Import AdminQuickFixPage.jsx supprimé')
-console.log('🚀 [ROUTES] BUILD NETLIFY PRÊT SANS ERREURS !');
+// ==========================================
+// 📁 react-app/src/core/constants.js
+// CONSTANTES MISES À JOUR - SUPPRESSION ROUTE USERS
+// ==========================================
+
+export const ROUTES = {
+  // Routes de base
+  HOME: '/',
+  LOGIN: '/login',
+  
+  // Pages principales
+  DASHBOARD: '/dashboard',
+  TASKS: '/tasks',
+  PROJECTS: '/projects',
+  ANALYTICS: '/analytics',
+  
+  // Gamification
+  LEADERBOARD: '/leaderboard',
+  BADGES: '/badges',
+  GAMIFICATION: '/gamification',
+  REWARDS: '/rewards',
+  
+  // Équipe (remplace /users)
+  TEAM: '/team',
+  // ❌ SUPPRIMÉ : USERS: '/users',
+  
+  // Profil & Paramètres
+  PROFILE: '/profile',
+  SETTINGS: '/settings',
+  
+  // Fonctionnalités spécialisées
+  ONBOARDING: '/onboarding',
+  TIMETRACK: '/timetrack',
+  
+  // Routes admin
+  ADMIN_TASK_VALIDATION: '/admin/task-validation',
+  ADMIN_OBJECTIVE_VALIDATION: '/admin/objective-validation',
+  ADMIN_COMPLETE_TEST: '/admin/complete-test',
+  ADMIN_PROFILE_TEST: '/admin/profile-test',
+  ADMIN_ROLE_PERMISSIONS: '/admin/role-permissions',
+  ADMIN_REWARDS: '/admin/rewards',
+  ADMIN_BADGES: '/admin/badges',
+  ADMIN_USERS: '/admin/users', // Admin garde sa page users
+  ADMIN_ANALYTICS: '/admin/analytics',
+  ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_SYNC: '/admin/sync',
+  ADMIN_DASHBOARD_TUTEUR: '/admin/dashboard-tuteur',
+  ADMIN_DASHBOARD_MANAGER: '/admin/dashboard-manager',
+  ADMIN_INTERVIEW: '/admin/interview',
+  ADMIN_DEMO_CLEANER: '/admin/demo-cleaner',
+  
+  // Pages de test
+  TEST_DASHBOARD: '/test/dashboard',
+  TEST_FIREBASE: '/test/firebase',
+  TEST_COMPLETE: '/test/complete',
+  TEST_NOTIFICATIONS: '/test/notifications'
+};
+
+// ==========================================
+// 📁 STRUCTURE DE NAVIGATION MISE À JOUR
+// ==========================================
+
+export const NAVIGATION_STRUCTURE = {
+  main: {
+    label: 'Principal',
+    routes: [
+      { path: ROUTES.DASHBOARD, label: 'Tableau de bord', icon: '🏠', priority: 1 },
+      { path: ROUTES.TASKS, label: 'Tâches', icon: '✅', priority: 2 },
+      { path: ROUTES.PROJECTS, label: 'Projets', icon: '📁', priority: 3 },
+      { path: ROUTES.ANALYTICS, label: 'Analytics', icon: '📊', priority: 4 }
+    ]
+  },
+  gamification: {
+    label: 'Gamification',
+    routes: [
+      { path: ROUTES.GAMIFICATION, label: 'Gamification', icon: '🎮', priority: 1 },
+      { path: ROUTES.LEADERBOARD, label: 'Classement', icon: '🏆', priority: 2 },
+      { path: ROUTES.BADGES, label: 'Badges', icon: '🏅', priority: 3 },
+      { path: ROUTES.REWARDS, label: 'Récompenses', icon: '🎁', priority: 4 }
+    ]
+  },
+  team: {
+    label: 'Équipe & Social',
+    routes: [
+      { path: ROUTES.TEAM, label: 'Mon Équipe', icon: '👥', priority: 1 }
+      // ❌ SUPPRIMÉ : { path: ROUTES.USERS, label: 'Utilisateurs', icon: '👤', priority: 2 }
+    ]
+  },
+  tools: {
+    label: 'Outils & Paramètres',
+    routes: [
+      { path: ROUTES.ONBOARDING, label: 'Accueil', icon: '🚀', priority: 1 },
+      { path: ROUTES.TIMETRACK, label: 'Pointeuse', icon: '⏰', priority: 2 },
+      { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👤', priority: 3 },
+      { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 4 }
+    ]
+  },
+  admin: {
+    label: 'Administration',
+    routes: [
+      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Tâches', icon: '✅', priority: 1 },
+      { path: ROUTES.ADMIN_OBJECTIVE_VALIDATION, label: 'Validation Objectifs', icon: '🎯', priority: 2 },
+      { path: ROUTES.ADMIN_COMPLETE_TEST, label: 'Test Complet', icon: '🧪', priority: 3 },
+      { path: ROUTES.ADMIN_PROFILE_TEST, label: 'Test Profil', icon: '👤', priority: 4 },
+      { path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions Rôles', icon: '🔐', priority: 5 },
+      { path: ROUTES.ADMIN_REWARDS, label: 'Gestion Récompenses', icon: '🎁', priority: 6 },
+      { path: ROUTES.ADMIN_BADGES, label: 'Gestion Badges', icon: '🏅', priority: 7 },
+      { path: ROUTES.ADMIN_USERS, label: 'Gestion Utilisateurs', icon: '👥', priority: 8 },
+      { path: ROUTES.ADMIN_ANALYTICS, label: 'Analytics Admin', icon: '📈', priority: 9 },
+      { path: ROUTES.ADMIN_SETTINGS, label: 'Paramètres Admin', icon: '⚙️', priority: 10 },
+      { path: ROUTES.ADMIN_SYNC, label: 'Synchronisation', icon: '🔄', priority: 11 },
+      { path: ROUTES.ADMIN_DASHBOARD_TUTEUR, label: 'Dashboard Tuteur', icon: '🎓', priority: 12 },
+      { path: ROUTES.ADMIN_DASHBOARD_MANAGER, label: 'Dashboard Manager', icon: '📊', priority: 13 },
+      { path: ROUTES.ADMIN_INTERVIEW, label: 'Gestion Entretiens', icon: '💼', priority: 14 },
+      { path: ROUTES.ADMIN_DEMO_CLEANER, label: 'Nettoyage Données', icon: '🧹', priority: 15 }
+    ]
+  }
+};
+
+// ==========================================
+// 📁 ACTIONS À EFFECTUER POUR FINALISER LA SUPPRESSION
+// ==========================================
+
+/*
+
+🗑️ FICHIER À SUPPRIMER MANUELLEMENT :
+- react-app/src/pages/UsersPage.jsx
+
+🔄 FICHIERS À METTRE À JOUR :
+1. Remplacer react-app/src/routes/index.jsx par le contenu ci-dessus
+2. Remplacer les ROUTES dans react-app/src/core/constants.js par la version mise à jour
+3. Vérifier que tous les liens de navigation pointent vers /team au lieu de /users
+
+✅ BÉNÉFICES DE CETTE SUPPRESSION :
+- Supprime la redondance entre /users et /team
+- Centralise la gestion des utilisateurs sur la page /team
+- Simplifie la navigation
+- Évite les erreurs de la page UsersPage qui ne chargeait pas
+- Redirection automatique de /users vers /team pour compatibilité
+
+🎯 RÉSULTAT FINAL :
+- La page /users redirige automatiquement vers /team
+- La page /team contient toute la logique de gestion des utilisateurs
+- La messagerie interne reste fonctionnelle sur /team
+- Les admins gardent leur page /admin/users dédiée
+
+*/
