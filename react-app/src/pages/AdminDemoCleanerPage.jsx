@@ -54,7 +54,7 @@ import {
   serverTimestamp,
   updateDoc
 } from 'firebase/firestore';
-import { db } from '../firebase.config.js';
+import { db } from '../core/firebase.js';
 
 const AdminDemoCleanerPage = () => {
   const { user } = useAuthStore();
