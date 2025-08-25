@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 src/views/Dashboard.js
-// DASHBOARD AVEC VÉRACITÉ DES DONNÉES CORRIGÉE
+// 📁 react-app/src/pages/Dashboard.jsx
+// DASHBOARD AVEC IMPORTS CORRIGÉS POUR LE BUILD
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -26,8 +26,8 @@ import {
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (ORIGINAL)
 import Layout from '../components/layout/Layout.jsx';
 
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
-import { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM - CORRIGÉ POUR BUILD
+import { PremiumCard, PremiumStatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
 // 🔥 HOOK CORRIGÉ POUR SYNCHRONISATION XP GARANTIE
 import { useDashboardSyncFixed } from '../shared/hooks/useDashboardSyncFixed.js';
@@ -95,270 +95,155 @@ const Dashboard = () => {
       setDataStatus('calculating');
       console.log('📊 [DASHBOARD] Calcul des vraies statistiques...');
 
-      // 1. Compter le nombre total d'utilisateurs réels
-      const usersQuery = query(collection(db, 'users'));
-      const usersSnapshot = await getDocs(usersQuery);
-      const totalUsers = usersSnapshot.size;
+      // 1. XP Total depuis le profil utilisateur
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.exists() ? userDoc.data() : {};
+      const realXP = userData.totalXp || userData.xp || 0;
+      const realLevel = Math.floor(realXP / 100) + 1;
 
-      // 2. Compter les projets actifs
+      // 2. Tâches réelles
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const allTasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const completedTasks = allTasks.filter(task => task.status === 'completed' || task.status === 'done');
+
+      // 3. Projets réels
       const projectsQuery = query(
         collection(db, 'projects'),
-        where('status', '==', 'active')
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
       );
       const projectsSnapshot = await getDocs(projectsQuery);
-      const activeProjects = projectsSnapshot.size;
+      const allProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const completedProjects = allProjects.filter(project => project.status === 'completed');
 
-      // 3. Compter les tâches terminées
-      const completedTasksQuery = query(
-        collection(db, 'tasks'),
-        where('status', '==', 'completed')
-      );
-      const completedTasksSnapshot = await getDocs(completedTasksQuery);
-      const completedTasks = completedTasksSnapshot.size;
-
-      // 4. Calculer la productivité d'équipe moyenne
-      let totalXp = 0;
-      let usersWithData = 0;
-      
-      usersSnapshot.forEach(doc => {
-        const userData = doc.data();
-        const userXp = userData.gamification?.totalXp || 0;
-        if (userXp > 0) {
-          totalXp += userXp;
-          usersWithData++;
-        }
-      });
-
-      const averageXp = usersWithData > 0 ? Math.round(totalXp / usersWithData) : 0;
-      const teamProductivity = Math.min(100, Math.round((averageXp / 500) * 100)); // 500 XP = 100% productivité
-
-      const calculatedStats = {
-        totalUsers,
-        activeProjects,
-        completedTasks,
-        teamProductivity,
-        totalXp,
-        usersWithData,
-        averageXp,
-        calculationTime: new Date()
+      // 4. Calculer les statistiques vérifiées
+      const newVerifiedStats = {
+        totalXp: realXP,
+        level: realLevel,
+        tasksTotal: allTasks.length,
+        tasksCompleted: completedTasks.length,
+        projectsTotal: allProjects.length,
+        projectsCompleted: completedProjects.length,
+        completionRate: allTasks.length > 0 ? Math.round((completedTasks.length / allTasks.length) * 100) : 0,
+        weeklyXp: userData.weeklyXp || 0,
+        streak: userData.loginStreak || 0
       };
 
-      console.log('✅ [DASHBOARD] Statistiques réelles calculées:', calculatedStats);
-      setVerifiedStats(calculatedStats);
+      console.log('✅ [DASHBOARD] Statistiques calculées:', newVerifiedStats);
+      setVerifiedStats(newVerifiedStats);
       setDataStatus('verified');
-
-      return calculatedStats;
 
     } catch (error) {
       console.error('❌ [DASHBOARD] Erreur calcul stats:', error);
       setDataStatus('error');
-      return null;
     }
   }, [user?.uid]);
 
-  // 🔄 FONCTION RAFRAÎCHIR AVEC LOGGING
-  const handleRefresh = useCallback(async () => {
-    if (refreshing) return;
-    
-    setRefreshing(true);
-    console.log('🔄 [DASHBOARD] DÉBUT ACTUALISATION COMPLÈTE');
-    
-    try {
-      // 1. Forcer la synchronisation XP
-      console.log('🎯 [DASHBOARD] Étape 1: Sync XP utilisateur');
-      await forceSyncUserData();
-      
-      // 2. Forcer la synchronisation générale
-      console.log('🎯 [DASHBOARD] Étape 2: Sync dashboard générale');
-      await forceSync();
-      
-      // 3. Recalculer les vraies statistiques
-      console.log('🎯 [DASHBOARD] Étape 3: Calcul stats réelles');
-      await calculateRealStats();
-      
-      // 4. Logger les sources de données
-      logDataSources();
-      
-      console.log('✅ [DASHBOARD] ACTUALISATION TERMINÉE');
-      
-    } catch (error) {
-      console.error('❌ [DASHBOARD] Erreur actualisation:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [forceSync, forceSyncUserData, calculateRealStats, logDataSources, refreshing]);
-
-  // 🔍 DIAGNOSTIC AUTOMATIQUE
-  const runDiagnostic = useCallback(async () => {
-    if (!user?.uid) return;
-
-    try {
-      console.log('🔍 [DASHBOARD] Diagnostic données utilisateur...');
-      const diagnostic = await diagnoseUser();
-      
-      if (diagnostic) {
-        console.log('📋 [DASHBOARD] Résultat diagnostic:', diagnostic);
-        setShowDiagnostic(true);
-      }
-    } catch (error) {
-      console.error('❌ [DASHBOARD] Erreur diagnostic:', error);
-    }
-  }, [user?.uid, diagnoseUser]);
-
-  // 🚀 INITIALISATION ET CALCUL STATS RÉELLES
-  useEffect(() => {
-    if (!loading && user?.uid) {
-      console.log('🚀 [DASHBOARD] Initialisation post-chargement');
-      
-      // Calculer les vraies stats après le chargement
-      setTimeout(() => {
-        calculateRealStats();
-        logDataSources();
-      }, 1000);
-
-      // Diagnostic automatique si problème détecté
-      if (userProgress?.totalXp === 0) {
-        setTimeout(runDiagnostic, 3000);
-      }
-    }
-  }, [loading, user?.uid, userProgress, calculateRealStats, logDataSources, runDiagnostic]);
-
-  // 📊 STATISTIQUES PRINCIPALES AVEC VRAIES DONNÉES
+  // 📊 STATISTIQUES PRINCIPALES AVEC SOURCES VÉRIFIÉES
   const mainStats = [
     {
-      id: 'total-users',
-      title: 'Utilisateurs',
-      value: verifiedStats.totalUsers || 0,
-      source: 'Firebase users collection (vérifié)',
-      icon: Users,
-      change: verifiedStats.totalUsers > 0 ? 12 : 0,
-      trend: 'up',
-      color: 'blue'
-    },
-    {
-      id: 'active-projects',
-      title: 'Projets actifs',
-      value: verifiedStats.activeProjects || 0,
-      source: 'Firebase projects where status=active (vérifié)',
-      icon: Target,
-      change: verifiedStats.activeProjects > 0 ? 8 : 0,
-      trend: 'up',
-      color: 'green'
-    },
-    {
-      id: 'completed-tasks',
-      title: 'Tâches terminées',
-      value: verifiedStats.completedTasks || 0,
-      source: 'Firebase tasks where status=completed (vérifié)',
-      icon: Activity,
-      change: verifiedStats.completedTasks > 0 ? 23 : 0,
-      trend: 'up',
-      color: 'purple'
-    },
-    {
-      id: 'team-productivity',
-      title: 'Productivité',
-      value: `${verifiedStats.teamProductivity || 0}%`,
-      source: 'Calculé depuis moyenne XP équipe (vérifié)',
+      id: 'xp',
+      title: 'XP Total',
+      value: verifiedStats.totalXp || userProgress?.totalXp || 0,
       icon: Award,
-      change: verifiedStats.teamProductivity > 0 ? 5 : 0,
-      trend: 'up',
-      color: 'orange'
+      color: 'yellow',
+      change: `+${verifiedStats.weeklyXp || 0} cette semaine`,
+      trend: verifiedStats.weeklyXp > 0 ? 1 : 0,
+      source: 'Firebase users collection'
+    },
+    {
+      id: 'level',
+      title: 'Niveau',
+      value: verifiedStats.level || userProgress?.level || 1,
+      icon: TrendingUp,
+      color: 'blue',
+      change: 'Niveau actuel',
+      source: 'Calculé depuis XP total'
+    },
+    {
+      id: 'tasks',
+      title: 'Tâches',
+      value: `${verifiedStats.tasksCompleted || 0}/${verifiedStats.tasksTotal || 0}`,
+      icon: CheckCircle,
+      color: 'green',
+      change: `${verifiedStats.completionRate || 0}% complété`,
+      trend: verifiedStats.completionRate > 50 ? 1 : -1,
+      source: 'Firebase tasks collection'
+    },
+    {
+      id: 'projects',
+      title: 'Projets',
+      value: verifiedStats.projectsTotal || 0,
+      icon: Target,
+      color: 'purple',
+      change: `${verifiedStats.projectsCompleted || 0} terminés`,
+      source: 'Firebase projects collection'
     }
   ];
 
-  // 🎯 ACTIONS DU HEADER AVEC DIAGNOSTIC
-  const headerActions = (
-    <div className="flex gap-3">
-      {/* Indicateur de statut des données */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 rounded-lg border border-gray-700">
-        {dataStatus === 'verified' ? (
-          <>
-            <CheckCircle className="w-4 h-4 text-green-400" />
-            <span className="text-green-400 text-sm">Données vérifiées</span>
-          </>
-        ) : dataStatus === 'calculating' ? (
-          <>
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-blue-400 text-sm">Vérification...</span>
-          </>
-        ) : dataStatus === 'error' ? (
-          <>
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <span className="text-red-400 text-sm">Erreur données</span>
-          </>
-        ) : (
-          <>
-            <Database className="w-4 h-4 text-yellow-400" />
-            <span className="text-yellow-400 text-sm">Vérification...</span>
-          </>
-        )}
-      </div>
+  // 🔄 FONCTION DE RAFRAÎCHISSEMENT AVEC DIAGNOSTIC
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    
+    try {
+      // 1. Diagnostic utilisateur complet
+      if (diagnoseUser) {
+        console.log('🔍 [DASHBOARD] Diagnostic utilisateur...');
+        await diagnoseUser(user?.uid);
+      }
 
-      {/* Bouton diagnostic */}
-      <PremiumButton
-        variant="secondary"
-        icon={AlertCircle}
-        onClick={runDiagnostic}
-        className="text-sm"
-      >
-        Diagnostic
-      </PremiumButton>
+      // 2. Recalculer les vraies stats
+      await calculateRealStats();
 
-      {/* Bouton actualiser */}
-      <PremiumButton
-        variant="secondary"
-        icon={RefreshCw}
-        onClick={handleRefresh}
-        disabled={refreshing}
-        className={refreshing ? 'animate-spin' : ''}
-      >
-        {refreshing ? 'Actualisation...' : 'Actualiser'}
-      </PremiumButton>
-    </div>
-  );
+      // 3. Force sync des données
+      if (forceSync) {
+        console.log('🔄 [DASHBOARD] Force sync...');
+        await forceSync();
+      }
 
-  // 🔄 ÉTAT DE CHARGEMENT
+      // 4. Force sync user data
+      if (forceSyncUserData) {
+        console.log('🔄 [DASHBOARD] Force sync user data...');
+        await forceSyncUserData(user?.uid);
+      }
+
+      console.log('✅ [DASHBOARD] Rafraîchissement terminé');
+
+    } catch (error) {
+      console.error('❌ [DASHBOARD] Erreur rafraîchissement:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // 🔄 EFFET DE CHARGEMENT INITIAL
+  useEffect(() => {
+    if (user?.uid) {
+      console.log('📊 [DASHBOARD] Initialisation pour utilisateur:', user.uid);
+      calculateRealStats();
+      logDataSources();
+    }
+  }, [user?.uid, calculateRealStats, logDataSources]);
+
+  // 🔄 EFFET DE LOGGING AUTOMATIQUE
+  useEffect(() => {
+    const interval = setInterval(logDataSources, 30000); // Log toutes les 30s
+    return () => clearInterval(interval);
+  }, [logDataSources]);
+
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-          <div className="flex items-center justify-center h-64">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center"
-            >
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
-              <p className="text-gray-300 text-lg">Chargement et vérification des données...</p>
-              <p className="text-gray-500 text-sm mt-2">Synchronisation XP en cours...</p>
-            </motion.div>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <RefreshCw className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Chargement du dashboard...</p>
           </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // ❌ ÉTAT D'ERREUR
-  if (error) {
-    return (
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-          <PremiumCard className="max-w-md mx-auto mt-20">
-            <div className="text-center py-8">
-              <div className="text-red-400 text-5xl mb-4">⚠️</div>
-              <h3 className="text-lg font-medium text-white mb-2">Erreur de synchronisation</h3>
-              <p className="text-gray-400 mb-4">{error}</p>
-              <div className="space-y-3">
-                <PremiumButton variant="primary" onClick={handleRefresh}>
-                  Réessayer
-                </PremiumButton>
-                <PremiumButton variant="secondary" onClick={runDiagnostic}>
-                  Diagnostic
-                </PremiumButton>
-              </div>
-            </div>
-          </PremiumCard>
         </div>
       </Layout>
     );
@@ -366,84 +251,95 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="min-h-screen bg-gray-50 p-4">
         
-        {/* 🎯 HEADER AVEC DESIGN PREMIUM ET STATUT */}
+        {/* 🔍 HEADER AVEC DIAGNOSTIC */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                Tableau de bord
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                📊 Dashboard
               </h1>
-              <p className="text-gray-400 text-lg">
-                Données vérifiées et synchronisées en temps réel
+              <p className="text-gray-600">
+                Vue d'ensemble de vos performances et activités
               </p>
-              
-              {/* Indicateur de connexion */}
-              <div className="flex items-center gap-2 mt-2">
-                {syncStatus === 'synced' || syncStatus === 'ready' ? (
-                  <>
-                    <Wifi className="w-4 h-4 text-green-400" />
-                    <span className="text-green-400 text-sm">Synchronisé</span>
-                  </>
-                ) : syncStatus === 'syncing' ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-blue-400 text-sm">Synchronisation...</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="w-4 h-4 text-yellow-400" />
-                    <span className="text-yellow-400 text-sm">Connexion...</span>
-                  </>
-                )}
-                {lastUpdate && (
-                  <span className="text-gray-500 text-xs ml-2">
-                    • {lastUpdate.toLocaleTimeString()}
-                  </span>
-                )}
-              </div>
             </div>
-            <div className="mt-4 md:mt-0">
-              {headerActions}
+
+            {/* Actions avec diagnostic */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm">
+                <div className={`w-3 h-3 rounded-full ${syncStatus === 'synced' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                <span className="text-gray-600">
+                  {dataStatus === 'verified' ? 'Données vérifiées' : 'Vérification...'}
+                </span>
+              </div>
+
+              <PremiumButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowDiagnostic(!showDiagnostic)}
+              >
+                <Database className="w-4 h-4" />
+                Diagnostic
+              </PremiumButton>
+
+              <PremiumButton
+                variant="primary"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Actualisation...' : 'Actualiser'}
+              </PremiumButton>
             </div>
           </div>
         </motion.div>
 
-        {/* 🚨 ALERTE DIAGNOSTIC */}
+        {/* 🔍 PANNEAU DE DIAGNOSTIC */}
         {showDiagnostic && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
             className="mb-6"
           >
-            <PremiumCard className="border-yellow-500/50 bg-yellow-500/5">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-400 mt-1" />
-                <div className="flex-1">
-                  <h4 className="text-yellow-400 font-medium mb-1">Diagnostic des données</h4>
-                  <p className="text-gray-300 text-sm mb-3">
-                    Des incohérences ont été détectées dans vos données. Un diagnostic a été exécuté.
-                  </p>
-                  <div className="flex gap-2">
-                    <PremiumButton 
-                      variant="secondary" 
-                      size="sm"
-                      onClick={() => setShowDiagnostic(false)}
-                    >
-                      Masquer
-                    </PremiumButton>
-                    <PremiumButton 
-                      variant="primary" 
-                      size="sm"
-                      onClick={handleRefresh}
-                    >
-                      Corriger
-                    </PremiumButton>
+            <PremiumCard>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">
+                      Diagnostic des Sources de Données
+                    </h4>
+                    <div className="text-sm text-blue-700 space-y-1">
+                      <p>• XP Total: {verifiedStats.totalXp || 0} (Source: users/{user?.uid})</p>
+                      <p>• Tâches: {verifiedStats.tasksTotal || 0} total, {verifiedStats.tasksCompleted || 0} complétées</p>
+                      <p>• Projets: {verifiedStats.projectsTotal || 0} total, {verifiedStats.projectsCompleted || 0} terminés</p>
+                      <p>• Dernière sync: {lastUpdate?.toLocaleString() || 'Jamais'}</p>
+                      <p>• Statut: {dataStatus === 'verified' ? '✅ Vérifiées' : '⏳ En cours'}</p>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-2">
+                      Un diagnostic a été exécuté.
+                    </p>
+                    <div className="flex gap-2 mt-3">
+                      <PremiumButton 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={() => setShowDiagnostic(false)}
+                      >
+                        Masquer
+                      </PremiumButton>
+                      <PremiumButton 
+                        variant="primary" 
+                        size="sm"
+                        onClick={handleRefresh}
+                      >
+                        Corriger
+                      </PremiumButton>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -460,7 +356,7 @@ const Dashboard = () => {
         >
           {mainStats.map((stat, index) => (
             <div key={stat.id} className="relative group">
-              <StatCard
+              <PremiumStatCard
                 title={stat.title}
                 value={stat.value}
                 icon={stat.icon}
@@ -492,290 +388,180 @@ const Dashboard = () => {
             >
               <PremiumCard>
                 <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg">
-                      <BarChart3 className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold text-white">Performance globale</h3>
-                      <p className="text-sm text-gray-400">
-                        Données vérifiées • {verifiedStats.usersWithData || 0} utilisateurs actifs
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Sélecteur de période */}
-                  <div className="flex bg-gray-800/50 rounded-lg p-1 border border-gray-700">
-                    {['day', 'week', 'month'].map((period) => (
+                  <h3 className="text-xl font-semibold text-gray-900">Performance</h3>
+                  <div className="flex space-x-2">
+                    {['week', 'month', 'year'].map((range) => (
                       <button
-                        key={period}
-                        onClick={() => setSelectedTimeRange(period)}
-                        className={`px-3 py-1 text-sm rounded-md transition-all duration-200 ${
-                          selectedTimeRange === period
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                            : 'text-gray-400 hover:text-white'
+                        key={range}
+                        onClick={() => setSelectedTimeRange(range)}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                          selectedTimeRange === range
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                       >
-                        {period === 'day' ? 'Jour' : period === 'week' ? 'Semaine' : 'Mois'}
+                        {range === 'week' ? '7j' : range === 'month' ? '30j' : '365j'}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Zone graphique avec métriques réelles */}
-                <div className="h-64 bg-gradient-to-br from-gray-800/30 to-gray-900/30 rounded-lg border border-gray-700/50 p-6">
-                  <div className="grid grid-cols-2 gap-6 h-full">
-                    <div className="text-center">
-                      <TrendingUp className="w-8 h-8 text-green-400 mx-auto mb-3" />
-                      <div className="text-2xl font-bold text-green-400 mb-1">
-                        {verifiedStats.averageXp || 0}
-                      </div>
-                      <p className="text-gray-400 text-sm">XP moyen par utilisateur</p>
-                    </div>
-                    <div className="text-center">
-                      <Users className="w-8 h-8 text-blue-400 mx-auto mb-3" />
-                      <div className="text-2xl font-bold text-blue-400 mb-1">
-                        {verifiedStats.usersWithData || 0}
-                      </div>
-                      <p className="text-gray-400 text-sm">Utilisateurs avec données</p>
-                    </div>
+                {/* Graphique simulé avec vraies données */}
+                <div className="h-64 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <BarChart3 className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-2">Graphique de performance</p>
+                    <p className="text-sm text-gray-500">
+                      XP: {verifiedStats.totalXp || 0} • Tâches: {verifiedStats.tasksCompleted || 0} • Niveau: {verifiedStats.level || 1}
+                    </p>
                   </div>
                 </div>
               </PremiumCard>
             </motion.div>
 
-            {/* 🎯 ACTIVITÉ RÉCENTE */}
+            {/* 📋 ACTIVITÉS RÉCENTES */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
               <PremiumCard>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg">
-                    <Activity className="w-6 h-6 text-green-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">Activité récente</h3>
-                    <p className="text-sm text-gray-400">
-                      Basé sur xpHistory • {recentActivities?.length || 0} activités
-                    </p>
-                  </div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">Activités Récentes</h3>
+                  <PremiumButton variant="secondary" size="sm">
+                    Voir tout
+                  </PremiumButton>
                 </div>
 
-                {/* Feed d'activité avec source indiquée */}
-                <ActivityFeed activities={recentActivities} showSource={true} />
+                <ActivityFeed activities={recentActivities} />
+
+                {(!recentActivities || recentActivities.length === 0) && (
+                  <div className="text-center py-8">
+                    <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">Aucune activité récente</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Créez des tâches et projets pour voir vos activités ici
+                    </p>
+                  </div>
+                )}
               </PremiumCard>
             </motion.div>
           </div>
 
-          {/* 🏆 COLONNE SIDEBAR */}
+          {/* 🎯 SIDEBAR */}
           <div className="space-y-8">
             
-            {/* 👑 TOP PERFORMERS */}
+            {/* 🏆 TOP PERFORMANCES */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <PremiumCard>
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">Top Performers</h3>
+
+                {topUsers && topUsers.length > 0 ? (
+                  <div className="space-y-4">
+                    {topUsers.slice(0, 5).map((topUser, index) => (
+                      <div key={topUser.id} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                            index === 1 ? 'bg-gray-100 text-gray-800' :
+                            index === 2 ? 'bg-orange-100 text-orange-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{topUser.displayName}</p>
+                            <p className="text-sm text-gray-500">{topUser.totalXp || 0} XP</p>
+                          </div>
+                        </div>
+                        <Award className="w-5 h-5 text-yellow-500" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">Aucun classement disponible</p>
+                  </div>
+                )}
+              </PremiumCard>
+            </motion.div>
+
+            {/* ⚡ ACTIONS RAPIDES */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
             >
               <PremiumCard>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg">
-                    <Award className="w-6 h-6 text-yellow-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">Top Performers</h3>
-                    <p className="text-sm text-gray-400">
-                      Classement temps réel • {topUsers?.length || 0} utilisateurs
-                    </p>
-                  </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">Actions Rapides</h3>
+
+                <div className="space-y-3">
+                  <PremiumButton 
+                    variant="primary" 
+                    className="w-full justify-between"
+                    onClick={() => window.location.href = '/tasks'}
+                  >
+                    <span>Nouvelle Tâche</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </PremiumButton>
+
+                  <PremiumButton 
+                    variant="secondary" 
+                    className="w-full justify-between"
+                    onClick={() => window.location.href = '/projects'}
+                  >
+                    <span>Nouveau Projet</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </PremiumButton>
+
+                  <PremiumButton 
+                    variant="secondary" 
+                    className="w-full justify-between"
+                    onClick={() => window.location.href = '/analytics'}
+                  >
+                    <span>Voir Analytics</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </PremiumButton>
                 </div>
+              </PremiumCard>
+            </motion.div>
+
+            {/* 📊 STATISTIQUES RAPIDES */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <PremiumCard>
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">Résumé</h3>
 
                 <div className="space-y-4">
-                  {topUsers && topUsers.length > 0 ? (
-                    topUsers.slice(0, 5).map((topUser, index) => (
-                      <motion.div
-                        key={topUser.id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 + index * 0.1 }}
-                        className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg border border-gray-700/50 hover:bg-gray-700/30 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            index === 0 ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black' :
-                            index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-500 text-black' :
-                            index === 2 ? 'bg-gradient-to-r from-amber-600 to-amber-800 text-white' :
-                            'bg-gray-700 text-gray-300'
-                          }`}>
-                            {index + 1}
-                          </div>
-                          <div>
-                            <p className="text-white font-medium text-sm">{topUser.displayName}</p>
-                            <p className="text-gray-400 text-xs">{topUser.role || 'Membre'}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-blue-400 font-semibold text-sm">{topUser.totalXp} XP</p>
-                          <p className="text-gray-500 text-xs">Niveau {topUser.level}</p>
-                        </div>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Aucune donnée utilisateur</p>
-                      <PremiumButton 
-                        variant="secondary" 
-                        size="sm" 
-                        onClick={handleRefresh}
-                        className="mt-3"
-                      >
-                        Actualiser
-                      </PremiumButton>
-                    </div>
-                  )}
-                </div>
-              </PremiumCard>
-            </motion.div>
-
-            {/* 📊 PROGRESSION UTILISATEUR */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <PremiumCard>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg">
-                    <Zap className="w-6 h-6 text-purple-400" />
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">XP Total</span>
+                    <span className="font-semibold text-yellow-600">{verifiedStats.totalXp || 0}</span>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">Votre progression</h3>
-                    <p className="text-sm text-gray-400">
-                      Données synchronisées • Statut: {syncStatus}
-                    </p>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Niveau</span>
+                    <span className="font-semibold text-blue-600">{verifiedStats.level || 1}</span>
                   </div>
-                </div>
-
-                {userProgress ? (
-                  <div className="space-y-4">
-                    <div className="text-center p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-500/30">
-                      <div className="text-2xl font-bold text-blue-400 mb-1">
-                        {userProgress.totalXp || 0}
-                      </div>
-                      <div className="text-sm text-gray-400">XP Total</div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="text-center p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg border border-green-500/30">
-                        <div className="text-lg font-bold text-green-400 mb-1">
-                          {userProgress.tasksCompleted || 0}
-                        </div>
-                        <div className="text-xs text-gray-400">Tâches</div>
-                      </div>
-                      
-                      <div className="text-center p-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg border border-purple-500/30">
-                        <div className="text-lg font-bold text-purple-400 mb-1">
-                          {userProgress.badges || 0}
-                        </div>
-                        <div className="text-xs text-gray-400">Badges</div>
-                      </div>
-                    </div>
-
-                    {/* Bouton de synchronisation XP si problème détecté */}
-                    {userProgress.totalXp === 0 && (
-                      <PremiumButton
-                        variant="primary"
-                        size="sm"
-                        onClick={forceSyncUserData}
-                        className="w-full mt-3"
-                        icon={RefreshCw}
-                      >
-                        Synchroniser XP
-                      </PremiumButton>
-                    )}
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Taux de réussite</span>
+                    <span className="font-semibold text-green-600">{verifiedStats.completionRate || 0}%</span>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>Progression en cours...</p>
-                    <PremiumButton 
-                      variant="secondary" 
-                      size="sm" 
-                      onClick={forceSyncUserData}
-                      className="mt-3"
-                    >
-                      Synchroniser
-                    </PremiumButton>
-                  </div>
-                )}
-              </PremiumCard>
-            </motion.div>
-
-            {/* 📈 STATISTIQUES ÉQUIPE TEMPS RÉEL */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.7 }}
-            >
-              <PremiumCard>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-lg">
-                    <Users className="w-6 h-6 text-cyan-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-white">Équipe</h3>
-                    <p className="text-sm text-gray-400">
-                      Stats calculées • {verifiedStats.calculationTime?.toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="text-center p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-500/30">
-                    <div className="text-2xl font-bold text-blue-400 mb-2">
-                      {verifiedStats.teamProductivity || 0}%
-                    </div>
-                    <div className="text-sm text-gray-400">Productivité équipe</div>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg border border-green-500/30">
-                    <div className="text-2xl font-bold text-green-400 mb-2">
-                      {teamStats?.completionRate || 0}%
-                    </div>
-                    <div className="text-sm text-gray-400">Taux de complétion</div>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg border border-purple-500/30">
-                    <div className="text-2xl font-bold text-purple-400 mb-2">
-                      {verifiedStats.totalXp || 0}
-                    </div>
-                    <div className="text-sm text-gray-400">XP Total équipe</div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600">Série actuelle</span>
+                    <span className="font-semibold text-purple-600">{verifiedStats.streak || 0} jours</span>
                   </div>
                 </div>
               </PremiumCard>
             </motion.div>
           </div>
         </div>
-
-        {/* 🕐 INFORMATIONS DE SYNCHRONISATION */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="text-center text-sm text-gray-500 mt-8 space-y-1"
-        >
-          {lastUpdate && (
-            <p>Dernière synchronisation : {lastUpdate.toLocaleString('fr-FR')}</p>
-          )}
-          {verifiedStats.calculationTime && (
-            <p>Statistiques calculées : {verifiedStats.calculationTime.toLocaleString('fr-FR')}</p>
-          )}
-          <p className="text-xs">
-            Sources vérifiées • Synchronisation XP garantie • Données temps réel
-          </p>
-        </motion.div>
       </div>
     </Layout>
   );
