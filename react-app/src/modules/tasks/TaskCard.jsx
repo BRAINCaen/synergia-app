@@ -1,95 +1,51 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// COMPOSANT TASK CARD - CORRECTION BOUTON VOLONTAIRE
+// COMPOSANT TÂCHE AVEC SYSTÈME VOLONTARIAT INTÉGRÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Calendar, 
-  Users, 
-  Trophy, 
-  Heart, 
-  MessageCircle, 
-  Clock, 
+  Calendar,
+  User,
+  Users,
+  Trophy,
+  Heart,
+  Clock,
   AlertCircle,
+  Eye,
+  Edit,
+  Trash2,
   UserPlus,
   UserMinus,
+  MessageCircle,
   Bell,
-  CheckCircle,
-  Play
+  Send
 } from 'lucide-react';
 
+// 🔥 IMPORTS SERVICES ET STORES
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import SubmitTaskButton from '../../components/tasks/SubmitTaskButton.jsx';
+import { taskVolunteerService } from '../../core/services/taskVolunteerService.js';
+import { userService } from '../../core/services/userService.js';
 
 /**
- * 💬 COMPOSANT BADGE DE COMMENTAIRES AVEC NOTIFICATION
+ * 📬 COMPOSANT BADGE DE NOTIFICATION COMMENTAIRES
  */
 const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
   const [commentCount, setCommentCount] = useState(0);
   const [hasNewComments, setHasNewComments] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
+  // Simuler le comptage des commentaires (à connecter avec votre service)
   useEffect(() => {
-    const loadCommentData = async () => {
-      if (!taskId) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        
-        // 📖 IMPORT FIREBASE DIRECT
-        const { collection, query, where, getDocs, orderBy } = await import('firebase/firestore');
-        const { db } = await import('../../core/firebase.js');
-
-        // 📊 COMPTER LES COMMENTAIRES
-        const commentsRef = collection(db, 'task_comments');
-        const commentsQuery = query(
-          commentsRef,
-          where('taskId', '==', taskId),
-          orderBy('createdAt', 'desc')
-        );
-        
-        const commentsSnapshot = await getDocs(commentsQuery);
-        const commentsData = commentsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        setCommentCount(commentsData.length);
-        
-        // 🔍 VÉRIFIER S'IL Y A DE NOUVEAUX COMMENTAIRES (dernières 24h)
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const recentComments = commentsData.filter(comment => {
-          const commentDate = comment.createdAt?.toDate?.() || new Date(comment.createdAt);
-          return commentDate > oneDayAgo;
-        });
-
-        setHasNewComments(recentComments.length > 0);
-
-      } catch (error) {
-        console.warn('⚠️ Erreur chargement commentaires:', error);
-        setCommentCount(0);
-        setHasNewComments(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCommentData();
+    // TODO: Connecter avec le service de commentaires
+    setCommentCount(0);
+    setHasNewComments(false);
   }, [taskId]);
 
   return (
     <button
       onClick={onClick}
-      disabled={isLoading}
-      className={`relative flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all transform hover:scale-105 ${
-        isLoading
+      className={`relative flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+        commentCount === 0 
           ? 'bg-gray-600/20 text-gray-400 border border-gray-600/30 hover:bg-gray-600/30'
           : hasNewComments
             ? 'bg-blue-500/30 text-blue-300 border border-blue-400/50 hover:bg-blue-500/40 animate-pulse'
@@ -143,7 +99,41 @@ const PriorityBadge = ({ priority }) => {
 };
 
 /**
- * 🎯 COMPOSANT TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS ET BOUTON VOLONTAIRE CORRIGÉ
+ * 📤 COMPOSANT BOUTON DE SOUMISSION
+ */
+const SubmitTaskButton = ({ task, onSubmit, onTaskUpdate }) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!onSubmit) return;
+    
+    setSubmitting(true);
+    try {
+      await onSubmit(task);
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('❌ Erreur soumission:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleSubmit}
+      disabled={submitting}
+      className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors disabled:opacity-50"
+    >
+      <Send className="w-4 h-4" />
+      {submitting ? 'Soumission...' : 'Soumettre'}
+    </button>
+  );
+};
+
+/**
+ * 🎯 COMPOSANT TASKCARD AVEC NOMS UTILISATEURS RÉSOLUS ET SYSTÈME VOLONTARIAT INTÉGRÉ
  */
 const TaskCard = ({ 
   task, 
@@ -158,9 +148,13 @@ const TaskCard = ({
   isMyTask = false
 }) => {
   const { user } = useAuthStore();
-  const [isVolunteering, setIsVolunteering] = useState(false);
   
-  // ✅ NOUVEAUX ÉTATS POUR LES NOMS D'UTILISATEURS
+  // 🔥 ÉTATS VOLONTARIAT AVEC SERVICE INTÉGRÉ
+  const [volunteering, setVolunteering] = useState(false);
+  const [isAssigned, setIsAssigned] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+  
+  // ✅ ÉTATS POUR LES NOMS D'UTILISATEURS
   const [creatorName, setCreatorName] = useState('Chargement...');
   const [assigneeNames, setAssigneeNames] = useState([]);
   const [loadingUserNames, setLoadingUserNames] = useState(true);
@@ -168,82 +162,67 @@ const TaskCard = ({
   // ✅ Vérifications de statut CORRIGÉES
   const isTaskOwner = user && task && task.createdBy === user.uid;
   const isAssignedToMe = Array.isArray(task.assignedTo) 
-    ? task.assignedTo.includes(user.uid)
-    : task.assignedTo === user.uid;
+    ? task.assignedTo.includes(user?.uid)
+    : task.assignedTo === user?.uid;
   
-  // 🔥 CORRECTION : Condition simple pour le bouton volontaire
-  const canVolunteer = user && 
-    task && 
-    !isAssignedToMe &&
-    !isTaskOwner &&
-    (task.status === 'todo' || task.openToVolunteers) &&
-    task.openToVolunteers === true &&
-    onVolunteer; // S'assurer que la fonction est disponible
+  const canVolunteer = !isAssignedToMe && 
+                      !isTaskOwner && 
+                      task.status !== 'completed' && 
+                      task.status !== 'validation_pending' &&
+                      task.openToVolunteers !== false;
 
-  // ✅ NOUVEAU useEffect POUR CHARGER LES NOMS D'UTILISATEURS
+  // 🔥 VÉRIFICATION STATUT VOLONTARIAT AU CHARGEMENT
   useEffect(() => {
-    const loadUserNames = async () => {
-      if (!task) {
-        setLoadingUserNames(false);
+    const checkVolunteerStatus = async () => {
+      if (!task?.id || !user?.uid) {
+        setCheckingStatus(false);
         return;
       }
-
+      
       try {
-        setLoadingUserNames(true);
-        
-        // 📖 IMPORT FIREBASE DIRECT
-        const { doc, getDoc } = await import('firebase/firestore');
-        const { db } = await import('../../core/firebase.js');
+        const status = await taskVolunteerService.checkAssignmentStatus(task.id, user.uid);
+        setIsAssigned(status.assigned);
+      } catch (error) {
+        console.error('Erreur vérification statut volontariat:', error);
+      } finally {
+        setCheckingStatus(false);
+      }
+    };
 
-        // 👤 CHARGER LE NOM DU CRÉATEUR
+    checkVolunteerStatus();
+  }, [task?.id, user?.uid]);
+
+  // ✅ CHARGER LES NOMS D'UTILISATEURS
+  useEffect(() => {
+    const loadUserNames = async () => {
+      if (!task) return;
+      
+      setLoadingUserNames(true);
+      
+      try {
+        // Nom du créateur
         if (task.createdBy) {
-          try {
-            const creatorDoc = await getDoc(doc(db, 'users', task.createdBy));
-            if (creatorDoc.exists()) {
-              const creatorData = creatorDoc.data();
-              setCreatorName(creatorData.displayName || creatorData.name || creatorData.email || 'Utilisateur anonyme');
-            } else {
-              setCreatorName('Utilisateur anonyme');
-            }
-          } catch (error) {
-            console.warn('Erreur chargement créateur:', error);
-            setCreatorName('Utilisateur anonyme');
-          }
-        } else {
-          setCreatorName('Utilisateur anonyme');
+          const creatorData = await userService.getUserById(task.createdBy);
+          setCreatorName(creatorData?.displayName || creatorData?.email || 'Utilisateur inconnu');
         }
 
-        // 👥 CHARGER LES NOMS DES ASSIGNÉS
-        if (task.assignedTo && task.assignedTo.length > 0) {
-          const assignedArray = Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo];
-          const names = [];
-
-          for (const userId of assignedArray) {
-            if (userId) {
-              try {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                  const userData = userDoc.data();
-                  names.push(userData.displayName || userData.name || userData.email || 'Utilisateur anonyme');
-                } else {
-                  names.push('Utilisateur anonyme');
-                }
-              } catch (error) {
-                console.warn('Erreur chargement assigné:', userId, error);
-                names.push('Utilisateur anonyme');
-              }
-            }
-          }
-
+        // Noms des assignés
+        if (task.assignedTo && Array.isArray(task.assignedTo) && task.assignedTo.length > 0) {
+          const assigneePromises = task.assignedTo.map(userId => userService.getUserById(userId));
+          const assigneeData = await Promise.all(assigneePromises);
+          const names = assigneeData.map(userData => 
+            userData?.displayName || userData?.email || 'Utilisateur inconnu'
+          );
           setAssigneeNames(names);
-        } else {
-          setAssigneeNames([]);
+        } else if (task.assignedTo && typeof task.assignedTo === 'string') {
+          const assigneeData = await userService.getUserById(task.assignedTo);
+          setAssigneeNames([assigneeData?.displayName || assigneeData?.email || 'Utilisateur inconnu']);
         }
 
       } catch (error) {
-        console.error('Erreur chargement données utilisateurs:', error);
-        setCreatorName('Erreur chargement');
-        setAssigneeNames([]);
+        console.error('❌ Erreur chargement noms utilisateurs:', error);
+        setCreatorName('Erreur de chargement');
+        setAssigneeNames(['Erreur de chargement']);
       } finally {
         setLoadingUserNames(false);
       }
@@ -252,30 +231,43 @@ const TaskCard = ({
     loadUserNames();
   }, [task]);
 
-  // Fonction pour devenir volontaire
+  // 🔥 FONCTION SE PORTER VOLONTAIRE CORRIGÉE AVEC SERVICE
   const handleVolunteer = async () => {
-    if (!onVolunteer || !user || !task) return;
-    
-    try {
-      setIsVolunteering(true);
-      console.log('🙋 Volontariat pour tâche:', task.title);
-      
-      await onVolunteer(task);
-      
-      if (onTaskUpdate) {
-        onTaskUpdate();
-      }
+    if (!user?.uid || !task?.id || volunteering) return;
 
+    setVolunteering(true);
+    try {
+      if (isAssigned) {
+        // Se désassigner
+        await taskVolunteerService.unassignFromTask(task.id, user.uid);
+        setIsAssigned(false);
+        console.log('✅ Désassignation réussie');
+      } else {
+        // Se porter volontaire
+        await taskVolunteerService.volunteerForTask(task.id, user.uid);
+        setIsAssigned(true);
+        console.log('✅ Volontariat enregistré');
+      }
+      
+      // Notifier le parent pour rafraîchir la liste
+      if (onTaskUpdate) {
+        onTaskUpdate(task.id);
+      }
+      
     } catch (error) {
       console.error('❌ Erreur volontariat:', error);
+      // L'erreur est déjà affichée par le service
     } finally {
-      setIsVolunteering(false);
+      setVolunteering(false);
     }
   };
 
-  // Fonction pour ne plus être volontaire
+  // Fonction pour ne plus être volontaire (fallback)
   const handleUnvolunteer = async () => {
-    if (!onUnvolunteer) return;
+    if (!onUnvolunteer) {
+      // Utiliser la fonction intégrée
+      return handleVolunteer();
+    }
     
     try {
       await onUnvolunteer(task);
@@ -344,17 +336,18 @@ const TaskCard = ({
         <div className="mb-3">
           <p className="text-gray-300 text-sm line-clamp-2">
             {task.description.length > 100 
-              ? `${task.description.substring(0, 100)}...`
+              ? task.description.substring(0, 100) + '...'
               : task.description}
           </p>
         </div>
       )}
 
-      {/* Métadonnées avec noms résolus */}
+      {/* Informations de la tâche */}
       <div className="space-y-2 mb-4 text-sm text-gray-400">
+        
         {/* Créateur avec nom résolu */}
         <div className="flex items-center gap-2">
-          <UserPlus className="w-4 h-4" />
+          <User className="w-4 h-4" />
           <span>
             Créé par: {loadingUserNames ? (
               <span className="text-gray-500">Chargement...</span>
@@ -430,20 +423,38 @@ const TaskCard = ({
           />
         )}
 
-        {/* 🔥 DEVENIR VOLONTAIRE - BOUTON CORRIGÉ */}
+        {/* 🔥 BOUTON VOLONTARIAT CORRIGÉ AVEC SERVICE INTÉGRÉ */}
         {canVolunteer && (
           <button
             onClick={handleVolunteer}
-            disabled={isVolunteering}
-            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+            disabled={volunteering || checkingStatus || !user}
+            className={`flex items-center gap-1 px-3 py-1 text-sm rounded border transition-colors disabled:opacity-50 ${
+              isAssigned
+                ? 'border-red-600 text-red-400 hover:bg-red-900/20'
+                : 'border-green-600 text-green-400 hover:bg-green-900/20'
+            }`}
           >
-            <UserPlus className="w-4 h-4" />
-            {isVolunteering ? 'En cours...' : 'Volontaire'}
+            {volunteering ? (
+              <>
+                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                Traitement...
+              </>
+            ) : isAssigned ? (
+              <>
+                <UserMinus className="w-4 h-4" />
+                Se désassigner
+              </>
+            ) : (
+              <>
+                <UserPlus className="w-4 h-4" />
+                Se porter volontaire
+              </>
+            )}
           </button>
         )}
 
-        {/* Ne plus être volontaire */}
-        {isAssignedToMe && !isTaskOwner && onUnvolunteer && (
+        {/* Ne plus être volontaire (fallback pour compatibilité) */}
+        {isAssignedToMe && !isTaskOwner && onUnvolunteer && !canVolunteer && (
           <button
             onClick={handleUnvolunteer}
             className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 transition-colors"
@@ -474,6 +485,13 @@ const TaskCard = ({
           </>
         )}
       </div>
+
+      {/* 🔥 INDICATEUR D'ASSIGNATION AVEC SERVICE */}
+      {isAssigned && (
+        <div className="mt-3 px-2 py-1 bg-green-900/30 border border-green-600/50 rounded text-green-300 text-xs">
+          ✅ Vous êtes assigné à cette tâche
+        </div>
+      )}
 
       {/* Indicateur de nouveaux commentaires au bas de la carte */}
       <div className="mt-3 pt-3 border-t border-gray-600">
