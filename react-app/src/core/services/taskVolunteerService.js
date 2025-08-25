@@ -1,294 +1,651 @@
 // ==========================================
-// CORRECTIFS POUR LES BOUTONS DE VOLONTARIAT
-// À intégrer dans vos composants de tâches existants
+// 📁 react-app/src/core/services/taskVolunteerService.js
+// SERVICE DE VOLONTARIAT POUR LES TÂCHES - PURE LOGIQUE MÉTIER
 // ==========================================
 
-// 🔥 IMPORT DU SERVICE (à ajouter en haut de vos fichiers)
-import { taskVolunteerService } from '../../core/services/taskVolunteerService.js';
-import { useAuthStore } from '../../shared/stores/authStore.js';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove 
+} from 'firebase/firestore';
+import { db } from '../firebase.js';
 
-// 📋 EXEMPLE D'INTÉGRATION DANS UNE CARTE DE TÂCHE
-const TaskCardWithVolunteer = ({ task, onTaskUpdate }) => {
-  const { user } = useAuthStore();
-  const [volunteering, setVolunteering] = useState(false);
-  const [isAssigned, setIsAssigned] = useState(false);
+/**
+ * 🎯 SERVICE DE VOLONTARIAT POUR LES TÂCHES
+ */
+class TaskVolunteerService {
+  constructor() {
+    console.log('🙋‍♂️ TaskVolunteerService initialisé');
+  }
 
-  // Vérifier le statut d'assignation
-  useEffect(() => {
-    const checkStatus = async () => {
-      if (!task?.id || !user?.uid) return;
-      
-      try {
-        const status = await taskVolunteerService.checkAssignmentStatus(task.id, user.uid);
-        setIsAssigned(status.assigned);
-      } catch (error) {
-        console.error('Erreur vérification statut:', error);
-      }
-    };
-
-    checkStatus();
-  }, [task?.id, user?.uid]);
-
-  // 🙋‍♂️ FONCTION SE PORTER VOLONTAIRE
-  const handleVolunteer = async () => {
-    if (!user?.uid || !task?.id || volunteering) return;
-
-    setVolunteering(true);
+  /**
+   * 🙋‍♂️ SE PORTER VOLONTAIRE POUR UNE TÂCHE
+   */
+  async volunteerForTask(taskId, userId) {
     try {
-      if (isAssigned) {
-        // Se désassigner
-        await taskVolunteerService.unassignFromTask(task.id, user.uid);
-        setIsAssigned(false);
-      } else {
-        // Se porter volontaire
-        await taskVolunteerService.volunteerForTask(task.id, user.uid);
-        setIsAssigned(true);
-      }
-      
-      // Optionnel : notifier le parent pour rafraîchir la liste
-      if (onTaskUpdate) {
-        onTaskUpdate(task.id);
-      }
-      
-    } catch (error) {
-      console.error('Erreur volontariat:', error);
-      // L'erreur est déjà affichée par le service
-    } finally {
-      setVolunteering(false);
-    }
-  };
+      console.log('🙋‍♂️ [VOLUNTEER] Candidature pour tâche:', { taskId, userId });
 
-  return (
-    <div className="task-card bg-gray-800 rounded-lg p-4">
-      {/* Contenu de la tâche */}
-      <h3 className="text-white font-semibold">{task.title}</h3>
-      <p className="text-gray-300 text-sm">{task.description}</p>
-      
-      {/* Section boutons */}
-      <div className="flex justify-between items-center mt-4">
-        <div className="flex gap-2">
-          <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-            Détails
-          </button>
-          <button className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700">
-            Modifier
-          </button>
-        </div>
-        
-        {/* 🔥 BOUTON VOLONTARIAT CORRIGÉ */}
-        <button
-          onClick={handleVolunteer}
-          disabled={volunteering || !user}
-          className={`px-3 py-1 text-sm rounded border transition-colors disabled:opacity-50 ${
-            isAssigned
-              ? 'border-red-600 text-red-400 hover:bg-red-900/20'
-              : 'border-green-600 text-green-400 hover:bg-green-900/20'
-          }`}
-        >
-          {volunteering ? (
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-              Traitement...
-            </div>
-          ) : isAssigned ? (
-            'Se désassigner'
-          ) : (
-            'Se porter volontaire'
-          )}
-        </button>
-      </div>
-      
-      {/* Indicateur d'assignation */}
-      {isAssigned && (
-        <div className="mt-2 px-2 py-1 bg-green-900/30 border border-green-600/50 rounded text-green-300 text-xs">
-          ✅ Vous êtes assigné à cette tâche
-        </div>
-      )}
-    </div>
-  );
-};
-
-// 📋 EXEMPLE D'INTÉGRATION DANS LA LISTE DES TÂCHES
-const TasksPageWithVolunteer = () => {
-  const { user } = useAuthStore();
-  const [tasks, setTasks] = useState([]);
-  const [myTasks, setMyTasks] = useState([]);
-
-  // Fonction pour rafraîchir les tâches après volontariat
-  const handleTaskUpdate = async (taskId) => {
-    try {
-      // Recharger la tâche mise à jour
+      // Vérifier que la tâche existe
       const taskRef = doc(db, 'tasks', taskId);
       const taskDoc = await getDoc(taskRef);
       
-      if (taskDoc.exists()) {
-        const updatedTask = { id: taskDoc.id, ...taskDoc.data() };
-        
-        // Mettre à jour dans la liste générale
-        setTasks(prevTasks => 
-          prevTasks.map(task => 
-            task.id === taskId ? updatedTask : task
-          )
-        );
-        
-        // Mettre à jour la liste "Mes tâches"
-        const isAssignedToMe = (updatedTask.assignedTo || updatedTask.assignedUsers || []).includes(user?.uid);
-        
-        if (isAssignedToMe) {
-          // Ajouter à mes tâches
-          setMyTasks(prevMyTasks => {
-            const exists = prevMyTasks.some(task => task.id === taskId);
-            return exists ? prevMyTasks.map(task => task.id === taskId ? updatedTask : task) : [...prevMyTasks, updatedTask];
-          });
-        } else {
-          // Retirer de mes tâches
-          setMyTasks(prevMyTasks => prevMyTasks.filter(task => task.id !== taskId));
-        }
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
       }
+
+      const taskData = taskDoc.data();
+
+      // Vérifier que l'utilisateur n'est pas déjà assigné
+      if (taskData.assignedTo && taskData.assignedTo.includes(userId)) {
+        throw new Error('Vous êtes déjà assigné à cette tâche');
+      }
+
+      // Vérifier que l'utilisateur ne s'est pas déjà porté volontaire
+      if (taskData.volunteers && taskData.volunteers.includes(userId)) {
+        throw new Error('Vous vous êtes déjà porté volontaire pour cette tâche');
+      }
+
+      // Ajouter l'utilisateur à la liste des volontaires
+      await updateDoc(taskRef, {
+        volunteers: arrayUnion(userId),
+        volunteerApplications: arrayUnion({
+          userId: userId,
+          appliedAt: serverTimestamp(),
+          status: 'pending'
+        }),
+        updatedAt: serverTimestamp()
+      });
+
+      // Enregistrer dans l'historique
+      await this.logVolunteerAction(taskId, userId, 'applied');
+
+      console.log('✅ [VOLUNTEER] Candidature enregistrée avec succès');
+      return { 
+        success: true,
+        message: 'Candidature envoyée avec succès' 
+      };
+
     } catch (error) {
-      console.error('Erreur mise à jour tâche:', error);
+      console.error('❌ [VOLUNTEER] Erreur candidature:', error);
+      throw error;
     }
-  };
+  }
 
-  return (
-    <div className="tasks-page">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Colonne Toutes les tâches */}
-        <div>
-          <h2 className="text-xl font-bold text-white mb-4">Toutes les tâches</h2>
-          <div className="space-y-4">
-            {tasks.map(task => (
-              <TaskCardWithVolunteer
-                key={task.id}
-                task={task}
-                onTaskUpdate={handleTaskUpdate}
-              />
-            ))}
-          </div>
-        </div>
-        
-        {/* Colonne Mes tâches */}
-        <div>
-          <h2 className="text-xl font-bold text-white mb-4">
-            Mes tâches ({myTasks.length})
-          </h2>
-          <div className="space-y-4">
-            {myTasks.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>Vous n'avez aucune tâche assignée</p>
-                <p className="text-sm mt-1">Portez-vous volontaire pour des tâches !</p>
-              </div>
-            ) : (
-              myTasks.map(task => (
-                <TaskCardWithVolunteer
-                  key={task.id}
-                  task={task}
-                  onTaskUpdate={handleTaskUpdate}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// 🔥 HOOK PERSONNALISÉ POUR VOLONTARIAT
-export const useTaskVolunteer = (taskId) => {
-  const { user } = useAuthStore();
-  const [isAssigned, setIsAssigned] = useState(false);
-  const [volunteering, setVolunteering] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  // Vérifier le statut initial
-  useEffect(() => {
-    const checkInitialStatus = async () => {
-      if (!taskId || !user?.uid) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const status = await taskVolunteerService.checkAssignmentStatus(taskId, user.uid);
-        setIsAssigned(status.assigned);
-      } catch (error) {
-        console.error('Erreur vérification statut initial:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkInitialStatus();
-  }, [taskId, user?.uid]);
-
-  // Fonction de volontariat
-  const toggleVolunteer = async () => {
-    if (!user?.uid || !taskId || volunteering) return;
-
-    setVolunteering(true);
+  /**
+   * ❌ SE DÉSASSIGNER D'UNE TÂCHE
+   */
+  async unassignFromTask(taskId, userId) {
     try {
-      if (isAssigned) {
-        await taskVolunteerService.unassignFromTask(taskId, user.uid);
-        setIsAssigned(false);
-      } else {
-        await taskVolunteerService.volunteerForTask(taskId, user.uid);
-        setIsAssigned(true);
+      console.log('❌ [UNASSIGN] Désassignation de tâche:', { taskId, userId });
+
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
       }
+
+      const taskData = taskDoc.data();
+
+      // Vérifier que l'utilisateur est bien assigné
+      if (!taskData.assignedTo || !taskData.assignedTo.includes(userId)) {
+        throw new Error('Vous n\'êtes pas assigné à cette tâche');
+      }
+
+      // Retirer l'utilisateur de la liste d'assignation
+      await updateDoc(taskRef, {
+        assignedTo: arrayRemove(userId),
+        volunteers: arrayRemove(userId), // Au cas où il serait aussi dans les volontaires
+        updatedAt: serverTimestamp()
+      });
+
+      // Enregistrer dans l'historique
+      await this.logVolunteerAction(taskId, userId, 'unassigned');
+
+      console.log('✅ [UNASSIGN] Désassignation réussie');
+      return { 
+        success: true,
+        message: 'Vous vous êtes désassigné de cette tâche' 
+      };
+
     } catch (error) {
-      console.error('Erreur toggle volontariat:', error);
-    } finally {
-      setVolunteering(false);
+      console.error('❌ [UNASSIGN] Erreur désassignation:', error);
+      throw error;
     }
-  };
+  }
 
-  return {
-    isAssigned,
-    volunteering,
-    loading,
-    toggleVolunteer,
-    canVolunteer: !!user?.uid && !!taskId
-  };
-};
+  /**
+   * 📊 VÉRIFIER LE STATUT D'ASSIGNATION
+   */
+  async checkAssignmentStatus(taskId, userId) {
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        return { assigned: false, volunteered: false };
+      }
 
-// 🎯 BOUTON VOLONTAIRE RÉUTILISABLE
-export const VolunteerButton = ({ taskId, className = '', size = 'sm' }) => {
-  const { isAssigned, volunteering, toggleVolunteer, canVolunteer } = useTaskVolunteer(taskId);
+      const taskData = taskDoc.data();
+      
+      return {
+        assigned: taskData.assignedTo && taskData.assignedTo.includes(userId),
+        volunteered: taskData.volunteers && taskData.volunteers.includes(userId),
+        isCreator: taskData.createdBy === userId
+      };
 
-  const sizeClasses = {
-    xs: 'px-2 py-1 text-xs',
-    sm: 'px-3 py-1 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg'
-  };
+    } catch (error) {
+      console.error('❌ [STATUS] Erreur vérification statut:', error);
+      return { assigned: false, volunteered: false };
+    }
+  }
 
-  return (
-    <button
-      onClick={toggleVolunteer}
-      disabled={!canVolunteer || volunteering}
-      className={`
-        ${sizeClasses[size]}
-        rounded border transition-colors disabled:opacity-50
-        ${isAssigned
-          ? 'border-red-600 text-red-400 hover:bg-red-900/20'
-          : 'border-green-600 text-green-400 hover:bg-green-900/20'
+  /**
+   * 📋 OBTENIR LES TÂCHES DISPONIBLES POUR VOLONTARIAT
+   */
+  async getAvailableTasks(userId) {
+    try {
+      console.log('📋 [AVAILABLE] Recherche tâches disponibles pour:', userId);
+
+      const tasksRef = collection(db, 'tasks');
+      const q = query(
+        tasksRef,
+        where('status', '==', 'open'),
+        orderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      const availableTasks = [];
+
+      snapshot.forEach(doc => {
+        const taskData = doc.data();
+        const task = { id: doc.id, ...taskData };
+
+        // Filtrer les tâches où l'utilisateur peut se porter volontaire
+        const isNotAssigned = !taskData.assignedTo || !taskData.assignedTo.includes(userId);
+        const isNotCreator = taskData.createdBy !== userId;
+        const isNotVolunteer = !taskData.volunteers || !taskData.volunteers.includes(userId);
+
+        if (isNotAssigned && isNotCreator && isNotVolunteer) {
+          availableTasks.push(task);
         }
-        ${className}
-      `}
-    >
-      {volunteering ? (
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-          Traitement...
-        </div>
-      ) : isAssigned ? (
-        'Se désassigner'
-      ) : (
-        'Se porter volontaire'
-      )}
-    </button>
-  );
-};
+      });
 
-export default TaskCardWithVolunteer;
+      console.log(`📋 [AVAILABLE] ${availableTasks.length} tâches disponibles trouvées`);
+      return availableTasks;
+
+    } catch (error) {
+      console.error('❌ [AVAILABLE] Erreur récupération tâches disponibles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📋 OBTENIR LES TÂCHES ASSIGNÉES À UN UTILISATEUR
+   */
+  async getMyAssignedTasks(userId) {
+    try {
+      console.log('📋 [MY-TASKS] Recherche tâches assignées pour:', userId);
+
+      const tasksRef = collection(db, 'tasks');
+      const q = query(
+        tasksRef,
+        where('assignedTo', 'array-contains', userId),
+        orderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      const myTasks = [];
+
+      snapshot.forEach(doc => {
+        const taskData = doc.data();
+        myTasks.push({ id: doc.id, ...taskData });
+      });
+
+      console.log(`📋 [MY-TASKS] ${myTasks.length} tâches assignées trouvées`);
+      return myTasks;
+
+    } catch (error) {
+      console.error('❌ [MY-TASKS] Erreur récupération tâches assignées:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📊 OBTENIR LES STATISTIQUES DE VOLONTARIAT
+   */
+  async getVolunteerStats(userId) {
+    try {
+      console.log('📊 [STATS] Calcul statistiques volontariat pour:', userId);
+
+      const tasksRef = collection(db, 'tasks');
+      const snapshot = await getDocs(tasksRef);
+      
+      let stats = {
+        totalVolunteered: 0,
+        tasksCompleted: 0,
+        tasksInProgress: 0,
+        successRate: 0
+      };
+
+      snapshot.forEach(doc => {
+        const taskData = doc.data();
+        
+        // Compter les candidatures
+        if (taskData.volunteers && taskData.volunteers.includes(userId)) {
+          stats.totalVolunteered++;
+        }
+        
+        // Compter les tâches assignées
+        if (taskData.assignedTo && taskData.assignedTo.includes(userId)) {
+          if (taskData.status === 'completed') {
+            stats.tasksCompleted++;
+          } else if (taskData.status === 'in_progress') {
+            stats.tasksInProgress++;
+          }
+        }
+      });
+
+      // Calculer le taux de réussite
+      const totalAssigned = stats.tasksCompleted + stats.tasksInProgress;
+      stats.successRate = totalAssigned > 0 ? 
+        Math.round((stats.tasksCompleted / totalAssigned) * 100) : 0;
+
+      console.log('📊 [STATS] Statistiques calculées:', stats);
+      return stats;
+
+    } catch (error) {
+      console.error('❌ [STATS] Erreur calcul statistiques:', error);
+      return {
+        totalVolunteered: 0,
+        tasksCompleted: 0,
+        tasksInProgress: 0,
+        successRate: 0
+      };
+    }
+  }
+
+  /**
+   * 📝 ENREGISTRER UNE ACTION DE VOLONTARIAT
+   */
+  async logVolunteerAction(taskId, userId, action) {
+    try {
+      const logEntry = {
+        taskId,
+        userId,
+        action, // 'applied', 'approved', 'rejected', 'unassigned'
+        timestamp: serverTimestamp(),
+        metadata: {
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      const logsRef = collection(db, 'volunteer_logs');
+      await addDoc(logsRef, logEntry);
+
+      console.log(`📝 [LOG] Action de volontariat enregistrée: ${action}`);
+
+    } catch (error) {
+      console.error('❌ [LOG] Erreur enregistrement log:', error);
+      // Ne pas faire échouer l'action principale si le log échoue
+    }
+  }
+
+  /**
+   * ✅ APPROUVER UN VOLONTAIRE (pour les créateurs de tâches)
+   */
+  async approveVolunteer(taskId, volunteerId, approverId) {
+    try {
+      console.log('✅ [APPROVE] Approbation volontaire:', { taskId, volunteerId, approverId });
+
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+
+      const taskData = taskDoc.data();
+      
+      // Vérifier les permissions
+      if (taskData.createdBy !== approverId) {
+        throw new Error('Seul le créateur de la tâche peut approuver les volontaires');
+      }
+
+      // Assigner la tâche au volontaire
+      const currentAssigned = taskData.assignedTo || [];
+      const updatedVolunteers = (taskData.volunteers || []).filter(id => id !== volunteerId);
+      const updatedApplications = (taskData.volunteerApplications || []).filter(app => app.userId !== volunteerId);
+
+      await updateDoc(taskRef, {
+        assignedTo: arrayUnion(volunteerId),
+        volunteers: updatedVolunteers,
+        volunteerApplications: updatedApplications,
+        status: 'in_progress',
+        updatedAt: serverTimestamp()
+      });
+
+      // Enregistrer dans l'historique
+      await this.logVolunteerAction(taskId, volunteerId, 'approved');
+
+      console.log('✅ [APPROVE] Volontaire approuvé et assigné');
+      return { 
+        success: true,
+        message: 'Volontaire approuvé et assigné à la tâche'
+      };
+
+    } catch (error) {
+      console.error('❌ [APPROVE] Erreur approbation volontaire:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ❌ REJETER UN VOLONTAIRE
+   */
+  async rejectVolunteer(taskId, volunteerId, rejectorId) {
+    try {
+      console.log('❌ [REJECT] Rejet volontaire:', { taskId, volunteerId, rejectorId });
+
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+
+      const taskData = taskDoc.data();
+      
+      // Vérifier les permissions
+      if (taskData.createdBy !== rejectorId) {
+        throw new Error('Seul le créateur de la tâche peut rejeter les volontaires');
+      }
+
+      // Retirer le volontaire
+      const updatedVolunteers = (taskData.volunteers || []).filter(id => id !== volunteerId);
+      const updatedApplications = (taskData.volunteerApplications || []).filter(app => app.userId !== volunteerId);
+
+      await updateDoc(taskRef, {
+        volunteers: updatedVolunteers,
+        volunteerApplications: updatedApplications,
+        updatedAt: serverTimestamp()
+      });
+
+      // Enregistrer dans l'historique
+      await this.logVolunteerAction(taskId, volunteerId, 'rejected');
+
+      console.log('✅ [REJECT] Volontaire rejeté');
+      return { 
+        success: true,
+        message: 'Candidature rejetée'
+      };
+
+    } catch (error) {
+      console.error('❌ [REJECT] Erreur rejet volontaire:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 OBTENIR LES CANDIDATURES POUR UNE TÂCHE
+   */
+  async getTaskApplications(taskId) {
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        return [];
+      }
+
+      const taskData = taskDoc.data();
+      return taskData.volunteerApplications || [];
+
+    } catch (error) {
+      console.error('❌ [APPLICATIONS] Erreur récupération candidatures:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📊 OBTENIR L'HISTORIQUE DES ACTIONS DE VOLONTARIAT
+   */
+  async getVolunteerHistory(userId, limit = 20) {
+    try {
+      const logsRef = collection(db, 'volunteer_logs');
+      const q = query(
+        logsRef,
+        where('userId', '==', userId),
+        orderBy('timestamp', 'desc'),
+        limit(limit)
+      );
+
+      const snapshot = await getDocs(q);
+      const history = [];
+
+      snapshot.forEach(doc => {
+        history.push({ id: doc.id, ...doc.data() });
+      });
+
+      return history;
+
+    } catch (error) {
+      console.error('❌ [HISTORY] Erreur récupération historique:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 🔍 RECHERCHER DES TÂCHES PAR CRITÈRES
+   */
+  async searchTasksForVolunteering(searchCriteria, userId) {
+    try {
+      console.log('🔍 [SEARCH] Recherche tâches avec critères:', searchCriteria);
+
+      const tasksRef = collection(db, 'tasks');
+      let q = query(tasksRef, where('status', '==', 'open'));
+
+      // Appliquer les filtres supplémentaires si fournis
+      if (searchCriteria.category) {
+        q = query(q, where('category', '==', searchCriteria.category));
+      }
+
+      if (searchCriteria.priority) {
+        q = query(q, where('priority', '==', searchCriteria.priority));
+      }
+
+      const snapshot = await getDocs(q);
+      const matchingTasks = [];
+
+      snapshot.forEach(doc => {
+        const taskData = doc.data();
+        const task = { id: doc.id, ...taskData };
+
+        // Vérifier que l'utilisateur peut se porter volontaire
+        const canVolunteer = this.canUserVolunteerForTask(task, userId);
+        
+        if (canVolunteer) {
+          // Filtrer par texte si spécifié
+          if (searchCriteria.text) {
+            const searchText = searchCriteria.text.toLowerCase();
+            const titleMatch = task.title?.toLowerCase().includes(searchText);
+            const descMatch = task.description?.toLowerCase().includes(searchText);
+            
+            if (titleMatch || descMatch) {
+              matchingTasks.push(task);
+            }
+          } else {
+            matchingTasks.push(task);
+          }
+        }
+      });
+
+      console.log(`🔍 [SEARCH] ${matchingTasks.length} tâches trouvées`);
+      return matchingTasks;
+
+    } catch (error) {
+      console.error('❌ [SEARCH] Erreur recherche tâches:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 🔍 VÉRIFIER SI UN UTILISATEUR PEUT SE PORTER VOLONTAIRE
+   */
+  canUserVolunteerForTask(task, userId) {
+    if (!task || !userId) return false;
+
+    // Ne peut pas se porter volontaire pour ses propres tâches
+    if (task.createdBy === userId) return false;
+
+    // Ne peut pas se porter volontaire si déjà assigné
+    if (task.assignedTo && task.assignedTo.includes(userId)) return false;
+
+    // Ne peut pas se porter volontaire si déjà candidat
+    if (task.volunteers && task.volunteers.includes(userId)) return false;
+
+    // La tâche doit être ouverte
+    if (task.status !== 'open') return false;
+
+    return true;
+  }
+
+  /**
+   * 📊 OBTENIR LES STATISTIQUES GLOBALES DE VOLONTARIAT
+   */
+  async getGlobalVolunteerStats() {
+    try {
+      const tasksRef = collection(db, 'tasks');
+      const snapshot = await getDocs(tasksRef);
+      
+      let stats = {
+        totalTasks: 0,
+        openTasks: 0,
+        tasksWithVolunteers: 0,
+        totalVolunteers: 0,
+        avgVolunteersPerTask: 0
+      };
+
+      let totalVolunteerCount = 0;
+
+      snapshot.forEach(doc => {
+        const taskData = doc.data();
+        stats.totalTasks++;
+        
+        if (taskData.status === 'open') {
+          stats.openTasks++;
+        }
+        
+        if (taskData.volunteers && taskData.volunteers.length > 0) {
+          stats.tasksWithVolunteers++;
+          totalVolunteerCount += taskData.volunteers.length;
+        }
+      });
+
+      stats.totalVolunteers = totalVolunteerCount;
+      stats.avgVolunteersPerTask = stats.tasksWithVolunteers > 0 ? 
+        Math.round(totalVolunteerCount / stats.tasksWithVolunteers * 100) / 100 : 0;
+
+      return stats;
+
+    } catch (error) {
+      console.error('❌ [GLOBAL-STATS] Erreur calcul statistiques globales:', error);
+      return {
+        totalTasks: 0,
+        openTasks: 0,
+        tasksWithVolunteers: 0,
+        totalVolunteers: 0,
+        avgVolunteersPerTask: 0
+      };
+    }
+  }
+
+  /**
+   * 📝 ENREGISTRER UNE ACTION DE VOLONTARIAT
+   */
+  async logVolunteerAction(taskId, userId, action) {
+    try {
+      const logEntry = {
+        taskId,
+        userId,
+        action, // 'applied', 'approved', 'rejected', 'unassigned'
+        timestamp: serverTimestamp(),
+        metadata: {
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      const logsRef = collection(db, 'volunteer_logs');
+      await addDoc(logsRef, logEntry);
+
+      console.log(`📝 [LOG] Action de volontariat enregistrée: ${action}`);
+
+    } catch (error) {
+      console.error('❌ [LOG] Erreur enregistrement log:', error);
+      // Ne pas faire échouer l'action principale si le log échoue
+    }
+  }
+
+  /**
+   * 🧹 NETTOYER LES CANDIDATURES EXPIRÉES
+   */
+  async cleanupExpiredApplications(daysOld = 30) {
+    try {
+      console.log('🧹 [CLEANUP] Nettoyage candidatures expirées...');
+
+      const tasksRef = collection(db, 'tasks');
+      const snapshot = await getDocs(tasksRef);
+      
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+      let cleanedCount = 0;
+
+      for (const docSnap of snapshot.docs) {
+        const taskData = docSnap.data();
+        
+        if (taskData.volunteerApplications && taskData.volunteerApplications.length > 0) {
+          const validApplications = taskData.volunteerApplications.filter(app => {
+            if (!app.appliedAt) return true; // Garder les apps sans date
+            
+            const appDate = app.appliedAt.toDate ? app.appliedAt.toDate() : new Date(app.appliedAt);
+            return appDate > cutoffDate;
+          });
+
+          if (validApplications.length !== taskData.volunteerApplications.length) {
+            await updateDoc(doc(db, 'tasks', docSnap.id), {
+              volunteerApplications: validApplications,
+              updatedAt: serverTimestamp()
+            });
+            
+            cleanedCount++;
+          }
+        }
+      }
+
+      console.log(`🧹 [CLEANUP] ${cleanedCount} tâches nettoyées`);
+      return { cleanedTasks: cleanedCount };
+
+    } catch (error) {
+      console.error('❌ [CLEANUP] Erreur nettoyage candidatures expirées:', error);
+      return { cleanedTasks: 0, error: error.message };
+    }
+  }
+}
+
+// Instance globale du service
+export const taskVolunteerService = new TaskVolunteerService();
+
+// Export par défaut
+export default taskVolunteerService;
