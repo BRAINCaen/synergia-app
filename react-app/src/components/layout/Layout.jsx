@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT SANS BARRE DE NAVIGATION DU HAUT
+// LAYOUT STANDARD AVEC MENU HAMBURGER SIMPLIFIÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -35,7 +35,7 @@ const Layout = ({ children }) => {
     }
   };
 
-  // 🧭 NAVIGATION STRUCTURE
+  // 🧭 NAVIGATION STRUCTURE SIMPLIFIÉE - SUPPRESSION USERS ET TIME-TRACK
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -50,18 +50,18 @@ const Layout = ({ children }) => {
       { path: '/rewards', label: 'Récompenses', icon: '🎁' }
     ]},
     { section: 'ÉQUIPE', items: [
-      { path: '/team', label: 'Équipe', icon: '👥' },
-      { path: '/users', label: 'Utilisateurs', icon: '👤' }
+      { path: '/team', label: 'Équipe', icon: '👥' }
+      // ❌ SUPPRIMÉ : { path: '/users', label: 'Utilisateurs', icon: '👤' }
     ]},
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '📚' },
-      { path: '/time-track', label: 'Pointeuse', icon: '⏰' },
+      // ❌ SUPPRIMÉ : { path: '/time-track', label: 'Pointeuse', icon: '⏰' },
       { path: '/profile', label: 'Mon Profil', icon: '👨‍💼' },
       { path: '/settings', label: 'Paramètres', icon: '⚙️' }
     ]}
   ];
 
-  // ✅ ADMIN ITEMS
+  // ✅ ADMIN ITEMS (inchangés)
   if (userIsAdmin) {
     menuItems.push({
       section: 'ADMINISTRATION',
@@ -199,7 +199,7 @@ const Layout = ({ children }) => {
       `;
 
       let navHTML = '';
-      menuItems.forEach((section, sectionIndex) => {
+      menuItems.forEach((section) => {
         const isAdminSection = section.section === 'ADMINISTRATION';
         navHTML += `
           <div style="margin-bottom: 30px;">
@@ -244,7 +244,7 @@ const Layout = ({ children }) => {
             ">
               <span style="font-size: 18px;">${item.icon}</span>
               <span style="flex: 1;">${item.label}</span>
-              ${isAdminSection ? '<span style="color: #fca5a5; font-size: 12px;">🛡️</span>' : ''}
+              ${isAdminSection ? '<span style="color: #fbbf24; font-size: 12px;">🛡️</span>' : ''}
             </a>
           `;
         });
@@ -254,46 +254,52 @@ const Layout = ({ children }) => {
           </div>
         `;
       });
+
       navigation.innerHTML = navHTML;
 
-      // Bouton de déconnexion
-      const logoutSection = document.createElement('div');
-      logoutSection.style.cssText = `
+      // Footer avec déconnexion
+      const footer = document.createElement('div');
+      footer.style.cssText = `
         padding: 20px !important;
         border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
         background: rgba(0, 0, 0, 0.2) !important;
       `;
-      logoutSection.innerHTML = `
+      footer.innerHTML = `
         <button id="logout-btn" style="
-          width: 100% !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 10px !important;
-          padding: 15px !important;
-          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 10px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          transition: all 0.2s !important;
-          font-size: 16px !important;
-        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 25px rgba(220, 38, 38, 0.3)'" 
-           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+          width: 100%;
+          padding: 15px;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          border: none;
+          color: white;
+          border-radius: 10px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 20px rgba(239, 68, 68, 0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
           <span style="font-size: 18px;">🚪</span>
-          <span>DÉCONNEXION</span>
+          <span>Se déconnecter</span>
         </button>
+        <div style="
+          text-align: center;
+          margin-top: 15px;
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 12px;
+        ">
+          Synergia v3.5.3 - Stable ✨
+        </div>
       `;
 
       // Assembler le menu
       menuContainer.appendChild(header);
       menuContainer.appendChild(userInfo);
       menuContainer.appendChild(navigation);
-      menuContainer.appendChild(logoutSection);
+      menuContainer.appendChild(footer);
       menuOverlay.appendChild(menuContainer);
-
-      // Ajouter au DOM
       document.body.appendChild(menuOverlay);
 
       // Animation d'entrée
@@ -301,11 +307,11 @@ const Layout = ({ children }) => {
         menuContainer.style.transform = 'translateX(0)';
       }, 10);
 
-      // Event listeners
+      // Gestion des événements
       const closeBtn = document.getElementById('close-menu-btn');
       const logoutBtn = document.getElementById('logout-btn');
       
-      closeBtn?.addEventListener('click', () => setMenuOpen(false));
+      closeBtn?.addEventListener('click', handleNavClick);
       logoutBtn?.addEventListener('click', handleLogout);
       
       // Fermeture sur overlay
@@ -345,8 +351,6 @@ const Layout = ({ children }) => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       
-      {/* SUPPRESSION COMPLÈTE DU HEADER - PLUS DE BARRE DU HAUT ! */}
-
       {/* BOUTON FLOTTANT POUR OUVRIR LE MENU */}
       <button
         onClick={() => setMenuOpen(true)}
