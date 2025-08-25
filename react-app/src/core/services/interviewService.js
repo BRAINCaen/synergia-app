@@ -1,10 +1,9 @@
 // ==========================================
 // 📁 react-app/src/core/services/interviewService.js
-// SERVICE ENTRETIENS AMÉLIORÉ AVEC GESTION D'ERREURS - v3.5
+// SERVICE ENTRETIENS COMPLET AVEC TOUS LES EXPORTS
 // ==========================================
 
 import { 
-  db,
   collection, 
   doc, 
   addDoc, 
@@ -18,7 +17,89 @@ import {
   limit,
   serverTimestamp,
   arrayUnion 
-} from '../firebase.js';
+} from 'firebase/firestore';
+import { db } from '../firebase.js';
+
+/**
+ * 📋 TYPES D'ENTRETIENS DISPONIBLES
+ */
+export const INTERVIEW_TYPES = {
+  initial: {
+    name: 'Entretien Initial',
+    description: 'Premier contact et définition des objectifs',
+    duration: 30,
+    color: 'blue'
+  },
+  weekly: {
+    name: 'Suivi Hebdomadaire',
+    description: 'Point régulier sur les progrès',
+    duration: 20,
+    color: 'green'
+  },
+  milestone: {
+    name: 'Validation Étape',
+    description: 'Validation de fin de phase',
+    duration: 45,
+    color: 'purple'
+  },
+  final: {
+    name: 'Entretien Final',
+    description: 'Validation complète de l\'intégration',
+    duration: 60,
+    color: 'orange'
+  },
+  support: {
+    name: 'Accompagnement',
+    description: 'Soutien en cas de difficultés',
+    duration: 30,
+    color: 'red'
+  }
+};
+
+/**
+ * 📝 TEMPLATES D'ENTRETIENS
+ */
+export const INTERVIEW_TEMPLATES = {
+  initial: {
+    title: 'Entretien d\'accueil',
+    objectives: [
+      'Présenter l\'équipe et l\'environnement',
+      'Définir les objectifs personnalisés',
+      'Planifier le parcours d\'intégration'
+    ],
+    questions: [
+      'Pouvez-vous vous présenter brièvement ?',
+      'Quelles sont vos attentes pour ce poste ?',
+      'Avez-vous des questions sur l\'équipe ou l\'organisation ?'
+    ]
+  },
+  weekly: {
+    title: 'Point hebdomadaire',
+    objectives: [
+      'Évaluer les progrès de la semaine',
+      'Identifier les difficultés rencontrées',
+      'Planifier les objectifs suivants'
+    ],
+    questions: [
+      'Comment s\'est passée votre semaine ?',
+      'Quels objectifs avez-vous atteints ?',
+      'Rencontrez-vous des difficultés particulières ?'
+    ]
+  },
+  milestone: {
+    title: 'Validation d\'étape',
+    objectives: [
+      'Valider l\'acquisition des compétences',
+      'Évaluer l\'adaptation au poste',
+      'Préparer la phase suivante'
+    ],
+    questions: [
+      'Vous sentez-vous à l\'aise avec vos missions actuelles ?',
+      'Quelles compétences avez-vous développées ?',
+      'Êtes-vous prêt(e) pour plus de responsabilités ?'
+    ]
+  }
+};
 
 /**
  * 🎯 CONFIGURATION DES ENTRETIENS
@@ -139,125 +220,17 @@ export class InterviewService {
         interview
       );
 
-      // Ajouter à l'historique
-      await this.addToHistory({
-        interviewId: docRef.id,
-        action: 'scheduled',
-        performedBy: interviewData.createdBy,
-        metadata: {
-          templateId: interviewData.templateId,
-          scheduledDate: interviewData.scheduledDate
-        }
-      });
+      // Ajouter l'ID au document
+      await updateDoc(docRef, { id: docRef.id });
 
       console.log('✅ Entretien programmé:', docRef.id);
       return { 
         success: true, 
-        interviewId: docRef.id, 
-        data: { id: docRef.id, ...interview }
+        interviewId: docRef.id,
+        data: { ...interview, id: docRef.id }
       };
       
-    }, { success: false, error: 'Erreur programmation entretien' });
-  }
-
-  /**
-   * 📖 OBTENIR LES ENTRETIENS D'UN UTILISATEUR
-   */
-  static async getUserInterviews(userId, filters = {}) {
-    return safeExecute(async () => {
-      console.log('📖 Chargement entretiens utilisateur:', userId);
-      
-      if (!userId) {
-        throw new Error('ID utilisateur requis');
-      }
-
-      let q = query(
-        collection(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS),
-        where('createdBy', '==', userId)
-      );
-
-      // Filtres optionnels
-      if (filters.status) {
-        q = query(q, where('status', '==', filters.status));
-      }
-      
-      if (filters.category) {
-        q = query(q, where('category', '==', filters.category));
-      }
-
-      // Tri par date de création (plus récent en premier)
-      q = query(q, orderBy('createdAt', 'desc'));
-
-      // Limite optionnelle
-      if (filters.limit) {
-        q = query(q, limit(filters.limit));
-      }
-
-      const querySnapshot = await getDocs(q);
-      const interviews = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        interviews.push({
-          id: doc.id,
-          ...data,
-          // Conversion des timestamps Firestore
-          createdAt: data.createdAt?.toDate?.() || data.createdAt,
-          updatedAt: data.updatedAt?.toDate?.() || data.updatedAt,
-          completedAt: data.completedAt?.toDate?.() || data.completedAt
-        });
-      });
-
-      console.log(`✅ ${interviews.length} entretiens chargés`);
-      return { success: true, data: interviews };
-      
-    }, { success: false, data: [] });
-  }
-
-  /**
-   * 🎯 COMMENCER UN ENTRETIEN
-   */
-  static async startInterview(interviewId, conductorId) {
-    return safeExecute(async () => {
-      console.log('🎯 Démarrage entretien:', interviewId);
-      
-      if (!interviewId || !conductorId) {
-        throw new Error('ID entretien et conducteur requis');
-      }
-
-      const interviewRef = doc(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS, interviewId);
-      const interviewDoc = await getDoc(interviewRef);
-      
-      if (!interviewDoc.exists()) {
-        throw new Error('Entretien introuvable');
-      }
-
-      const interview = interviewDoc.data();
-      
-      if (interview.status !== INTERVIEW_CONFIG.STATUS.PLANNED) {
-        throw new Error(`Entretien déjà ${interview.status}`);
-      }
-
-      const updates = {
-        status: INTERVIEW_CONFIG.STATUS.IN_PROGRESS,
-        startedAt: serverTimestamp(),
-        startedBy: conductorId,
-        updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(interviewRef, updates);
-
-      // Historique
-      await this.addToHistory({
-        interviewId,
-        action: 'started',
-        performedBy: conductorId
-      });
-
-      console.log('✅ Entretien démarré');
-      return { success: true };
-      
-    }, { success: false, error: 'Erreur démarrage entretien' });
+    }, { success: false, interviewId: null });
   }
 
   /**
@@ -267,8 +240,6 @@ export class InterviewService {
     return safeExecute(async () => {
       console.log('✅ Finalisation entretien:', interviewId);
       
-      validateInput(completionData, ['evaluation', 'completedBy']);
-
       const interviewRef = doc(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS, interviewId);
       const interviewDoc = await getDoc(interviewRef);
       
@@ -276,97 +247,90 @@ export class InterviewService {
         throw new Error('Entretien introuvable');
       }
 
-      const updates = {
+      const updateData = {
         // Résultats
         responses: completionData.responses || {},
-        conductorNotes: completionData.notes || '',
-        evaluation: completionData.evaluation,
+        evaluations: completionData.evaluations || {},
+        globalAssessment: completionData.globalAssessment || '',
+        referentNotes: completionData.referentNotes || '',
         nextSteps: completionData.nextSteps || [],
-        followUpDate: completionData.followUpDate || null,
+        actionPlan: completionData.actionPlan || [],
+        
+        // Validation
+        validated: completionData.validated || false,
+        validationComments: completionData.validationComments || '',
+        validatedBy: completionData.validatedBy,
+        validatedAt: completionData.validated ? serverTimestamp() : null,
         
         // Statut
         status: INTERVIEW_CONFIG.STATUS.COMPLETED,
         completed: true,
         completedAt: serverTimestamp(),
-        completedBy: completionData.completedBy,
-        
-        // Mise à jour
         updatedAt: serverTimestamp()
       };
 
-      await updateDoc(interviewRef, updates);
+      await updateDoc(interviewRef, updateData);
 
-      // Historique détaillé
-      await this.addToHistory({
-        interviewId,
-        action: 'completed',
-        performedBy: completionData.completedBy,
-        metadata: {
-          evaluation: completionData.evaluation,
-          nextStepsCount: completionData.nextSteps?.length || 0
-        }
+      // Archiver dans l'historique
+      await addDoc(collection(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEW_HISTORY), {
+        originalInterviewId: interviewId,
+        ...interviewDoc.data(),
+        ...updateData,
+        archivedAt: serverTimestamp()
       });
 
-      // Créer les notifications de suivi si nécessaire
-      if (completionData.followUpDate) {
-        await this.createFollowUpNotification(interviewId, completionData.followUpDate);
-      }
-
-      console.log('✅ Entretien finalisé');
-      return { success: true };
+      console.log('✅ Entretien finalisé et archivé');
+      return { 
+        success: true, 
+        data: updateData 
+      };
       
-    }, { success: false, error: 'Erreur finalisation entretien' });
+    }, { success: false });
   }
 
   /**
-   * ❌ ANNULER UN ENTRETIEN
+   * 📋 OBTENIR LES ENTRETIENS D'UN UTILISATEUR
    */
-  static async cancelInterview(interviewId, cancelData) {
+  static async getUserInterviews(userId, filters = {}) {
     return safeExecute(async () => {
-      console.log('❌ Annulation entretien:', interviewId);
+      console.log('📋 Récupération entretiens utilisateur:', userId);
       
-      validateInput(cancelData, ['cancelledBy', 'reason']);
+      const interviewsRef = collection(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS);
+      let q = query(
+        interviewsRef,
+        where('createdBy', '==', userId),
+        orderBy('scheduledDate', 'desc')
+      );
 
-      const interviewRef = doc(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS, interviewId);
-      const interviewDoc = await getDoc(interviewRef);
-      
-      if (!interviewDoc.exists()) {
-        throw new Error('Entretien introuvable');
+      // Appliquer les filtres
+      if (filters.status) {
+        q = query(q, where('status', '==', filters.status));
       }
 
-      const updates = {
-        status: INTERVIEW_CONFIG.STATUS.CANCELLED,
-        cancelledAt: serverTimestamp(),
-        cancelledBy: cancelData.cancelledBy,
-        cancelReason: cancelData.reason,
-        updatedAt: serverTimestamp()
-      };
+      if (filters.limit) {
+        q = query(q, limit(filters.limit));
+      }
 
-      await updateDoc(interviewRef, updates);
+      const snapshot = await getDocs(q);
+      const interviews = [];
 
-      // Historique
-      await this.addToHistory({
-        interviewId,
-        action: 'cancelled',
-        performedBy: cancelData.cancelledBy,
-        metadata: { reason: cancelData.reason }
+      snapshot.forEach(doc => {
+        interviews.push({ id: doc.id, ...doc.data() });
       });
 
-      console.log('✅ Entretien annulé');
-      return { success: true };
+      console.log(`📊 ${interviews.length} entretiens récupérés`);
+      return { success: true, data: interviews };
       
-    }, { success: false, error: 'Erreur annulation entretien' });
+    }, { success: false, data: [] });
   }
 
   /**
    * 🔄 REPROGRAMMER UN ENTRETIEN
    */
-  static async rescheduleInterview(interviewId, rescheduleData) {
+  static async rescheduleInterview(interviewId, newDate, reason = '') {
     return safeExecute(async () => {
       console.log('🔄 Reprogrammation entretien:', interviewId);
       
-      validateInput(rescheduleData, ['newDate', 'newTime', 'rescheduledBy']);
-
       const interviewRef = doc(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS, interviewId);
       const interviewDoc = await getDoc(interviewRef);
       
@@ -374,222 +338,90 @@ export class InterviewService {
         throw new Error('Entretien introuvable');
       }
 
-      const interview = interviewDoc.data();
-      
-      const updates = {
-        // Nouvelle planification
-        scheduledDate: `${rescheduleData.newDate}T${rescheduleData.newTime}:00`,
-        date: rescheduleData.newDate,
-        time: rescheduleData.newTime,
-        
-        // Historique de la reprogrammation
-        previousSchedule: {
-          date: interview.date,
-          time: interview.time,
-          rescheduledAt: serverTimestamp(),
-          rescheduledBy: rescheduleData.rescheduledBy,
-          reason: rescheduleData.reason || 'Non spécifié'
-        },
-        
-        // Statut remis à planifié si était en cours
+      const originalData = interviewDoc.data();
+
+      await updateDoc(interviewRef, {
+        scheduledDate: newDate,
         status: INTERVIEW_CONFIG.STATUS.PLANNED,
-        
-        // Mise à jour
+        rescheduledFrom: originalData.scheduledDate,
+        rescheduleReason: reason,
+        rescheduleCount: (originalData.rescheduleCount || 0) + 1,
         updatedAt: serverTimestamp()
-      };
-
-      await updateDoc(interviewRef, updates);
-
-      // Historique
-      await this.addToHistory({
-        interviewId,
-        action: 'rescheduled',
-        performedBy: rescheduleData.rescheduledBy,
-        metadata: {
-          oldDate: `${interview.date} ${interview.time}`,
-          newDate: `${rescheduleData.newDate} ${rescheduleData.newTime}`,
-          reason: rescheduleData.reason
-        }
       });
 
       console.log('✅ Entretien reprogrammé');
       return { success: true };
       
-    }, { success: false, error: 'Erreur reprogrammation entretien' });
+    }, { success: false });
   }
 
   /**
-   * 🗑️ SUPPRIMER UN ENTRETIEN
+   * ❌ ANNULER UN ENTRETIEN
    */
-  static async deleteInterview(interviewId, deletedBy) {
+  static async cancelInterview(interviewId, reason = '') {
     return safeExecute(async () => {
-      console.log('🗑️ Suppression entretien:', interviewId);
+      console.log('❌ Annulation entretien:', interviewId);
       
-      if (!interviewId || !deletedBy) {
-        throw new Error('ID entretien et utilisateur requis');
-      }
-
       const interviewRef = doc(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS, interviewId);
-      const interviewDoc = await getDoc(interviewRef);
       
-      if (!interviewDoc.exists()) {
-        throw new Error('Entretien introuvable');
-      }
-
-      // Sauvegarder l'entretien dans l'historique avant suppression
-      const interview = interviewDoc.data();
-      await this.addToHistory({
-        interviewId,
-        action: 'deleted',
-        performedBy: deletedBy,
-        metadata: {
-          interviewData: {
-            title: interview.title,
-            templateName: interview.templateName,
-            scheduledDate: interview.scheduledDate,
-            status: interview.status
-          }
-        }
+      await updateDoc(interviewRef, {
+        status: INTERVIEW_CONFIG.STATUS.CANCELLED,
+        cancelReason: reason,
+        cancelledAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
 
-      await deleteDoc(interviewRef);
-
-      console.log('✅ Entretien supprimé');
+      console.log('✅ Entretien annulé');
       return { success: true };
       
-    }, { success: false, error: 'Erreur suppression entretien' });
+    }, { success: false });
   }
 
   /**
    * 📊 OBTENIR LES STATISTIQUES D'ENTRETIENS
    */
-  static async getInterviewStats(userId, period = '30days') {
+  static async getInterviewStats(userId) {
     return safeExecute(async () => {
-      console.log('📊 Calcul statistiques entretiens:', userId);
+      console.log('📊 Calcul statistiques entretiens...');
       
-      if (!userId) {
-        throw new Error('ID utilisateur requis');
-      }
+      const interviewsRef = collection(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS);
+      const q = query(interviewsRef, where('createdBy', '==', userId));
+      const snapshot = await getDocs(q);
 
-      // Calculer la date de début selon la période
-      const now = new Date();
-      const startDate = new Date();
-      
-      switch (period) {
-        case '7days':
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case '30days':
-          startDate.setDate(now.getDate() - 30);
-          break;
-        case '90days':
-          startDate.setDate(now.getDate() - 90);
-          break;
-        default:
-          startDate.setDate(now.getDate() - 30);
-      }
+      const stats = {
+        total: 0,
+        planned: 0,
+        completed: 0,
+        cancelled: 0,
+        byType: {}
+      };
 
-      // Récupérer tous les entretiens de l'utilisateur
-      const result = await this.getUserInterviews(userId);
-      if (!result.success) {
-        throw new Error('Erreur récupération entretiens');
-      }
-
-      const interviews = result.data;
-      
-      // Filtrer par période
-      const periodInterviews = interviews.filter(interview => {
-        const interviewDate = new Date(interview.createdAt);
-        return interviewDate >= startDate;
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        stats.total++;
+        
+        // Compter par statut
+        switch (data.status) {
+          case INTERVIEW_CONFIG.STATUS.PLANNED:
+            stats.planned++;
+            break;
+          case INTERVIEW_CONFIG.STATUS.COMPLETED:
+            stats.completed++;
+            break;
+          case INTERVIEW_CONFIG.STATUS.CANCELLED:
+            stats.cancelled++;
+            break;
+        }
+        
+        // Compter par type
+        const type = data.templateId || 'unknown';
+        stats.byType[type] = (stats.byType[type] || 0) + 1;
       });
 
-      // Calculer les statistiques
-      const stats = {
-        period,
-        total: periodInterviews.length,
-        
-        // Par statut
-        planned: periodInterviews.filter(i => i.status === INTERVIEW_CONFIG.STATUS.PLANNED).length,
-        completed: periodInterviews.filter(i => i.status === INTERVIEW_CONFIG.STATUS.COMPLETED).length,
-        cancelled: periodInterviews.filter(i => i.status === INTERVIEW_CONFIG.STATUS.CANCELLED).length,
-        
-        // Par catégorie
-        integration: periodInterviews.filter(i => i.category === 'integration').length,
-        gamemaster: periodInterviews.filter(i => i.category === 'gamemaster').length,
-        
-        // Par évaluation (pour les entretiens terminés)
-        evaluations: {
-          excellent: periodInterviews.filter(i => i.evaluation === INTERVIEW_CONFIG.EVALUATIONS.EXCELLENT).length,
-          good: periodInterviews.filter(i => i.evaluation === INTERVIEW_CONFIG.EVALUATIONS.GOOD).length,
-          satisfactory: periodInterviews.filter(i => i.evaluation === INTERVIEW_CONFIG.EVALUATIONS.SATISFACTORY).length,
-          needs_improvement: periodInterviews.filter(i => i.evaluation === INTERVIEW_CONFIG.EVALUATIONS.NEEDS_IMPROVEMENT).length,
-          unsatisfactory: periodInterviews.filter(i => i.evaluation === INTERVIEW_CONFIG.EVALUATIONS.UNSATISFACTORY).length
-        },
-        
-        // Tendances
-        completionRate: periodInterviews.length > 0 ? 
-          Math.round((periodInterviews.filter(i => i.status === INTERVIEW_CONFIG.STATUS.COMPLETED).length / periodInterviews.length) * 100) : 0,
-        
-        averageDuration: periodInterviews.length > 0 ?
-          Math.round(periodInterviews.reduce((sum, i) => sum + (i.duration || 30), 0) / periodInterviews.length) : 0,
-        
-        // Prochains entretiens
-        upcoming: interviews.filter(i => {
-          if (i.status !== INTERVIEW_CONFIG.STATUS.PLANNED) return false;
-          const interviewDate = new Date(`${i.date}T${i.time}`);
-          return interviewDate >= now;
-        }).slice(0, 5)
-      };
-
-      console.log('✅ Statistiques calculées');
+      console.log('📊 Statistiques calculées:', stats);
       return { success: true, data: stats };
       
-    }, { success: false, data: null });
-  }
-
-  /**
-   * 📝 AJOUTER À L'HISTORIQUE
-   */
-  static async addToHistory(historyData) {
-    return safeExecute(async () => {
-      const historyEntry = {
-        interviewId: historyData.interviewId,
-        action: historyData.action,
-        performedBy: historyData.performedBy,
-        timestamp: serverTimestamp(),
-        metadata: historyData.metadata || {}
-      };
-
-      await addDoc(
-        collection(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEW_HISTORY), 
-        historyEntry
-      );
-
-      return { success: true };
-    }, { success: false });
-  }
-
-  /**
-   * 🔔 CRÉER UNE NOTIFICATION DE SUIVI
-   */
-  static async createFollowUpNotification(interviewId, followUpDate) {
-    return safeExecute(async () => {
-      const notification = {
-        type: 'interview_followup',
-        interviewId,
-        scheduledDate: followUpDate,
-        message: 'Suivi d\'entretien programmé',
-        status: 'pending',
-        createdAt: serverTimestamp()
-      };
-
-      await addDoc(
-        collection(db, INTERVIEW_CONFIG.COLLECTIONS.NOTIFICATIONS), 
-        notification
-      );
-
-      return { success: true };
-    }, { success: false });
+    }, { success: false, data: {} });
   }
 
   /**
@@ -659,6 +491,120 @@ export class InterviewService {
   }
 
   /**
+   * 📝 OBTENIR LES QUESTIONS PAR TYPE
+   */
+  static getQuestionsByType(type) {
+    const questions = {
+      initial: [
+        'Pouvez-vous vous présenter et nous parler de votre parcours ?',
+        'Quelles sont vos attentes concernant ce poste ?',
+        'Comment envisagez-vous votre intégration dans l\'équipe ?',
+        'Avez-vous des questions sur l\'organisation ou les processus ?'
+      ],
+      weekly: [
+        'Comment s\'est déroulée votre semaine ?',
+        'Quels objectifs avez-vous atteints ?',
+        'Quelles difficultés avez-vous rencontrées ?',
+        'De quoi avez-vous besoin pour la semaine prochaine ?'
+      ],
+      milestone: [
+        'Comment évaluez-vous votre progression depuis le dernier point ?',
+        'Quelles sont vos réussites principales ?',
+        'Sur quels points devez-vous encore progresser ?',
+        'Vous sentez-vous prêt(e) pour la phase suivante ?'
+      ],
+      final: [
+        'Comment jugez-vous votre intégration globale ?',
+        'Quelles compétences vous semblent les plus développées ?',
+        'Quels aspects aimeriez-vous encore améliorer ?',
+        'Avez-vous des suggestions pour améliorer le parcours ?'
+      ],
+      support: [
+        'Quelles sont les principales difficultés rencontrées ?',
+        'Quel type d\'accompagnement vous aiderait le plus ?',
+        'Comment pourrait-on adapter votre parcours ?',
+        'Vous sentez-vous soutenu(e) par l\'équipe ?'
+      ]
+    };
+    
+    return questions[type] || questions.initial;
+  }
+
+  /**
+   * 📋 OBTENIR LE TEMPLATE PAR TYPE
+   */
+  static getTemplateByType(type) {
+    const templates = {
+      initial: {
+        description: 'Premier contact et définition des objectifs',
+        duration: 30,
+        mandatory: true
+      },
+      weekly: {
+        description: 'Point régulier sur les progrès',
+        duration: 20,
+        recurring: true
+      },
+      milestone: {
+        description: 'Validation de fin de phase',
+        duration: 45,
+        mandatory: true
+      },
+      final: {
+        description: 'Validation complète de l\'intégration',
+        duration: 60,
+        mandatory: true
+      },
+      support: {
+        description: 'Accompagnement en cas de difficultés',
+        duration: 30,
+        onDemand: true
+      }
+    };
+    
+    return templates[type] || templates.initial;
+  }
+
+  /**
+   * 🔄 SYNCHRONISER LES ENTRETIENS TEMPORAIRES
+   */
+  static async syncTemporaryInterviews() {
+    try {
+      const storageKey = `synergia_interviews`;
+      const tempInterviews = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      
+      if (tempInterviews.length === 0) return { success: true, synced: 0 };
+      
+      let syncedCount = 0;
+      const remainingInterviews = [];
+      
+      for (const interview of tempInterviews) {
+        try {
+          await addDoc(collection(db, 'interviews'), interview);
+          syncedCount++;
+          console.log(`✅ [SYNC] Entretien ${interview.id} synchronisé`);
+        } catch (syncError) {
+          console.warn(`⚠️ [SYNC] Échec sync ${interview.id}:`, syncError.message);
+          remainingInterviews.push(interview);
+        }
+      }
+      
+      // Mettre à jour le localStorage
+      localStorage.setItem(storageKey, JSON.stringify(remainingInterviews));
+      
+      return { 
+        success: true, 
+        synced: syncedCount, 
+        remaining: remainingInterviews.length 
+      };
+      
+    } catch (error) {
+      console.error('❌ [SYNC] Erreur synchronisation:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 🔄 SYNCHRONISATION HORS LIGNE
    */
   static async syncOfflineInterviews() {
@@ -691,61 +637,63 @@ export class InterviewService {
       // Mettre à jour le localStorage avec les entretiens non synchronisés
       localStorage.setItem(storageKey, JSON.stringify(failedInterviews));
 
-      console.log(`✅ ${syncedCount} entretiens synchronisés, ${failedInterviews.length} en attente`);
+      console.log(`📊 Sync terminée: ${syncedCount} synchronisés, ${failedInterviews.length} échecs`);
       return { 
         success: true, 
         synced: syncedCount, 
-        pending: failedInterviews.length 
+        failed: failedInterviews.length 
       };
       
-    }, { success: false, synced: 0, pending: 0 });
+    }, { success: false, synced: 0, failed: 0 });
   }
 
   /**
-   * 💾 SAUVEGARDER EN HORS LIGNE
+   * 📊 OBTENIR TOUS LES ENTRETIENS (ADMIN)
    */
-  static saveInterviewOffline(interviewData) {
-    try {
-      const storageKey = 'synergia_offline_interviews';
-      const offlineInterviews = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  static async getAllInterviews(filters = {}) {
+    return safeExecute(async () => {
+      console.log('📊 Récupération de tous les entretiens...');
       
-      // Ajouter un ID temporaire et un timestamp
-      const offlineInterview = {
-        ...interviewData,
-        tempId: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        savedOfflineAt: new Date().toISOString()
-      };
+      const interviewsRef = collection(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS);
+      let q = query(interviewsRef, orderBy('scheduledDate', 'desc'));
+
+      if (filters.status) {
+        q = query(q, where('status', '==', filters.status));
+      }
+
+      if (filters.limit) {
+        q = query(q, limit(filters.limit));
+      }
+
+      const snapshot = await getDocs(q);
+      const interviews = [];
+
+      snapshot.forEach(doc => {
+        interviews.push({ id: doc.id, ...doc.data() });
+      });
+
+      console.log(`📊 ${interviews.length} entretiens récupérés (admin)`);
+      return { success: true, data: interviews };
       
-      offlineInterviews.push(offlineInterview);
-      localStorage.setItem(storageKey, JSON.stringify(offlineInterviews));
+    }, { success: false, data: [] });
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UN ENTRETIEN
+   */
+  static async deleteInterview(interviewId) {
+    return safeExecute(async () => {
+      console.log('🗑️ Suppression entretien:', interviewId);
       
-      console.log('💾 Entretien sauvegardé hors ligne');
-      return { success: true, tempId: offlineInterview.tempId };
+      const interviewRef = doc(db, INTERVIEW_CONFIG.COLLECTIONS.INTERVIEWS, interviewId);
+      await deleteDoc(interviewRef);
+
+      console.log('✅ Entretien supprimé');
+      return { success: true };
       
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde hors ligne:', error);
-      return { success: false, error: error.message };
-    }
+    }, { success: false });
   }
 }
 
-/**
- * 🎯 HOOKS ET UTILITAIRES POUR REACT
- */
-export const useInterviewService = () => {
-  const scheduleInterview = InterviewService.scheduleInterview;
-  const getUserInterviews = InterviewService.getUserInterviews;
-  const completeInterview = InterviewService.completeInterview;
-  const deleteInterview = InterviewService.deleteInterview;
-  const getStats = InterviewService.getInterviewStats;
-  
-  return {
-    scheduleInterview,
-    getUserInterviews,
-    completeInterview,
-    deleteInterview,
-    getStats
-  };
-};
-
+// Export par défaut
 export default InterviewService;
