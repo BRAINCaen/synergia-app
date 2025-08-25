@@ -10,9 +10,9 @@ import {
   Zap, Award, Filter, Search, CheckCircle, Clock, X, AlertCircle
 } from 'lucide-react';
 
-// Firebase
+// Firebase - IMPORT CORRIGÉ
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { db } from '../../firebase.config.js';
+import { db } from '../core/firebase.js';
 
 // Hooks et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -84,661 +84,539 @@ const RewardsPage = () => {
         id: 'light_shift', 
         name: 'Shift "super light"', 
         description: 'Une journée de travail allégée avec que les tâches fun !', 
-        cost: 180, 
-        category: 'Petits avantages', 
-        rarity: 'uncommon',
+        cost: 200, 
+        category: 'Gros avantages', 
+        rarity: 'rare',
         type: 'individual',
         icon: '🌟',
         estimatedDelivery: 'À planifier'
       },
       { 
-        id: 'action_voucher', 
-        name: 'Bon "action"', 
-        description: 'Participe à une activité équipe fun (escape game, karting...)', 
-        cost: 220, 
-        category: 'Plaisirs utiles', 
-        rarity: 'rare',
-        type: 'individual',
-        icon: '🎯',
-        estimatedDelivery: '1 semaine'
-      },
-      { 
-        id: 'breakfast_surprise', 
-        name: 'Petit-déj surprise', 
-        description: 'Petit-déjeuner de chef livré au bureau juste pour toi !', 
-        cost: 280, 
-        category: 'Plaisirs utiles', 
-        rarity: 'rare',
-        type: 'individual',
-        icon: '🥐',
-        estimatedDelivery: '1-2 jours'
-      },
-      { 
-        id: 'book_choice', 
-        name: 'Livre au choix', 
-        description: 'N\'importe quel livre (même expensive) offert par la team !', 
-        cost: 320, 
-        category: 'Plaisirs utiles', 
-        rarity: 'rare',
-        type: 'individual',
-        icon: '📚',
-        estimatedDelivery: '3-5 jours'
-      },
-      { 
-        id: 'pizza_lunch', 
-        name: 'Pizza du midi', 
-        description: 'Pizza artisanale livrée pour ton déjeuner personnel !', 
-        cost: 380, 
-        category: 'Plaisirs utiles', 
-        rarity: 'rare',
-        type: 'individual',
-        icon: '🍕',
-        estimatedDelivery: 'Jour même'
-      },
-      { 
-        id: 'restaurant_voucher', 
-        name: 'Bon d\'achat "restauration"', 
-        description: 'Carte cadeau 30€ pour le restaurant de ton choix !', 
-        cost: 450, 
-        category: 'Plaisirs food & cadeaux', 
+        id: 'workspace_personalization', 
+        name: 'Personnalisation workspace', 
+        description: 'Budget pour aménager ton espace de travail comme tu veux !', 
+        cost: 300, 
+        category: 'Gros avantages', 
         rarity: 'epic',
         type: 'individual',
-        icon: '🍽️',
-        estimatedDelivery: '1 jour'
-      },
-      { 
-        id: 'poke_bowl', 
-        name: 'Poke bowl/burger livré', 
-        description: 'Repas healthy ou comfort food livré direct à ton bureau !', 
-        cost: 520, 
-        category: 'Plaisirs food & cadeaux', 
-        rarity: 'epic',
-        type: 'individual',
-        icon: '🥗',
-        estimatedDelivery: 'Jour même'
-      },
-      { 
-        id: 'gift_voucher', 
-        name: 'Bon cadeau magasins', 
-        description: 'Carte cadeau 50€ dans les magasins partenaires !', 
-        cost: 600, 
-        category: 'Plaisirs food & cadeaux', 
-        rarity: 'epic',
-        type: 'individual',
-        icon: '🛍️',
-        estimatedDelivery: '1-2 jours'
-      },
-      { 
-        id: 'board_game', 
-        name: 'Jeu de société offert', 
-        description: 'Le jeu de société de ton choix offert par l\'équipe !', 
-        cost: 680, 
-        category: 'Plaisirs food & cadeaux', 
-        rarity: 'epic',
-        type: 'individual',
-        icon: '🎲',
-        estimatedDelivery: '3-7 jours'
-      },
-      { 
-        id: 'cinema_tickets', 
-        name: '2 places de cinéma', 
-        description: 'Deux entrées cinéma pour toi et un.e ami.e !', 
-        cost: 1100, 
-        category: 'Loisirs & sorties', 
-        rarity: 'legendary',
-        type: 'individual',
-        icon: '🎬',
-        estimatedDelivery: '1 jour'
-      },
-      { 
-        id: 'escape_game', 
-        name: 'Place d\'escape game', 
-        description: 'Une session d\'escape game avec l\'équipe ou tes amis !', 
-        cost: 1200, 
-        category: 'Loisirs & sorties', 
-        rarity: 'legendary',
-        type: 'individual',
-        icon: '🔓',
-        estimatedDelivery: 'À planifier'
-      },
-      { 
-        id: 'discovery_activity', 
-        name: 'Initiation/découverte', 
-        description: 'Cours ou initiation à une nouvelle activité de ton choix !', 
-        cost: 1350, 
-        category: 'Loisirs & sorties', 
-        rarity: 'legendary',
-        type: 'individual',
-        icon: '🎪',
+        icon: '🏢',
         estimatedDelivery: '1-2 semaines'
       },
       { 
-        id: 'premium_card', 
-        name: 'Carte cadeau premium', 
-        description: 'Carte cadeau 100€ dans une enseigne premium de ton choix !', 
-        cost: 6500, 
-        category: 'Premium', 
+        id: 'creative_day', 
+        name: 'Creative Day personnel', 
+        description: 'Une journée entière dédiée à TON projet perso pendant les heures de travail', 
+        cost: 500, 
+        category: 'Mega avantages', 
         rarity: 'legendary',
         type: 'individual',
-        icon: '💳',
-        estimatedDelivery: '1-2 jours'
-      },
-      { 
-        id: 'hotel_night', 
-        name: '1 nuit d\'hôtel pour 2', 
-        description: 'Une nuit dans un hôtel 4 étoiles pour deux personnes !', 
-        cost: 8000, 
-        category: 'Premium', 
-        rarity: 'legendary',
-        type: 'individual',
-        icon: '🏨',
-        estimatedDelivery: 'À planifier'
-      },
-      { 
-        id: 'spa_day', 
-        name: 'Journée spa', 
-        description: 'Journée complète de détente dans un spa de luxe !', 
-        cost: 12500, 
-        category: 'Premium', 
-        rarity: 'legendary',
-        type: 'individual',
-        icon: '🧖‍♀️',
+        icon: '🎨',
         estimatedDelivery: 'À planifier'
       }
     ],
     team: [
       { 
-        id: 'team_breakfast', 
-        name: 'Petit-déj équipe', 
-        description: 'Petit-déjeuner continental pour toute l\'équipe !', 
-        cost: 800, 
-        category: 'Équipe', 
+        id: 'team_coffee_session', 
+        name: 'Session Café équipe', 
+        description: 'Petit-déj ou pause café premium pour toute l\'équipe', 
+        cost: 150, 
+        category: 'Team bonding', 
         rarity: 'uncommon',
         type: 'team',
-        icon: '🥐',
-        participants: 'Toute l\'équipe',
-        duration: '1 matinée',
-        estimatedDelivery: '2-3 jours'
+        icon: '☕',
+        estimatedDelivery: '1-2 jours'
       },
       { 
-        id: 'game_afternoon', 
-        name: 'Après-midi jeux', 
-        description: 'Après-midi team building avec jeux et collations !', 
-        cost: 1200, 
-        category: 'Équipe', 
+        id: 'pizza_party', 
+        name: 'Pizza Party', 
+        description: 'Repas pizza pour célébrer un milestone avec l\'équipe', 
+        cost: 250, 
+        category: 'Team bonding', 
         rarity: 'rare',
         type: 'team',
-        icon: '🎯',
-        participants: 'Toute l\'équipe',
-        duration: '1 après-midi',
-        estimatedDelivery: 'À planifier'
+        icon: '🍕',
+        estimatedDelivery: '3-4 jours'
       },
       { 
-        id: 'team_restaurant', 
-        name: 'Repas restaurant', 
-        description: 'Déjeuner ou dîner d\'équipe dans un bon restaurant !', 
-        cost: 2500, 
-        category: 'Équipe', 
+        id: 'escape_game', 
+        name: 'Escape Game équipe', 
+        description: 'Activité team building dans un escape game local', 
+        cost: 400, 
+        category: 'Team building', 
         rarity: 'epic',
         type: 'team',
-        icon: '🍽️',
-        participants: 'Toute l\'équipe',
-        duration: '2-3 heures',
-        estimatedDelivery: 'À planifier'
-      },
-      { 
-        id: 'team_escape', 
-        name: 'Escape game équipe', 
-        description: 'Session d\'escape game suivie d\'un verre pour l\'équipe !', 
-        cost: 3000, 
-        category: 'Équipe', 
-        rarity: 'epic',
-        type: 'team',
-        icon: '🔓',
-        participants: 'Toute l\'équipe',
-        duration: '1/2 journée',
-        estimatedDelivery: 'À planifier'
+        icon: '🗝️',
+        estimatedDelivery: '1-2 semaines'
       },
       { 
         id: 'team_outing', 
         name: 'Sortie équipe premium', 
-        description: 'Activité premium au choix de l\'équipe (karting, paintball, etc.)', 
-        cost: 5000, 
-        category: 'Équipe', 
+        description: 'Journée complète d\'activités fun pour resserrer les liens', 
+        cost: 600, 
+        category: 'Team building', 
         rarity: 'legendary',
         type: 'team',
-        icon: '🏁',
-        participants: 'Toute l\'équipe',
-        duration: '1 journée',
-        estimatedDelivery: '1-2 semaines'
+        icon: '🎯',
+        estimatedDelivery: '2-3 semaines'
       }
     ]
   }), []);
 
-  // ✅ CHARGER L'HISTORIQUE DES DEMANDES
-  const loadPurchaseHistory = useCallback(async () => {
+  // ✅ LOGIQUE DE FILTRAGES
+  const allRewards = useMemo(() => [
+    ...rewardsData.individual,
+    ...rewardsData.team
+  ], [rewardsData]);
+
+  const filteredRewards = useMemo(() => {
+    let filtered = allRewards;
+
+    // Filtre par type
+    if (selectedType !== 'all') {
+      filtered = filtered.filter(reward => reward.type === selectedType);
+    }
+
+    // Filtre par catégorie
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(reward => reward.category === selectedCategory);
+    }
+
+    // Filtre par recherche
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(reward => 
+        reward.name.toLowerCase().includes(term) ||
+        reward.description.toLowerCase().includes(term) ||
+        reward.category.toLowerCase().includes(term)
+      );
+    }
+
+    return filtered;
+  }, [allRewards, selectedType, selectedCategory, searchTerm]);
+
+  // ✅ RÉCUPÉRER L'HISTORIQUE DES ACHATS
+  useEffect(() => {
     if (!user?.uid) return;
 
-    try {
-      // Écouter les demandes de récompenses de l'utilisateur en temps réel
-      const rewardsQuery = query(
-        collection(db, 'rewardRequests'),
-        where('userId', '==', user.uid),
-        orderBy('requestedAt', 'desc')
-      );
+    console.log('📊 Chargement historique récompenses utilisateur:', user.uid);
 
-      const unsubscribe = onSnapshot(rewardsQuery, (snapshot) => {
-        const history = snapshot.docs.map(doc => ({
+    const purchasesQuery = query(
+      collection(db, 'rewardPurchases'),
+      where('userId', '==', user.uid),
+      orderBy('purchasedAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(purchasesQuery, (snapshot) => {
+      const purchases = [];
+      snapshot.forEach(doc => {
+        purchases.push({
           id: doc.id,
-          ...doc.data(),
-          requestedAt: doc.data().requestedAt?.toDate ? 
-            doc.data().requestedAt.toDate() : new Date()
-        }));
-
-        setPurchaseHistory(history);
-        
-        // Séparer les demandes en attente
-        const pending = history.filter(req => req.status === 'pending');
-        setPendingRequests(pending);
-        
-        console.log('✅ [REWARDS] Historique Firebase chargé:', {
-          total: history.length,
-          pending: pending.length,
-          approved: history.filter(req => req.status === 'approved').length,
-          rejected: history.filter(req => req.status === 'rejected').length
+          ...doc.data()
         });
-      }, (error) => {
-        console.warn('⚠️ [REWARDS] Erreur écoute historique (continuons sans):', error);
       });
 
-      return unsubscribe;
-    } catch (error) {
-      console.warn('⚠️ [REWARDS] Firebase indisponible, mode hors-ligne:', error);
-    }
+      console.log('✅ Historique récompenses chargé:', purchases.length, 'achats');
+      setPurchaseHistory(purchases);
+    }, (error) => {
+      console.error('❌ Erreur chargement historique récompenses:', error);
+    });
+
+    return () => unsubscribe();
   }, [user?.uid]);
 
-  // ✅ COULEURS SELON RARETÉ
-  const getRarityColor = (rarity) => {
-    const rarityColors = {
-      common: 'from-emerald-400 to-green-600',
-      uncommon: 'from-blue-400 to-cyan-600', 
-      rare: 'from-purple-400 to-indigo-600',
-      epic: 'from-orange-400 to-red-600',
-      legendary: 'from-yellow-400 to-orange-500'
-    };
-    return rarityColors[rarity] || 'from-gray-400 to-gray-600';
-  };
+  // ✅ RÉCUPÉRER LES DEMANDES EN ATTENTE
+  useEffect(() => {
+    if (!user?.uid) return;
 
-  // ✅ NOUVELLE FONCTION - FAIRE UNE DEMANDE DE RÉCOMPENSE (SANS DÉDUIRE XP)
-  const handlePurchaseRequest = async (reward) => {
-    if (!user?.uid) {
-      alert('🚨 Tu dois être connecté pour demander des récompenses !');
-      return;
-    }
+    console.log('⏳ Chargement demandes en attente:', user.uid);
 
-    const requiredPoints = reward.cost;
-    const availablePoints = reward.type === 'individual' ? userPoints : teamStats.totalXP;
+    const requestsQuery = query(
+      collection(db, 'rewardRequests'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'pending'),
+      orderBy('requestedAt', 'desc')
+    );
 
-    if (availablePoints < requiredPoints) {
-      const pointsType = reward.type === 'individual' ? 'XP individuels' : 'XP d\'équipe';
-      alert(`❌ Pas assez de ${pointsType} ! Il faut ${requiredPoints} XP, il y en a ${availablePoints}. ${reward.type === 'team' ? 'L\'équipe doit contribuer plus !' : 'Time to grind !'} 💪`);
-      return;
-    }
+    const unsubscribe = onSnapshot(requestsQuery, (snapshot) => {
+      const requests = [];
+      snapshot.forEach(doc => {
+        requests.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
 
-    const confirmMessage = reward.type === 'individual' 
-      ? `🎮 Tu veux faire une DEMANDE pour "${reward.name}" (${reward.cost} XP) ?\n\n⏳ Un admin devra valider ta demande avant que tes XP soient déduits.`
-      : `👥 Demande Équipe ! Demander "${reward.name}" pour ${reward.cost} XP d'équipe ?\n\n⏳ Un admin devra valider avant utilisation des XP d'équipe.`;
+      console.log('✅ Demandes en attente chargées:', requests.length);
+      setPendingRequests(requests);
+    }, (error) => {
+      console.error('❌ Erreur chargement demandes en attente:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // ✅ FONCTION D'ACHAT/DEMANDE
+  const handlePurchaseReward = useCallback(async (reward) => {
+    if (!user?.uid || purchasing) return;
     
-    const confirmation = confirm(confirmMessage);
-    if (!confirmation) return;
+    // Vérifier si l'utilisateur a suffisamment de points
+    if (userPoints.current < reward.cost) {
+      alert(`Vous n'avez pas suffisamment de points ! Il vous manque ${reward.cost - userPoints.current} points.`);
+      return;
+    }
+
+    // Vérifier s'il n'y a pas déjà une demande en cours pour cette récompense
+    const existingRequest = pendingRequests.find(req => req.rewardId === reward.id);
+    if (existingRequest) {
+      alert(`Vous avez déjà une demande en cours pour "${reward.name}". Veuillez attendre l'approbation.`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Êtes-vous sûr de vouloir demander "${reward.name}" pour ${reward.cost} points ?`
+    );
+
+    if (!confirmed) return;
 
     setPurchasing(true);
 
     try {
-      console.log('📝 [REWARDS] Création demande de récompense:', {
-        userId: user.uid,
-        rewardId: reward.id,
-        rewardType: reward.type,
-        cost: reward.cost,
-        availablePointsBefore: availablePoints
-      });
+      console.log('🛒 Création demande récompense:', reward.name);
 
-      // ✅ CRÉER SEULEMENT LA DEMANDE - PAS DE DÉDUCTION XP
+      // Créer une demande de récompense (à valider par un admin)
       await addDoc(collection(db, 'rewardRequests'), {
         userId: user.uid,
-        userEmail: user.email,
-        userName: user.displayName || user.email,
-        userXP: availablePoints, // XP disponibles au moment de la demande
-        
-        // Détails de la récompense
+        userEmail: user.email || '',
+        userName: user.displayName || 'Utilisateur',
         rewardId: reward.id,
         rewardName: reward.name,
         rewardDescription: reward.description,
-        rewardCategory: reward.category,
-        rewardType: reward.type,
-        xpCost: reward.cost,
-        estimatedDelivery: reward.estimatedDelivery,
-        
-        // Métadonnées de la demande
+        cost: reward.cost,
+        category: reward.category,
+        type: reward.type,
+        icon: reward.icon,
         status: 'pending',
         requestedAt: serverTimestamp(),
-        approvedBy: null,
-        approvedAt: null,
-        rejectedBy: null,
-        rejectedAt: null,
-        rejectionReason: null,
-        
-        // Informations supplémentaires
-        participants: reward.participants || null,
-        duration: reward.duration || null
+        estimatedDelivery: reward.estimatedDelivery
       });
 
-      alert(`✅ Demande envoyée ! 📝\n\n"${reward.name}" est en attente de validation.\n⏳ Tu recevras une notification dès qu'un admin aura traité ta demande.\n\n💡 Tes ${reward.cost} XP ne seront déduits qu'après validation.`);
+      console.log('✅ Demande créée avec succès');
+      alert(`Demande créée ! "${reward.name}" sera validée par un administrateur.`);
 
     } catch (error) {
-      console.error('❌ [REWARDS] Erreur création demande:', error);
-      alert('❌ Erreur lors de l\'envoi de la demande. Réessaye !');
+      console.error('❌ Erreur création demande:', error);
+      alert('Erreur lors de la création de la demande: ' + error.message);
     } finally {
       setPurchasing(false);
     }
+  }, [user, userPoints.current, purchasing, pendingRequests]);
+
+  // ✅ CALCUL STATISTIQUES
+  const stats = useMemo(() => {
+    const totalSpent = purchaseHistory.reduce((total, purchase) => total + (purchase.cost || 0), 0);
+    const pendingCost = pendingRequests.reduce((total, request) => total + (request.cost || 0), 0);
+
+    return [
+      {
+        title: 'Points actuels',
+        value: userPoints.current || 0,
+        change: userPoints.change || 0,
+        icon: Star,
+        color: 'text-yellow-400'
+      },
+      {
+        title: 'Points dépensés',
+        value: totalSpent,
+        change: 0,
+        icon: ShoppingBag,
+        color: 'text-purple-400'
+      },
+      {
+        title: 'Demandes en attente',
+        value: pendingRequests.length,
+        subValue: `${pendingCost} pts`,
+        icon: Clock,
+        color: 'text-orange-400'
+      },
+      {
+        title: 'Récompenses obtenues',
+        value: purchaseHistory.length,
+        change: 0,
+        icon: Gift,
+        color: 'text-green-400'
+      }
+    ];
+  }, [userPoints, purchaseHistory, pendingRequests]);
+
+  // ✅ CATÉGORIES UNIQUES POUR FILTRAGE
+  const categories = useMemo(() => {
+    const categorySet = new Set(allRewards.map(reward => reward.category));
+    return ['all', ...Array.from(categorySet)];
+  }, [allRewards]);
+
+  // ✅ CONFIGURATION COULEURS RARETÉ
+  const rarityColors = {
+    common: 'border-gray-400 text-gray-400',
+    uncommon: 'border-green-400 text-green-400',
+    rare: 'border-blue-400 text-blue-400', 
+    epic: 'border-purple-400 text-purple-400',
+    legendary: 'border-yellow-400 text-yellow-400'
   };
 
-  // ✅ RÉCOMPENSES FILTRÉES
-  const filteredRewards = useMemo(() => {
-    const allRewards = [...rewardsData.individual, ...rewardsData.team];
-    
-    return allRewards.filter(reward => {
-      const matchesCategory = selectedCategory === 'all' || reward.category === selectedCategory;
-      const matchesType = selectedType === 'all' || reward.type === selectedType;
-      const matchesSearch = reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          reward.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesCategory && matchesType && matchesSearch;
-    });
-  }, [rewardsData, selectedCategory, selectedType, searchTerm]);
-
-  // ✅ CATÉGORIES ET TYPES DISPONIBLES
-  const categories = useMemo(() => {
-    const allRewards = [...rewardsData.individual, ...rewardsData.team];
-    const cats = [...new Set(allRewards.map(r => r.category))];
-    return ['all', ...cats];
-  }, [rewardsData]);
-
-  const types = ['all', 'individual', 'team'];
-
-  // ✅ EFFETS
-  useEffect(() => {
-    if (isAuthenticated && user?.uid) {
-      loadPurchaseHistory();
-    }
-  }, [isAuthenticated, user?.uid, loadPurchaseHistory]);
-
-  // ✅ INTERFACE DE CHARGEMENT
-  if (xpLoading) {
+  // ✅ VÉRIFICATIONS DE SÉCURITÉ
+  if (!isAuthenticated) {
     return (
-      <PremiumLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <RefreshCw className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
-            <p className="text-white">Chargement de la boutique...</p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Lock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-400">Connectez-vous pour accéder aux récompenses</p>
         </div>
-      </PremiumLayout>
+      </div>
     );
   }
 
   return (
-    <PremiumLayout>
-      {/* En-tête avec stats */}
-      <div className="mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-              🛍️ Boutique de Récompenses
-            </h1>
-            <p className="text-gray-400">Échangez vos XP contre des récompenses personnelles !</p>
-          </div>
-          
-          {/* Stats utilisateur */}
-          <div className="flex gap-4 mt-4 lg:mt-0">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg px-4 py-2 text-center">
-              <p className="text-white/80 text-sm">Mes XP</p>
-              <p className="text-white text-xl font-bold">{userPoints}</p>
-            </div>
-            <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-lg px-4 py-2 text-center">
-              <p className="text-white/80 text-sm">XP Équipe</p>
-              <p className="text-white text-xl font-bold">{teamStats.totalXP}</p>
-            </div>
-          </div>
+    <PremiumLayout
+      title="Récompenses"
+      subtitle="Échangez vos points contre des récompenses exclusives"
+      icon={Gift}
+      showStats={true}
+      stats={stats}
+      headerActions={
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Actualiser
+          </button>
         </div>
-
-        {/* Demandes en attente */}
-        {pendingRequests.length > 0 && (
-          <div className="bg-yellow-900/20 border border-yellow-500/50 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-yellow-400" />
-              <div>
-                <h3 className="text-yellow-400 font-semibold">
-                  {pendingRequests.length} demande{pendingRequests.length > 1 ? 's' : ''} en attente
-                </h3>
-                <p className="text-yellow-200 text-sm">
-                  Tes demandes sont en cours de validation par un admin
-                </p>
-              </div>
-            </div>
-            
-            {/* Liste des demandes en attente */}
-            <div className="mt-3 space-y-2">
-              {pendingRequests.slice(0, 3).map(request => (
-                <div key={request.id} className="flex items-center justify-between bg-yellow-900/20 rounded px-3 py-2">
-                  <span className="text-yellow-100 text-sm">{request.rewardName}</span>
-                  <span className="text-yellow-400 text-sm font-medium">{request.xpCost} XP</span>
-                </div>
-              ))}
-              {pendingRequests.length > 3 && (
-                <p className="text-yellow-300 text-sm">Et {pendingRequests.length - 3} autre{pendingRequests.length - 3 > 1 ? 's' : ''}...</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Filtres */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Rechercher une récompense..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          </div>
+      }
+    >
+      {/* ✅ SECTION FILTRES */}
+      <motion.div 
+        className="mb-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
           
-          <div className="flex gap-2">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>
-                  {cat === 'all' ? 'Toutes catégories' : cat}
-                </option>
-              ))}
-            </select>
-            
+          {/* Barre de recherche */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Rechercher une récompense..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          {/* Filtres */}
+          <div className="flex gap-4 flex-wrap">
+            {/* Filtre par type */}
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
             >
-              {types.map(type => (
-                <option key={type} value={type}>
-                  {type === 'all' ? 'Tous types' : 
-                   type === 'individual' ? 'Individuelles' : 'Équipe'}
-                </option>
+              <option value="all">Tous types</option>
+              <option value="individual">Récompenses individuelles</option>
+              <option value="team">Récompenses équipe</option>
+            </select>
+
+            {/* Filtre par catégorie */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">Toutes catégories</option>
+              {categories.slice(1).map(category => (
+                <option key={category} value={category}>{category}</option>
               ))}
             </select>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Grille des récompenses */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-        {filteredRewards.map(reward => {
-          const canAfford = reward.type === 'individual' 
-            ? userPoints >= reward.cost 
-            : teamStats.totalXP >= reward.cost;
-          
-          const isAlreadyRequested = pendingRequests.some(req => req.rewardId === reward.id);
-
-          return (
-            <motion.div
-              key={reward.id}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden hover:border-purple-500 transition-all duration-300"
-            >
-              {/* En-tête avec rareté */}
-              <div className={`h-32 bg-gradient-to-br ${getRarityColor(reward.rarity)} p-4 relative`}>
-                <div className="text-white text-4xl mb-2">{reward.icon}</div>
-                <div className="absolute top-2 right-2">
-                  {reward.type === 'team' ? (
-                    <Users className="w-5 h-5 text-white/80" />
-                  ) : (
-                    <Star className="w-5 h-5 text-white/80" />
-                  )}
-                </div>
-                <div className="absolute bottom-2 left-2">
-                  <span className="text-xs text-white/80 bg-black/20 px-2 py-1 rounded">
-                    {reward.rarity}
-                  </span>
-                </div>
-              </div>
-
-              {/* Contenu */}
-              <div className="p-4">
-                <h3 className="text-white font-semibold mb-2">{reward.name}</h3>
-                <p className="text-gray-400 text-sm mb-3 line-clamp-2">{reward.description}</p>
-                
-                {/* Détails équipe */}
-                {reward.type === 'team' && (
-                  <div className="text-xs text-gray-500 mb-3 space-y-1">
-                    <div>👥 {reward.participants}</div>
-                    <div>⏱️ {reward.duration}</div>
+      {/* ✅ GRILLE DES RÉCOMPENSES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <AnimatePresence>
+          {filteredRewards.map((reward, index) => {
+            const canAfford = userPoints.current >= reward.cost;
+            const isPending = pendingRequests.some(req => req.rewardId === reward.id);
+            
+            return (
+              <motion.div
+                key={reward.id}
+                className={`bg-gray-800/50 backdrop-blur-sm border rounded-lg p-6 hover:scale-[1.02] transition-all duration-300 hover:shadow-xl ${rarityColors[reward.rarity]} hover:border-current`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                {/* En-tête */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{reward.icon}</span>
+                    <div>
+                      <h3 className="text-white font-bold text-lg">{reward.name}</h3>
+                      <p className={`text-sm font-medium ${rarityColors[reward.rarity]}`}>
+                        {reward.rarity} • {reward.category}
+                      </p>
+                    </div>
                   </div>
-                )}
+                </div>
 
-                {/* Prix et catégorie */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-purple-400 bg-purple-400/10 px-2 py-1 rounded">
-                    {reward.category}
-                  </span>
+                {/* Description */}
+                <p className="text-gray-300 text-sm mb-4">{reward.description}</p>
+
+                {/* Métadonnées */}
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">Type:</span>
+                    <span className="text-white">{reward.type === 'individual' ? 'Individuel' : 'Équipe'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">Livraison:</span>
+                    <span className="text-white">{reward.estimatedDelivery}</span>
+                  </div>
+                </div>
+
+                {/* Prix et bouton */}
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
-                    <Zap className="w-4 h-4 text-yellow-400" />
-                    <span className="text-white font-medium">{reward.cost}</span>
+                    <Star className="w-4 h-4 text-yellow-400" />
+                    <span className="text-white font-bold">{reward.cost}</span>
+                    <span className="text-gray-400 text-sm">points</span>
                   </div>
+                  
+                  <button
+                    onClick={() => handlePurchaseReward(reward)}
+                    disabled={!canAfford || purchasing || isPending}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isPending
+                        ? 'bg-orange-600/20 text-orange-400 border border-orange-400/30 cursor-not-allowed'
+                        : canAfford && !purchasing
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {purchasing ? (
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Traitement...
+                      </div>
+                    ) : isPending ? (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        En attente
+                      </div>
+                    ) : canAfford ? (
+                      <div className="flex items-center gap-1">
+                        <ShoppingBag className="w-4 h-4" />
+                        Demander
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <Lock className="w-4 h-4" />
+                        Insuffisant
+                      </div>
+                    )}
+                  </button>
                 </div>
-
-                {/* Bouton d'achat */}
-                <button
-                  onClick={() => handlePurchaseRequest(reward)}
-                  disabled={!canAfford || purchasing || isAlreadyRequested}
-                  className={`w-full px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
-                    isAlreadyRequested
-                      ? 'bg-yellow-600/20 text-yellow-400 cursor-not-allowed'
-                      : canAfford && !purchasing
-                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white' 
-                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                    }
-                    ${purchasing ? 'opacity-50' : ''}
-                  `}
-                >
-                  {purchasing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Envoi en cours...</span>
-                    </>
-                  ) : isAlreadyRequested ? (
-                    <>
-                      <Clock className="w-4 h-4" />
-                      <span>En attente</span>
-                    </>
-                  ) : canAfford ? (
-                    <>
-                      <ShoppingBag className="w-4 h-4" />
-                      <span>Demander</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      <span>XP insuffisants</span>
-                    </>
-                  )}
-                </button>
-                
-                {/* Livraison estimée */}
-                <div className="mt-2 text-xs text-gray-500 text-center">
-                  📦 {reward.estimatedDelivery}
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
 
       {/* Message si aucune récompense */}
       {filteredRewards.length === 0 && (
-        <div className="text-center py-12">
-          <Gift className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-white text-xl font-semibold mb-2">Aucune récompense dans cette catégorie</h3>
-          <p className="text-gray-400">Changez de catégorie pour voir plus de récompenses !</p>
-        </div>
+        <motion.div
+          className="text-center py-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <Gift className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl text-white font-semibold mb-2">Aucune récompense trouvée</h3>
+          <p className="text-gray-400">
+            {searchTerm ? 'Essayez de modifier vos critères de recherche' : 'Aucune récompense ne correspond aux filtres sélectionnés'}
+          </p>
+        </motion.div>
       )}
 
-      {/* Historique des achats récents */}
-      {purchaseHistory.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold text-white mb-4">📋 Mes Demandes Récentes</h2>
-          <div className="grid gap-4">
-            {purchaseHistory.slice(0, 5).map(request => (
-              <div key={request.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                <div className="flex items-center justify-between">
+      {/* ✅ SECTION DEMANDES EN ATTENTE */}
+      {pendingRequests.length > 0 && (
+        <motion.div
+          className="mt-12 bg-orange-900/20 border border-orange-400/30 rounded-lg p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <Clock className="w-5 h-5 text-orange-400" />
+            <h2 className="text-xl font-bold text-orange-400">Demandes en cours de validation</h2>
+          </div>
+          
+          <div className="space-y-3">
+            {pendingRequests.map(request => (
+              <div key={request.id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{request.icon}</span>
                   <div>
-                    <h3 className="text-white font-medium">{request.rewardName}</h3>
-                    <p className="text-gray-400 text-sm">{request.xpCost} XP</p>
-                  </div>
-                  <div className="text-right">
-                    <div className={`px-3 py-1 rounded text-sm font-medium ${
-                      request.status === 'approved' 
-                        ? 'bg-green-600/20 text-green-400'
-                        : request.status === 'rejected'
-                        ? 'bg-red-600/20 text-red-400'
-                        : 'bg-yellow-600/20 text-yellow-400'
-                    }`}>
-                      {request.status === 'approved' ? '✅ Approuvée' :
-                       request.status === 'rejected' ? '❌ Rejetée' : '⏳ En attente'}
-                    </div>
-                    <p className="text-gray-500 text-xs mt-1">
-                      {request.requestedAt.toLocaleDateString()}
-                    </p>
+                    <p className="text-white font-medium">{request.rewardName}</p>
+                    <p className="text-gray-400 text-sm">{request.cost} points • {request.requestedAt?.toDate?.()?.toLocaleDateString?.() || 'Date inconnue'}</p>
                   </div>
                 </div>
-                
-                {request.rejectionReason && (
-                  <div className="mt-2 text-red-400 text-sm bg-red-900/20 rounded px-2 py-1">
-                    <strong>Motif de rejet:</strong> {request.rejectionReason}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 text-orange-400">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">En attente</span>
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
+      )}
+
+      {/* ✅ SECTION HISTORIQUE */}
+      {purchaseHistory.length > 0 && (
+        <motion.div
+          className="mt-12 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <CheckCircle className="w-5 h-5 text-green-400" />
+            <h2 className="text-xl font-bold text-white">Historique des récompenses</h2>
+          </div>
+          
+          <div className="space-y-3">
+            {purchaseHistory.slice(0, 5).map(purchase => (
+              <div key={purchase.id} className="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{purchase.icon || '🎁'}</span>
+                  <div>
+                    <p className="text-white font-medium">{purchase.rewardName}</p>
+                    <p className="text-gray-400 text-sm">{purchase.cost} points • {purchase.purchasedAt?.toDate?.()?.toLocaleDateString?.() || 'Date inconnue'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">Obtenu</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {purchaseHistory.length > 5 && (
+            <p className="text-center text-gray-400 text-sm mt-4">
+              Et {purchaseHistory.length - 5} autres récompenses...
+            </p>
+          )}
+        </motion.div>
       )}
     </PremiumLayout>
   );
