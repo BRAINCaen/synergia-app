@@ -24,7 +24,7 @@ import {
 
 // 🔥 IMPORTS SERVICES ET STORES
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 
 /**
@@ -181,7 +181,7 @@ const TaskCard = ({
     loadAssigneeInfo();
   }, [task?.assignedTo]);
 
-  // 🎯 FONCTION VOLONTARIAT CORRIGÉE
+  // 🎯 FONCTION VOLONTARIAT CORRIGÉE - FIREBASE DIRECT
   const handleVolunteer = async () => {
     if (!user?.uid || !task?.id || volunteering) return;
 
@@ -191,10 +191,29 @@ const TaskCard = ({
       console.log('🤝 [TASKCARD] Se porter volontaire pour:', task.id);
       
       const taskRef = doc(db, 'tasks', task.id);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+      
+      const taskData = taskDoc.data();
+      const currentAssigned = Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [];
+      
+      // Vérifier si déjà assigné
+      if (currentAssigned.includes(user.uid)) {
+        if (window.showNotification) {
+          window.showNotification('Vous êtes déjà assigné à cette tâche', 'info');
+        }
+        return;
+      }
       
       // Ajouter l'utilisateur aux assignés
+      const updatedAssigned = [...currentAssigned, user.uid];
+      
       await updateDoc(taskRef, {
-        assignedTo: arrayUnion(user.uid),
+        assignedTo: updatedAssigned,
+        status: 'in_progress',
         updatedAt: new Date()
       });
 
@@ -205,9 +224,9 @@ const TaskCard = ({
         window.showNotification('Vous vous êtes porté volontaire !', 'success');
       }
 
-      // Callback
+      // Callback parents
       if (onVolunteer) {
-        onVolunteer(task.id);
+        onVolunteer(task);
       }
 
       if (onTaskUpdate) {
@@ -225,7 +244,7 @@ const TaskCard = ({
     }
   };
 
-  // 🔄 FONCTION SE DÉSASSIGNER
+  // 🔄 FONCTION SE DÉSASSIGNER CORRIGÉE
   const handleUnvolunteer = async () => {
     if (!user?.uid || !task?.id || volunteering) return;
 
@@ -235,10 +254,24 @@ const TaskCard = ({
       console.log('↩️ [TASKCARD] Se désassigner de:', task.id);
       
       const taskRef = doc(db, 'tasks', task.id);
+      const taskDoc = await getDoc(taskRef);
+      
+      if (!taskDoc.exists()) {
+        throw new Error('Tâche introuvable');
+      }
+      
+      const taskData = taskDoc.data();
+      const currentAssigned = Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [];
       
       // Retirer l'utilisateur des assignés
+      const updatedAssigned = currentAssigned.filter(id => id !== user.uid);
+      
+      // Déterminer le nouveau statut
+      const newStatus = updatedAssigned.length === 0 ? 'todo' : taskData.status;
+      
       await updateDoc(taskRef, {
-        assignedTo: arrayRemove(user.uid),
+        assignedTo: updatedAssigned,
+        status: newStatus,
         updatedAt: new Date()
       });
 
@@ -249,9 +282,9 @@ const TaskCard = ({
         window.showNotification('Vous n\'êtes plus assigné à cette tâche', 'info');
       }
 
-      // Callback
+      // Callbacks
       if (onUnvolunteer) {
-        onUnvolunteer(task.id);
+        onUnvolunteer(task);
       }
 
       if (onTaskUpdate) {
