@@ -1,17 +1,14 @@
 // ==========================================
 // 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM AVEC TOUS LES EXPORTS REQUIS
+// LAYOUT PREMIUM COMPLET AVEC TOUS LES COMPOSANTS
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Search, Menu } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore.js';
-import { isAdmin } from '../../core/services/adminService.js';
+import { Search } from 'lucide-react';
 
 /**
- * 🎨 LAYOUT PREMIUM PRINCIPAL AVEC NAVIGATION
+ * 🎨 LAYOUT PREMIUM PRINCIPAL
  */
 const PremiumLayout = ({ 
   children, 
@@ -24,395 +21,103 @@ const PremiumLayout = ({
   stats = [],
   headerStats = []
 }) => {
-  // 🔌 HOOKS POUR LE MENU HAMBURGER
-  const { user, signOut } = useAuthStore();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  
-  // 🛡️ PERMISSIONS
-  const userIsAdmin = isAdmin(user);
-
-  // 🚪 DÉCONNEXION
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-      console.log('✅ [PREMIUM-LAYOUT] Déconnexion réussie');
-    } catch (error) {
-      console.error('❌ [PREMIUM-LAYOUT] Erreur déconnexion:', error);
-    }
-  };
-
-  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES ADMIN
-  const menuItems = [
-    { section: 'PRINCIPAL', items: [
-      { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-      { path: '/tasks', label: 'Tâches', icon: '✅' },
-      { path: '/projects', label: 'Projets', icon: '📁' },
-      { path: '/analytics', label: 'Analytics', icon: '📊' }
-    ]},
-    { section: 'GAMIFICATION', items: [
-      { path: '/gamification', label: 'Gamification', icon: '🎮' },
-      { path: '/badges', label: 'Badges', icon: '🏆' },
-      { path: '/leaderboard', label: 'Classement', icon: '🥇' },
-      { path: '/rewards', label: 'Récompenses', icon: '🎁' }
-    ]},
-    { section: 'ÉQUIPE', items: [
-      { path: '/team', label: 'Équipe', icon: '👥' }
-    ]},
-    { section: 'OUTILS', items: [
-      { path: '/onboarding', label: 'Intégration', icon: '📚' },
-      { path: '/profile', label: 'Mon Profil', icon: '👨‍💼' },
-      { path: '/settings', label: 'Paramètres', icon: '⚙️' }
-    ]}
-  ];
-
-  // 🛡️ TOUTES LES PAGES ADMIN - MENU COMPLET
-  if (userIsAdmin) {
-    menuItems.push({
-      section: 'ADMINISTRATION',
-      items: [
-        // Pages Admin Principales
-        { path: '/admin', label: 'Dashboard Admin', icon: '🏠' },
-        { path: '/admin/task-validation', label: 'Validation Tâches', icon: '🛡️' },
-        { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
-        { path: '/admin/users', label: 'Gestion Utilisateurs', icon: '👑' },
-        { path: '/admin/analytics', label: 'Analytics Admin', icon: '📈' },
-        { path: '/admin/settings', label: 'Config Système', icon: '🔧' },
-        
-        // Gamification Admin
-        { path: '/admin/badges', label: 'Gestion Badges', icon: '🏆' },
-        { path: '/admin/rewards', label: 'Gestion Récompenses', icon: '🎁' },
-        
-        // Sécurité & Permissions
-        { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
-        
-        // Outils Admin Avancés
-        { path: '/admin/sync', label: 'Synchronisation', icon: '🔄' },
-        { path: '/admin/dashboard-tuteur', label: 'Dashboard Tuteur', icon: '👨‍🏫' },
-        { path: '/admin/dashboard-manager', label: 'Dashboard Manager', icon: '👨‍💼' },
-        { path: '/admin/interview', label: 'Gestion Entretiens', icon: '🎤' },
-        { path: '/admin/demo-cleaner', label: 'Nettoyage Démo', icon: '🧹' },
-        
-        // Pages de Test Admin
-        { path: '/admin/complete-test', label: 'Test Complet', icon: '🧪' },
-        { path: '/admin/profile-test', label: 'Test Profil', icon: '👤' }
-      ]
-    });
-  }
-
-  // 🍔 CRÉATION DU MENU HAMBURGER
-  useEffect(() => {
-    if (menuOpen) {
-      // Créer le menu directement dans le body
-      const menuOverlay = document.createElement('div');
-      menuOverlay.id = 'premium-hamburger-menu-overlay';
-      menuOverlay.style.cssText = `
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        background: rgba(0, 0, 0, 0.8) !important;
-        z-index: 999999 !important;
-        backdrop-filter: blur(10px) !important;
-      `;
-
-      // Conteneur du menu
-      const menuContainer = document.createElement('div');
-      menuContainer.style.cssText = `
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 350px !important;
-        height: 100vh !important;
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
-        transform: translateX(-100%) !important;
-        transition: transform 0.3s ease !important;
-        overflow-y: auto !important;
-        scrollbar-width: thin !important;
-        scrollbar-color: rgba(255,255,255,0.3) transparent !important;
-      `;
-
-      // Header du menu
-      const header = document.createElement('div');
-      header.style.cssText = `
-        padding: 25px 20px !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-        background: linear-gradient(135deg, #0f172a, #1e293b) !important;
-      `;
-      header.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h2 style="color: white; font-size: 20px; font-weight: bold; margin: 0;">SYNERGIA v3.5</h2>
-          <button id="close-premium-menu-btn" style="background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
-        </div>
-        <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin: 0;">Navigation principale</p>
-      `;
-
-      // Informations utilisateur
-      const userInfo = document.createElement('div');
-      userInfo.style.cssText = `
-        padding: 20px !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-        background: rgba(255,255,255,0.05) !important;
-      `;
-      userInfo.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-          <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-            ${user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-          </div>
-          <div>
-            <div style="color: white; font-weight: 600; font-size: 14px;">${user?.displayName || 'Utilisateur'}</div>
-            <div style="color: rgba(255,255,255,0.6); font-size: 12px;">${user?.email || ''}</div>
-          </div>
-        </div>
-        ${userIsAdmin ? '<div style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-align: center; text-transform: uppercase;">🛡️ ADMINISTRATEUR</div>' : ''}
-      `;
-
-      // Navigation avec sections
-      const navigation = document.createElement('nav');
-      navigation.style.cssText = 'flex: 1 !important; padding-bottom: 20px !important;';
-
-      let navHTML = '';
-      menuItems.forEach(section => {
-        const isAdminSection = section.section === 'ADMINISTRATION';
-        navHTML += `
-          <div style="padding: 20px 20px 0 20px;">
-            <div style="
-              color: ${isAdminSection ? '#fbbf24' : 'rgba(255,255,255,0.6)'};
-              font-size: 12px;
-              font-weight: bold;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              border-bottom: 1px solid ${isAdminSection ? 'rgba(251, 191, 36, 0.3)' : 'rgba(255,255,255,0.1)'};
-              padding-bottom: 8px;
-              margin-bottom: 10px;
-            ">
-              ${isAdminSection ? '🛡️ ' : ''}${section.section}
-            </div>
-            <div style="padding: 10px 0;">
-        `;
-        
-        section.items.forEach(item => {
-          const isActive = location.pathname === item.path;
-          navHTML += `
-            <a href="${item.path}" class="premium-menu-item" style="
-              display: flex !important;
-              align-items: center !important;
-              gap: 15px !important;
-              padding: 12px 15px !important;
-              color: ${isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.8)'} !important;
-              text-decoration: none !important;
-              transition: all 0.2s !important;
-              background: ${isActive ? (isAdminSection ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'transparent'} !important;
-              border-left: 3px solid ${isActive ? (isAdminSection ? '#ef4444' : '#60a5fa') : 'transparent'} !important;
-              border-radius: 8px !important;
-              margin-bottom: 4px !important;
-              font-weight: ${isActive ? '600' : '500'} !important;
-            " onmouseover="
-              if (!this.style.background.includes('gradient')) {
-                this.style.background = '${isAdminSection ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'}';
-                this.style.borderLeft = '3px solid ${isAdminSection ? '#ef4444' : '#60a5fa'}';
-              }
-            " onmouseout="
-              if (!this.style.background.includes('gradient')) {
-                this.style.background = 'transparent';
-                this.style.borderLeft = '3px solid transparent';
-              }
-            ">
-              <span style="font-size: 16px;">${item.icon}</span>
-              <span style="flex: 1; font-size: 14px;">${item.label}</span>
-              ${isAdminSection ? '<span style="color: #fbbf24; font-size: 10px;">ADMIN</span>' : ''}
-            </a>
-          `;
-        });
-        
-        navHTML += `
-            </div>
-          </div>
-        `;
-      });
-
-      navigation.innerHTML = navHTML;
-
-      // Footer avec déconnexion
-      const footer = document.createElement('div');
-      footer.style.cssText = `
-        padding: 20px !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-        background: rgba(0,0,0,0.2) !important;
-      `;
-      footer.innerHTML = `
-        <button id="premium-logout-btn" style="
-          width: 100% !important;
-          padding: 12px !important;
-          background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 8px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          transition: all 0.2s !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 8px !important;
-        ">
-          🚪 Se déconnecter
-        </button>
-      `;
-
-      // Assemblage
-      menuContainer.appendChild(header);
-      menuContainer.appendChild(userInfo);
-      menuContainer.appendChild(navigation);
-      menuContainer.appendChild(footer);
-      menuOverlay.appendChild(menuContainer);
-      document.body.appendChild(menuOverlay);
-
-      // Animation d'entrée
-      setTimeout(() => {
-        menuContainer.style.transform = 'translateX(0)';
-      }, 10);
-
-      // Gestion des événements
-      const closeBtn = document.getElementById('close-premium-menu-btn');
-      const logoutBtn = document.getElementById('premium-logout-btn');
-      
-      closeBtn?.addEventListener('click', () => setMenuOpen(false));
-      logoutBtn?.addEventListener('click', handleLogout);
-      
-      // Fermeture sur overlay
-      menuOverlay.addEventListener('click', (e) => {
-        if (e.target === menuOverlay) {
-          setMenuOpen(false);
-        }
-      });
-
-      // Gestion des liens
-      const menuLinks = menuOverlay.querySelectorAll('.premium-menu-item');
-      menuLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          navigate(link.getAttribute('href'));
-          setMenuOpen(false);
-        });
-      });
-
-    } else {
-      // Supprimer le menu
-      const existingMenu = document.getElementById('premium-hamburger-menu-overlay');
-      if (existingMenu) {
-        existingMenu.remove();
-      }
-    }
-
-    // Cleanup
-    return () => {
-      const menuToRemove = document.getElementById('premium-hamburger-menu-overlay');
-      if (menuToRemove) {
-        menuToRemove.remove();
-      }
-    };
-  }, [menuOpen, location.pathname, user, userIsAdmin, navigate]);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
       
-      {/* BOUTON MENU HAMBURGER FLOTTANT */}
-      <button
-        onClick={() => setMenuOpen(true)}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          zIndex: 999998,
-          width: '60px',
-          height: '60px',
-          background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-          border: 'none',
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 8px 25px rgba(59, 130, 246, 0.3)',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.1)';
-          e.target.style.boxShadow = '0 12px 35px rgba(59, 130, 246, 0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1)';
-          e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.3)';
-        }}
-      >
-        <Menu className="w-6 h-6 text-white" />
-      </button>
-
-      {/* CONTENEUR PRINCIPAL */}
-      <div className="relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pl-20">
-          
-          {/* HEADER AVEC TITRE ET ACTIONS */}
+      {/* Particules d'arrière-plan */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
+        {Array.from({ length: 8 }).map((_, i) => (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            key={i}
+            className="absolute w-1 h-1 bg-blue-400/40 rounded-full"
+            animate={{
+              x: [0, Math.random() * 100, 0],
+              y: [0, Math.random() * 100, 0],
+              opacity: [0.2, 0.8, 0.2]
+            }}
+            transition={{
+              duration: 8 + Math.random() * 4,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: Math.random() * 2
+            }}
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Contenu principal */}
+      <div className="relative min-h-screen">
+        <div className="max-w-7xl mx-auto p-6 lg:p-8">
+          
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
+              <div className="flex items-center gap-4">
                 {Icon && (
-                  <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                    <Icon className="w-8 h-8 text-white" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center backdrop-blur-sm">
+                    <Icon className="w-6 h-6 text-blue-400" />
                   </div>
                 )}
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  <h1 className="text-3xl lg:text-4xl font-bold text-white">
                     {title}
                   </h1>
                   {subtitle && (
-                    <p className="text-gray-400 text-lg mt-1">
-                      {subtitle}
-                    </p>
+                    <p className="text-slate-400 mt-1">{subtitle}</p>
                   )}
                 </div>
               </div>
-              
-              {/* Actions header */}
+
               {headerActions && (
-                <div className="flex space-x-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   {headerActions}
                 </div>
               )}
             </div>
 
-            {/* Statistiques */}
-            {showStats && stats.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-                {stats.map((stat, index) => (
-                  <PremiumStatCard key={index} {...stat} />
+            {/* Stats header */}
+            {(showStats && stats.length > 0) || (headerStats && headerStats.length > 0) ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {(headerStats || stats).map((stat, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all duration-300"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm font-medium">{stat.label}</p>
+                        <p className={`text-2xl font-bold ${stat.color || 'text-white'} mt-1`}>
+                          {stat.value}
+                        </p>
+                      </div>
+                      {stat.icon && (
+                        <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                          <stat.icon className="w-5 h-5 text-slate-300" />
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
                 ))}
               </div>
-            )}
-
-            {/* Header Stats (nouvelle option) */}
-            {headerStats && headerStats.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-                {headerStats.map((stat, index) => (
-                  <PremiumStatCard key={index} {...stat} />
-                ))}
-              </div>
-            )}
+            ) : null}
           </motion.div>
 
           {/* Contenu principal */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
+            transition={{ delay: 0.2 }}
             className={className}
           >
             {children}
@@ -424,20 +129,20 @@ const PremiumLayout = ({
 };
 
 /**
- * 🎨 COMPOSANT CARTE PREMIUM
+ * 🎴 CARTE PREMIUM
  */
 export const PremiumCard = ({ 
   children, 
   className = "", 
-  hover = true, 
-  padding = "p-6",
+  padding = "p-6", 
+  hover = true,
   ...props 
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    whileHover={hover ? { scale: 1.02, y: -5 } : {}}
-    className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl ${padding} hover:shadow-xl transition-all duration-300 ${className}`}
+    whileHover={hover ? { scale: 1.01, y: -2 } : {}}
+    className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl ${padding} hover:bg-white/10 transition-all duration-300 ${className}`}
     {...props}
   >
     {children}
@@ -445,55 +150,112 @@ export const PremiumCard = ({
 );
 
 /**
- * 🔘 COMPOSANT BOUTON PREMIUM
+ * 🔘 BOUTON PREMIUM
  */
 export const PremiumButton = ({ 
   children, 
   variant = "primary", 
   size = "md",
   icon: Icon,
+  loading = false,
   className = "",
   ...props 
 }) => {
   const variants = {
-    primary: "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white",
-    secondary: "bg-gray-700 hover:bg-gray-600 text-white border border-gray-600",
-    success: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white",
-    danger: "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white",
-    warning: "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white",
-    outline: "border-2 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
+    primary: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/25",
+    secondary: "bg-white/5 hover:bg-white/10 text-white border border-white/10 backdrop-blur-sm",
+    success: "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/25",
+    danger: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-500/25",
+    warning: "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white shadow-lg shadow-yellow-500/25",
+    outline: "border border-blue-500/50 text-blue-400 hover:bg-blue-500/20 backdrop-blur-sm"
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-sm",
+    sm: "px-3 py-2 text-sm",
     md: "px-6 py-3",
     lg: "px-8 py-4 text-lg"
   };
 
   return (
     <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       className={`
         ${variants[variant]} 
         ${sizes[size]}
         font-medium rounded-lg 
-        transition-all duration-200 
+        transition-all duration-300
         flex items-center justify-center gap-2
+        disabled:opacity-50 disabled:cursor-not-allowed
         ${className}
       `}
+      disabled={loading}
       {...props}
     >
-      {Icon && <Icon className="w-4 h-4" />}
-      {children}
+      {loading ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          Chargement...
+        </>
+      ) : (
+        <>
+          {Icon && <Icon className="w-4 h-4" />}
+          {children}
+        </>
+      )}
     </motion.button>
   );
 };
 
 /**
- * 📊 COMPOSANT STAT CARD PREMIUM
+ * 🔍 BARRE DE RECHERCHE PREMIUM
  */
-export const PremiumStatCard = ({ title, value, icon: Icon, color = "blue", trend, change }) => {
+export const PremiumSearchBar = ({
+  placeholder = "Rechercher...",
+  value = "",
+  onChange = () => {},
+  onSearch = () => {},
+  icon: Icon = Search,
+  className = "",
+  ...props
+}) => {
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      onSearch(value);
+    }
+  };
+
+  return (
+    <div className={`relative ${className}`}>
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Icon className="h-5 w-5 text-gray-400" />
+      </div>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyPress={handleKeyPress}
+        placeholder={placeholder}
+        className="block w-full pl-10 pr-3 py-3 border border-gray-600 bg-gray-700/50 backdrop-blur-sm rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+        {...props}
+      />
+    </div>
+  );
+};
+
+/**
+ * 📊 CARTE STATISTIQUE PREMIUM
+ */
+export const PremiumStatCard = ({ 
+  title, 
+  value, 
+  icon: Icon, 
+  color = "blue", 
+  trend = null, 
+  change,
+  className = "",
+  ...props 
+}) => {
   const colorClasses = {
     yellow: 'from-yellow-400 to-orange-500',
     green: 'from-green-400 to-emerald-500',
@@ -504,15 +266,18 @@ export const PremiumStatCard = ({ title, value, icon: Icon, color = "blue", tren
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -5 }}
-      className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:shadow-xl transition-all duration-300"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300 ${className}`}
+      {...props}
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-400 mb-1">{title}</p>
+          <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
           <p className="text-3xl font-bold text-white">{value}</p>
           {(trend !== undefined || change !== undefined) && (
-            <p className={`text-xs mt-1 ${(trend > 0 || change > 0) ? 'text-green-400' : 'text-red-400'}`}>
+            <p className={`text-xs mt-1 ${(trend > 0 || change > 0) ? 'text-emerald-400' : 'text-red-400'}`}>
               {trend !== undefined ? (trend > 0 ? '+' : '') + trend + '%' : ''}
               {change !== undefined ? (change > 0 ? '+' : '') + change : ''}
             </p>
@@ -527,7 +292,7 @@ export const PremiumStatCard = ({ title, value, icon: Icon, color = "blue", tren
 };
 
 /**
- * 📊 ALIAS STATCARD POUR COMPATIBILITÉ
+ * 📊 ALIAS POUR COMPATIBILITÉ
  */
 export const StatCard = PremiumStatCard;
 
