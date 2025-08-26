@@ -79,9 +79,16 @@ const PremiumLayout = ({
     });
   }
 
-  // Navigation handler
+  // Navigation handler avec fermeture garantie
   const handleNavigation = (path) => {
+    console.log('Navigation vers:', path);
+    setMenuOpen(false); // Fermer le menu AVANT navigation
     navigate(path);
+  };
+
+  // Fonction de fermeture du menu
+  const closeMenu = () => {
+    console.log('Fermeture du menu');
     setMenuOpen(false);
   };
 
@@ -89,7 +96,7 @@ const PremiumLayout = ({
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && menuOpen) {
-        setMenuOpen(false);
+        closeMenu();
       }
     };
 
@@ -97,9 +104,15 @@ const PremiumLayout = ({
     if (menuOpen) {
       document.body.style.overflow = 'hidden';
       document.addEventListener('keydown', handleEscape);
+      
+      // Debug
+      console.log('Menu ouvert, scroll désactivé');
     } else {
       document.body.style.overflow = 'unset';
       document.removeEventListener('keydown', handleEscape);
+      
+      // Debug  
+      console.log('Menu fermé, scroll réactivé');
     }
 
     return () => {
@@ -124,30 +137,21 @@ const PremiumLayout = ({
         <Menu className="w-6 h-6" />
       </motion.button>
 
-      {/* 📱 MENU OVERLAY - VERSION REACT CORRIGÉE */}
-      <AnimatePresence mode="wait">
-        {menuOpen && (
-          <>
-            {/* Fond overlay avec z-index fixe */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-              style={{ zIndex: 9998 }}
-              onClick={() => setMenuOpen(false)}
-            />
+      {/* 📱 MENU OVERLAY - VERSION SIMPLE COMME LAYOUT.JSX */}
+      {menuOpen && (
+        <>
+          {/* Fond overlay avec z-index fixe */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            style={{ zIndex: 9998 }}
+            onClick={closeMenu}
+          />
 
-            {/* Menu sidebar avec z-index supérieur */}
-            <motion.div
-              initial={{ x: -400, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -400, opacity: 0 }}
-              transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="fixed top-0 left-0 w-80 h-full bg-gradient-to-b from-gray-900 via-slate-800 to-gray-900 border-r border-gray-700/50 backdrop-blur-sm overflow-y-auto shadow-2xl"
-              style={{ zIndex: 9999 }}
-            >
+          {/* Menu sidebar simple */}
+          <div
+            className="fixed top-0 left-0 w-80 h-full bg-gradient-to-b from-gray-900 via-slate-800 to-gray-900 border-r border-gray-700/50 backdrop-blur-sm overflow-y-auto shadow-2xl"
+            style={{ zIndex: 9999 }}
+          >
               {/* Header du menu */}
               <div className="p-6 border-b border-gray-700/50">
                 <div className="flex items-center justify-between mb-4">
