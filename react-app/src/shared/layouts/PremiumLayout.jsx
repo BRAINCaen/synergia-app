@@ -1,13 +1,13 @@
 // ==========================================
 // 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM - SYNTAXE JSX CORRIGÉE
+// LAYOUT PREMIUM - DESIGN COHÉRENT RESTAURÉ IDENTIQUE AU DASHBOARD
 // ==========================================
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**
- * 🎨 LAYOUT PREMIUM PRINCIPAL
+ * 🎨 LAYOUT PREMIUM AVEC DESIGN COHÉRENT DASHBOARD
  */
 const PremiumLayout = ({ 
   children,
@@ -21,93 +21,60 @@ const PremiumLayout = ({
   headerActions = null
 }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
       
-      {/* 🌟 PARTICULES ANIMÉES EN ARRIÈRE-PLAN */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <AnimatePresence>
-          {Array.from({ length: 20 }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-2 h-2 bg-blue-400/20 rounded-full"
-              initial={{ 
-                x: Math.random() * window.innerWidth,
-                y: window.innerHeight + 10,
-                opacity: 0 
-              }}
-              animate={{ 
-                y: -10,
-                opacity: [0, 0.6, 0],
-                scale: [0.5, 1, 0.5]
-              }}
-              transition={{ 
-                duration: Math.random() * 10 + 10,
-                repeat: Infinity,
-                ease: "linear",
-                delay: Math.random() * 5
-              }}
-            />
-          ))}
-        </AnimatePresence>
+      {/* 🌟 PARTICULES SUBTILES COMME DASHBOARD */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-blue-400/40 rounded-full"
+            animate={{
+              x: [0, Math.random() * 100, 0],
+              y: [0, Math.random() * 100, 0],
+              opacity: [0.2, 0.8, 0.2]
+            }}
+            transition={{
+              duration: 8 + Math.random() * 4,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: Math.random() * 2
+            }}
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+          />
+        ))}
       </div>
 
-      {/* 🎯 NAVIGATION STICKY */}
-      <AnimatePresence>
-        {true && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-md border-b border-gray-700/50"
-          >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between h-16">
-                <div className="flex items-center gap-3">
-                  {Icon && (
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <Icon className="w-4 h-4 text-white" />
-                    </div>
-                  )}
-                  <span className="text-white font-semibold">{title}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  {headerActions}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 📄 CONTENU PRINCIPAL */}
-      <div className="min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 pt-20">
+      {/* 📄 CONTENU PRINCIPAL AVEC PADDING COMME DASHBOARD */}
+      <div className="relative min-h-screen">
+        <div className="max-w-7xl mx-auto p-6 lg:p-8">
           
-          {/* 🎯 HEADER PREMIUM */}
+          {/* 🎯 HEADER COMME DASHBOARD */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            {/* Titre principal */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
               <div className="flex items-center gap-4">
                 {Icon && (
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-6 h-6 text-white" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center backdrop-blur-sm">
+                    <Icon className="w-6 h-6 text-blue-400" />
                   </div>
                 )}
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  <h1 className="text-3xl lg:text-4xl font-bold text-white">
                     {title}
                   </h1>
                   {subtitle && (
-                    <p className="text-gray-400 text-lg mt-1">{subtitle}</p>
+                    <p className="text-slate-400 mt-1">{subtitle}</p>
                   )}
                 </div>
               </div>
 
-              {/* Actions du header */}
               {headerActions && (
                 <div className="flex items-center gap-3 flex-wrap">
                   {headerActions}
@@ -115,27 +82,27 @@ const PremiumLayout = ({
               )}
             </div>
 
-            {/* Statistiques du header */}
+            {/* STATS HEADER COMME DASHBOARD */}
             {(showStats && stats.length > 0) || (headerStats && headerStats.length > 0) ? (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {(headerStats || stats).map((stat, index) => (
                   <motion.div
                     key={index}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+                    className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all duration-300"
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-400">{stat.label}</p>
-                        <p className={`text-2xl font-bold ${stat.color || 'text-white'}`}>
+                        <p className="text-slate-400 text-sm font-medium">{stat.label}</p>
+                        <p className={`text-2xl font-bold ${stat.color || 'text-white'} mt-1`}>
                           {stat.value}
                         </p>
                       </div>
                       {stat.icon && (
-                        <div className="w-10 h-10 rounded-lg bg-gray-700/50 flex items-center justify-center">
-                          <stat.icon className="w-5 h-5 text-gray-300" />
+                        <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                          <stat.icon className="w-5 h-5 text-slate-300" />
                         </div>
                       )}
                     </div>
@@ -145,7 +112,7 @@ const PremiumLayout = ({
             ) : null}
           </motion.div>
 
-          {/* 🎨 CONTENU AVEC ANIMATION */}
+          {/* 🎨 CONTENU PRINCIPAL */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -161,7 +128,7 @@ const PremiumLayout = ({
 };
 
 /**
- * 🎴 COMPOSANT CARTE PREMIUM
+ * 🎴 CARTE PREMIUM COMME DASHBOARD
  */
 export const PremiumCard = ({ 
   children, 
@@ -173,8 +140,8 @@ export const PremiumCard = ({
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    whileHover={hover ? { scale: 1.02, y: -5 } : {}}
-    className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl ${padding} hover:shadow-xl transition-all duration-300 ${className}`}
+    whileHover={hover ? { scale: 1.01, y: -2 } : {}}
+    className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl ${padding} hover:bg-white/10 transition-all duration-300 ${className}`}
     {...props}
   >
     {children}
@@ -182,7 +149,7 @@ export const PremiumCard = ({
 );
 
 /**
- * 📊 COMPOSANT CARTE STATISTIQUE
+ * 📊 CARTE STATISTIQUE COMME DASHBOARD
  */
 export const PremiumStatCard = ({ 
   title, 
@@ -194,31 +161,31 @@ export const PremiumStatCard = ({
   ...props 
 }) => {
   const colorClasses = {
-    blue: "text-blue-400 bg-blue-500/20 border-blue-500/30",
-    green: "text-green-400 bg-green-500/20 border-green-500/30",
-    red: "text-red-400 bg-red-500/20 border-red-500/30",
-    yellow: "text-yellow-400 bg-yellow-500/20 border-yellow-500/30",
-    purple: "text-purple-400 bg-purple-500/20 border-purple-500/30",
-    gray: "text-gray-400 bg-gray-500/20 border-gray-500/30"
+    blue: "text-blue-400",
+    green: "text-emerald-400", 
+    red: "text-red-400",
+    yellow: "text-yellow-400",
+    purple: "text-purple-400",
+    gray: "text-slate-400"
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.05, y: -2 }}
-      className={`${colorClasses[color] || colorClasses.blue} border rounded-xl p-6 backdrop-blur-sm ${className}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300 ${className}`}
       {...props}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         {Icon && (
-          <div className="w-10 h-10 rounded-lg bg-gray-700/50 flex items-center justify-center">
-            <Icon className={`w-5 h-5 ${colorClasses[color]?.split(' ')[0] || 'text-blue-400'}`} />
+          <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
+            <Icon className={`w-5 h-5 ${colorClasses[color] || 'text-blue-400'}`} />
           </div>
         )}
         {trend && (
           <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-            trend > 0 ? 'text-green-400 bg-green-500/20' : 'text-red-400 bg-red-500/20'
+            trend > 0 ? 'text-emerald-400 bg-emerald-500/20' : 'text-red-400 bg-red-500/20'
           }`}>
             {trend > 0 ? '+' : ''}{trend}%
           </div>
@@ -226,8 +193,8 @@ export const PremiumStatCard = ({
       </div>
       
       <div>
-        <p className="text-sm text-gray-400 mb-1">{title}</p>
-        <p className={`text-3xl font-bold ${colorClasses[color]?.split(' ')[0] || 'text-blue-400'}`}>
+        <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
+        <p className={`text-3xl font-bold ${colorClasses[color] || 'text-blue-400'}`}>
           {value}
         </p>
       </div>
@@ -236,7 +203,7 @@ export const PremiumStatCard = ({
 };
 
 /**
- * 🔘 COMPOSANT BOUTON PREMIUM
+ * 🔘 BOUTON PREMIUM COMME DASHBOARD
  */
 export const PremiumButton = ({ 
   children, 
@@ -248,16 +215,16 @@ export const PremiumButton = ({
   ...props 
 }) => {
   const variants = {
-    primary: "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25",
-    secondary: "bg-gray-700 hover:bg-gray-600 text-white border border-gray-600",
-    success: "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25",
-    danger: "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white shadow-lg shadow-red-500/25",
-    warning: "bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white shadow-lg shadow-yellow-500/25",
-    outline: "border-2 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white backdrop-blur-sm"
+    primary: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/25",
+    secondary: "bg-white/5 hover:bg-white/10 text-white border border-white/10 backdrop-blur-sm",
+    success: "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/25",
+    danger: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-500/25",
+    warning: "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white shadow-lg shadow-yellow-500/25",
+    outline: "border border-blue-500/50 text-blue-400 hover:bg-blue-500/20 backdrop-blur-sm"
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-sm",
+    sm: "px-3 py-2 text-sm",
     md: "px-6 py-3",
     lg: "px-8 py-4 text-lg"
   };
@@ -269,7 +236,7 @@ export const PremiumButton = ({
       className={`
         ${variants[variant]} 
         ${sizes[size]} 
-        rounded-lg font-medium transition-all duration-200 
+        rounded-lg font-medium transition-all duration-300
         flex items-center justify-center gap-2 
         disabled:opacity-50 disabled:cursor-not-allowed
         ${className}
@@ -293,7 +260,7 @@ export const PremiumButton = ({
 };
 
 /**
- * 🔍 COMPOSANT BARRE DE RECHERCHE PREMIUM
+ * 🔍 BARRE DE RECHERCHE COMME DASHBOARD
  */
 export const PremiumSearchBar = ({ 
   placeholder = "Rechercher...", 
@@ -318,7 +285,7 @@ export const PremiumSearchBar = ({
     >
       <div className="relative">
         {icon && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">
             {React.createElement(icon, { className: "w-4 h-4" })}
           </div>
         )}
@@ -329,10 +296,10 @@ export const PremiumSearchBar = ({
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
           className={`
-            w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 
-            rounded-lg px-4 py-3 text-white placeholder-gray-400
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-            transition-all duration-200
+            w-full bg-white/5 backdrop-blur-sm border border-white/10 
+            rounded-lg px-4 py-3 text-white placeholder-slate-400
+            focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50
+            hover:bg-white/10 transition-all duration-300
             ${icon ? 'pl-10' : ''}
           `}
           {...props}
@@ -343,8 +310,8 @@ export const PremiumSearchBar = ({
 };
 
 /**
- * 📈 COMPOSANT CARTE STATISTIQUE SIMPLE
+ * 📈 ALIAS POUR COMPATIBILITÉ
  */
-export const StatCard = PremiumStatCard; // Alias pour compatibilité
+export const StatCard = PremiumStatCard;
 
 export default PremiumLayout;
