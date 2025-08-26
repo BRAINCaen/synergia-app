@@ -1,31 +1,6 @@
-// Gérer le volontariat
-  const handleVolunteer = async () => {
-    if (!user?.uid) return;
-    
-    setVolunteerLoading(true);
-    try {
-      if (isAssignedToMe) {
-        await onUnassignFromMe?.(task.id);
-        if (window.showNotification) {
-          window.showNotification('Vous n\'êtes plus assigné à cette tâche', 'info');
-        }
-      } else {
-        await onAssignToMe?.(task.id);
-        if (window.showNotification) {
-          window.showNotification('Vous vous êtes porté volontaire !', 'success');
-        }
-      }
-    } catch (error) {
-      console.error('Erreur volontariat:', error);
-      if (window.showNotification) {
-        window.showNotification('Erreur lors du volontariat', 'error');
-      }
-    } finally {
-      setVolunteerLoading(false);
-    }
-  };// ==========================================
+// ==========================================
 // 📁 react-app/src/components/ui/TaskDetailModal.jsx
-// MODAL DÉTAILS TÂCHE - TEXTAREA COMMENTAIRES CORRIGÉ
+// MODAL DÉTAILS TÂCHE COMPLET - TOUTES INFORMATIONS RESTAURÉES
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -122,7 +97,7 @@ const formatDate = (date) => {
 };
 
 /**
- * 🎨 MODAL DÉTAILS COMPLETS DE TÂCHE - TEXTAREA CORRIGÉ
+ * 🎨 MODAL DÉTAILS COMPLETS DE TÂCHE - RESTAURÉ
  */
 const TaskDetailModal = ({ 
   isOpen, 
@@ -142,8 +117,10 @@ const TaskDetailModal = ({
   
   // États généraux - STABLES
   const [activeTab, setActiveTab] = useState('details');
+  const [creatorName, setCreatorName] = useState('Chargement...');
   const [assignedUsers, setAssignedUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [assigneeNames, setAssigneeNames] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [volunteerLoading, setVolunteerLoading] = useState(false);
 
   // 🔥 ÉTATS COMMENTAIRES STABLES - PAS DE RE-RENDER
@@ -154,7 +131,9 @@ const TaskDetailModal = ({
   const [commentsError, setCommentsError] = useState(null);
 
   // États dérivés
-  const isAssignedToMe = task?.assignedUsers?.includes(currentUserId || user?.uid);
+  const effectiveUserId = currentUserId || user?.uid;
+  const isAssignedToMe = task?.assignedTo?.includes(effectiveUserId) || 
+                         task?.assignedUsers?.includes(effectiveUserId);
   
   if (!isOpen || !task) return null;
 
@@ -182,468 +161,569 @@ const TaskDetailModal = ({
       const commentsData = [];
       
       snapshot.forEach(doc => {
-        commentsData.push({
-          id: doc.id,
-          ...doc.data()
-        });
+        const commentData = { id: doc.id, ...doc.data() };
+        commentsData.push(commentData);
       });
 
+      console.log('💬 [MODAL] Commentaires chargés:', commentsData.length);
       setComments(commentsData);
-      console.log('✅ [MODAL] Commentaires chargés:', commentsData.length);
-
+      
     } catch (error) {
-      console.error('❌ [MODAL] Erreur chargement commentaires:', error);
+      console.error('💥 [MODAL] Erreur chargement commentaires:', error);
       setCommentsError('Erreur lors du chargement des commentaires');
     } finally {
       setLoadingComments(false);
     }
   }, [task?.id]);
 
-  // Charger les commentaires au montage
+  // 🔥 CHARGEMENT INITIAL COMMENTAIRES
   useEffect(() => {
-    if (isOpen && task?.id) {
+    if (isOpen && task?.id && activeTab === 'comments') {
       loadComments();
     }
-  }, [isOpen, task?.id, loadComments]);
+  }, [isOpen, task?.id, activeTab, loadComments]);
 
-  // 🔥 FONCTION CHANGEMENT TEXTAREA - STABLE
-  const handleCommentChange = useCallback((e) => {
-    setNewComment(e.target.value);
-  }, []);
-
-  // 🔥 FONCTION ENVOI COMMENTAIRE CORRIGÉE
+  // 🔥 FONCTION AJOUT COMMENTAIRE CORRIGÉE
   const handleSubmitComment = useCallback(async (e) => {
     e.preventDefault();
-
-    if (!newComment.trim() || submittingComment || !user?.uid) {
+    
+    if (!newComment.trim() || !task?.id || !user?.uid || submittingComment) {
       return;
     }
 
-    console.log('📤 [MODAL] Envoi commentaire...');
-    setSubmittingComment(true);
-    setCommentsError(null);
-
     try {
-      // 📝 DONNÉES DU COMMENTAIRE NORMALISÉES
+      console.log('💬 [MODAL] Ajout commentaire...');
+      setSubmittingComment(true);
+      
       const commentData = {
         entityType: 'task',
         entityId: task.id,
-        userId: user.uid,
         content: newComment.trim(),
-        userName: user.displayName || user.email || 'Utilisateur',
-        userEmail: user.email || '',
-        createdAt: serverTimestamp()
+        authorId: user.uid,
+        authorName: user.displayName || user.email || 'Utilisateur',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
-      console.log('📝 [MODAL] Données commentaire:', commentData);
-
-      // 🔥 ENVOI DIRECT À FIREBASE
-      const docRef = await addDoc(collection(db, 'comments'), commentData);
-
-      console.log('✅ [MODAL] Commentaire envoyé:', docRef.id);
+      await addDoc(collection(db, 'comments'), commentData);
       
-      // Reset du formulaire
-      setNewComment('');
+      console.log('✅ [MODAL] Commentaire ajouté avec succès');
+      setNewComment(''); // Vider le textarea
       
-      // Recharger les commentaires
-      await loadComments();
+      // Actualiser immédiatement les commentaires
+      setTimeout(() => {
+        loadComments();
+      }, 500);
       
-      // Notification succès
-      if (window.showNotification) {
-        window.showNotification('Commentaire ajouté !', 'success');
-      }
-
     } catch (error) {
-      console.error('❌ [MODAL] Erreur envoi commentaire:', error);
-      setCommentsError(`Impossible d'envoyer le commentaire: ${error.message}`);
-      
-      // Notification erreur
-      if (window.showNotification) {
-        window.showNotification('Erreur envoi commentaire', 'error');
-      }
+      console.error('💥 [MODAL] Erreur ajout commentaire:', error);
+      setCommentsError('Erreur lors de l\'ajout du commentaire');
     } finally {
       setSubmittingComment(false);
     }
-  }, [newComment, submittingComment, user, task?.id, loadComments]);
+  }, [newComment, task?.id, user?.uid, user?.displayName, user?.email, submittingComment, loadComments]);
 
-  // Charger les utilisateurs assignés
+  // Chargement des noms d'utilisateurs
   useEffect(() => {
-    const loadAssignedUsers = async () => {
-      if (!task?.assignedUsers?.length) {
-        setAssignedUsers([]);
-        return;
-      }
-
+    const loadUserNames = async () => {
       setLoadingUsers(true);
+      
       try {
-        const users = [];
-        for (const userId of task.assignedUsers) {
-          const userDoc = await getDoc(doc(db, 'users', userId));
-          if (userDoc.exists()) {
-            users.push({ id: userId, ...userDoc.data() });
+        // Nom du créateur
+        if (task.createdBy) {
+          const creatorDoc = await getDoc(doc(db, 'users', task.createdBy));
+          if (creatorDoc.exists()) {
+            const creatorData = creatorDoc.data();
+            setCreatorName(creatorData.displayName || creatorData.email || 'Utilisateur');
+          } else {
+            setCreatorName('Utilisateur introuvable');
           }
         }
-        setAssignedUsers(users);
+
+        // Noms des assignés
+        if (task.assignedTo && task.assignedTo.length > 0) {
+          const assigneeNamesArray = [];
+          for (const userId of task.assignedTo) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                assigneeNamesArray.push({
+                  id: userId,
+                  name: userData.displayName || userData.email || 'Utilisateur',
+                  email: userData.email
+                });
+              }
+            } catch (error) {
+              console.warn('Erreur chargement utilisateur:', userId, error);
+            }
+          }
+          setAssigneeNames(assigneeNamesArray);
+        }
+        
       } catch (error) {
-        console.error('Erreur chargement utilisateurs:', error);
+        console.error('Erreur chargement noms utilisateurs:', error);
       } finally {
         setLoadingUsers(false);
       }
     };
 
     if (isOpen && task) {
-      loadAssignedUsers();
+      loadUserNames();
     }
-  }, [task, isOpen]);
+  }, [isOpen, task]);
 
-  // 🗑️ FONCTION SUPPRESSION CORRIGÉE
-  const handleDelete = useCallback(async () => {
-    if (!task?.id || !user?.uid) {
-      if (window.showNotification) {
-        window.showNotification('Impossible de supprimer : données manquantes', 'error');
-      }
-      return;
-    }
-
-    // Vérifications de permissions
-    const isTaskOwner = task.createdBy === user.uid;
-    const isAssigned = Array.isArray(task.assignedTo) ? 
-      task.assignedTo.includes(user.uid) : 
-      task.assignedTo === user.uid;
-
-    if (!isTaskOwner && !isAssigned) {
-      if (window.showNotification) {
-        window.showNotification('Vous n\'avez pas les permissions pour supprimer cette tâche', 'error');
-      }
-      return;
-    }
-
-    // Confirmation
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer définitivement la tâche "${task.title}" ?\n\nCette action est irréversible.`;
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
+  // Gérer le volontariat
+  const handleVolunteer = async () => {
+    if (!effectiveUserId) return;
+    
+    setVolunteerLoading(true);
     try {
-      console.log('🗑️ [MODAL] Suppression tâche:', task.id);
-
-      // Suppression directe Firebase
-      const taskRef = doc(db, 'tasks', task.id);
-      await deleteDoc(taskRef);
-
-      console.log('✅ [MODAL] Tâche supprimée avec succès');
-      
-      // Notification succès
-      if (window.showNotification) {
-        window.showNotification('Tâche supprimée avec succès', 'success');
+      if (isAssignedToMe) {
+        await onUnassignFromMe?.(task.id);
+        if (window.showNotification) {
+          window.showNotification('Vous n\'êtes plus assigné à cette tâche', 'info');
+        }
+      } else {
+        await onAssignToMe?.(task.id);
+        if (window.showNotification) {
+          window.showNotification('Vous vous êtes porté volontaire !', 'success');
+        }
       }
-
-      // Fermer la modal
-      onClose();
-
-      // Callback parent si fourni
-      if (onDelete) {
-        onDelete(task.id);
-      }
-
     } catch (error) {
-      console.error('❌ [MODAL] Erreur suppression tâche:', error);
-      
-      let errorMessage = 'Erreur lors de la suppression de la tâche';
-      
-      if (error.code === 'permission-denied') {
-        errorMessage = 'Vous n\'avez pas les permissions pour supprimer cette tâche';
-      } else if (error.code === 'not-found') {
-        errorMessage = 'La tâche n\'existe plus';
-      } else if (error.message) {
-        errorMessage = `Erreur: ${error.message}`;
-      }
-      
+      console.error('Erreur volontariat:', error);
       if (window.showNotification) {
-        window.showNotification(errorMessage, 'error');
+        window.showNotification('Erreur lors du volontariat', 'error');
       }
+    } finally {
+      setVolunteerLoading(false);
     }
-  }, [task, user, onClose, onDelete]);
+  };
 
-  // 🎨 COMPOSANT SECTION COMMENTAIRES OPTIMISÉ
-  const CommentsSection = React.memo(() => (
+  // 🎨 COMPOSANT SECTION COMMENTAIRES
+  const CommentsSection = () => (
     <div className="p-6 space-y-4">
-      {/* Header avec compteur */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white flex items-center">
-          <MessageCircle className="w-5 h-5 mr-2 text-blue-400" />
-          Commentaires
-          <span className="ml-2 px-2 py-1 bg-blue-500 text-white text-xs rounded-full">
-            {comments.length}
-          </span>
-        </h3>
-        
-        {loadingComments && (
-          <div className="flex items-center text-gray-400 text-sm">
-            <div className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mr-2"></div>
-            Synchronisation...
-          </div>
-        )}
-      </div>
+      {/* Formulaire d'ajout */}
+      <form onSubmit={handleSubmitComment} className="space-y-3">
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Ajouter un commentaire..."
+            rows={3}
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={submittingComment}
+          />
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={!newComment.trim() || submittingComment}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            <Send className="w-4 h-4" />
+            {submittingComment ? 'Envoi...' : 'Commenter'}
+          </button>
+        </div>
+      </form>
 
       {/* Erreur */}
       {commentsError && (
-        <div className="p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-300 text-sm">
-          <AlertCircle className="w-4 h-4 inline mr-2" />
+        <div className="p-3 bg-red-900/50 border border-red-600 rounded-lg text-red-300 text-sm">
           {commentsError}
         </div>
       )}
 
       {/* Liste des commentaires */}
-      <div className="space-y-4 max-h-64 overflow-y-auto">
-        {comments.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageCircle className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">Aucun commentaire pour le moment</p>
-            <p className="text-gray-600 text-xs mt-1">Soyez le premier à commenter cette tâche !</p>
-          </div>
-        ) : (
-          comments.map(comment => (
-            <div key={comment.id} className="bg-gray-800 rounded-lg p-4 border-l-4 border-blue-500">
-              {/* En-tête du commentaire */}
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                  {comment.userName ? comment.userName.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div className="flex-1">
-                  <div className="text-white text-sm font-medium">
-                    {comment.userName || 'Utilisateur'}
-                  </div>
-                  <div className="text-gray-400 text-xs">
-                    {comment.createdAt ? formatDate(comment.createdAt) : 'À l\'instant'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Contenu du commentaire */}
-              <div className="text-gray-300 text-sm leading-relaxed">
-                {comment.content}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* 🔥 FORMULAIRE COMMENTAIRE CORRIGÉ - PAS DE RE-RENDER */}
-      {user && (
-        <div className="mt-4">
-          <form onSubmit={handleSubmitComment} className="space-y-3">
-            <div className="flex gap-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <div className="flex-1">
-                {/* 🔥 TEXTAREA AVEC REF - PLUS DE PERTE DE FOCUS */}
-                <textarea
-                  ref={textareaRef}
-                  value={newComment}
-                  onChange={handleCommentChange}
-                  placeholder="Ajouter un commentaire..."
-                  className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 border-0"
-                  rows={3}
-                  disabled={submittingComment}
-                  style={{
-                    minHeight: '60px',
-                    maxHeight: '120px'
-                  }}
-                />
-                
-                {/* Bouton d'envoi */}
-                <div className="flex justify-end mt-2">
-                  <button
-                    type="submit"
-                    disabled={!newComment.trim() || submittingComment}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
-                  >
-                    {submittingComment ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Envoi...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        Commenter
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
+      {loadingComments ? (
+        <div className="flex items-center justify-center p-8">
+          <div className="text-gray-400">Chargement des commentaires...</div>
         </div>
-      )}
-
-      {/* Message si non connecté */}
-      {!user && (
-        <div className="text-center py-4 text-gray-400 text-sm">
-          Connectez-vous pour ajouter un commentaire
+      ) : comments.length === 0 ? (
+        <div className="text-center p-8 text-gray-400">
+          <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          Aucun commentaire pour cette tâche
+        </div>
+      ) : (
+        <div className="space-y-4 max-h-80 overflow-y-auto">
+          {comments.map((comment) => (
+            <div key={comment.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-white text-sm">
+                      {comment.authorName || 'Utilisateur'}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {formatDate(comment.createdAt)}
+                    </span>
+                  </div>
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap">
+                    {comment.content}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
-  ));
+  );
 
+  // 🎨 RENDU PRINCIPAL
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-xl">
+      <div className="bg-gray-900 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl border border-gray-700">
         
-        {/* Header de la modal */}
+        {/* 🎯 Header avec titre et actions */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-white" />
+              {task.category === 'urgent' && <AlertCircle className="w-5 h-5 text-white" />}
+              {task.category === 'important' && <Star className="w-5 h-5 text-white" />}
+              {task.category === 'routine' && <Target className="w-5 h-5 text-white" />}
+              {!task.category && <FileText className="w-5 h-5 text-white" />}
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">{task.title}</h2>
-              <p className="text-gray-400 text-sm">Détails de la tâche</p>
+              <div className="flex items-center gap-4 mt-1">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  task.priority === 'high' 
+                    ? 'bg-red-900/50 text-red-300 border border-red-600' :
+                  task.priority === 'medium' 
+                    ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-600' :
+                    'bg-green-900/50 text-green-300 border border-green-600'
+                }`}>
+                  {task.priority === 'high' ? 'Haute' : 
+                   task.priority === 'medium' ? 'Moyenne' : 'Faible'} priorité
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  task.status === 'completed' 
+                    ? 'bg-green-900/50 text-green-300 border border-green-600' :
+                  task.status === 'in_progress' 
+                    ? 'bg-blue-900/50 text-blue-300 border border-blue-600' :
+                    'bg-gray-700 text-gray-300 border border-gray-600'
+                }`}>
+                  {task.status === 'completed' ? 'Terminée' :
+                   task.status === 'in_progress' ? 'En cours' : 'En attente'}
+                </span>
+              </div>
             </div>
           </div>
           
-          <button
-            onClick={onClose}
-            className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          {/* Actions header */}
+          <div className="flex items-center gap-2">
+            {showActions && onEdit && (
+              <button
+                onClick={() => onEdit(task)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                title="Modifier"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            )}
+            
+            {showActions && onDelete && (
+              <button
+                onClick={() => onDelete(task.id)}
+                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors"
+                title="Supprimer"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700">
-          <button
-            onClick={() => setActiveTab('details')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'details'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-900/20'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Info className="w-4 h-4 inline mr-2" />
-            Détails
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('comments')}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'comments'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-900/20'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <MessageCircle className="w-4 h-4 inline mr-2" />
-            Commentaires ({comments.length})
-          </button>
+        {/* 📋 Onglets navigation */}
+        <div className="bg-gray-800 border-b border-gray-700">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-6 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'details'
+                  ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-900/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Info className="w-4 h-4 inline mr-2" />
+              Détails
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`px-6 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'comments'
+                  ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-900/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4 inline mr-2" />
+              Commentaires ({comments.length})
+            </button>
+          </div>
         </div>
 
-        {/* Contenu */}
-        <div className="max-h-[60vh] overflow-y-auto">
+        {/* 📄 Contenu principal */}
+        <div className="flex-1 overflow-y-auto">
           {activeTab === 'details' && (
-            <div className="p-6">
-              {/* Description */}
+            <div className="p-6 space-y-6">
+              
+              {/* 📝 Description */}
               {task.description && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-2">Description</h3>
-                  <p className="text-gray-300 leading-relaxed">{task.description}</p>
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center text-white">
+                    <FileText className="w-5 h-5 mr-2 text-blue-400" />
+                    Description
+                  </h3>
+                  <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
+                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      {task.description}
+                    </p>
+                  </div>
                 </div>
               )}
 
-              {/* Informations de la tâche */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {/* Créé par */}
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm text-gray-400">Créé par</div>
-                    <div className="text-white font-medium">
-                      {task.createdBy ? 'Utilisateur' : 'Système'}
+              {/* 👥 Informations d'assignation et créateur */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Informations créateur */}
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <div className="flex items-center gap-2 mb-3">
+                    <User className="w-4 h-4 text-blue-400" />
+                    <h4 className="font-medium text-white">Créateur</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm">
+                      <User className="w-4 h-4 text-gray-400 mr-2" />
+                      <span className="text-gray-400">Créé par:</span>
+                      {loadingUsers ? (
+                        <span className="ml-2 text-gray-300">Chargement...</span>
+                      ) : (
+                        <span className="ml-2 text-white font-medium">{creatorName}</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center text-sm">
+                      <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                      <span className="text-gray-400">Date:</span>
+                      <span className="ml-2 text-white font-medium">
+                        {formatDate(task.createdAt)}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Statut */}
-                <div className="flex items-center gap-3">
-                  <Flag className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm text-gray-400">Statut</div>
-                    <div className="text-white font-medium capitalize">
-                      {task.status || 'En attente'}
-                    </div>
+                {/* Informations assignation */}
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="w-4 h-4 text-blue-400" />
+                    <h4 className="font-medium text-white">Assignation</h4>
                   </div>
-                </div>
-
-                {/* Date de création */}
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <div className="text-sm text-gray-400">Créé le</div>
-                    <div className="text-white font-medium">
-                      {task.createdAt ? formatDate(task.createdAt) : 'Date inconnue'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Récompense XP */}
-                {task.xpReward && (
-                  <div className="flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-yellow-400" />
-                    <div>
-                      <div className="text-sm text-gray-400">Récompense</div>
-                      <div className="text-yellow-400 font-medium">
-                        +{task.xpReward} XP
+                  <div className="space-y-2">
+                    {task.assignedTo && task.assignedTo.length > 0 ? (
+                      <div className="flex items-start text-sm">
+                        <Users className="w-4 h-4 text-gray-400 mr-2 mt-0.5" />
+                        <div>
+                          <span className="text-gray-400">Assigné à:</span>
+                          {loadingUsers ? (
+                            <span className="ml-2 text-gray-300">Chargement...</span>
+                          ) : (
+                            <div className="mt-1 space-y-1">
+                              {assigneeNames.map((assignee, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center">
+                                    <User className="w-3 h-3 text-white" />
+                                  </div>
+                                  <span className="text-white font-medium text-sm">
+                                    {assignee.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    ) : (
+                      <div className="text-sm text-gray-400 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Pas encore assigné
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 📊 Informations techniques */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                
+                {/* Statut */}
+                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 text-center">
+                  <Flag className="w-5 h-5 text-blue-400 mx-auto mb-1" />
+                  <div className="text-xs text-gray-400 mb-1">Statut</div>
+                  <div className="text-sm text-white font-medium capitalize">
+                    {task.status === 'completed' ? 'Terminée' :
+                     task.status === 'in_progress' ? 'En cours' : 'En attente'}
+                  </div>
+                </div>
+
+                {/* Priorité */}
+                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 text-center">
+                  <Target className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
+                  <div className="text-xs text-gray-400 mb-1">Priorité</div>
+                  <div className="text-sm text-white font-medium">
+                    {task.priority === 'high' ? 'Haute' : 
+                     task.priority === 'medium' ? 'Moyenne' : 'Faible'}
+                  </div>
+                </div>
+
+                {/* Catégorie */}
+                {task.category && (
+                  <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 text-center">
+                    <Tag className="w-5 h-5 text-purple-400 mx-auto mb-1" />
+                    <div className="text-xs text-gray-400 mb-1">Catégorie</div>
+                    <div className="text-sm text-white font-medium capitalize">
+                      {task.category}
+                    </div>
+                  </div>
+                )}
+
+                {/* Date limite */}
+                {task.dueDate && (
+                  <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700 text-center">
+                    <Clock className="w-5 h-5 text-red-400 mx-auto mb-1" />
+                    <div className="text-xs text-gray-400 mb-1">Date limite</div>
+                    <div className="text-sm text-white font-medium">
+                      {formatDate(task.dueDate)}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Utilisateurs assignés */}
-              {assignedUsers.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-3">Assigné à</h3>
-                  <div className="space-y-2">
-                    {assignedUsers.map(assignedUser => (
-                      <div key={assignedUser.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                          {assignedUser.displayName ? assignedUser.displayName.charAt(0).toUpperCase() : 'U'}
+              {/* 🏆 Récompenses */}
+              {task.rewards && task.rewards > 0 && (
+                <div className="bg-gradient-to-r from-yellow-900/20 to-orange-900/20 rounded-lg p-4 border border-yellow-600/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Trophy className="w-5 h-5 text-yellow-400" />
+                    <h4 className="font-medium text-white">Récompenses</h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold text-yellow-400">+{task.rewards}</span>
+                    <span className="text-yellow-200">points XP</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 📎 Pièces jointes */}
+              {task.attachments && task.attachments.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center text-white">
+                    <Paperclip className="w-5 h-5 mr-2 text-blue-400" />
+                    Pièces jointes
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {task.attachments.map((attachment, index) => (
+                      <div key={index} className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                          <Upload className="w-5 h-5 text-white" />
                         </div>
-                        <div>
-                          <div className="text-white font-medium">
-                            {assignedUser.displayName || assignedUser.email || 'Utilisateur'}
-                          </div>
-                          <div className="text-gray-400 text-sm">
-                            {assignedUser.email}
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-white truncate">{attachment.name}</div>
+                          <div className="text-sm text-gray-400">{attachment.size}</div>
                         </div>
+                        <button className="p-1 text-gray-400 hover:text-white">
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 📝 Notes */}
+              {task.notes && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center text-white">
+                    <FileText className="w-5 h-5 mr-2 text-blue-400" />
+                    Notes
+                  </h3>
+                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                      {task.notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 🌍 Localisation */}
+              {task.location && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center text-white">
+                    <MapPin className="w-5 h-5 mr-2 text-blue-400" />
+                    Localisation
+                  </h3>
+                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <p className="text-gray-300">{task.location}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 🔄 Récurrence */}
+              {task.recurrence && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center text-white">
+                    <Repeat className="w-5 h-5 mr-2 text-blue-400" />
+                    Récurrence
+                  </h3>
+                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <p className="text-gray-300 capitalize">{task.recurrence}</p>
                   </div>
                 </div>
               )}
             </div>
           )}
 
+          {/* 💬 Onglet Commentaires */}
           {activeTab === 'comments' && <CommentsSection />}
         </div>
 
-        {/* Actions */}
-        {showActions && (
-          <div className="flex items-center justify-between p-6 border-t border-gray-700 bg-gray-800/50">
+        {/* 🎬 Footer d'actions */}
+        <div className="bg-gray-800 border-t border-gray-700 p-4">
+          <div className="flex justify-between items-center">
+            
+            {/* Actions à gauche */}
             <div className="flex items-center gap-3">
-              {/* Bouton volontariat */}
-              {!isAssignedToMe && (
+              {/* Bouton se porter volontaire - FONCTIONNEL */}
+              {showActions && onAssignToMe && onUnassignFromMe && task.status !== 'completed' && (
                 <button
                   onClick={handleVolunteer}
                   disabled={volunteerLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    isAssignedToMe
+                      ? 'bg-gray-600 text-white hover:bg-gray-700'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {volunteerLoading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Traitement...
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      {isAssignedToMe ? 'Retrait...' : 'Assignation...'}
+                    </>
+                  ) : isAssignedToMe ? (
+                    <>
+                      <UserMinus className="w-4 h-4" />
+                      Se désister
                     </>
                   ) : (
                     <>
@@ -653,60 +733,30 @@ const TaskDetailModal = ({
                   )}
                 </button>
               )}
-
-              {/* Bouton désassignation */}
-              {isAssignedToMe && (
-                <button
-                  onClick={handleVolunteer}
-                  disabled={volunteerLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-colors"
-                >
-                  {volunteerLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Traitement...
-                    </>
-                  ) : (
-                    <>
-                      <UserMinus className="w-4 h-4" />
-                      Se désassigner
-                    </>
-                  )}
-                </button>
-              )}
             </div>
 
+            {/* Actions à droite */}
             <div className="flex items-center gap-3">
-              {/* Actions propriétaire */}
-              {onEdit && (
-                <button
-                  onClick={() => onEdit(task)}
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-                >
-                  <Edit className="w-4 h-4" />
-                  Modifier
-                </button>
-              )}
-
-              {/* BOUTON SUPPRESSION CORRIGÉ */}
-              <button
-                onClick={handleDelete}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                Supprimer
-              </button>
-
               <button
                 onClick={onClose}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
               >
-                <X className="w-4 h-4" />
                 Fermer
               </button>
+              
+              {/* Marquer terminé */}
+              {showActions && isAssignedToMe && task.status !== 'completed' && onSubmit && (
+                <button
+                  onClick={() => onSubmit(task.id)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Marquer terminé
+                </button>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
