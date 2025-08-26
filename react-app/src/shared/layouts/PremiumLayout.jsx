@@ -1,11 +1,11 @@
 // ==========================================
 // 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM AVEC TOUS LES EXPORTS REQUIS - CORRECTION PREMIUMSEARCHBAR
+// LAYOUT PREMIUM AVEC MENU HAMBURGER FONCTIONNEL - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Menu } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Menu, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
@@ -38,13 +38,14 @@ const PremiumLayout = ({
     try {
       await signOut();
       navigate('/login');
+      setMenuOpen(false);
       console.log('✅ [PREMIUM-LAYOUT] Déconnexion réussie');
     } catch (error) {
       console.error('❌ [PREMIUM-LAYOUT] Erreur déconnexion:', error);
     }
   };
 
-  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES ADMIN
+  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -72,80 +73,167 @@ const PremiumLayout = ({
         { path: '/admin', label: 'Admin Dashboard', icon: '👑' },
         { path: '/admin/users', label: 'Gestion Utilisateurs', icon: '👨‍💼' },
         { path: '/admin/analytics', label: 'Analytics Admin', icon: '📈' },
-        { path: '/admin/settings', label: 'Config Système', icon: '🔧' }
+        { path: '/admin/settings', label: 'Config Système', icon: '🔧' },
+        { path: '/admin/complete-test', label: 'Test Complet', icon: '🧪' }
       ]
     });
   }
 
+  // Navigation handler
+  const handleNavigation = (path) => {
+    navigate(path);
+    setMenuOpen(false);
+  };
+
+  // Fermer le menu avec Escape
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && menuOpen) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [menuOpen]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* 🍔 MENU HAMBURGER MOBILE */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="p-3 bg-gray-800/90 backdrop-blur-sm border border-gray-700/50 rounded-xl text-white hover:bg-gray-700/90 transition-colors"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-      </div>
+      {/* 🍔 BOUTON MENU HAMBURGER - VISIBLE SUR TOUTES LES PAGES */}
+      <motion.button
+        onClick={() => setMenuOpen(true)}
+        className="fixed top-5 left-5 z-[9999] w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl flex items-center justify-center text-white shadow-lg transition-all duration-200"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Menu className="w-6 h-6" />
+      </motion.button>
 
-      {/* 📱 MENU MOBILE OVERLAY */}
-      {menuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40">
-          <div className="bg-black/50 inset-0 absolute" onClick={() => setMenuOpen(false)} />
-          <div className="bg-gray-900/95 backdrop-blur-sm w-80 h-full border-r border-gray-700/50 overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Navigation</h2>
-                <button 
-                  onClick={() => setMenuOpen(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-              
-              {menuItems.map((section, idx) => (
-                <div key={idx} className="mb-6">
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                    {section.section}
-                  </h3>
-                  {section.items.map((item) => (
-                    <button
-                      key={item.path}
-                      onClick={() => {
-                        navigate(item.path);
-                        setMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors mb-1 flex items-center gap-3 ${
-                        location.pathname === item.path
-                          ? 'bg-blue-600/20 text-blue-400 border border-blue-500/20'
-                          : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-lg">{item.icon}</span>
-                      {item.label}
-                    </button>
-                  ))}
+      {/* 📱 MENU OVERLAY - VERSION REACT SIMPLIFIÉE */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            {/* Fond overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000]"
+              onClick={() => setMenuOpen(false)}
+            />
+
+            {/* Menu sidebar */}
+            <motion.div
+              initial={{ x: -400, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -400, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed top-0 left-0 w-80 h-full bg-gradient-to-b from-gray-900 via-slate-800 to-gray-900 border-r border-gray-700/50 backdrop-blur-sm z-[10001] overflow-y-auto"
+            >
+              {/* Header du menu */}
+              <div className="p-6 border-b border-gray-700/50">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    SYNERGIA v3.5
+                  </h2>
+                  <button
+                    onClick={() => setMenuOpen(false)}
+                    className="w-8 h-8 bg-gray-700/50 hover:bg-gray-600 rounded-lg flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              ))}
-              
-              <div className="pt-4 border-t border-gray-700/50">
+
+                {/* Info utilisateur */}
+                <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                    {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white truncate">
+                      {user?.displayName || 'Utilisateur'}
+                    </p>
+                    <p className="text-sm text-gray-400 truncate">
+                      {user?.email || ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Badge admin */}
+                {userIsAdmin && (
+                  <div className="mt-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg px-3 py-2 text-center">
+                    <span className="text-white font-bold text-sm">🛡️ ADMINISTRATEUR</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation */}
+              <nav className="flex-1 p-4">
+                {menuItems.map((section, sectionIndex) => (
+                  <div key={section.section} className="mb-6">
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 px-2 ${
+                      section.section === 'ADMINISTRATION' 
+                        ? 'text-yellow-400' 
+                        : 'text-gray-400'
+                    }`}>
+                      {section.section === 'ADMINISTRATION' && '🛡️ '}
+                      {section.section}
+                    </h3>
+                    
+                    <div className="space-y-1">
+                      {section.items.map((item) => {
+                        const isActive = location.pathname === item.path;
+                        const isAdminItem = section.section === 'ADMINISTRATION';
+                        
+                        return (
+                          <motion.button
+                            key={item.path}
+                            onClick={() => handleNavigation(item.path)}
+                            className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 flex items-center gap-3 group ${
+                              isActive
+                                ? isAdminItem
+                                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg'
+                                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                                : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                            }`}
+                            whileHover={{ x: 2 }}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: sectionIndex * 0.1 + 0.1 }}
+                          >
+                            <span className="text-lg flex-shrink-0">{item.icon}</span>
+                            <span className="font-medium">{item.label}</span>
+                            {isActive && (
+                              <span className="ml-auto text-sm opacity-75">•</span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </nav>
+
+              {/* Footer du menu */}
+              <div className="p-4 border-t border-gray-700/50">
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2 rounded-lg text-red-400 hover:bg-red-600/10 transition-colors"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 rounded-lg text-white font-medium transition-all duration-200 flex items-center justify-center gap-2"
                 >
                   🚪 Déconnexion
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* 📄 CONTENU PRINCIPAL */}
-      <div className="lg:ml-0 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+      <div className="min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 pt-20">
           {/* 🎯 HEADER PREMIUM */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
