@@ -1,4 +1,29 @@
-// ==========================================
+// Gérer le volontariat
+  const handleVolunteer = async () => {
+    if (!user?.uid) return;
+    
+    setVolunteerLoading(true);
+    try {
+      if (isAssignedToMe) {
+        await onUnassignFromMe?.(task.id);
+        if (window.showNotification) {
+          window.showNotification('Vous n\'êtes plus assigné à cette tâche', 'info');
+        }
+      } else {
+        await onAssignToMe?.(task.id);
+        if (window.showNotification) {
+          window.showNotification('Vous vous êtes porté volontaire !', 'success');
+        }
+      }
+    } catch (error) {
+      console.error('Erreur volontariat:', error);
+      if (window.showNotification) {
+        window.showNotification('Erreur lors du volontariat', 'error');
+      }
+    } finally {
+      setVolunteerLoading(false);
+    }
+  };// ==========================================
 // 📁 react-app/src/components/ui/TaskDetailModal.jsx
 // MODAL DÉTAILS TÂCHE - TEXTAREA COMMENTAIRES CORRIGÉ
 // ==========================================
@@ -46,6 +71,7 @@ import {
   getDocs, 
   addDoc, 
   updateDoc,
+  deleteDoc,
   serverTimestamp, 
   onSnapshot,
   orderBy 
@@ -270,32 +296,74 @@ const TaskDetailModal = ({
     }
   }, [task, isOpen]);
 
-  // Gérer le volontariat
-  const handleVolunteer = async () => {
-    if (!user?.uid) return;
-    
-    setVolunteerLoading(true);
-    try {
-      if (isAssignedToMe) {
-        await onUnassignFromMe?.(task.id);
-        if (window.showNotification) {
-          window.showNotification('Vous n\'êtes plus assigné à cette tâche', 'info');
-        }
-      } else {
-        await onAssignToMe?.(task.id);
-        if (window.showNotification) {
-          window.showNotification('Vous vous êtes porté volontaire !', 'success');
-        }
-      }
-    } catch (error) {
-      console.error('Erreur volontariat:', error);
+  // 🗑️ FONCTION SUPPRESSION CORRIGÉE
+  const handleDelete = useCallback(async () => {
+    if (!task?.id || !user?.uid) {
       if (window.showNotification) {
-        window.showNotification('Erreur lors du volontariat', 'error');
+        window.showNotification('Impossible de supprimer : données manquantes', 'error');
       }
-    } finally {
-      setVolunteerLoading(false);
+      return;
     }
-  };
+
+    // Vérifications de permissions
+    const isTaskOwner = task.createdBy === user.uid;
+    const isAssigned = Array.isArray(task.assignedTo) ? 
+      task.assignedTo.includes(user.uid) : 
+      task.assignedTo === user.uid;
+
+    if (!isTaskOwner && !isAssigned) {
+      if (window.showNotification) {
+        window.showNotification('Vous n\'avez pas les permissions pour supprimer cette tâche', 'error');
+      }
+      return;
+    }
+
+    // Confirmation
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer définitivement la tâche "${task.title}" ?\n\nCette action est irréversible.`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ [MODAL] Suppression tâche:', task.id);
+
+      // Suppression directe Firebase
+      const taskRef = doc(db, 'tasks', task.id);
+      await deleteDoc(taskRef);
+
+      console.log('✅ [MODAL] Tâche supprimée avec succès');
+      
+      // Notification succès
+      if (window.showNotification) {
+        window.showNotification('Tâche supprimée avec succès', 'success');
+      }
+
+      // Fermer la modal
+      onClose();
+
+      // Callback parent si fourni
+      if (onDelete) {
+        onDelete(task.id);
+      }
+
+    } catch (error) {
+      console.error('❌ [MODAL] Erreur suppression tâche:', error);
+      
+      let errorMessage = 'Erreur lors de la suppression de la tâche';
+      
+      if (error.code === 'permission-denied') {
+        errorMessage = 'Vous n\'avez pas les permissions pour supprimer cette tâche';
+      } else if (error.code === 'not-found') {
+        errorMessage = 'La tâche n\'existe plus';
+      } else if (error.message) {
+        errorMessage = `Erreur: ${error.message}`;
+      }
+      
+      if (window.showNotification) {
+        window.showNotification(errorMessage, 'error');
+      }
+    }
+  }, [task, user, onClose, onDelete]);
 
   // 🎨 COMPOSANT SECTION COMMENTAIRES OPTIMISÉ
   const CommentsSection = React.memo(() => (
@@ -620,15 +688,14 @@ const TaskDetailModal = ({
                 </button>
               )}
 
-              {onDelete && (
-                <button
-                  onClick={() => onDelete(task.id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Supprimer
-                </button>
-              )}
+              {/* BOUTON SUPPRESSION CORRIGÉ */}
+              <button
+                onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
 
               <button
                 onClick={onClose}
