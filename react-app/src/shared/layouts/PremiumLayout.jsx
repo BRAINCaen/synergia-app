@@ -293,6 +293,56 @@ export const PremiumButton = ({
 };
 
 /**
+ * 🔍 COMPOSANT BARRE DE RECHERCHE PREMIUM
+ */
+export const PremiumSearchBar = ({ 
+  placeholder = "Rechercher...", 
+  value = "", 
+  onChange = () => {}, 
+  onSearch = () => {},
+  icon = null,
+  className = "",
+  ...props 
+}) => {
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      onSearch(value);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`relative ${className}`}
+    >
+      <div className="relative">
+        {icon && (
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            {React.createElement(icon, { className: "w-4 h-4" })}
+          </div>
+        )}
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder={placeholder}
+          className={`
+            w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 
+            rounded-lg px-4 py-3 text-white placeholder-gray-400
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+            transition-all duration-200
+            ${icon ? 'pl-10' : ''}
+          `}
+          {...props}
+        />
+      </div>
+    </motion.div>
+  );
+};
+
+/**
  * 📈 COMPOSANT CARTE STATISTIQUE SIMPLE
  */
 export const StatCard = PremiumStatCard; // Alias pour compatibilité
