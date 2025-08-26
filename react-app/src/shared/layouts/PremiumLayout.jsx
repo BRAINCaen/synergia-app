@@ -85,7 +85,7 @@ const PremiumLayout = ({
     setMenuOpen(false);
   };
 
-  // Fermer le menu avec Escape
+  // Fermer le menu avec Escape et gestion du body scroll
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && menuOpen) {
@@ -93,16 +93,28 @@ const PremiumLayout = ({
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    // Gestion du scroll du body
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+      document.addEventListener('keydown', handleEscape);
+    } else {
+      document.body.style.overflow = 'unset';
+      document.removeEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [menuOpen]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative">
       {/* 🍔 BOUTON MENU HAMBURGER - VISIBLE SUR TOUTES LES PAGES */}
       <motion.button
         onClick={() => setMenuOpen(true)}
-        className="fixed top-5 left-5 z-[9999] w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl flex items-center justify-center text-white shadow-lg transition-all duration-200"
+        className="fixed top-5 left-5 w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl flex items-center justify-center text-white shadow-lg transition-all duration-200"
+        style={{ zIndex: 9997 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         initial={{ opacity: 0, scale: 0.8 }}
@@ -112,26 +124,29 @@ const PremiumLayout = ({
         <Menu className="w-6 h-6" />
       </motion.button>
 
-      {/* 📱 MENU OVERLAY - VERSION REACT SIMPLIFIÉE */}
-      <AnimatePresence>
+      {/* 📱 MENU OVERLAY - VERSION REACT CORRIGÉE */}
+      <AnimatePresence mode="wait">
         {menuOpen && (
           <>
-            {/* Fond overlay */}
+            {/* Fond overlay avec z-index fixe */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000]"
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              style={{ zIndex: 9998 }}
               onClick={() => setMenuOpen(false)}
             />
 
-            {/* Menu sidebar */}
+            {/* Menu sidebar avec z-index supérieur */}
             <motion.div
               initial={{ x: -400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -400, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 w-80 h-full bg-gradient-to-b from-gray-900 via-slate-800 to-gray-900 border-r border-gray-700/50 backdrop-blur-sm z-[10001] overflow-y-auto"
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="fixed top-0 left-0 w-80 h-full bg-gradient-to-b from-gray-900 via-slate-800 to-gray-900 border-r border-gray-700/50 backdrop-blur-sm overflow-y-auto shadow-2xl"
+              style={{ zIndex: 9999 }}
             >
               {/* Header du menu */}
               <div className="p-6 border-b border-gray-700/50">
