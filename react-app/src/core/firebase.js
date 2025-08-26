@@ -1,10 +1,15 @@
 // ==========================================
 // 📁 react-app/src/core/firebase.js
-// Configuration Firebase COMPLÈTE avec tous les exports
+// Configuration Firebase COMPLÈTE avec PERSISTENCE D'AUTH
 // ==========================================
 
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { 
+  getAuth, 
+  setPersistence, 
+  browserLocalPersistence,
+  GoogleAuthProvider 
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -58,20 +63,75 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// Service d'authentification simple
+// 🔐 CONFIGURATION DE LA PERSISTENCE AUTH
+// Cette fonction configure Firebase pour garder l'utilisateur connecté
+const setupAuthPersistence = async () => {
+  try {
+    // Configurer la persistence pour garder l'utilisateur connecté
+    await setPersistence(auth, browserLocalPersistence);
+    console.log('✅ [FIREBASE] Persistence d\'auth configurée - l\'utilisateur restera connecté');
+  } catch (error) {
+    console.error('❌ [FIREBASE] Erreur configuration persistence:', error);
+  }
+};
+
+// Configurer la persistence immédiatement
+setupAuthPersistence();
+
+// Provider Google pour l'authentification
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
+// 🔧 Service d'authentification amélioré
 export const authService = {
+  // Observer les changements d'état auth
   onAuthStateChanged: (callback) => {
     return auth.onAuthStateChanged ? auth.onAuthStateChanged(callback) : () => {};
   },
   
+  // Déconnexion
   signOut: () => {
     return auth.signOut ? auth.signOut() : Promise.resolve();
+  },
+  
+  // Obtenir l'utilisateur actuel
+  getCurrentUser: () => {
+    return auth.currentUser;
+  },
+  
+  // Vérifier si l'utilisateur est connecté
+  isAuthenticated: () => {
+    return !!auth.currentUser;
   }
 };
+
+// 📊 Configuration d'emulation pour développement
+if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
+  console.log('🔧 Mode développement - Émulateurs Firebase activés');
+  // Configurer les émulateurs si nécessaire
+  // connectAuthEmulator(auth, 'http://localhost:9099');
+  // connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 // Export par défaut
 export default app;
 
-console.log('✅ Firebase initialisé avec succès');
-console.log('🔧 Auth Domain:', firebaseConfig.authDomain);
-console.log('🔧 Project ID:', firebaseConfig.projectId);
+// 📋 Logs de confirmation
+console.log('✅ [FIREBASE] Initialisé avec succès');
+console.log('🔧 [FIREBASE] Auth Domain:', firebaseConfig.authDomain);
+console.log('🔧 [FIREBASE] Project ID:', firebaseConfig.projectId);
+console.log('🔐 [FIREBASE] Persistence: browserLocalPersistence (utilisateur reste connecté)');
+
+// 🛡️ Vérification de la configuration
+const requiredEnvVars = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN', 
+  'VITE_FIREBASE_PROJECT_ID'
+];
+
+const missingVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
+if (missingVars.length > 0 && import.meta.env.PROD) {
+  console.warn('⚠️ [FIREBASE] Variables d\'environnement manquantes:', missingVars);
+}
