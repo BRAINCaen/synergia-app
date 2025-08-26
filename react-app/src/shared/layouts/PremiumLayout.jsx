@@ -1,31 +1,131 @@
 // ==========================================
 // 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM - DESIGN COHÉRENT RESTAURÉ IDENTIQUE AU DASHBOARD
+// LAYOUT PREMIUM AVEC MENU HAMBURGER COMPLET COMME DASHBOARD
 // ==========================================
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, X, LogOut, User, Settings, Home, Target, BarChart3, Trophy, Award, Users, Clock, Wrench, Shield } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore.js';
+import { isAdmin } from '../../core/services/adminService.js';
 
 /**
- * 🎨 LAYOUT PREMIUM AVEC DESIGN COHÉRENT DASHBOARD
+ * 🎨 LAYOUT PREMIUM AVEC NAVIGATION COMPLÈTE COMME DASHBOARD
  */
 const PremiumLayout = ({ 
-  children,
-  title,
-  subtitle,
+  children, 
+  title = "Page", 
+  subtitle = "", 
   icon: Icon,
+  headerActions = null,
   className = "",
   showStats = false,
   stats = [],
-  headerStats = [],
-  headerActions = null
+  headerStats = []
 }) => {
+  // 🔌 HOOKS
+  const { user, signOut } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  
+  // 🛡️ PERMISSIONS
+  const userIsAdmin = isAdmin(user);
+
+  // 🚪 DÉCONNEXION
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+      setMenuOpen(false);
+    } catch (error) {
+      console.error('Erreur déconnexion:', error);
+    }
+  };
+
+  // 🧭 STRUCTURE DE NAVIGATION COMPLÈTE
+  const menuSections = [
+    {
+      title: 'PRINCIPAL',
+      items: [
+        { path: '/dashboard', label: 'Dashboard', icon: Home },
+        { path: '/tasks', label: 'Tâches', icon: Target },
+        { path: '/projects', label: 'Projets', icon: BarChart3 },
+        { path: '/analytics', label: 'Analytics', icon: BarChart3 }
+      ]
+    },
+    {
+      title: 'GAMIFICATION', 
+      items: [
+        { path: '/gamification', label: 'Gamification', icon: Trophy },
+        { path: '/badges', label: 'Badges', icon: Award },
+        { path: '/leaderboard', label: 'Classement', icon: Trophy },
+        { path: '/rewards', label: 'Récompenses', icon: Award }
+      ]
+    },
+    {
+      title: 'ÉQUIPE',
+      items: [
+        { path: '/team', label: 'Équipe', icon: Users },
+        { path: '/users', label: 'Utilisateurs', icon: User }
+      ]
+    },
+    {
+      title: 'OUTILS',
+      items: [
+        { path: '/onboarding', label: 'Intégration', icon: Target },
+        { path: '/timetrack', label: 'Time Track', icon: Clock },
+        { path: '/profile', label: 'Mon Profil', icon: User },
+        { path: '/settings', label: 'Paramètres', icon: Settings }
+      ]
+    }
+  ];
+
+  // Ajouter section admin si autorisé
+  if (userIsAdmin) {
+    menuSections.push({
+      title: 'ADMINISTRATION',
+      items: [
+        { path: '/admin/task-validation', label: 'Validation Tâches', icon: Shield },
+        { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: Shield },
+        { path: '/admin/complete-test', label: 'Test Complet', icon: Wrench },
+        { path: '/admin/profile-test', label: 'Test Profil', icon: Wrench },
+        { path: '/admin/role-permissions', label: 'Permissions', icon: Shield },
+        { path: '/admin/rewards', label: 'Gestion Récompenses', icon: Award },
+        { path: '/admin/badges', label: 'Gestion Badges', icon: Trophy },
+        { path: '/admin/users', label: 'Gestion Utilisateurs', icon: Users },
+        { path: '/admin/analytics', label: 'Analytics Admin', icon: BarChart3 },
+        { path: '/admin/settings', label: 'Paramètres Admin', icon: Settings },
+        { path: '/admin/sync', label: 'Synchronisation', icon: Wrench }
+      ]
+    });
+  }
+
+  // Navigation vers une page
+  const navigateTo = (path) => {
+    navigate(path);
+    setMenuOpen(false);
+  };
+
+  // Fermer menu au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuOpen && !event.target.closest('#hamburger-menu') && !event.target.closest('#hamburger-button')) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
       
-      {/* 🌟 PARTICULES SUBTILES COMME DASHBOARD */}
+      {/* 🌟 PARTICULES D'ARRIÈRE-PLAN */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
-        {Array.from({ length: 8 }).map((_, i) => (
+        {Array.from({ length: 12 }).map((_, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 bg-blue-400/40 rounded-full"
@@ -48,15 +148,160 @@ const PremiumLayout = ({
         ))}
       </div>
 
-      {/* 📄 CONTENU PRINCIPAL AVEC PADDING COMME DASHBOARD */}
+      {/* 🍔 BOUTON MENU HAMBURGER */}
+      <motion.button
+        id="hamburger-button"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="fixed top-6 left-6 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 rounded-lg p-3 transition-all duration-300"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <AnimatePresence mode="wait">
+          {menuOpen ? (
+            <motion.div
+              key="close"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <X className="w-6 h-6 text-white" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="menu"
+              initial={{ rotate: 90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: -90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Menu className="w-6 h-6 text-white" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.button>
+
+      {/* 📱 MENU OVERLAY */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            {/* Overlay sombre */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              onClick={() => setMenuOpen(false)}
+            />
+            
+            {/* Menu sidebar */}
+            <motion.div
+              id="hamburger-menu"
+              initial={{ x: -400, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -400, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed top-0 left-0 h-full w-80 bg-gradient-to-b from-slate-800 to-slate-900 border-r border-white/10 z-50 overflow-y-auto"
+            >
+              {/* Header du menu */}
+              <div className="p-6 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">S</span>
+                  </div>
+                  <div>
+                    <h1 className="text-white font-bold text-xl">Synergia</h1>
+                    <p className="text-slate-400 text-sm">v3.5.3 - Stable</p>
+                  </div>
+                </div>
+                
+                {/* Info utilisateur */}
+                {user && (
+                  <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-semibold">
+                          {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">
+                          {user.displayName || 'Utilisateur'}
+                        </p>
+                        <p className="text-slate-400 text-xs truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation */}
+              <div className="p-4">
+                {menuSections.map((section, sectionIndex) => (
+                  <div key={section.title} className="mb-6">
+                    <h3 className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3 px-2">
+                      {section.title}
+                    </h3>
+                    <nav className="space-y-1">
+                      {section.items.map((item) => {
+                        const isActive = location.pathname === item.path;
+                        const IconComponent = item.icon;
+                        
+                        return (
+                          <motion.button
+                            key={item.path}
+                            onClick={() => navigateTo(item.path)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${
+                              isActive 
+                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                                : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                            }`}
+                            whileHover={{ x: 4 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <IconComponent className="w-5 h-5 flex-shrink-0" />
+                            <span className="font-medium">{item.label}</span>
+                            {section.title === 'ADMINISTRATION' && (
+                              <span className="ml-auto px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full font-medium">
+                                ADMIN
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </nav>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer du menu avec déconnexion */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 bg-slate-900/50">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all duration-200"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="font-medium">Déconnexion</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 📄 CONTENU PRINCIPAL */}
       <div className="relative min-h-screen">
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
           
-          {/* 🎯 HEADER COMME DASHBOARD */}
+          {/* 🎯 HEADER */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-8 ml-20" // Marge pour éviter le bouton hamburger
           >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
               <div className="flex items-center gap-4">
@@ -82,7 +327,7 @@ const PremiumLayout = ({
               )}
             </div>
 
-            {/* STATS HEADER COMME DASHBOARD */}
+            {/* STATS HEADER */}
             {(showStats && stats.length > 0) || (headerStats && headerStats.length > 0) ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {(headerStats || stats).map((stat, index) => (
@@ -117,7 +362,7 @@ const PremiumLayout = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className={className}
+            className={`ml-20 ${className}`} // Marge pour éviter le bouton hamburger
           >
             {children}
           </motion.div>
@@ -128,7 +373,7 @@ const PremiumLayout = ({
 };
 
 /**
- * 🎴 CARTE PREMIUM COMME DASHBOARD
+ * 🎴 COMPOSANTS ENFANTS IDENTIQUES AU DASHBOARD
  */
 export const PremiumCard = ({ 
   children, 
@@ -148,9 +393,6 @@ export const PremiumCard = ({
   </motion.div>
 );
 
-/**
- * 📊 CARTE STATISTIQUE COMME DASHBOARD
- */
 export const PremiumStatCard = ({ 
   title, 
   value, 
@@ -170,13 +412,7 @@ export const PremiumStatCard = ({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02, y: -2 }}
-      className={`bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300 ${className}`}
-      {...props}
-    >
+    <PremiumCard hover className={className} {...props}>
       <div className="flex items-center justify-between mb-4">
         {Icon && (
           <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center">
@@ -198,13 +434,10 @@ export const PremiumStatCard = ({
           {value}
         </p>
       </div>
-    </motion.div>
+    </PremiumCard>
   );
 };
 
-/**
- * 🔘 BOUTON PREMIUM COMME DASHBOARD
- */
 export const PremiumButton = ({ 
   children, 
   variant = "primary", 
@@ -259,9 +492,6 @@ export const PremiumButton = ({
   );
 };
 
-/**
- * 🔍 BARRE DE RECHERCHE COMME DASHBOARD
- */
 export const PremiumSearchBar = ({ 
   placeholder = "Rechercher...", 
   value = "", 
@@ -309,9 +539,6 @@ export const PremiumSearchBar = ({
   );
 };
 
-/**
- * 📈 ALIAS POUR COMPATIBILITÉ
- */
 export const StatCard = PremiumStatCard;
 
 export default PremiumLayout;
