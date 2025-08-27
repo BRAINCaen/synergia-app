@@ -1,724 +1,530 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// PAGE PROJETS AVEC DESIGN PREMIUM HARMONISÉ
+// PAGE PROJETS COMPLÈTE AVEC MENU HAMBURGER IDENTIQUE AU DASHBOARD
 // ==========================================
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FolderOpen,
+  Folder,
   Plus,
   Search,
   Filter,
+  Grid,
+  List,
+  Calendar,
   Users,
   Target,
+  BarChart3,
   Clock,
-  TrendingUp,
-  Calendar,
+  AlertCircle,
+  CheckCircle2,
   Star,
   Eye,
   Edit,
   Trash2,
-  PlayCircle,
-  PauseCircle,
-  CheckCircle,
-  AlertCircle,
-  BarChart3,
-  Zap,
-  Award,
-  ChevronRight
+  X,
+  ArrowRight,
+  MoreVertical,
+  FolderOpen,
+  FileText
 } from 'lucide-react';
 
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
+// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
+import Layout from '../components/layout/Layout.jsx';
 
-// 🔥 HOOKS ET SERVICES (conservés)
+// 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 
-// 📊 FIREBASE (conservé)
+// 📊 FIREBASE
 import { 
   collection, 
   query, 
-  where, 
-  getDocs, 
+  orderBy, 
+  onSnapshot, 
   addDoc, 
   updateDoc, 
   deleteDoc, 
   doc, 
-  serverTimestamp, 
-  orderBy,
-  onSnapshot
+  serverTimestamp,
+  where,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 📊 CONSTANTES PROJETS (conservées)
+// 📊 CONSTANTES PROJETS
 const PROJECT_STATUS = {
-  active: { label: 'Actif', color: 'green', icon: PlayCircle },
-  completed: { label: 'Terminé', color: 'blue', icon: CheckCircle },
-  pending: { label: 'En attente', color: 'yellow', icon: AlertCircle },
-  'on-hold': { label: 'En pause', color: 'orange', icon: PauseCircle },
-  planning: { label: 'Planification', color: 'purple', icon: Calendar }
+  planning: { label: 'Planification', color: 'yellow', icon: '📋', bgColor: 'bg-yellow-50', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
+  active: { label: 'En cours', color: 'blue', icon: '🚀', bgColor: 'bg-blue-50', textColor: 'text-blue-800', borderColor: 'border-blue-200' },
+  completed: { label: 'Terminé', color: 'green', icon: '✅', bgColor: 'bg-green-50', textColor: 'text-green-800', borderColor: 'border-green-200' },
+  on_hold: { label: 'En pause', color: 'gray', icon: '⏸️', bgColor: 'bg-gray-50', textColor: 'text-gray-800', borderColor: 'border-gray-200' },
+  cancelled: { label: 'Annulé', color: 'red', icon: '❌', bgColor: 'bg-red-50', textColor: 'text-red-800', borderColor: 'border-red-200' }
 };
 
 const PROJECT_PRIORITY = {
-  low: { label: 'Faible', color: 'gray', icon: '🔽' },
-  medium: { label: 'Normale', color: 'blue', icon: '➡️' },
-  high: { label: 'Élevée', color: 'orange', icon: '🔼' },
-  urgent: { label: 'Urgente', color: 'red', icon: '🚨' }
+  low: { label: 'Faible', color: 'green', icon: '🟢' },
+  medium: { label: 'Moyenne', color: 'yellow', icon: '🟡' },
+  high: { label: 'Haute', color: 'orange', icon: '🟠' },
+  urgent: { label: 'Urgent', color: 'red', icon: '🔴' }
 };
 
-/**
- * 📁 PAGE PROJETS PREMIUM COMPLÈTE
- */
+const VIEW_MODES = {
+  grid: { label: 'Grille', icon: Grid },
+  list: { label: 'Liste', icon: List }
+};
+
 const ProjectsPage = () => {
+  // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
   
-  // ✅ DONNÉES FIREBASE RÉELLES (conservées)
-  const { 
-    gamification,
-    userStats,
-    loading: dataLoading 
-  } = useUnifiedFirebaseData(user?.uid);
-  
-  // ✅ ÉTATS PRINCIPAUX (conservés)
-  const [realProjects, setRealProjects] = useState([]);
+  // 📊 ÉTATS PROJETS
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
-  // ✅ ÉTATS UI COMPLETS (conservés)
+  const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('grid');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [sortBy, setSortBy] = useState('createdAt');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('updatedAt');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [showFilters, setShowFilters] = useState(false);
-  
-  // ✅ ÉTATS MODALS (conservés)
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [newProject, setNewProject] = useState({
-    title: '',
-    description: '',
-    status: 'active',
-    priority: 'medium',
-    deadline: '',
-    tags: []
-  });
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
 
-  // ✅ CHARGEMENT DES PROJETS (conservé avec listener temps réel)
+  // 📊 CHARGEMENT DES PROJETS
   useEffect(() => {
-    if (!user?.uid) {
-      setLoading(false);
-      return;
-    }
+    if (!user?.uid) return;
 
-    console.log('📊 [PROJECTS] Configuration listener projets...');
-    
-    // Listener temps réel pour les projets
-    const projectsRef = collection(db, 'projects');
-    const q = query(
-      projectsRef,
-      where('createdBy', '==', user.uid),
+    console.log('🔄 [PROJECTS] Chargement des projets...');
+    setLoading(true);
+
+    // Query pour les projets
+    const projectsQuery = query(
+      collection(db, 'projects'),
+      orderBy(sortBy, sortOrder)
+    );
+
+    const unsubscribeProjects = onSnapshot(projectsQuery, (snapshot) => {
+      const projectsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate(),
+        dueDate: doc.data().dueDate?.toDate()
+      }));
+
+      console.log('📁 [PROJECTS] Projets chargés:', projectsData.length);
+      setProjects(projectsData);
+      setLoading(false);
+    });
+
+    // Query pour les tâches (pour calculer les stats)
+    const tasksQuery = query(
+      collection(db, 'tasks'),
       orderBy('createdAt', 'desc')
     );
-    
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const projectsData = [];
-        snapshot.forEach((doc) => {
-          projectsData.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        
-        console.log(`📊 [PROJECTS] ${projectsData.length} projets chargés`);
-        setRealProjects(projectsData);
-        setLoading(false);
-        setError('');
-      },
-      (error) => {
-        console.error('❌ [PROJECTS] Erreur listener:', error);
-        setError('Erreur de chargement des projets');
-        setLoading(false);
-      }
-    );
 
-    return () => unsubscribe();
-  }, [user?.uid]);
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+      const tasksData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate()
+      }));
 
-  // ✅ FILTRAGE ET TRI DES PROJETS (conservé)
+      console.log('📋 [PROJECTS] Tâches chargées:', tasksData.length);
+      setTasks(tasksData);
+    });
+
+    return () => {
+      unsubscribeProjects();
+      unsubscribeTasks();
+    };
+  }, [user?.uid, sortBy, sortOrder]);
+
+  // 🎯 FILTRES ET TRI
   const filteredAndSortedProjects = useMemo(() => {
-    let filtered = realProjects.filter(project => {
-      // Filtre recherche
-      if (searchTerm && !project.title.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false;
-      }
-      
-      // Filtre statut
-      if (filterStatus !== 'all' && project.status !== filterStatus) {
-        return false;
-      }
-      
-      // Filtre priorité
-      if (filterPriority !== 'all' && project.priority !== filterPriority) {
-        return false;
-      }
-      
-      return true;
-    });
+    let filtered = projects;
 
-    // Tri
-    filtered.sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
+    // Filtre par terme de recherche
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(project =>
+        project.title?.toLowerCase().includes(term) ||
+        project.description?.toLowerCase().includes(term) ||
+        project.category?.toLowerCase().includes(term)
+      );
+    }
 
-      if (sortBy === 'createdAt' || sortBy === 'deadline') {
-        aVal = aVal ? new Date(aVal.seconds ? aVal.seconds * 1000 : aVal) : new Date(0);
-        bVal = bVal ? new Date(bVal.seconds ? bVal.seconds * 1000 : bVal) : new Date(0);
-      }
+    // Filtre par statut
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(project => project.status === statusFilter);
+    }
 
-      if (typeof aVal === 'string') {
-        aVal = aVal.toLowerCase();
-        bVal = bVal?.toLowerCase() || '';
-      }
-
-      if (sortOrder === 'desc') {
-        return bVal > aVal ? 1 : -1;
-      }
-      return aVal > bVal ? 1 : -1;
-    });
+    // Filtre par priorité
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(project => project.priority === priorityFilter);
+    }
 
     return filtered;
-  }, [realProjects, searchTerm, filterStatus, filterPriority, sortBy, sortOrder]);
+  }, [projects, searchTerm, statusFilter, priorityFilter]);
 
-  // ✅ STATISTIQUES CALCULÉES (conservées)
-  const realProjectStats = useMemo(() => {
-    const total = realProjects.length;
-    const active = realProjects.filter(p => p.status === 'active').length;
-    const completed = realProjects.filter(p => p.status === 'completed').length;
-    const pending = realProjects.filter(p => p.status === 'pending').length;
+  // 📊 CALCULER LES STATS D'UN PROJET
+  const getProjectStats = useCallback((project) => {
+    const projectTasks = tasks.filter(task => task.projectId === project.id);
+    const completedTasks = projectTasks.filter(task => task.status === 'completed');
+    const progress = projectTasks.length > 0 ? Math.round((completedTasks.length / projectTasks.length) * 100) : 0;
     
     return {
-      total,
-      active,
-      completed,
-      pending,
-      overallProgress: total > 0 ? Math.round((completed / total) * 100) : 0
+      totalTasks: projectTasks.length,
+      completedTasks: completedTasks.length,
+      progress,
+      overdueTasks: projectTasks.filter(task => 
+        task.dueDate && task.dueDate < new Date() && task.status !== 'completed'
+      ).length
     };
-  }, [realProjects]);
+  }, [tasks]);
 
-  // ✅ FONCTIONS CRUD (conservées)
-  const handleCreateProject = async (projectData) => {
+  // 📊 STATS GLOBALES
+  const globalStats = useMemo(() => {
+    const total = filteredAndSortedProjects.length;
+    const active = filteredAndSortedProjects.filter(p => p.status === 'active').length;
+    const completed = filteredAndSortedProjects.filter(p => p.status === 'completed').length;
+    const planning = filteredAndSortedProjects.filter(p => p.status === 'planning').length;
+    const overdue = filteredAndSortedProjects.filter(p => 
+      p.dueDate && p.dueDate < new Date() && p.status !== 'completed'
+    ).length;
+
+    return { total, active, completed, planning, overdue };
+  }, [filteredAndSortedProjects]);
+
+  // 🆕 CRÉER UN NOUVEAU PROJET
+  const handleCreateProject = useCallback(async (projectData) => {
     try {
-      await addDoc(collection(db, 'projects'), {
+      const newProject = {
         ...projectData,
         createdBy: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        teamMembers: [user.uid],
-        tasks: [],
-        progress: 0
-      });
-      console.log('✅ Projet créé avec succès');
-      setShowCreateModal(false);
-      setNewProject({
-        title: '',
-        description: '',
-        status: 'active',
-        priority: 'medium',
-        deadline: '',
-        tags: []
-      });
+        status: 'planning',
+        priority: projectData.priority || 'medium',
+        teamMembers: [user.uid]
+      };
+
+      const docRef = await addDoc(collection(db, 'projects'), newProject);
+      console.log('✅ [PROJECTS] Projet créé:', docRef.id);
+      setShowNewProjectModal(false);
     } catch (error) {
-      console.error('❌ Erreur création projet:', error);
+      console.error('❌ [PROJECTS] Erreur création projet:', error);
       setError('Impossible de créer le projet');
     }
-  };
+  }, [user]);
 
-  const handleDeleteProject = async (projectId) => {
+  // ✏️ METTRE À JOUR UN PROJET
+  const handleUpdateProject = useCallback(async (projectId, updates) => {
+    try {
+      const projectRef = doc(db, 'projects', projectId);
+      await updateDoc(projectRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ [PROJECTS] Projet mis à jour:', projectId);
+    } catch (error) {
+      console.error('❌ [PROJECTS] Erreur mise à jour projet:', error);
+      setError('Impossible de mettre à jour le projet');
+    }
+  }, []);
+
+  // 🗑️ SUPPRIMER UN PROJET
+  const handleDeleteProject = useCallback(async (projectId) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
-    
+
     try {
       await deleteDoc(doc(db, 'projects', projectId));
-      console.log('✅ Projet supprimé avec succès');
+      console.log('✅ [PROJECTS] Projet supprimé:', projectId);
     } catch (error) {
-      console.error('❌ Erreur suppression projet:', error);
+      console.error('❌ [PROJECTS] Erreur suppression projet:', error);
       setError('Impossible de supprimer le projet');
     }
-  };
+  }, []);
 
-  // 📊 STATISTIQUES POUR HEADER PREMIUM
-  const headerStats = [
-    { 
-      label: "Total Projets", 
-      value: realProjectStats.total, 
-      icon: FolderOpen, 
-      color: "text-blue-400" 
-    },
-    { 
-      label: "Actifs", 
-      value: realProjectStats.active, 
-      icon: PlayCircle, 
-      color: "text-green-400" 
-    },
-    { 
-      label: "Terminés", 
-      value: realProjectStats.completed, 
-      icon: CheckCircle, 
-      color: "text-purple-400" 
-    },
-    { 
-      label: "Progression", 
-      value: `${realProjectStats.overallProgress}%`, 
-      icon: TrendingUp, 
-      color: "text-yellow-400" 
-    }
-  ];
+  // 🎨 CARTE PROJET
+  const ProjectCard = ({ project }) => {
+    const stats = getProjectStats(project);
+    const statusConfig = PROJECT_STATUS[project.status] || PROJECT_STATUS.planning;
+    const priorityConfig = PROJECT_PRIORITY[project.priority] || PROJECT_PRIORITY.medium;
 
-  // 🎯 ACTIONS HEADER PREMIUM
-  const headerActions = (
-    <>
-      {/* 🔍 BARRE DE RECHERCHE PREMIUM */}
-      <PremiumSearchBar
-        placeholder="Rechercher un projet..."
-        value={searchTerm}
-        onChange={setSearchTerm}
-        icon={Search}
-        className="w-64"
-      />
-
-      {/* 🎛️ BOUTON FILTRES */}
-      <PremiumButton
-        variant={showFilters ? "primary" : "secondary"}
-        icon={Filter}
-        onClick={() => setShowFilters(!showFilters)}
-      >
-        Filtres
-      </PremiumButton>
-
-      {/* ➕ NOUVEAU PROJET */}
-      <PremiumButton
-        variant="primary"
-        icon={Plus}
-        onClick={() => setShowCreateModal(true)}
-      >
-        Nouveau Projet
-      </PremiumButton>
-    </>
-  );
-
-  // 🚨 GESTION CHARGEMENT
-  if (loading) {
     return (
-      <PremiumLayout
-        title="Gestion des Projets"
-        subtitle="Chargement de vos projets..."
-        icon={FolderOpen}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -4 }}
+        className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300"
       >
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <p className="text-white">Synchronisation des projets...</p>
+        {/* Header de la carte */}
+        <div className="p-6 pb-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Folder className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
+                  {project.title}
+                </h3>
+                <p className="text-sm text-gray-600">{project.category || 'Sans catégorie'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{priorityConfig.icon}</span>
+              <button className="p-1 text-gray-400 hover:text-gray-600 rounded">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <p className="text-gray-600 text-sm line-clamp-2 mb-4">
+            {project.description || 'Aucune description disponible'}
+          </p>
+
+          {/* Badges statut et priorité */}
+          <div className="flex items-center gap-2 mb-4">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+              <span className="mr-1">{statusConfig.icon}</span>
+              {statusConfig.label}
+            </span>
+            <span className="text-xs text-gray-500">
+              {priorityConfig.icon} {priorityConfig.label}
+            </span>
+          </div>
+
+          {/* Barre de progression */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-gray-600">Progression</span>
+              <span className="font-medium text-gray-900">{stats.progress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  stats.progress === 100 ? 'bg-green-500' :
+                  stats.progress >= 75 ? 'bg-blue-500' :
+                  stats.progress >= 50 ? 'bg-yellow-500' :
+                  'bg-gray-400'
+                }`}
+                style={{ width: `${stats.progress}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4 text-center border-t border-gray-100 pt-4">
+            <div>
+              <p className="text-lg font-semibold text-gray-900">{stats.totalTasks}</p>
+              <p className="text-xs text-gray-600">Tâches</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-green-600">{stats.completedTasks}</p>
+              <p className="text-xs text-gray-600">Terminées</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-gray-600">
+                {project.teamMembers?.length || 0}
+              </p>
+              <p className="text-xs text-gray-600">Membres</p>
+            </div>
           </div>
         </div>
-      </PremiumLayout>
-    );
-  }
 
-  // 🚨 GESTION ERREUR
-  if (error) {
-    return (
-      <PremiumLayout
-        title="Gestion des Projets"
-        subtitle="Erreur de chargement"
-        icon={FolderOpen}
-      >
-        <PremiumCard className="text-center py-8">
-          <div className="text-red-400 mb-4">
-            <AlertCircle className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-lg font-medium">Erreur de synchronisation</p>
-            <p className="text-gray-400 text-sm mt-1">{error}</p>
+        {/* Footer avec actions */}
+        <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-xs text-gray-500">
+              <Clock className="w-3 h-3 mr-1" />
+              {project.updatedAt ? `Mis à jour ${project.updatedAt.toLocaleDateString('fr-FR')}` : 'Pas de mise à jour'}
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                onClick={() => setSelectedProject(project)}
+              >
+                Voir détails
+              </button>
+            </div>
           </div>
-          <PremiumButton variant="primary" onClick={() => window.location.reload()}>
-            Réessayer
-          </PremiumButton>
-        </PremiumCard>
-      </PremiumLayout>
+        </div>
+      </motion.div>
+    );
+  };
+
+  // 🎨 RENDU VUE GRILLE
+  const renderGridView = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {filteredAndSortedProjects.map(project => (
+        <ProjectCard key={project.id} project={project} />
+      ))}
+    </div>
+  );
+
+  // 📋 RENDU VUE LISTE
+  const renderListView = () => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
+          <div className="col-span-4">Projet</div>
+          <div className="col-span-2">Statut</div>
+          <div className="col-span-2">Progression</div>
+          <div className="col-span-2">Équipe</div>
+          <div className="col-span-1">Priorité</div>
+          <div className="col-span-1">Actions</div>
+        </div>
+      </div>
+      <div className="divide-y divide-gray-200">
+        {filteredAndSortedProjects.map(project => {
+          const stats = getProjectStats(project);
+          const statusConfig = PROJECT_STATUS[project.status] || PROJECT_STATUS.planning;
+          const priorityConfig = PROJECT_PRIORITY[project.priority] || PROJECT_PRIORITY.medium;
+
+          return (
+            <motion.div
+              key={project.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+              onClick={() => setSelectedProject(project)}
+            >
+              <div className="grid grid-cols-12 gap-4 items-center">
+                {/* Projet */}
+                <div className="col-span-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Folder className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1">{project.title}</h4>
+                      <p className="text-sm text-gray-600 line-clamp-1">{project.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Statut */}
+                <div className="col-span-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                    <span className="mr-1">{statusConfig.icon}</span>
+                    {statusConfig.label}
+                  </span>
+                </div>
+
+                {/* Progression */}
+                <div className="col-span-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          stats.progress === 100 ? 'bg-green-500' :
+                          stats.progress >= 75 ? 'bg-blue-500' :
+                          stats.progress >= 50 ? 'bg-yellow-500' :
+                          'bg-gray-400'
+                        }`}
+                        style={{ width: `${stats.progress}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900 min-w-[40px]">
+                      {stats.progress}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Équipe */}
+                <div className="col-span-2">
+                  <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <Users className="w-4 h-4" />
+                    <span>{project.teamMembers?.length || 0} membres</span>
+                  </div>
+                  <p className="text-xs text-gray-500">{stats.totalTasks} tâches</p>
+                </div>
+
+                {/* Priorité */}
+                <div className="col-span-1">
+                  <span className="text-lg" title={priorityConfig.label}>
+                    {priorityConfig.icon}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div className="col-span-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedProject(project);
+                    }}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement des projets...</p>
+          </div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <PremiumLayout
-      title="Gestion des Projets"
-      subtitle="Gérez vos projets en temps réel"
-      icon={FolderOpen}
-      headerActions={headerActions}
-      showStats={true}
-      stats={headerStats}
-    >
-      
-      {/* 🎛️ PANNEAU DE FILTRES PREMIUM */}
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-8"
-          >
-            <PremiumCard>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Filtres Avancés</h3>
-                <PremiumButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setFilterStatus('all');
-                    setFilterPriority('all');
-                    setSortBy('createdAt');
-                    setSortOrder('desc');
-                  }}
-                >
-                  Réinitialiser
-                </PremiumButton>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Filtre Statut */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Statut</label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Tous les statuts</option>
-                    {Object.entries(PROJECT_STATUS).map(([key, status]) => (
-                      <option key={key} value={key}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+    <Layout>
+      <div className="min-h-screen bg-gray-50 p-6">
+        {/* HEADER DE LA PAGE */}
+        <div className="max-w-7xl mx-auto mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">📁 Gestion des Projets</h1>
+              <p className="text-gray-600">Organisez et suivez vos projets collaboratifs</p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setShowNewProjectModal(true)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Nouveau projet
+              </button>
+            </div>
+          </div>
 
-                {/* Filtre Priorité */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Priorité</label>
-                  <select
-                    value={filterPriority}
-                    onChange={(e) => setFilterPriority(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Toutes priorités</option>
-                    {Object.entries(PROJECT_PRIORITY).map(([key, priority]) => (
-                      <option key={key} value={key}>
-                        {priority.icon} {priority.label}
-                      </option>
-                    ))}
-                  </select>
+          {/* STATISTIQUES RAPIDES */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Folder className="w-5 h-5 text-blue-600" />
                 </div>
-
-                {/* Tri */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Trier par</label>
-                  <div className="flex space-x-2">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="createdAt">Date de création</option>
-                      <option value="title">Titre</option>
-                      <option value="deadline">Échéance</option>
-                      <option value="priority">Priorité</option>
-                    </select>
-                    <PremiumButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    >
-                      {sortOrder === 'asc' ? '↑' : '↓'}
-                    </PremiumButton>
-                  </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Total</p>
+                  <p className="text-xl font-semibold text-gray-900">{globalStats.total}</p>
                 </div>
-              </div>
-            </PremiumCard>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 🎉 MESSAGE DE FÉLICITATIONS */}
-      {realProjectStats.completed > 0 && realProjectStats.overallProgress >= 80 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mb-8"
-        >
-          <PremiumCard className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border-green-500/30">
-            <div className="flex items-center justify-center text-center py-4">
-              <Award className="w-8 h-8 text-yellow-400 mr-3" />
-              <div>
-                <p className="text-lg font-semibold text-white">Excellent travail !</p>
-                <p className="text-gray-300">Vous avez un taux de réussite de {realProjectStats.overallProgress}%</p>
               </div>
             </div>
-          </PremiumCard>
-        </motion.div>
-      )}
 
-      {/* 📋 GRILLE DES PROJETS PREMIUM */}
-      <div className="space-y-6">
-        {filteredAndSortedProjects.length === 0 ? (
-          <PremiumCard className="text-center py-12">
-            <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">
-              {searchTerm || filterStatus !== 'all' || filterPriority !== 'all'
-                ? 'Aucun projet ne correspond aux critères'
-                : 'Aucun projet créé'
-              }
-            </h3>
-            <p className="text-gray-400 mb-4">
-              {realProjects.length === 0 
-                ? 'Créez votre premier projet pour commencer.'
-                : 'Essayez de modifier vos filtres de recherche.'
-              }
-            </p>
-            {realProjects.length === 0 && (
-              <PremiumButton
-                variant="primary"
-                icon={Plus}
-                onClick={() => setShowCreateModal(true)}
-              >
-                Créer mon premier projet
-              </PremiumButton>
-            )}
-          </PremiumCard>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAndSortedProjects.map((project, index) => {
-              const status = PROJECT_STATUS[project.status];
-              const priority = PROJECT_PRIORITY[project.priority];
-              const StatusIcon = status?.icon || FolderOpen;
-              
-              return (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  whileHover={{ scale: 1.02 }}
-                  className="group"
-                >
-                  <PremiumCard className="h-full">
-                    {/* Header de la carte */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-white mb-2 line-clamp-2">
-                          {project.title}
-                        </h3>
-                        
-                        {/* Badges Status et Priorité */}
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {status && (
-                            <span className={`
-                              px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1
-                              ${status.color === 'green' ? 'bg-green-600 text-green-100' :
-                                status.color === 'blue' ? 'bg-blue-600 text-blue-100' :
-                                status.color === 'yellow' ? 'bg-yellow-600 text-yellow-100' :
-                                status.color === 'orange' ? 'bg-orange-600 text-orange-100' :
-                                'bg-purple-600 text-purple-100'}
-                            `}>
-                              <StatusIcon className="w-3 h-3" />
-                              {status.label}
-                            </span>
-                          )}
-                          
-                          {priority && (
-                            <span className={`
-                              px-2 py-1 rounded-full text-xs font-medium
-                              ${priority.color === 'gray' ? 'bg-gray-600 text-gray-200' :
-                                priority.color === 'blue' ? 'bg-blue-600 text-blue-100' :
-                                priority.color === 'orange' ? 'bg-orange-600 text-orange-100' :
-                                'bg-red-600 text-red-100'}
-                            `}>
-                              {priority.icon} {priority.label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Actions rapides */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex space-x-1">
-                          <button
-                            onClick={() => {
-                              // TODO: Navigation vers détails
-                              console.log('Voir projet:', project.id);
-                            }}
-                            className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
-                            title="Voir détails"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              setSelectedProject(project);
-                              setShowCreateModal(true);
-                            }}
-                            className="p-1 text-gray-400 hover:text-yellow-400 transition-colors"
-                            title="Éditer"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          
-                          <button
-                            onClick={() => handleDeleteProject(project.id)}
-                            className="p-1 text-gray-400 hover:text-red-400 transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    {project.description && (
-                      <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                        {project.description}
-                      </p>
-                    )}
-
-                    {/* Métriques du projet */}
-                    <div className="grid grid-cols-3 gap-3 mb-4 py-3 border-t border-b border-gray-700/50">
-                      <div className="text-center">
-                        <p className="text-xs text-gray-400">Équipe</p>
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <Users className="w-3 h-3 text-blue-400" />
-                          <span className="text-sm font-medium text-white">
-                            {project.teamMembers?.length || 1}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <p className="text-xs text-gray-400">Tâches</p>
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <Target className="w-3 h-3 text-green-400" />
-                          <span className="text-sm font-medium text-white">
-                            {project.tasks?.length || 0}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <p className="text-xs text-gray-400">Progrès</p>
-                        <div className="flex items-center justify-center gap-1 mt-1">
-                          <BarChart3 className="w-3 h-3 text-purple-400" />
-                          <span className="text-sm font-medium text-white">
-                            {project.progress || 0}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Date d'échéance */}
-                    {project.deadline && (
-                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
-                        <Calendar className="w-4 h-4" />
-                        <span>
-                          Échéance: {new Date(project.deadline.seconds ? project.deadline.seconds * 1000 : project.deadline)
-                            .toLocaleDateString('fr-FR')}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Actions de la carte */}
-                    <div className="flex gap-2 mt-auto">
-                      <PremiumButton
-                        variant="secondary"
-                        size="sm"
-                        icon={Eye}
-                        onClick={() => {
-                          // TODO: Navigation vers détails
-                          console.log('Voir projet:', project.id);
-                        }}
-                        className="flex-1"
-                      >
-                        Détails
-                      </PremiumButton>
-                      
-                      <PremiumButton
-                        variant="primary"
-                        size="sm"
-                        icon={ChevronRight}
-                        onClick={() => {
-                          // TODO: Navigation vers gestion
-                          console.log('Gérer projet:', project.id);
-                        }}
-                        className="flex-1"
-                      >
-                        Gérer
-                      </PremiumButton>
-                    </div>
-                  </PremiumCard>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* 📊 STATISTIQUES SUPPLÉMENTAIRES */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard
-          title="Projets ce mois"
-          value={realProjects.filter(p => {
-            const createdDate = new Date(p.createdAt?.seconds ? p.createdAt.seconds * 1000 : p.createdAt);
-            const now = new Date();
-            return createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear();
-          }).length}
-          icon={Calendar}
-          color="blue"
-          trend="Nouveau"
-        />
-        
-        <StatCard
-          title="Taux de Réussite"
-          value={`${realProjectStats.overallProgress}%`}
-          icon={TrendingUp}
-          color="green"
-          trend="Performance"
-        />
-        
-        <StatCard
-          title="Projets Urgents"
-          value={realProjects.filter(p => p.priority === 'urgent' && p.status !== 'completed').length}
-          icon={AlertCircle}
-          color="red"
-          trend="Action requise"
-        />
-        
-        <StatCard
-          title="XP Potentiel"
-          value={realProjects.filter(p => p.status === 'active').length * 50}
-          icon={Zap}
-          color="yellow"
-          trend="Objectifs actifs"
-        />
-      </div>
-
-      {/* TODO: Modals à créer avec design premium */}
-      {/* CreateProjectModal, ProjectDetailModal */}
-    </PremiumLayout>
-  );
-};
-
-export default ProjectsPage;
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Target className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Actifs</p>
+                  <p className="text-xl font-semibold text-gray-900">{globalStats.active
