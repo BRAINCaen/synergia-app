@@ -1,325 +1,194 @@
 // ==========================================
 // 📁 react-app/src/pages/AnalyticsPage.jsx
-// ANALYTICS PAGE AVEC VRAIES DONNÉES FIREBASE - COHÉRENCE XP TOTALE
+// PAGE ANALYTICS COMPLÈTE AVEC MENU HAMBURGER IDENTIQUE AU DASHBOARD
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   BarChart3, 
   TrendingUp, 
-  TrendingDown, 
+  Users, 
   Target, 
+  CheckCircle2, 
   Clock, 
-  Users,
   Calendar,
-  Star,
-  RefreshCw,
-  Filter,
-  Download,
-  Eye,
+  Award,
   Zap,
-  Trophy,
-  Activity,
-  CheckCircle2,
-  AlertCircle,
-  Gauge,
-  PieChart,
-  LineChart,
-  BarChart,
+  RefreshCw,
+  Download,
+  Filter,
+  Eye,
   ArrowUp,
   ArrowDown,
-  Minus
+  Activity,
+  PieChart,
+  LineChart
 } from 'lucide-react';
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+
+// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
+import Layout from '../components/layout/Layout.jsx';
+
+// 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
+import { useFirebaseData } from '../shared/hooks/useFirebaseData.js';
+
+// 📊 FIREBASE
 import { 
   collection, 
   query, 
-  where, 
-  getDocs, 
   orderBy, 
-  limit,
-  doc,
-  getDoc
+  onSnapshot, 
+  where,
+  getDocs,
+  startAfter,
+  limit
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 const AnalyticsPage = () => {
+  // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
+  
+  // 📊 ÉTATS ANALYTICS
   const [timeRange, setTimeRange] = useState('week');
   const [loading, setLoading] = useState(true);
-  
-  // 🔥 UTILISER LA MÊME SOURCE QUE LES AUTRES PAGES
-  const {
-    gamification,
-    isLoading: firebaseLoading,
-    isReady,
-    error: firebaseError
-  } = useUnifiedFirebaseData();
-  
   const [analyticsData, setAnalyticsData] = useState({
     overview: {
       totalTasks: 0,
       completedTasks: 0,
-      productivity: 0,
-      streakDays: 0
+      activeProjects: 0,
+      teamMembers: 0,
+      productivity: 0
     },
     performance: {
       weeklyXp: 0,
       monthlyXp: 0,
-      totalXp: 0
+      completionRate: 0,
+      averageTaskTime: 0
     },
     trends: {
-      tasksCompletion: '+0%',
-      productivityScore: '+0%',
-      engagement: '+0%'
-    },
-    chartData: {
       xpHistory: [],
       tasksHistory: [],
       projectsProgress: []
     }
   });
 
-  /**
-   * 🔥 CHARGER LES DONNÉES ANALYTICS COMPLÉMENTAIRES
-   */
+  // 🎯 FIREBASE DATA HOOK
+  const { 
+    tasks, 
+    projects, 
+    users, 
+    userStats, 
+    gamification,
+    isReady 
+  } = useFirebaseData();
+
+  // 📊 CALCULER LES DONNÉES ANALYTICS
   const loadAnalyticsData = async () => {
-    if (!user?.uid || !isReady) {
-      console.warn('⚠️ Pas d\'utilisateur connecté ou données pas prêtes');
-      return;
-    }
+    if (!isReady || !user?.uid) return;
 
     try {
       setLoading(true);
-      console.log('📊 Chargement données analytics complémentaires pour:', user.uid);
+      console.log('📊 [ANALYTICS] Calcul des analytics...');
 
-      // 🔥 1. RÉCUPÉRER TOUTES LES TÂCHES UTILISATEUR
-      const tasksQuery = query(
-        collection(db, 'tasks'),
-        where('userId', '==', user.uid)
-      );
-      const tasksSnapshot = await getDocs(tasksQuery);
-      const userTasks = [];
-      tasksSnapshot.forEach(doc => {
-        userTasks.push({ id: doc.id, ...doc.data() });
-      });
-
-      // 🔥 2. RÉCUPÉRER TÂCHES CRÉÉES PAR L'UTILISATEUR
-      const createdTasksQuery = query(
-        collection(db, 'tasks'),
-        where('createdBy', '==', user.uid)
-      );
-      const createdTasksSnapshot = await getDocs(createdTasksQuery);
-      const createdTasks = [];
-      createdTasksSnapshot.forEach(doc => {
-        createdTasks.push({ id: doc.id, ...doc.data() });
-      });
-
-      // 🔥 3. RÉCUPÉRER TÂCHES ASSIGNÉES À L'UTILISATEUR
-      const assignedTasksQuery = query(
-        collection(db, 'tasks'),
-        where('assignedTo', '==', user.uid)
-      );
-      const assignedTasksSnapshot = await getDocs(assignedTasksQuery);
-      const assignedTasks = [];
-      assignedTasksSnapshot.forEach(doc => {
-        assignedTasks.push({ id: doc.id, ...doc.data() });
-      });
-
-      // 🔥 4. COMBINER TOUTES LES TÂCHES (éviter doublons)
-      const allUserTasksMap = new Map();
-      [...userTasks, ...createdTasks, ...assignedTasks].forEach(task => {
-        allUserTasksMap.set(task.id, task);
-      });
-      const allUserTasks = Array.from(allUserTasksMap.values());
-
-      // 🔥 5. RÉCUPÉRER PROJETS UTILISATEUR
-      const projectsQuery = query(
-        collection(db, 'projects'),
-        where('createdBy', '==', user.uid)
-      );
-      const projectsSnapshot = await getDocs(projectsQuery);
-      const userProjects = [];
-      projectsSnapshot.forEach(doc => {
-        userProjects.push({ id: doc.id, ...doc.data() });
-      });
-
-      // 🔥 6. CALCULER LES VRAIES MÉTRIQUES (complémentaires à gamification)
-      const totalTasks = allUserTasks.length;
-      const completedTasks = allUserTasks.filter(task => task.status === 'completed').length;
+      // Calculs des métriques de base
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(task => task.status === 'completed').length;
+      const activeProjects = projects.filter(project => project.status === 'active').length;
+      const teamMembers = users.length;
       const productivity = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-      // 🔥 7. CALCULER XP HEBDOMADAIRE/MENSUEL depuis les tâches réelles
-      const weeklyXp = calculateWeeklyXp(allUserTasks);
-      const monthlyXp = calculateMonthlyXp(allUserTasks);
+      // Calculs de performance
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      // 🔥 8. CALCULER TENDANCES RÉELLES
-      const trends = calculateTrends(allUserTasks, gamification);
+      const weeklyCompletedTasks = tasks.filter(task => 
+        task.status === 'completed' && 
+        task.updatedAt && 
+        task.updatedAt >= weekAgo
+      );
 
-      // 🔥 9. GÉNÉRER DONNÉES GRAPHIQUES RÉELLES
-      const chartData = generateRealChartData(allUserTasks, userProjects, gamification);
+      const monthlyCompletedTasks = tasks.filter(task => 
+        task.status === 'completed' && 
+        task.updatedAt && 
+        task.updatedAt >= monthAgo
+      );
 
-      // 🔥 10. METTRE À JOUR L'ÉTAT avec les données unifiées
+      const weeklyXp = weeklyCompletedTasks.reduce((total, task) => total + (task.xpReward || 0), 0);
+      const monthlyXp = monthlyCompletedTasks.reduce((total, task) => total + (task.xpReward || 0), 0);
+      const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      // Historique XP (7 derniers jours)
+      const xpHistory = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        
+        const dayTasks = tasks.filter(task => {
+          if (!task.updatedAt || task.status !== 'completed') return false;
+          const completedAt = task.updatedAt?.toDate?.() || task.updatedAt?.toDate?.() || new Date(task.updatedAt);
+          return completedAt.toDateString() === date.toDateString();
+        });
+        
+        const dayXp = dayTasks.reduce((total, task) => total + (task.xpReward || 0), 0);
+        
+        xpHistory.push({
+          date: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+          xp: dayXp,
+          tasks: dayTasks.length
+        });
+      }
+
+      // Historique des tâches par jour
+      const tasksHistory = xpHistory.map(day => ({
+        date: day.date,
+        completed: day.tasks,
+        created: tasks.filter(task => {
+          const createdAt = task.createdAt?.toDate?.() || new Date(task.createdAt);
+          return createdAt.toDateString() === new Date().toDateString(); // Simplification
+        }).length
+      }));
+
+      // Progression des projets
+      const projectsProgress = projects.map(project => ({
+        name: project.title || 'Projet sans nom',
+        progress: calculateProjectProgress(project, tasks),
+        tasks: tasks.filter(task => task.projectId === project.id).length
+      }));
+
       setAnalyticsData({
         overview: {
           totalTasks,
           completedTasks,
-          productivity,
-          streakDays: gamification.loginStreak || 0
+          activeProjects,
+          teamMembers,
+          productivity
         },
         performance: {
           weeklyXp,
           monthlyXp,
-          // ✅ UTILISER LA MÊME SOURCE QUE LES AUTRES PAGES
-          totalXp: gamification.totalXp || 0
+          completionRate,
+          averageTaskTime: 2.5 // Estimation
         },
-        trends,
-        chartData
+        trends: {
+          xpHistory,
+          tasksHistory,
+          projectsProgress
+        }
       });
 
-      console.log('✅ Analytics Firebase chargés avec cohérence XP:', {
-        totalTasks,
-        completedTasks,
-        productivity: `${productivity}%`,
-        // ✅ XP depuis la même source que les autres pages
-        totalXp: gamification.totalXp || 0,
-        weeklyXp,
-        streakDays: gamification.loginStreak || 0,
-        source: 'useUnifiedFirebaseData'
-      });
+      setLoading(false);
+      console.log('✅ [ANALYTICS] Analytics calculées avec succès');
 
     } catch (error) {
-      console.error('❌ Erreur chargement analytics Firebase:', error);
-    } finally {
+      console.error('❌ [ANALYTICS] Erreur calcul analytics:', error);
       setLoading(false);
     }
   };
 
-  /**
-   * 📊 CALCULER XP DE LA SEMAINE À PARTIR DES VRAIES TÂCHES
-   */
-  const calculateWeeklyXp = (tasks) => {
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    
-    return tasks
-      .filter(task => {
-        if (task.status !== 'completed') return false;
-        
-        const completedAt = task.completedAt?.toDate?.() || task.updatedAt?.toDate?.() || new Date(task.updatedAt);
-        return completedAt >= oneWeekAgo;
-      })
-      .reduce((total, task) => total + (task.xpReward || 0), 0);
-  };
-
-  /**
-   * 📊 CALCULER XP DU MOIS À PARTIR DES VRAIES TÂCHES
-   */
-  const calculateMonthlyXp = (tasks) => {
-    const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
-    return tasks
-      .filter(task => {
-        if (task.status !== 'completed') return false;
-        
-        const completedAt = task.completedAt?.toDate?.() || task.updatedAt?.toDate?.() || new Date(task.updatedAt);
-        return completedAt >= oneMonthAgo;
-      })
-      .reduce((total, task) => total + (task.xpReward || 0), 0);
-  };
-
-  /**
-   * 📈 CALCULER TENDANCES RÉELLES
-   */
-  const calculateTrends = (tasks, gamificationData) => {
-    // Calculer les tendances basées sur les vraies données
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    // Tâches de cette semaine vs semaine précédente
-    const thisWeekTasks = tasks.filter(task => {
-      const createdAt = task.createdAt?.toDate?.() || new Date(task.createdAt);
-      return createdAt >= oneWeekAgo;
-    }).length;
-
-    const lastWeekTasks = tasks.filter(task => {
-      const createdAt = task.createdAt?.toDate?.() || new Date(task.createdAt);
-      return createdAt >= twoWeeksAgo && createdAt < oneWeekAgo;
-    }).length;
-
-    const tasksGrowth = lastWeekTasks > 0 ? Math.round(((thisWeekTasks - lastWeekTasks) / lastWeekTasks) * 100) : 0;
-
-    // Calculer productivité depuis les vraies données
-    const completedThisWeek = tasks.filter(task => {
-      if (task.status !== 'completed') return false;
-      const completedAt = task.completedAt?.toDate?.() || task.updatedAt?.toDate?.() || new Date(task.updatedAt);
-      return completedAt >= oneWeekAgo;
-    }).length;
-
-    const productivityGrowth = completedThisWeek > thisWeekTasks ? '+5%' : completedThisWeek === thisWeekTasks ? '0%' : '-2%';
-
-    return {
-      tasksCompletion: tasksGrowth >= 0 ? `+${tasksGrowth}%` : `${tasksGrowth}%`,
-      productivityScore: productivityGrowth,
-      engagement: '+8%' // Basé sur les connexions et activités
-    };
-  };
-
-  /**
-   * 📊 GÉNÉRER DONNÉES GRAPHIQUES RÉELLES
-   */
-  const generateRealChartData = (tasks, projects, gamificationData) => {
-    // Générer historique XP réel des 7 derniers jours
-    const xpHistory = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      
-      const dayTasks = tasks.filter(task => {
-        if (task.status !== 'completed') return false;
-        const completedAt = task.completedAt?.toDate?.() || task.updatedAt?.toDate?.() || new Date(task.updatedAt);
-        return completedAt.toDateString() === date.toDateString();
-      });
-      
-      const dayXp = dayTasks.reduce((total, task) => total + (task.xpReward || 0), 0);
-      
-      xpHistory.push({
-        date: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
-        xp: dayXp,
-        tasks: dayTasks.length
-      });
-    }
-
-    // Historique des tâches par jour
-    const tasksHistory = xpHistory.map(day => ({
-      date: day.date,
-      completed: day.tasks,
-      created: tasks.filter(task => {
-        const createdAt = task.createdAt?.toDate?.() || new Date(task.createdAt);
-        return createdAt.toDateString() === new Date().toDateString(); // Simplification
-      }).length
-    }));
-
-    // Progression des projets
-    const projectsProgress = projects.map(project => ({
-      name: project.title || 'Projet sans nom',
-      progress: calculateProjectProgress(project, tasks),
-      tasks: tasks.filter(task => task.projectId === project.id).length
-    }));
-
-    return {
-      xpHistory,
-      tasksHistory,
-      projectsProgress
-    };
-  };
-
-  /**
-   * 📊 CALCULER PROGRESSION PROJET RÉELLE
-   */
+  // 📊 CALCULER PROGRESSION PROJET
   const calculateProjectProgress = (project, allTasks) => {
     const projectTasks = allTasks.filter(task => task.projectId === project.id);
     if (projectTasks.length === 0) return 0;
@@ -328,9 +197,7 @@ const AnalyticsPage = () => {
     return Math.round((completedTasks / projectTasks.length) * 100);
   };
 
-  /**
-   * 🔄 ACTUALISER LES DONNÉES
-   */
+  // 🔄 ACTUALISER LES DONNÉES
   const refreshData = () => {
     loadAnalyticsData();
   };
@@ -364,297 +231,378 @@ const AnalyticsPage = () => {
     { 
       label: "XP cette semaine", 
       value: analyticsData.performance.weeklyXp.toLocaleString(), 
-      icon: Star, 
+      icon: Zap, 
       color: "text-yellow-400" 
     },
     { 
-      label: "Série de connexions", 
-      value: `${streakDisplay} jours`, 
-      icon: Activity, 
+      label: "Projets actifs", 
+      value: analyticsData.overview.activeProjects, 
+      icon: Target, 
       color: "text-purple-400" 
     }
   ];
 
-  const headerActions = (
-    <div className="flex space-x-3">
-      <PremiumButton variant="secondary" icon={Filter}>
-        Filtrer
-      </PremiumButton>
-      <PremiumButton variant="secondary" icon={Download}>
-        Exporter
-      </PremiumButton>
-      <PremiumButton variant="primary" icon={RefreshCw} onClick={refreshData}>
-        Actualiser
-      </PremiumButton>
-    </div>
-  );
-
-  if (firebaseLoading || loading) {
+  if (loading) {
     return (
-      <PremiumLayout
-        title="📊 Analytics"
-        subtitle="Analyse de performance et statistiques personnelles"
-        headerStats={[]}
-        headerActions={<div className="animate-pulse bg-gray-700 h-10 w-32 rounded"></div>}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => (
-            <PremiumCard key={i}>
-              <div className="animate-pulse">
-                <div className="bg-gray-700 h-16 w-16 rounded-full mx-auto mb-4"></div>
-                <div className="bg-gray-700 h-8 w-20 rounded mx-auto mb-2"></div>
-                <div className="bg-gray-700 h-4 w-24 rounded mx-auto"></div>
-              </div>
-            </PremiumCard>
-          ))}
-        </div>
-      </PremiumLayout>
-    );
-  }
-
-  if (firebaseError) {
-    return (
-      <PremiumLayout
-        title="📊 Analytics"
-        subtitle="Analyse de performance et statistiques personnelles"
-        headerStats={[]}
-        headerActions={headerActions}
-      >
-        <PremiumCard>
-          <div className="text-center py-12">
-            <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h3>
-            <p className="text-gray-400 mb-6">{firebaseError}</p>
-            <PremiumButton variant="primary" onClick={refreshData}>
-              Réessayer
-            </PremiumButton>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Calcul des analytics...</p>
           </div>
-        </PremiumCard>
-      </PremiumLayout>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <PremiumLayout
-      title="📊 Analytics"
-      subtitle="Analyse de performance et statistiques personnelles"
-      headerStats={headerStats}
-      headerActions={headerActions}
-    >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        
-        {/* XP Total - MÊME SOURCE QUE LES AUTRES PAGES */}
-        <PremiumCard>
-          <div className="text-center">
-            <Star className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-1">
-              {totalXpDisplay.toLocaleString()}
-            </h3>
-            <p className="text-gray-400 text-sm mb-2">XP Total</p>
-            <div className="flex items-center justify-center text-yellow-400">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              <span className="text-sm">+{analyticsData.performance.weeklyXp} cette semaine</span>
+    <Layout>
+      <div className="min-h-screen bg-gray-50 p-6">
+        {/* HEADER DE LA PAGE */}
+        <div className="max-w-7xl mx-auto mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">📊 Analytics & Performances</h1>
+              <p className="text-gray-600">Analysez vos performances et suivez vos progrès</p>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Niveau {levelDisplay}</p>
-          </div>
-        </PremiumCard>
-
-        {/* Tâches */}
-        <PremiumCard>
-          <div className="text-center">
-            <CheckCircle2 className="w-16 h-16 text-green-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-1">
-              {analyticsData.overview.completedTasks}/{analyticsData.overview.totalTasks}
-            </h3>
-            <p className="text-gray-400 text-sm mb-2">Tâches complétées</p>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-green-400 h-2 rounded-full" 
-                style={{ 
-                  width: analyticsData.overview.totalTasks > 0 
-                    ? `${(analyticsData.overview.completedTasks / analyticsData.overview.totalTasks) * 100}%` 
-                    : '0%' 
-                }}
-              ></div>
-            </div>
-          </div>
-        </PremiumCard>
-
-        {/* Productivité */}
-        <PremiumCard>
-          <div className="text-center">
-            <Gauge className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-1">
-              {analyticsData.overview.productivity}%
-            </h3>
-            <p className="text-gray-400 text-sm mb-2">Productivité</p>
-            <p className="text-sm text-blue-400">
-              {analyticsData.overview.productivity >= 80 ? 'Excellent' : 
-               analyticsData.overview.productivity >= 60 ? 'Bon' : 'À améliorer'}
-            </p>
-          </div>
-        </PremiumCard>
-
-        {/* Série de connexions - MÊME SOURCE */}
-        <PremiumCard>
-          <div className="text-center">
-            <Activity className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-1">
-              {streakDisplay}
-            </h3>
-            <p className="text-gray-400 text-sm mb-2">Jours consécutifs</p>
-            <div className="flex items-center justify-center text-green-400">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              <span className="text-sm">Série active</span>
-            </div>
-          </div>
-        </PremiumCard>
-      </div>
-
-      {/* Graphiques XP et tâches basés sur vraies données */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        
-        {/* Historique XP réel */}
-        <PremiumCard>
-          <h3 className="text-white font-semibold mb-4 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-2 text-yellow-400" />
-            Évolution XP (7 derniers jours)
-          </h3>
-          <div className="h-64 flex items-end justify-between space-x-2">
-            {analyticsData.chartData.xpHistory.map((day, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="bg-yellow-400 rounded-t w-full transition-all duration-300 hover:bg-yellow-300"
-                  style={{ 
-                    height: `${Math.max((day.xp / Math.max(...analyticsData.chartData.xpHistory.map(d => d.xp))) * 200, 4)}px` 
-                  }}
-                  title={`${day.xp} XP`}
-                ></div>
-                <span className="text-gray-400 text-xs mt-2">{day.date}</span>
-                <span className="text-yellow-400 text-xs">{day.xp}</span>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex items-center bg-white border border-gray-300 rounded-lg">
+                <button
+                  onClick={() => setTimeRange('week')}
+                  className={`px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
+                    timeRange === 'week' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  7 jours
+                </button>
+                <button
+                  onClick={() => setTimeRange('month')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    timeRange === 'month' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  30 jours
+                </button>
+                <button
+                  onClick={() => setTimeRange('year')}
+                  className={`px-4 py-2 text-sm font-medium rounded-r-lg transition-colors ${
+                    timeRange === 'year' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Année
+                </button>
               </div>
-            ))}
+              
+              <button
+                onClick={refreshData}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Actualiser
+              </button>
+            </div>
           </div>
-        </PremiumCard>
 
-        {/* Progression projets réelle */}
-        <PremiumCard>
-          <h3 className="text-white font-semibold mb-4 flex items-center">
-            <Target className="w-5 h-5 mr-2 text-blue-400" />
-            Progression Projets
-          </h3>
-          <div className="space-y-4">
-            {analyticsData.chartData.projectsProgress.length > 0 ? (
-              analyticsData.chartData.projectsProgress.slice(0, 5).map((project, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium mb-1">{project.name}</p>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-400 h-2 rounded-full transition-all duration-300" 
-                        style={{ width: `${project.progress}%` }}
-                      ></div>
+          {/* STATISTIQUES GLOBALES */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {headerStats.map((stat, index) => {
+              const IconComponent = stat.icon;
+              return (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">{stat.label}</p>
+                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    </div>
+                    <div className={`p-3 rounded-lg ${stat.color} bg-gray-50`}>
+                      <IconComponent className="w-6 h-6" />
                     </div>
                   </div>
-                  <div className="ml-4 text-right">
-                    <p className="text-blue-400 text-sm font-medium">{project.progress}%</p>
-                    <p className="text-gray-400 text-xs">{project.tasks} tâches</p>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* SECTION PRINCIPALE */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* COLONNE PRINCIPALE - GRAPHIQUES */}
+            <div className="lg:col-span-2 space-y-8">
+              
+              {/* ÉVOLUTION XP */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Évolution de l'XP</h3>
+                  <div className="flex items-center gap-2">
+                    <LineChart className="w-5 h-5 text-blue-600" />
+                    <span className="text-sm text-gray-600">7 derniers jours</span>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <Target className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400">Aucun projet créé</p>
-                <p className="text-gray-500 text-sm">Créez un projet pour voir sa progression</p>
+                
+                <div className="h-64 flex items-end justify-between gap-2">
+                  {analyticsData.trends.xpHistory.map((day, index) => {
+                    const maxXp = Math.max(...analyticsData.trends.xpHistory.map(d => d.xp), 1);
+                    const height = (day.xp / maxXp) * 200;
+                    
+                    return (
+                      <div key={day.date} className="flex-1 flex flex-col items-center">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${height}px` }}
+                          transition={{ delay: index * 0.1 }}
+                          className="bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg mb-2 min-h-[20px] w-full max-w-[40px]"
+                          title={`${day.xp} XP - ${day.tasks} tâches`}
+                        />
+                        <span className="text-xs text-gray-600 font-medium">{day.date}</span>
+                        <span className="text-xs text-blue-600 font-bold">{day.xp}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+
+              {/* PERFORMANCE DES TÂCHES */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Performance des Tâches</h3>
+                  <BarChart3 className="w-5 h-5 text-green-600" />
+                </div>
+                
+                <div className="space-y-4">
+                  {analyticsData.trends.tasksHistory.map((day, index) => (
+                    <div key={day.date} className="flex items-center gap-4">
+                      <div className="w-12 text-sm font-medium text-gray-600">{day.date}</div>
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min((day.completed / 10) * 100, 100)}%` }}
+                            transition={{ delay: index * 0.1 }}
+                            className="bg-green-500 h-2 rounded-full"
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 w-8">{day.completed}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* COLONNE LATÉRALE - STATS */}
+            <div className="space-y-8">
+              
+              {/* RÉSUMÉ PERSONNEL */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Mon Profil</h3>
+                    <p className="text-blue-100 text-sm">{user?.email || 'Utilisateur'}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-blue-100">Niveau actuel</span>
+                    <span className="font-bold text-xl">{levelDisplay}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-blue-100">XP Total</span>
+                    <span className="font-bold">{totalXpDisplay.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-blue-100">Série de connexions</span>
+                    <span className="font-bold">{streakDisplay} jours</span>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* PROGRESSION DES PROJETS */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Projets en Cours</h3>
+                  <PieChart className="w-5 h-5 text-purple-600" />
+                </div>
+                
+                <div className="space-y-4">
+                  {analyticsData.trends.projectsProgress.slice(0, 5).map((project, index) => (
+                    <div key={project.name} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {project.name}
+                        </span>
+                        <span className="text-sm text-gray-600">{project.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${project.progress}%` }}
+                          transition={{ delay: index * 0.1 }}
+                          className={`h-2 rounded-full ${
+                            project.progress >= 80 ? 'bg-green-500' :
+                            project.progress >= 60 ? 'bg-blue-500' :
+                            project.progress >= 40 ? 'bg-yellow-500' :
+                            'bg-red-500'
+                          }`}
+                        />
+                      </div>
+                      <div className="flex items-center text-xs text-gray-500">
+                        <Target className="w-3 h-3 mr-1" />
+                        {project.tasks} tâches
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {analyticsData.trends.projectsProgress.length === 0 && (
+                    <div className="text-center py-4">
+                      <Target className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">Aucun projet actif</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
+              {/* MÉTRIQUES RAPIDES */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Métriques Clés</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">Temps moyen/tâche</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {analyticsData.performance.averageTaskTime}h
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <span className="text-sm text-gray-600">Taux de completion</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        {analyticsData.performance.completionRate}%
+                      </span>
+                      <ArrowUp className="w-3 h-3 text-green-500" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm text-gray-600">Équipe active</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {analyticsData.overview.teamMembers} membres
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-purple-500" />
+                      <span className="text-sm text-gray-600">XP ce mois</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        {analyticsData.performance.monthlyXp.toLocaleString()}
+                      </span>
+                      <ArrowUp className="w-3 h-3 text-green-500" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* SECTION INSIGHTS */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-8 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Eye className="w-6 h-6 text-purple-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Insights & Recommandations</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium text-green-700">Progression Excellente</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Votre productivité a augmenté de 15% cette semaine !
+                </p>
               </div>
-            )}
-          </div>
-        </PremiumCard>
+              
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-medium text-blue-700">Objectifs à Jour</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Vous êtes en avance sur {analyticsData.overview.activeProjects} projets actifs.
+                </p>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="w-4 h-4 text-yellow-500" />
+                  <span className="text-sm font-medium text-yellow-700">Nouveau Badge</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Encore {100 - (totalXpDisplay % 100)} XP pour le prochain niveau !
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
-
-      {/* Tendances */}
-      <PremiumCard>
-        <h3 className="text-white font-semibold mb-4 flex items-center">
-          <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
-          Tendances
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Completion tâches</span>
-            <div className="flex items-center text-green-400">
-              <ArrowUp className="w-4 h-4 mr-1" />
-              <span className="font-medium">{analyticsData.trends.tasksCompletion}</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Productivité</span>
-            <div className="flex items-center text-green-400">
-              <ArrowUp className="w-4 h-4 mr-1" />
-              <span className="font-medium">{analyticsData.trends.productivityScore}</span>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300">Engagement</span>
-            <div className="flex items-center text-green-400">
-              <ArrowUp className="w-4 h-4 mr-1" />
-              <span className="font-medium">{analyticsData.trends.engagement}</span>
-            </div>
-          </div>
-        </div>
-      </PremiumCard>
-
-      {/* Résumé de cohérence */}
-      <PremiumCard>
-        <h3 className="text-white font-semibold mb-4 flex items-center">
-          <Zap className="w-5 h-5 mr-2 text-purple-400" />
-          Résumé de Performance
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="text-center">
-            <p className="text-gray-400 text-sm">XP Total</p>
-            <p className="text-2xl font-bold text-yellow-400">{totalXpDisplay.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">Niveau {levelDisplay}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-400 text-sm">XP Hebdomadaire</p>
-            <p className="text-2xl font-bold text-blue-400">{analyticsData.performance.weeklyXp}</p>
-            <p className="text-xs text-gray-500">7 derniers jours</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-400 text-sm">XP Mensuel</p>
-            <p className="text-2xl font-bold text-green-400">{analyticsData.performance.monthlyXp}</p>
-            <p className="text-xs text-gray-500">30 derniers jours</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-400 text-sm">Série</p>
-            <p className="text-2xl font-bold text-purple-400">{streakDisplay}</p>
-            <p className="text-xs text-gray-500">jours consécutifs</p>
-          </div>
-        </div>
-      </PremiumCard>
-
-      {/* Message si pas de données */}
-      {analyticsData.overview.totalTasks === 0 && (
-        <PremiumCard>
-          <div className="text-center py-12">
-            <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Pas encore de données</h3>
-            <p className="text-gray-400 mb-6">
-              Créez quelques tâches et projets pour voir vos analytics !
-            </p>
-            <div className="flex justify-center space-x-4">
-              <PremiumButton variant="primary" onClick={() => window.location.href = '/tasks'}>
-                Créer une tâche
-              </PremiumButton>
-              <PremiumButton variant="secondary" onClick={() => window.location.href = '/projects'}>
-                Créer un projet
-              </PremiumButton>
-            </div>
-          </div>
-        </PremiumCard>
-      )}
-    </PremiumLayout>
+    </Layout>
   );
 };
 
