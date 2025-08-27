@@ -527,4 +527,40 @@ const ProjectsPage = () => {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-600">Actifs</p>
-                  <p className="text-xl font-semibold text-gray-900">{globalStats.active
+                  <p className="text-xl font-semibold text-gray-900">{globalStats.active}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Terminés</p>
+                  <p className="text-xl font-semibold text-gray-900">{globalStats.completed}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <FileText className="w-5 h-5 text-yellow-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">En planif.</p>
+                  <p className="text-xl font-semibold text-gray-900">{globalStats.planning}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <div className="flex items-center">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">En retard</p>
+                  <p className="text-xl font-semibold text-gray-900">{globalStats.overdue}</p>
