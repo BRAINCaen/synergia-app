@@ -35,7 +35,6 @@ import Layout from '../components/layout/Layout.jsx';
 
 // 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useFirebaseData } from '../shared/hooks/useFirebaseData.js';
 
 // 📊 FIREBASE
 import { 
@@ -72,6 +71,7 @@ const BadgesPage = () => {
   
   // 📊 ÉTATS BADGES
   const [loading, setLoading] = useState(true);
+  const [userBadges, setUserBadges] = useState([]);
   const [viewMode, setViewMode] = useState('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -79,11 +79,32 @@ const BadgesPage = () => {
   const [sortBy, setSortBy] = useState('category');
   const [selectedBadge, setSelectedBadge] = useState(null);
   
-  // 🎯 FIREBASE DATA
-  const { 
-    userBadges, 
-    isReady 
-  } = useFirebaseData();
+  // 📊 CHARGEMENT DES BADGES UTILISATEUR
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    console.log('🏆 [BADGES] Chargement des badges utilisateur...');
+    setLoading(true);
+
+    const userBadgesQuery = query(
+      collection(db, 'user_badges'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(userBadgesQuery, (snapshot) => {
+      const badgesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        earnedAt: doc.data().earnedAt?.toDate()
+      }));
+
+      console.log('🏆 [BADGES] Badges utilisateur chargés:', badgesData.length);
+      setUserBadges(badgesData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   // 🏆 BADGES SYSTÈME (Définition complète)
   const systemBadges = [
@@ -483,7 +504,7 @@ const BadgesPage = () => {
     </div>
   );
 
-  if (loading && !isReady) {
+  if (loading) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
