@@ -261,7 +261,6 @@ const ProjectsPage = () => {
         whileHover={{ y: -4 }}
         className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300"
       >
-        {/* Header de la carte */}
         <div className="p-6 pb-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -287,7 +286,6 @@ const ProjectsPage = () => {
             {project.description || 'Aucune description disponible'}
           </p>
 
-          {/* Badges statut et priorité */}
           <div className="flex items-center gap-2 mb-4">
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
               <span className="mr-1">{statusConfig.icon}</span>
@@ -298,7 +296,6 @@ const ProjectsPage = () => {
             </span>
           </div>
 
-          {/* Barre de progression */}
           <div className="mb-4">
             <div className="flex items-center justify-between text-sm mb-2">
               <span className="text-gray-600">Progression</span>
@@ -317,7 +314,6 @@ const ProjectsPage = () => {
             </div>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-4 text-center border-t border-gray-100 pt-4">
             <div>
               <p className="text-lg font-semibold text-gray-900">{stats.totalTasks}</p>
@@ -336,7 +332,6 @@ const ProjectsPage = () => {
           </div>
         </div>
 
-        {/* Footer avec actions */}
         <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center text-xs text-gray-500">
@@ -366,111 +361,6 @@ const ProjectsPage = () => {
     </div>
   );
 
-  // 📋 RENDU VUE LISTE
-  const renderListView = () => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
-          <div className="col-span-4">Projet</div>
-          <div className="col-span-2">Statut</div>
-          <div className="col-span-2">Progression</div>
-          <div className="col-span-2">Équipe</div>
-          <div className="col-span-1">Priorité</div>
-          <div className="col-span-1">Actions</div>
-        </div>
-      </div>
-      <div className="divide-y divide-gray-200">
-        {filteredAndSortedProjects.map(project => {
-          const stats = getProjectStats(project);
-          const statusConfig = PROJECT_STATUS[project.status] || PROJECT_STATUS.planning;
-          const priorityConfig = PROJECT_PRIORITY[project.priority] || PROJECT_PRIORITY.medium;
-
-          return (
-            <motion.div
-              key={project.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
-              onClick={() => setSelectedProject(project)}
-            >
-              <div className="grid grid-cols-12 gap-4 items-center">
-                {/* Projet */}
-                <div className="col-span-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Folder className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-1">{project.title}</h4>
-                      <p className="text-sm text-gray-600 line-clamp-1">{project.description}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Statut */}
-                <div className="col-span-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-                    <span className="mr-1">{statusConfig.icon}</span>
-                    {statusConfig.label}
-                  </span>
-                </div>
-
-                {/* Progression */}
-                <div className="col-span-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${
-                          stats.progress === 100 ? 'bg-green-500' :
-                          stats.progress >= 75 ? 'bg-blue-500' :
-                          stats.progress >= 50 ? 'bg-yellow-500' :
-                          'bg-gray-400'
-                        }`}
-                        style={{ width: `${stats.progress}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 min-w-[40px]">
-                      {stats.progress}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Équipe */}
-                <div className="col-span-2">
-                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span>{project.teamMembers?.length || 0} membres</span>
-                  </div>
-                  <p className="text-xs text-gray-500">{stats.totalTasks} tâches</p>
-                </div>
-
-                {/* Priorité */}
-                <div className="col-span-1">
-                  <span className="text-lg" title={priorityConfig.label}>
-                    {priorityConfig.icon}
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <div className="col-span-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedProject(project);
-                    }}
-                    className="p-1 text-gray-400 hover:text-gray-600"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   if (loading) {
     return (
       <Layout>
@@ -487,7 +377,6 @@ const ProjectsPage = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 p-6">
-        {/* HEADER DE LA PAGE */}
         <div className="max-w-7xl mx-auto mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
             <div>
@@ -506,7 +395,6 @@ const ProjectsPage = () => {
             </div>
           </div>
 
-          {/* STATISTIQUES RAPIDES */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <div className="flex items-center">
@@ -568,15 +456,9 @@ const ProjectsPage = () => {
               </div>
             </div>
           </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* BARRE D'OUTILS */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Recherche */}
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -590,7 +472,6 @@ const ProjectsPage = () => {
                 </div>
               </div>
 
-              {/* Filtres rapides */}
               <div className="flex items-center gap-2">
                 <select
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -618,7 +499,6 @@ const ProjectsPage = () => {
                   ))}
                 </select>
 
-                {/* Toggle vue */}
                 <div className="flex rounded-lg border border-gray-300 overflow-hidden">
                   {Object.entries(VIEW_MODES).map(([mode, config]) => {
                     const IconComponent = config.icon;
@@ -642,7 +522,6 @@ const ProjectsPage = () => {
             </div>
           </div>
 
-          {/* MESSAGE D'ERREUR */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <div className="flex items-center">
@@ -658,7 +537,6 @@ const ProjectsPage = () => {
             </div>
           )}
 
-          {/* CONTENU PRINCIPAL */}
           <AnimatePresence mode="wait">
             {filteredAndSortedProjects.length === 0 ? (
               <motion.div
@@ -697,263 +575,11 @@ const ProjectsPage = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                {viewMode === 'grid' && renderGridView()}
-                {viewMode === 'list' && renderListView()}
+                {renderGridView()}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-
-        {/* MODAL NOUVEAU PROJET */}
-        {showNewProjectModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Nouveau Projet</h2>
-                  <button
-                    onClick={() => setShowNewProjectModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const projectData = {
-                      title: formData.get('title'),
-                      description: formData.get('description'),
-                      category: formData.get('category'),
-                      priority: formData.get('priority'),
-                      dueDate: formData.get('dueDate') ? new Date(formData.get('dueDate')) : null
-                    };
-                    handleCreateProject(projectData);
-                  }}
-                  className="space-y-6"
-                >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Titre du projet *
-                    </label>
-                    <input
-                      type="text"
-                      name="title"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ex: Refonte du site web"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Décrivez les objectifs et le scope de ce projet..."
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Catégorie
-                      </label>
-                      <input
-                        type="text"
-                        name="category"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Ex: Développement"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Priorité
-                      </label>
-                      <select
-                        name="priority"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        {Object.entries(PROJECT_PRIORITY).map(([key, priority]) => (
-                          <option key={key} value={key}>
-                            {priority.icon} {priority.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Date d'échéance
-                    </label>
-                    <input
-                      type="date"
-                      name="dueDate"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => setShowNewProjectModal(false)}
-                      className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors font-medium"
-                    >
-                      Créer le projet
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* MODAL DÉTAILS PROJET */}
-        {selectedProject && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-100 rounded-lg">
-                      <Folder className="w-8 h-8 text-blue-600" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">{selectedProject.title}</h2>
-                      <p className="text-gray-600">{selectedProject.category || 'Sans catégorie'}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedProject(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Colonne principale */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                      <p className="text-gray-700 leading-relaxed">
-                        {selectedProject.description || 'Aucune description disponible pour ce projet.'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Statistiques</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {(() => {
-                          const stats = getProjectStats(selectedProject);
-                          return (
-                            <>
-                              <div className="bg-gray-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600">Tâches totales</p>
-                                <p className="text-2xl font-bold text-gray-900">{stats.totalTasks}</p>
-                              </div>
-                              <div className="bg-green-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600">Tâches terminées</p>
-                                <p className="text-2xl font-bold text-green-600">{stats.completedTasks}</p>
-                              </div>
-                              <div className="bg-blue-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600">Progression</p>
-                                <p className="text-2xl font-bold text-blue-600">{stats.progress}%</p>
-                              </div>
-                              <div className="bg-red-50 rounded-lg p-4">
-                                <p className="text-sm text-gray-600">Tâches en retard</p>
-                                <p className="text-2xl font-bold text-red-600">{stats.overdueTasks}</p>
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Colonne latérale */}
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Informations</h3>
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Statut :</span>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PROJECT_STATUS[selectedProject.status]?.bgColor} ${PROJECT_STATUS[selectedProject.status]?.textColor}`}>
-                            {PROJECT_STATUS[selectedProject.status]?.icon} {PROJECT_STATUS[selectedProject.status]?.label}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Priorité :</span>
-                          <span className="font-medium">
-                            {PROJECT_PRIORITY[selectedProject.priority]?.icon} {PROJECT_PRIORITY[selectedProject.priority]?.label}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Créé le :</span>
-                          <span className="font-medium">
-                            {selectedProject.createdAt?.toLocaleDateString('fr-FR')}
-                          </span>
-                        </div>
-                        {selectedProject.dueDate && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Échéance :</span>
-                            <span className={`font-medium ${selectedProject.dueDate < new Date() ? 'text-red-600' : 'text-gray-900'}`}>
-                              {selectedProject.dueDate.toLocaleDateString('fr-FR')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Actions</h3>
-                      <div className="space-y-2">
-                        <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                          <Edit className="w-4 h-4" />
-                          Modifier le projet
-                        </button>
-                        <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                          <Eye className="w-4 h-4" />
-                          Voir les tâches
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteProject(selectedProject.id)}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Supprimer
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
       </div>
     </Layout>
   );
