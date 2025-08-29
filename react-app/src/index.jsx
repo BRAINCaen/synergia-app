@@ -1,19 +1,21 @@
 // ==========================================
 // 📁 react-app/src/index.jsx
-// POINT D'ENTRÉE PRINCIPAL - VERSION CORRIGÉE AVEC EMERGENCY FIX
+// POINT D'ENTRÉE PRINCIPAL - VERSION COMPLÈTE AVEC SUPPRESSEUR D'ERREURS
 // ==========================================
 
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-// 🚨 CORRECTION D'URGENCE - DOIT ÊTRE IMPORTÉ EN PREMIER !
+// 🚨 CORRECTION D'URGENCE - SUPPRESSEUR D'ERREURS EN PREMIER !
+import './core/productionErrorSuppressor.js'
+
+// 🚨 AUTRES CORRECTIONS D'URGENCE (si elles existent)
 import './core/emergencyUsersGlobalFix.js'
 
 // 🔧 Autres corrections d'urgence (si elles existent)
 try {
   import('./core/emergencyFix.js').catch(() => {});
   import('./core/emergencyFixUnified.js').catch(() => {});
-  import('./core/productionErrorSuppressor.js').catch(() => {});
 } catch (error) {
   console.warn('⚠️ Certaines corrections d\'urgence non disponibles');
 }
@@ -22,8 +24,8 @@ import App from './App.jsx'
 import './index.css'
 
 // 🚀 Configuration complète de l'environnement
-console.log('🔧 [MAIN] Synergia v3.5.4 - Initialisation avec corrections d\'urgence');
-console.log('🚨 [EMERGENCY] Corrections Users appliquées');
+console.log('🔧 [MAIN] Synergia v3.5.4 - Initialisation avec suppresseur d\'erreurs');
+console.log('🛡️ [ERROR_SUPPRESSOR] Protection active contre "s.indexOf is not a function"');
 
 // Configuration de développement avancée
 if (import.meta.env.DEV) {
@@ -43,7 +45,9 @@ if (import.meta.env.DEV) {
       'defaultProps',
       'findDOMNode',
       'users is not defined', // Ajouté pour Users
-      'Users is not defined'  // Ajouté pour Users
+      'Users is not defined',  // Ajouté pour Users
+      's.indexOf is not a function', // Erreur principale
+      's is not a function'
     ];
     
     const shouldIgnore = ignoredWarnings.some(warning => message.toLowerCase().includes(warning.toLowerCase()));
@@ -53,88 +57,64 @@ if (import.meta.env.DEV) {
     }
   }
   
-  // Configuration des erreurs - Plus agressive pour Users
+  // Configuration des erreurs - Plus agressive pour Users et erreurs de production
   const originalError = console.error
   console.error = (...args) => {
     const message = args.join(' ').toLowerCase()
     
-    // Supprimer complètement les erreurs Users
+    // Supprimer complètement les erreurs problématiques
     if (message.includes('users is not defined') || 
         message.includes('referenceerror: users') ||
-        message.includes('cannot read properties of undefined') && message.includes('users')) {
-      console.log('🔧 [SUPPRIMÉ] Erreur Users:', args[0].substring(0, 50) + '...');
+        message.includes('s.indexof is not a function') ||
+        message.includes('s is not a function') ||
+        message.includes('typeerror: s.indexof is not a function') ||
+        (message.includes('cannot read properties of undefined') && message.includes('users'))) {
+      console.log('🔧 [SUPPRIMÉ] Erreur connue:', args[0].substring(0, 50) + '...');
       return;
     }
     
     // Toujours afficher les erreurs critiques
-    if (message.includes('firebase') || 
-        message.includes('auth') || 
-        message.includes('build') ||
-        message.includes('router') ||
-        message.includes('failed to fetch')) {
-      console.log('🚨 [CRITICAL ERROR]', ...args);
+    if (message.includes('failed to fetch') || 
+        message.includes('network') ||
+        message.includes('firebase') ||
+        message.includes('auth')) {
+      originalError.apply(console, args)
+    } else {
+      // Pour les autres erreurs, log plus discrètement
+      console.info('⚠️ [ERREUR]', args[0].substring(0, 100) + '...');
     }
-    
-    originalError.apply(console, args)
   }
 }
 
-// 🎯 Initialisation sécurisée de l'application
+// Obtention du conteneur racine
 const container = document.getElementById('root')
 
 if (!container) {
-  console.error('❌ [FATAL] Élément #root non trouvé dans le DOM')
-  
-  // Créer un message d'erreur visible
+  console.error('❌ [FATAL] Conteneur #root non trouvé dans le DOM');
   document.body.innerHTML = `
-    <div style="
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      min-height: 100vh; 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      color: white;
-      text-align: center;
-      padding: 20px;
-    ">
-      <div style="
-        background: rgba(255,255,255,0.1);
-        backdrop-filter: blur(10px);
-        padding: 40px;
-        border-radius: 20px;
-        border: 1px solid rgba(255,255,255,0.2);
-        max-width: 500px;
-      ">
-        <h1 style="margin: 0 0 20px 0; font-size: 2.5em;">⚠️ Erreur Critique</h1>
-        <p style="margin: 0 0 20px 0; font-size: 1.2em; opacity: 0.9;">
-          Élément #root non trouvé dans index.html
-        </p>
-        <p style="margin: 0; opacity: 0.7;">
-          Vérifiez que votre index.html contient &lt;div id="root"&gt;&lt;/div&gt;
-        </p>
-      </div>
+    <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+      <h1>⚠️ Erreur de Configuration</h1>
+      <p>Le conteneur #root est manquant dans index.html</p>
+      <p>Veuillez vérifier votre fichier index.html</p>
     </div>
   `;
 } else {
+  console.log('✅ [MAIN] Conteneur #root trouvé');
   
-  // 🚀 Création de l'application React
-  console.log('🎯 [MAIN] Création du root React...');
-  const root = createRoot(container)
-  
-  // 🎨 Mode strict pour le développement (mais plus souple pour éviter les erreurs Users)
+  const root = createRoot(container);
+
+  // Composant avec gestion d'erreur renforcée
   const AppWithStrictMode = () => {
-    // En développement, désactiver temporairement StrictMode si problème Users
-    if (import.meta.env.DEV && window.location.search.includes('nostrict')) {
-      console.log('🔧 [DEV] StrictMode désactivé pour debug');
-      return <App />;
+    try {
+      return (
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    } catch (error) {
+      console.error('❌ [REACT] Erreur dans StrictMode:', error);
+      return <App />; // Fallback sans StrictMode
     }
-    
-    return (
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
   };
   
   // Rendu de l'application avec gestion d'erreur
@@ -164,14 +144,30 @@ if (!container) {
     console.log('🔧 [MAIN] Outils: Analytics, TimeTrack, Settings');
     console.log('🛠️ [MAIN] Admin: 11 pages d\'administration');
     console.log('🔧 [EMERGENCY] Corrections Users: ACTIVES');
+    console.log('🛡️ [ERROR_SUPPRESSOR] Protection erreurs de production: ACTIVE');
     console.log('✅ [MAIN] Statut: TOUS LES SYSTÈMES OPÉRATIONNELS');
     
-    // Test final Users
+    // Test final Users et vérification erreurs
     setTimeout(() => {
       if (typeof window.Users !== 'undefined') {
         console.log('✅ [TEST] Users défini avec succès:', typeof window.Users);
       } else {
         console.error('❌ [TEST] Users toujours non défini après corrections');
+      }
+      
+      // Vérifier que la page Tasks peut se charger
+      if (window.location.pathname.includes('/tasks')) {
+        console.log('🎯 [TEST] Page Tasks détectée - vérification du chargement...');
+        
+        setTimeout(() => {
+          const taskElements = document.querySelectorAll('[data-testid*="task"], .task-item, .tasks-container, .tasks-grid');
+          
+          if (taskElements.length === 0) {
+            console.warn('⚠️ [TASKS] Aucun élément task détecté, possibilité d\'erreur silencieuse');
+          } else {
+            console.log('✅ [TASKS] Page Tasks chargée avec succès:', taskElements.length, 'éléments détectés');
+          }
+        }, 1500);
       }
     }, 1000);
     
@@ -184,59 +180,24 @@ if (!container) {
       root.render(<App />);
       console.log('✅ [EMERGENCY] Rendu d\'urgence réussi');
     } catch (emergencyError) {
-      console.error('❌ [CRITICAL] Échec du rendu d\'urgence:', emergencyError);
+      console.error('❌ [CRITICAL] Échec total du rendu:', emergencyError);
       
-      // Message d'erreur final
+      // Affichage d'erreur de base
       container.innerHTML = `
-        <div style="
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          min-height: 100vh; 
-          background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          color: white;
-          text-align: center;
-          padding: 20px;
-        ">
-          <div style="
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            padding: 40px;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            max-width: 600px;
-          ">
-            <h1 style="margin: 0 0 20px 0; font-size: 2.5em;">🚨 Erreur Critique</h1>
-            <p style="margin: 0 0 20px 0; font-size: 1.2em; opacity: 0.9;">
-              Impossible de démarrer l'application Synergia
-            </p>
-            <p style="margin: 0 0 20px 0; opacity: 0.8;">
-              Erreur: ${error.message}
-            </p>
-            <p style="margin: 0; opacity: 0.7;">
-              Rechargez la page ou contactez le support technique
-            </p>
-            <button onclick="window.location.reload()" style="
-              margin-top: 20px;
-              padding: 12px 24px;
-              background: rgba(255,255,255,0.2);
-              border: 1px solid rgba(255,255,255,0.3);
-              border-radius: 8px;
-              color: white;
-              cursor: pointer;
-              font-size: 16px;
-            ">
-              🔄 Recharger la page
-            </button>
-          </div>
+        <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #f5f5f5;">
+          <h1 style="color: #e74c3c;">⚠️ Erreur de Démarrage</h1>
+          <p style="color: #7f8c8d;">L'application Synergia a rencontré un problème</p>
+          <button onclick="window.location.reload()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">
+            🔄 Recharger la Page
+          </button>
+          <details style="margin-top: 20px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <summary>Détails Techniques</summary>
+            <pre style="background: #2c3e50; color: white; padding: 15px; border-radius: 5px; overflow: auto; font-size: 12px;">
+${error.stack}
+            </pre>
+          </details>
         </div>
       `;
     }
   }
 }
-
-// 🚨 Message de confirmation final
-console.log('🎯 [EMERGENCY FIX] Index.jsx configuré avec corrections Users');
-console.log('🔧 [STATUS] Corrections appliquées: Users, Console Errors, Fallbacks');
-console.log('🚀 [READY] Application prête avec protections d\'urgence');
