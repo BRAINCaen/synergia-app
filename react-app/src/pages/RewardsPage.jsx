@@ -289,28 +289,58 @@ const RewardsPage = () => {
     if (!selectedReward?.id) return;
     
     try {
-      await updateDoc(doc(db, 'rewards', selectedReward.id), {
-        name: rewardForm.name,
-        description: rewardForm.description,
-        type: rewardForm.type,
-        category: rewardForm.category,
-        xpCost: parseInt(rewardForm.xpCost) || 100,
-        icon: rewardForm.icon,
-        isAvailable: rewardForm.isAvailable !== false,
-        stock: parseInt(rewardForm.stock) || -1,
-        requirements: rewardForm.requirements || {},
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid
-      });
+      // 🚨 CORRECTION : Vérifier si c'est une récompense par défaut ou Firebase
+      if (selectedReward.isDefault) {
+        // Pour les récompenses par défaut, on ne peut que les créer dans Firebase
+        console.log('🎨 Création récompense par défaut dans Firebase...');
+        
+        const rewardData = {
+          name: rewardForm.name,
+          description: rewardForm.description,
+          type: rewardForm.type,
+          category: rewardForm.category,
+          xpCost: parseInt(rewardForm.xpCost) || 100,
+          icon: rewardForm.icon,
+          isAvailable: rewardForm.isAvailable !== false,
+          stock: parseInt(rewardForm.stock) || -1,
+          requirements: rewardForm.requirements || {},
+          timesRedeemed: 0,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid,
+          isCustom: true,
+          basedOnDefault: selectedReward.id
+        };
+
+        await addDoc(collection(db, 'rewards'), rewardData);
+        showNotification('Récompense créée dans Firebase avec succès !', 'success');
+      } else {
+        // Pour les récompenses Firebase, on peut les modifier
+        console.log('✏️ Modification récompense Firebase:', selectedReward.id);
+        
+        await updateDoc(doc(db, 'rewards', selectedReward.id), {
+          name: rewardForm.name,
+          description: rewardForm.description,
+          type: rewardForm.type,
+          category: rewardForm.category,
+          xpCost: parseInt(rewardForm.xpCost) || 100,
+          icon: rewardForm.icon,
+          isAvailable: rewardForm.isAvailable !== false,
+          stock: parseInt(rewardForm.stock) || -1,
+          requirements: rewardForm.requirements || {},
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid
+        });
+        
+        showNotification('Récompense modifiée avec succès !', 'success');
+      }
       
-      showNotification('Récompense modifiée avec succès !', 'success');
       setShowEditRewardModal(false);
       setSelectedReward(null);
-      
       await loadAllRewards();
+      
     } catch (error) {
       console.error('❌ Erreur modification récompense:', error);
-      showNotification('Erreur lors de la modification', 'error');
+      showNotification(`Erreur lors de la modification: ${error.message}`, 'error');
     }
   };
 
@@ -810,9 +840,10 @@ const RewardsPage = () => {
                         setShowEditRewardModal(true);
                       }}
                       className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                      title={reward.isDefault ? "Créer une copie personnalisée" : "Modifier cette récompense"}
                     >
                       <Edit className="w-4 h-4" />
-                      Éditer
+                      {reward.isDefault ? 'Copier' : 'Éditer'}
                     </button>
                     
                     {/* Bouton de suppression - différent pour récompenses par défaut */}
@@ -828,6 +859,7 @@ const RewardsPage = () => {
                       <button
                         onClick={() => handleDeleteReward(reward.id)}
                         className="bg-red-600 text-white py-2 px-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
+                        title="Supprimer cette récompense personnalisée"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -982,7 +1014,9 @@ const RewardsPage = () => {
                 exit={{ scale: 0.95 }}
                 className="bg-white rounded-xl p-6 w-full max-w-md mx-4"
               >
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Éditer la Récompense</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  {selectedReward?.isDefault ? 'Créer une Copie Personnalisée' : 'Éditer la Récompense'}
+                </h2>
                 
                 <div className="space-y-4">
                   <div>
@@ -1082,7 +1116,7 @@ const RewardsPage = () => {
                     className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <Save className="w-4 h-4" />
-                    Sauvegarder
+                    {selectedReward?.isDefault ? 'Créer Copie' : 'Sauvegarder'}
                   </button>
                   <button
                     onClick={() => {
