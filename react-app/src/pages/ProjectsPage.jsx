@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/ProjectsPage.jsx
-// PAGE PROJETS COMPLÈTE AVEC MENU HAMBURGER IDENTIQUE AU DASHBOARD
+// VRAIE PAGE PROJETS SYNERGIA AVEC FIREBASE ET DESIGN AUTHENTIQUE
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -27,16 +27,20 @@ import {
   ArrowRight,
   MoreVertical,
   FolderOpen,
-  FileText
+  FileText,
+  PlayCircle,
+  PauseCircle,
+  StopCircle,
+  RefreshCw
 } from 'lucide-react';
 
-// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
+// 🎯 IMPORT DU LAYOUT SYNERGIA AUTHENTIQUE
 import Layout from '../components/layout/Layout.jsx';
 
-// 🔥 HOOKS ET SERVICES
+// 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 📊 FIREBASE
+// 📊 FIREBASE IMPORTS
 import { 
   collection, 
   query, 
@@ -52,20 +56,60 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 📊 CONSTANTES PROJETS
+// 📊 CONSTANTES SYNERGIA PROJETS
 const PROJECT_STATUS = {
-  planning: { label: 'Planification', color: 'yellow', icon: '📋', bgColor: 'bg-yellow-50', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
-  active: { label: 'En cours', color: 'blue', icon: '🚀', bgColor: 'bg-blue-50', textColor: 'text-blue-800', borderColor: 'border-blue-200' },
-  completed: { label: 'Terminé', color: 'green', icon: '✅', bgColor: 'bg-green-50', textColor: 'text-green-800', borderColor: 'border-green-200' },
-  on_hold: { label: 'En pause', color: 'gray', icon: '⏸️', bgColor: 'bg-gray-50', textColor: 'text-gray-800', borderColor: 'border-gray-200' },
-  cancelled: { label: 'Annulé', color: 'red', icon: '❌', bgColor: 'bg-red-50', textColor: 'text-red-800', borderColor: 'border-red-200' }
+  planning: { 
+    label: 'Planification', 
+    color: 'yellow', 
+    icon: '📋', 
+    bgColor: 'bg-yellow-900/20', 
+    textColor: 'text-yellow-400', 
+    borderColor: 'border-yellow-500/30',
+    hoverColor: 'hover:bg-yellow-900/30'
+  },
+  active: { 
+    label: 'En cours', 
+    color: 'blue', 
+    icon: '🚀', 
+    bgColor: 'bg-blue-900/20', 
+    textColor: 'text-blue-400', 
+    borderColor: 'border-blue-500/30',
+    hoverColor: 'hover:bg-blue-900/30'
+  },
+  completed: { 
+    label: 'Terminé', 
+    color: 'green', 
+    icon: '✅', 
+    bgColor: 'bg-green-900/20', 
+    textColor: 'text-green-400', 
+    borderColor: 'border-green-500/30',
+    hoverColor: 'hover:bg-green-900/30'
+  },
+  on_hold: { 
+    label: 'En pause', 
+    color: 'orange', 
+    icon: '⏸️', 
+    bgColor: 'bg-orange-900/20', 
+    textColor: 'text-orange-400', 
+    borderColor: 'border-orange-500/30',
+    hoverColor: 'hover:bg-orange-900/30'
+  },
+  cancelled: { 
+    label: 'Annulé', 
+    color: 'red', 
+    icon: '❌', 
+    bgColor: 'bg-red-900/20', 
+    textColor: 'text-red-400', 
+    borderColor: 'border-red-500/30',
+    hoverColor: 'hover:bg-red-900/30'
+  }
 };
 
 const PROJECT_PRIORITY = {
-  low: { label: 'Faible', color: 'green', icon: '🟢' },
-  medium: { label: 'Moyenne', color: 'yellow', icon: '🟡' },
-  high: { label: 'Haute', color: 'orange', icon: '🟠' },
-  urgent: { label: 'Urgent', color: 'red', icon: '🔴' }
+  low: { label: 'Faible', color: 'green', icon: '🟢', textColor: 'text-green-400' },
+  medium: { label: 'Moyenne', color: 'yellow', icon: '🟡', textColor: 'text-yellow-400' },
+  high: { label: 'Haute', color: 'orange', icon: '🟠', textColor: 'text-orange-400' },
+  urgent: { label: 'Urgent', color: 'red', icon: '🔴', textColor: 'text-red-400' }
 };
 
 const VIEW_MODES = {
@@ -90,12 +134,14 @@ const ProjectsPage = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedProject, setSelectedProject] = useState(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
 
-  // 📊 CHARGEMENT DES PROJETS
+  // 📊 CHARGEMENT DES PROJETS DEPUIS FIREBASE
   useEffect(() => {
     if (!user?.uid) return;
 
-    console.log('🔄 [PROJECTS] Chargement des projets...');
+    console.log('🔄 [PROJECTS] Chargement des projets depuis Firebase...');
     setLoading(true);
 
     // Query pour les projets
@@ -113,12 +159,16 @@ const ProjectsPage = () => {
         dueDate: doc.data().dueDate?.toDate()
       }));
 
-      console.log('📁 [PROJECTS] Projets chargés:', projectsData.length);
+      console.log('📁 [PROJECTS] Projets chargés depuis Firebase:', projectsData.length);
       setProjects(projectsData);
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ [PROJECTS] Erreur chargement projets:', error);
+      setError('Erreur de chargement des projets');
       setLoading(false);
     });
 
-    // Query pour les tâches (pour calculer les stats)
+    // Chargement des tâches pour calcul des statistiques
     const tasksQuery = query(
       collection(db, 'tasks'),
       orderBy('createdAt', 'desc')
@@ -129,10 +179,11 @@ const ProjectsPage = () => {
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate()
+        updatedAt: doc.data().updatedAt?.toDate(),
+        dueDate: doc.data().dueDate?.toDate()
       }));
 
-      console.log('📋 [PROJECTS] Tâches chargées:', tasksData.length);
+      console.log('📋 [TASKS] Tâches chargées pour stats:', tasksData.length);
       setTasks(tasksData);
     });
 
@@ -142,17 +193,37 @@ const ProjectsPage = () => {
     };
   }, [user?.uid, sortBy, sortOrder]);
 
-  // 🎯 FILTRES ET TRI
-  const filteredAndSortedProjects = useMemo(() => {
+  // 📊 CALCUL DES STATISTIQUES
+  const stats = useMemo(() => {
+    if (!projects.length) {
+      return {
+        total: 0,
+        active: 0,
+        completed: 0,
+        onHold: 0,
+        planning: 0
+      };
+    }
+
+    return {
+      total: projects.length,
+      active: projects.filter(p => p.status === 'active').length,
+      completed: projects.filter(p => p.status === 'completed').length,
+      onHold: projects.filter(p => p.status === 'on_hold').length,
+      planning: projects.filter(p => p.status === 'planning').length
+    };
+  }, [projects]);
+
+  // 🔍 FILTRAGE ET TRI DES PROJETS
+  const filteredProjects = useMemo(() => {
     let filtered = projects;
 
-    // Filtre par terme de recherche
+    // Filtre par recherche
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(project =>
-        project.title?.toLowerCase().includes(term) ||
-        project.description?.toLowerCase().includes(term) ||
-        project.category?.toLowerCase().includes(term)
+        project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -169,205 +240,122 @@ const ProjectsPage = () => {
     return filtered;
   }, [projects, searchTerm, statusFilter, priorityFilter]);
 
-  // 📊 CALCULER LES STATS D'UN PROJET
-  const getProjectStats = useCallback((project) => {
-    const projectTasks = tasks.filter(task => task.projectId === project.id);
-    const completedTasks = projectTasks.filter(task => task.status === 'completed');
-    const progress = projectTasks.length > 0 ? Math.round((completedTasks.length / projectTasks.length) * 100) : 0;
-    
-    return {
-      totalTasks: projectTasks.length,
-      completedTasks: completedTasks.length,
-      progress,
-      overdueTasks: projectTasks.filter(task => 
-        task.dueDate && task.dueDate < new Date() && task.status !== 'completed'
-      ).length
-    };
-  }, [tasks]);
-
-  // 📊 STATS GLOBALES
-  const globalStats = useMemo(() => {
-    const total = filteredAndSortedProjects.length;
-    const active = filteredAndSortedProjects.filter(p => p.status === 'active').length;
-    const completed = filteredAndSortedProjects.filter(p => p.status === 'completed').length;
-    const planning = filteredAndSortedProjects.filter(p => p.status === 'planning').length;
-    const overdue = filteredAndSortedProjects.filter(p => 
-      p.dueDate && p.dueDate < new Date() && p.status !== 'completed'
-    ).length;
-
-    return { total, active, completed, planning, overdue };
-  }, [filteredAndSortedProjects]);
-
-  // 🆕 CRÉER UN NOUVEAU PROJET
-  const handleCreateProject = useCallback(async (projectData) => {
+  // ➕ CRÉER NOUVEAU PROJET
+  const handleCreateProject = async (projectData) => {
     try {
+      console.log('➕ [CREATE] Création nouveau projet:', projectData.title);
+
       const newProject = {
-        ...projectData,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: 'planning',
+        title: projectData.title,
+        description: projectData.description || '',
+        status: projectData.status || 'planning',
         priority: projectData.priority || 'medium',
-        teamMembers: [user.uid]
+        tags: projectData.tags || [],
+        color: projectData.color || 'blue',
+        icon: projectData.icon || '📁',
+        createdBy: user.uid,
+        members: [user.uid],
+        progress: 0,
+        totalTasks: 0,
+        completedTasks: 0,
+        dueDate: projectData.dueDate || null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, 'projects'), newProject);
-      console.log('✅ [PROJECTS] Projet créé:', docRef.id);
-      setShowNewProjectModal(false);
+      await addDoc(collection(db, 'projects'), newProject);
+      
+      console.log('✅ [CREATE] Projet créé avec succès');
+      setShowProjectForm(false);
+      setEditingProject(null);
+      
     } catch (error) {
-      console.error('❌ [PROJECTS] Erreur création projet:', error);
-      setError('Impossible de créer le projet');
+      console.error('❌ [CREATE] Erreur création projet:', error);
+      alert('Erreur lors de la création du projet');
     }
-  }, [user]);
+  };
 
-  // ✏️ METTRE À JOUR UN PROJET
-  const handleUpdateProject = useCallback(async (projectId, updates) => {
+  // ✏️ MODIFIER PROJET
+  const handleEditProject = async (projectData) => {
     try {
-      const projectRef = doc(db, 'projects', projectId);
-      await updateDoc(projectRef, {
-        ...updates,
+      console.log('✏️ [EDIT] Modification projet:', editingProject.id);
+
+      await updateDoc(doc(db, 'projects', editingProject.id), {
+        ...projectData,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ [PROJECTS] Projet mis à jour:', projectId);
-    } catch (error) {
-      console.error('❌ [PROJECTS] Erreur mise à jour projet:', error);
-      setError('Impossible de mettre à jour le projet');
-    }
-  }, []);
 
-  // 🗑️ SUPPRIMER UN PROJET
-  const handleDeleteProject = useCallback(async (projectId) => {
+      console.log('✅ [EDIT] Projet modifié avec succès');
+      setShowProjectForm(false);
+      setEditingProject(null);
+      
+    } catch (error) {
+      console.error('❌ [EDIT] Erreur modification projet:', error);
+      alert('Erreur lors de la modification du projet');
+    }
+  };
+
+  // 🗑️ SUPPRIMER PROJET
+  const handleDeleteProject = async (projectId) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
 
     try {
+      console.log('🗑️ [DELETE] Suppression projet:', projectId);
+      
       await deleteDoc(doc(db, 'projects', projectId));
-      console.log('✅ [PROJECTS] Projet supprimé:', projectId);
+      
+      console.log('✅ [DELETE] Projet supprimé avec succès');
+      
     } catch (error) {
-      console.error('❌ [PROJECTS] Erreur suppression projet:', error);
-      setError('Impossible de supprimer le projet');
+      console.error('❌ [DELETE] Erreur suppression projet:', error);
+      alert('Erreur lors de la suppression du projet');
     }
-  }, []);
-
-  // 🎨 CARTE PROJET
-  const ProjectCard = ({ project }) => {
-    const stats = getProjectStats(project);
-    const statusConfig = PROJECT_STATUS[project.status] || PROJECT_STATUS.planning;
-    const priorityConfig = PROJECT_PRIORITY[project.priority] || PROJECT_PRIORITY.medium;
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -4 }}
-        className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300"
-      >
-        <div className="p-6 pb-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Folder className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
-                  {project.title}
-                </h3>
-                <p className="text-sm text-gray-600">{project.category || 'Sans catégorie'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{priorityConfig.icon}</span>
-              <button className="p-1 text-gray-400 hover:text-gray-600 rounded">
-                <MoreVertical className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <p className="text-gray-600 text-sm line-clamp-2 mb-4">
-            {project.description || 'Aucune description disponible'}
-          </p>
-
-          <div className="flex items-center gap-2 mb-4">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-              <span className="mr-1">{statusConfig.icon}</span>
-              {statusConfig.label}
-            </span>
-            <span className="text-xs text-gray-500">
-              {priorityConfig.icon} {priorityConfig.label}
-            </span>
-          </div>
-
-          <div className="mb-4">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-gray-600">Progression</span>
-              <span className="font-medium text-gray-900">{stats.progress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  stats.progress === 100 ? 'bg-green-500' :
-                  stats.progress >= 75 ? 'bg-blue-500' :
-                  stats.progress >= 50 ? 'bg-yellow-500' :
-                  'bg-gray-400'
-                }`}
-                style={{ width: `${stats.progress}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 text-center border-t border-gray-100 pt-4">
-            <div>
-              <p className="text-lg font-semibold text-gray-900">{stats.totalTasks}</p>
-              <p className="text-xs text-gray-600">Tâches</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-green-600">{stats.completedTasks}</p>
-              <p className="text-xs text-gray-600">Terminées</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-gray-600">
-                {project.teamMembers?.length || 0}
-              </p>
-              <p className="text-xs text-gray-600">Membres</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center text-xs text-gray-500">
-              <Clock className="w-3 h-3 mr-1" />
-              {project.updatedAt ? `Mis à jour ${project.updatedAt.toLocaleDateString('fr-FR')}` : 'Pas de mise à jour'}
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                onClick={() => setSelectedProject(project)}
-              >
-                Voir détails
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    );
   };
 
-  // 🎨 RENDU VUE GRILLE
-  const renderGridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {filteredAndSortedProjects.map(project => (
-        <ProjectCard key={project.id} project={project} />
-      ))}
-    </div>
-  );
+  // 🔄 CHANGER STATUT PROJET
+  const handleStatusChange = async (projectId, newStatus) => {
+    try {
+      console.log('🔄 [STATUS] Changement statut projet:', projectId, '→', newStatus);
+      
+      await updateDoc(doc(db, 'projects', projectId), {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ [STATUS] Statut mis à jour avec succès');
+      
+    } catch (error) {
+      console.error('❌ [STATUS] Erreur changement statut:', error);
+      alert('Erreur lors du changement de statut');
+    }
+  };
 
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Chargement des projets...</p>
+            <RefreshCw className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg">Chargement des projets...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-400 text-lg mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Réessayer
+            </button>
           </div>
         </div>
       </Layout>
@@ -376,212 +364,702 @@ const ProjectsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">📁 Gestion des Projets</h1>
-              <p className="text-gray-600">Organisez et suivez vos projets collaboratifs</p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        
+        {/* 📊 HEADER AVEC STATISTIQUES */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
+          <div className="max-w-7xl mx-auto px-6 py-8">
             
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowNewProjectModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            {/* Titre principal */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <Folder className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    Gestion des Projets
+                  </h1>
+                  <p className="text-gray-400 text-lg mt-1">
+                    Organisez et suivez vos projets collaboratifs
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions du header */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-gray-700/50 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-md transition-all duration-200 ${
+                      viewMode === 'grid'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-600'
+                    }`}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-md transition-all duration-200 ${
+                      viewMode === 'list'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-600'
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setShowProjectForm(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nouveau Projet
+                </button>
+              </div>
+            </div>
+
+            {/* Statistiques rapides */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                whileHover={{ scale: 1.02 }}
               >
-                <Plus className="w-5 h-5 mr-2" />
-                Nouveau projet
-              </button>
+                <div className="text-3xl font-bold text-white mb-1">{stats.total}</div>
+                <div className="text-gray-400 text-sm font-medium">Total</div>
+                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-1 rounded-full" style={{ width: '100%' }}></div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="text-3xl font-bold text-blue-400 mb-1">{stats.active}</div>
+                <div className="text-gray-400 text-sm font-medium">Actifs</div>
+                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                  <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${(stats.active / stats.total) * 100 || 0}%` }}></div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="text-3xl font-bold text-green-400 mb-1">{stats.completed}</div>
+                <div className="text-gray-400 text-sm font-medium">Terminés</div>
+                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                  <div className="bg-green-500 h-1 rounded-full" style={{ width: `${(stats.completed / stats.total) * 100 || 0}%` }}></div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="text-3xl font-bold text-yellow-400 mb-1">{stats.planning}</div>
+                <div className="text-gray-400 text-sm font-medium">Planning</div>
+                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                  <div className="bg-yellow-500 h-1 rounded-full" style={{ width: `${(stats.planning / stats.total) * 100 || 0}%` }}></div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="text-3xl font-bold text-orange-400 mb-1">{stats.onHold}</div>
+                <div className="text-gray-400 text-sm font-medium">En pause</div>
+                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                  <div className="bg-orange-500 h-1 rounded-full" style={{ width: `${(stats.onHold / stats.total) * 100 || 0}%` }}></div>
+                </div>
+              </motion.div>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Folder className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total</p>
-                  <p className="text-xl font-semibold text-gray-900">{globalStats.total}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Target className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Actifs</p>
-                  <p className="text-xl font-semibold text-gray-900">{globalStats.active}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Terminés</p>
-                  <p className="text-xl font-semibold text-gray-900">{globalStats.completed}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <FileText className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">En planif.</p>
-                  <p className="text-xl font-semibold text-gray-900">{globalStats.planning}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">En retard</p>
-                  <p className="text-xl font-semibold text-gray-900">{globalStats.overdue}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+        {/* 🔍 FILTRES ET RECHERCHE */}
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
             <div className="flex flex-col lg:flex-row gap-4">
+              
+              {/* Barre de recherche */}
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                   <input
                     type="text"
                     placeholder="Rechercher des projets..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Filtres */}
+              <div className="flex gap-4">
                 <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
                 >
                   <option value="all">Tous les statuts</option>
-                  {Object.entries(PROJECT_STATUS).map(([key, status]) => (
-                    <option key={key} value={key}>
-                      {status.icon} {status.label}
-                    </option>
-                  ))}
+                  <option value="planning">Planification</option>
+                  <option value="active">Actifs</option>
+                  <option value="completed">Terminés</option>
+                  <option value="on_hold">En pause</option>
+                  <option value="cancelled">Annulés</option>
                 </select>
 
                 <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
                 >
                   <option value="all">Toutes priorités</option>
-                  {Object.entries(PROJECT_PRIORITY).map(([key, priority]) => (
-                    <option key={key} value={key}>
-                      {priority.icon} {priority.label}
-                    </option>
-                  ))}
+                  <option value="low">Faible</option>
+                  <option value="medium">Moyenne</option>
+                  <option value="high">Haute</option>
+                  <option value="urgent">Urgent</option>
                 </select>
 
-                <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                  {Object.entries(VIEW_MODES).map(([mode, config]) => {
-                    const IconComponent = config.icon;
-                    return (
-                      <button
-                        key={mode}
-                        onClick={() => setViewMode(mode)}
-                        className={`px-3 py-2 text-sm font-medium ${
-                          viewMode === mode
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                        title={config.label}
-                      >
-                        <IconComponent className="w-4 h-4" />
-                      </button>
-                    );
-                  })}
-                </div>
+                <select
+                  value={`${sortBy}-${sortOrder}`}
+                  onChange={(e) => {
+                    const [field, order] = e.target.value.split('-');
+                    setSortBy(field);
+                    setSortOrder(order);
+                  }}
+                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="updatedAt-desc">Plus récents</option>
+                  <option value="updatedAt-asc">Plus anciens</option>
+                  <option value="title-asc">Nom A-Z</option>
+                  <option value="title-desc">Nom Z-A</option>
+                  <option value="createdAt-desc">Date création ↓</option>
+                  <option value="createdAt-asc">Date création ↑</option>
+                </select>
               </div>
+            </div>
+
+            {/* Résultats de recherche */}
+            {searchTerm && (
+              <div className="mt-4 text-sm text-gray-400">
+                {filteredProjects.length} projet(s) trouvé(s) pour "{searchTerm}"
+              </div>
+            )}
+          </div>
+
+          {/* 📁 GRILLE DES PROJETS */}
+          {filteredProjects.length === 0 ? (
+            <motion.div 
+              className="text-center py-20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="text-8xl mb-6">📁</div>
+              <h3 className="text-2xl font-bold text-white mb-4">
+                {searchTerm ? 'Aucun projet trouvé' : 'Aucun projet créé'}
+              </h3>
+              <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">
+                {searchTerm 
+                  ? 'Aucun projet ne correspond à votre recherche. Essayez avec d\'autres mots-clés.'
+                  : 'Commencez par créer votre premier projet pour organiser vos tâches et collaborer avec votre équipe.'
+                }
+              </p>
+              {!searchTerm && (
+                <button
+                  onClick={() => setShowProjectForm(true)}
+                  className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-3 mx-auto"
+                >
+                  <Plus className="h-5 w-5" />
+                  Créer mon premier projet
+                </button>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              className={viewMode === 'grid' 
+                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
+                : "space-y-4"
+              }
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {filteredProjects.map((project, index) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  viewMode={viewMode}
+                  onEdit={(proj) => {
+                    setEditingProject(proj);
+                    setShowProjectForm(true);
+                  }}
+                  onDelete={handleDeleteProject}
+                  onStatusChange={handleStatusChange}
+                  tasks={tasks.filter(task => task.projectId === project.id)}
+                  index={index}
+                />
+              ))}
+            </motion.div>
+          )}
+        </div>
+
+        {/* 📝 MODAL FORMULAIRE PROJET */}
+        <AnimatePresence>
+          {showProjectForm && (
+            <ProjectFormModal
+              project={editingProject}
+              onClose={() => {
+                setShowProjectForm(false);
+                setEditingProject(null);
+              }}
+              onSubmit={editingProject ? handleEditProject : handleCreateProject}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </Layout>
+  );
+};
+
+// 📄 COMPOSANT CARTE PROJET
+const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, tasks, index }) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  
+  const statusConfig = PROJECT_STATUS[project.status] || PROJECT_STATUS.active;
+  const priorityConfig = PROJECT_PRIORITY[project.priority] || PROJECT_PRIORITY.medium;
+  
+  // Calcul des statistiques du projet
+  const projectStats = {
+    totalTasks: tasks.length,
+    completedTasks: tasks.filter(t => t.status === 'completed').length,
+    inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+    todoTasks: tasks.filter(t => t.status === 'todo').length,
+    progress: tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0
+  };
+
+  const cardContent = (
+    <>
+      {/* Header de la carte */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl ${statusConfig.bgColor}`}>
+            {project.icon || '📁'}
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white line-clamp-1">
+              {project.title || 'Projet sans nom'}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border`}>
+                {statusConfig.icon} {statusConfig.label}
+              </span>
+              <span className={`text-xs ${priorityConfig.textColor}`}>
+                {priorityConfig.icon} {priorityConfig.label}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+
+          {showDropdown && (
+            <motion.div
+              className="absolute right-0 top-full mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <button
+                onClick={() => {
+                  onEdit(project);
+                  setShowDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Modifier
+              </button>
+              
+              {project.status !== 'active' && (
+                <button
+                  onClick={() => {
+                    onStatusChange(project.id, 'active');
+                    setShowDropdown(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-green-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Activer
+                </button>
+              )}
+              
+              {project.status === 'active' && (
+                <button
+                  onClick={() => {
+                    onStatusChange(project.id, 'on_hold');
+                    setShowDropdown(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-yellow-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                >
+                  <PauseCircle className="h-4 w-4" />
+                  Mettre en pause
+                </button>
+              )}
+              
+              {project.status !== 'completed' && (
+                <button
+                  onClick={() => {
+                    onStatusChange(project.id, 'completed');
+                    setShowDropdown(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-blue-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Marquer terminé
+                </button>
+              )}
+              
+              <button
+                onClick={() => {
+                  onDelete(project.id);
+                  setShowDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-left text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Supprimer
+              </button>
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* Description */}
+      {project.description && (
+        <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+          {project.description}
+        </p>
+      )}
+
+      {/* Statistiques du projet */}
+      <div className="space-y-3 mb-6">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-400">Progression</span>
+          <span className="text-white font-medium">{projectStats.progress}%</span>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+            style={{ width: `${projectStats.progress}%` }}
+          ></div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-lg font-bold text-white">{projectStats.totalTasks}</div>
+            <div className="text-xs text-gray-400">Tâches</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-green-400">{projectStats.completedTasks}</div>
+            <div className="text-xs text-gray-400">Terminées</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-blue-400">{projectStats.inProgressTasks}</div>
+            <div className="text-xs text-gray-400">En cours</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Métadonnées */}
+      <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+        <div className="flex items-center gap-2">
+          <Clock className="h-3 w-3" />
+          <span>
+            {project.createdAt 
+              ? `Créé le ${project.createdAt.toLocaleDateString('fr-FR')}`
+              : 'Date inconnue'
+            }
+          </span>
+        </div>
+        {project.members && (
+          <div className="flex items-center gap-1">
+            <Users className="h-3 w-3" />
+            <span>{project.members.length} membre(s)</span>
+          </div>
+        )}
+      </div>
+
+      {/* Tags */}
+      {project.tags && project.tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {project.tags.slice(0, 3).map((tag, idx) => (
+            <span
+              key={idx}
+              className="px-2 py-1 bg-gray-700/50 text-gray-300 text-xs rounded-full"
+            >
+              {tag}
+            </span>
+          ))}
+          {project.tags.length > 3 && (
+            <span className="px-2 py-1 bg-gray-700/50 text-gray-400 text-xs rounded-full">
+              +{project.tags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Action button */}
+      <button className="w-full py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2">
+        <Eye className="h-4 w-4" />
+        Voir les détails
+      </button>
+    </>
+  );
+
+  return (
+    <motion.div
+      className={`
+        bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 
+        hover:bg-gray-700/50 hover:border-gray-600/50 transition-all duration-300 
+        hover:shadow-2xl hover:shadow-purple-500/10 cursor-pointer
+        ${viewMode === 'list' ? 'flex items-center gap-6' : ''}
+      `}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.1 }}
+      whileHover={{ scale: viewMode === 'grid' ? 1.02 : 1.005 }}
+      onClick={() => setShowDropdown(false)}
+    >
+      {cardContent}
+    </motion.div>
+  );
+};
+
+// 📝 COMPOSANT MODAL FORMULAIRE
+const ProjectFormModal = ({ project, onClose, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    title: project?.title || '',
+    description: project?.description || '',
+    status: project?.status || 'planning',
+    priority: project?.priority || 'medium',
+    tags: project?.tags ? project.tags.join(', ') : '',
+    color: project?.color || 'blue',
+    icon: project?.icon || '📁',
+    dueDate: project?.dueDate ? project.dueDate.toISOString().split('T')[0] : ''
+  });
+
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    const newErrors = {};
+    if (!formData.title.trim()) {
+      newErrors.title = 'Le titre est requis';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const projectData = {
+        ...formData,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null
+      };
+      
+      await onSubmit(projectData);
+      onClose();
+    } catch (error) {
+      console.error('Erreur lors de l\'enregistrement:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">
+            {project ? 'Modifier le projet' : 'Nouveau projet'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Titre */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Titre du projet *
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className={`w-full px-4 py-3 bg-gray-700/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
+                errors.title 
+                  ? 'border-red-500 focus:ring-red-500/50' 
+                  : 'border-gray-600 focus:ring-blue-500/50'
+              }`}
+              placeholder="Nom de votre projet"
+            />
+            {errors.title && (
+              <p className="mt-1 text-sm text-red-400">{errors.title}</p>
+            )}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+              placeholder="Description de votre projet"
+              rows="4"
+            />
+          </div>
+
+          {/* Statut et Priorité */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Statut
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+              >
+                <option value="planning">📋 Planification</option>
+                <option value="active">🚀 En cours</option>
+                <option value="on_hold">⏸️ En pause</option>
+                <option value="completed">✅ Terminé</option>
+                <option value="cancelled">❌ Annulé</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Priorité
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
+                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+              >
+                <option value="low">🟢 Faible</option>
+                <option value="medium">🟡 Moyenne</option>
+                <option value="high">🟠 Haute</option>
+                <option value="urgent">🔴 Urgent</option>
+              </select>
             </div>
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
-                <p className="text-red-700">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="ml-auto text-red-600 hover:text-red-800"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+          {/* Icône et Date d'échéance */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Icône
+              </label>
+              <input
+                type="text"
+                value={formData.icon}
+                onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                placeholder="📁"
+              />
             </div>
-          )}
 
-          <AnimatePresence mode="wait">
-            {filteredAndSortedProjects.length === 0 ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center py-12"
-              >
-                <div className="max-w-md mx-auto">
-                  <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {projects.length === 0 ? 'Aucun projet trouvé' : 'Aucun résultat'}
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    {projects.length === 0 
-                      ? 'Commencez par créer votre premier projet.'
-                      : 'Essayez de modifier vos filtres ou votre recherche.'
-                    }
-                  </p>
-                  {projects.length === 0 && (
-                    <button
-                      onClick={() => setShowNewProjectModal(true)}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      <Plus className="w-5 h-5 mr-2" />
-                      Créer mon premier projet
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key={viewMode}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                {renderGridView()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </Layout>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Date d'échéance
+              </label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Tags <span className="text-gray-500">(séparés par des virgules)</span>
+            </label>
+            <input
+              type="text"
+              value={formData.tags}
+              onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+              className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+              placeholder="développement, urgent, client"
+            />
+          </div>
+
+          {/* Boutons d'action */}
+          <div className="flex justify-end gap-4 pt-6 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 font-medium"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center gap-2 ${
+                loading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {loading && <RefreshCw className="h-4 w-4 animate-spin" />}
+              {project ? 'Modifier' : 'Créer'} le projet
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
   );
 };
 
