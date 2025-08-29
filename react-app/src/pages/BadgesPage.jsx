@@ -210,7 +210,7 @@ const BadgesPage = () => {
         });
       });
 
-      // 2️⃣ AJOUTER LES BADGES PAR DÉFAUT (ceux qui ne sont pas supprimés)
+      // 2️⃣ VÉRIFIER LES BADGES SUPPRIMÉS
       const suppressedBadgesQuery = query(collection(db, 'badge_suppressions'));
       const suppressedSnapshot = await getDocs(suppressedBadgesQuery);
       
@@ -219,6 +219,7 @@ const BadgesPage = () => {
         suppressedBadgeIds.push(doc.id);
       });
 
+      // 3️⃣ AJOUTER LES BADGES PAR DÉFAUT NON SUPPRIMÉS
       const defaultBadges = Object.values(BADGE_DEFINITIONS)
         .filter(badge => !suppressedBadgeIds.includes(badge.id))
         .map(badge => ({
@@ -227,20 +228,35 @@ const BadgesPage = () => {
           source: 'default'
         }));
 
-      // 3️⃣ COMBINER TOUS LES BADGES
+      // 4️⃣ COMBINER TOUS LES BADGES
       const allBadgesArray = [...firebaseBadges, ...defaultBadges];
       
       setAllBadges(allBadgesArray);
-      console.log(`✅ ${allBadgesArray.length} badges chargés (${firebaseBadges.length} Firebase + ${defaultBadges.length} par défaut)`);
+      console.log(`✅ ${allBadgesArray.length} badges chargés:`);
+      console.log(`   - ${firebaseBadges.length} badges Firebase`);
+      console.log(`   - ${defaultBadges.length} badges par défaut non supprimés`);
+      console.log(`   - ${suppressedBadgeIds.length} badges supprimés`);
+      
+      // 5️⃣ DEBUG - Vérifier si "eclair" est présent
+      const eclairBadge = allBadgesArray.find(b => b.id === 'eclair');
+      if (eclairBadge) {
+        console.log('✅ Badge Éclair trouvé dans admin:', eclairBadge);
+      } else {
+        console.warn('⚠️ Badge Éclair manquant dans admin');
+        console.log('📝 Badges par défaut disponibles:', Object.keys(BADGE_DEFINITIONS));
+        console.log('📝 Badges supprimés:', suppressedBadgeIds);
+      }
       
     } catch (error) {
       console.error('❌ Erreur chargement tous les badges:', error);
       // Fallback sur les badges par défaut uniquement
-      setAllBadges(Object.values(BADGE_DEFINITIONS).map(badge => ({
+      const fallbackBadges = Object.values(BADGE_DEFINITIONS).map(badge => ({
         ...badge,
         isDefault: true,
         source: 'default'
-      })));
+      }));
+      setAllBadges(fallbackBadges);
+      console.log(`🔄 Fallback: ${fallbackBadges.length} badges par défaut chargés`);
     }
   };
 
@@ -470,7 +486,7 @@ const BadgesPage = () => {
   };
 
   /**
-   * 🎖️ ATTRIBUER DES BADGES MANUELLEMENT
+   * 🎖️ ATTRIBUER DES BADGES MANUELLEMENT - VERSION CORRIGÉE
    */
   const handleAssignBadge = async () => {
     if (!selectedBadge || selectedUsers.length === 0) return;
@@ -485,26 +501,45 @@ const BadgesPage = () => {
           const currentBadges = userData.badges || [];
           
           // Vérifier si l'utilisateur a déjà ce badge
-          const hasBadge = currentBadges.some(b => b.id === selectedBadge.id);
+          const hasBadge = currentBadges.some(b => b.id === selectedBadge.id || b.badgeId === selectedBadge.id);
           
           if (!hasBadge) {
+            // 🚨 CORRECTION CRITIQUE : Éviter les valeurs undefined
             const newBadge = {
-              id: selectedBadge.id,
-              name: selectedBadge.name,
-              description: selectedBadge.description,
-              icon: selectedBadge.icon,
-              category: selectedBadge.category,
-              rarity: selectedBadge.rarity,
-              xpReward: selectedBadge.xpReward || 0,
+              id: selectedBadge.id || 'badge_unknown',
+              name: selectedBadge.name || 'Badge sans nom',
+              description: selectedBadge.description || 'Aucune description',
+              icon: selectedBadge.icon || '🏆',
+              category: selectedBadge.category || 'Général',
+              rarity: selectedBadge.rarity || 'Commun',
+              xpReward: parseInt(selectedBadge.xpReward) || 0,
               earnedAt: new Date(),
-              assignedBy: user.uid,
-              manuallyAssigned: true
+              assignedBy: user.uid || 'admin',
+              manuallyAssigned: true,
+              source: selectedBadge.isDefault ? 'default' : 'firebase'
             };
             
-            await updateDoc(userRef, {
+            // 🚨 CORRECTION CRITIQUE : Données d'update sans undefined
+            const updateData = {
               badges: [...currentBadges, newBadge],
-              totalXp: (userData.totalXp || 0) + (selectedBadge.xpReward || 0)
+              totalXp: (userData.totalXp || 0) + (parseInt(selectedBadge.xpReward) || 0),
+              updatedAt: new Date()
+            };
+            
+            // Ajouter gamification si elle existe
+            if (userData.gamification) {
+              updateData['gamification.badges'] = [...currentBadges, newBadge];
+              updateData['gamification.badgeCount'] = [...currentBadges, newBadge].length;
+              updateData['gamification.totalXp'] = (userData.gamification?.totalXp || 0) + (parseInt(selectedBadge.xpReward) || 0);
+            }
+            
+            console.log('🎖️ Attribution badge:', {
+              userId,
+              badge: newBadge,
+              updateData
             });
+            
+            await updateDoc(userRef, updateData);
           }
         }
       });
@@ -518,7 +553,7 @@ const BadgesPage = () => {
       
     } catch (error) {
       console.error('❌ Erreur attribution badge:', error);
-      showNotification('Erreur lors de l\'attribution', 'error');
+      showNotification(`Erreur lors de l'attribution: ${error.message}`, 'error');
     }
   };
 
@@ -548,12 +583,33 @@ const BadgesPage = () => {
     if (userIsAdmin && showAdminPanel) {
       // Mode admin : afficher tous les badges (Firebase + par défaut non supprimés)
       badges = allBadges;
+      console.log('🔍 Mode admin - badges disponibles:', badges.length);
+      
+      // DEBUG - Vérifier badge Éclair
+      const eclairBadge = badges.find(b => b.id === 'eclair');
+      if (eclairBadge) {
+        console.log('✅ Badge Éclair dans filteredBadges (admin):', eclairBadge);
+      } else {
+        console.warn('⚠️ Badge Éclair manquant dans filteredBadges (admin)');
+        console.log('📝 IDs disponibles:', badges.map(b => b.id));
+      }
     } else {
       // Mode utilisateur : afficher badges avec statut obtenu/non obtenu
       badges = Object.values(BADGE_DEFINITIONS).map(def => {
         const userBadge = userBadges.find(ub => ub.id === def.id);
         return userBadge ? { ...def, ...userBadge, earned: true } : { ...def, earned: false };
       });
+      
+      console.log('👤 Mode utilisateur - badges disponibles:', badges.length);
+      
+      // DEBUG - Vérifier badge Éclair
+      const eclairBadge = badges.find(b => b.id === 'eclair');
+      if (eclairBadge) {
+        console.log('✅ Badge Éclair dans filteredBadges (utilisateur):', eclairBadge);
+      } else {
+        console.warn('⚠️ Badge Éclair manquant dans filteredBadges (utilisateur)');
+        console.log('📝 BADGE_DEFINITIONS:', Object.keys(BADGE_DEFINITIONS));
+      }
     }
 
     // Filtrer par terme de recherche
@@ -574,6 +630,7 @@ const BadgesPage = () => {
       badges = badges.filter(badge => badge.rarity === filterRarity);
     }
 
+    console.log('🔍 Badges après filtrage:', badges.length);
     return badges;
   }, [allBadges, userBadges, searchTerm, filterCategory, filterRarity, showAdminPanel, userIsAdmin]);
 
