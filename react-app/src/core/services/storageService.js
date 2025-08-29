@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/storageService.js
-// SERVICE D'UPLOAD FIREBASE STORAGE AVEC URLS PUBLIQUES POUR LECTEUR VIDÉO
+// SERVICE D'UPLOAD FIREBASE STORAGE AVEC URLS PUBLIQUES ET AVATAR
 // ==========================================
 
 import { getAuth } from 'firebase/auth';
@@ -163,20 +163,80 @@ class StorageService {
   }
 
   /**
+   * 👤 Upload d'un avatar utilisateur
+   */
+  async uploadUserAvatar(userId, avatarFile) {
+    try {
+      console.log('👤 Upload avatar pour utilisateur:', userId);
+      
+      // Validation du fichier
+      if (!avatarFile) {
+        throw new Error('Aucun fichier avatar fourni');
+      }
+      
+      // Vérifier que c'est une image
+      if (!avatarFile.type.startsWith('image/')) {
+        throw new Error('Le fichier doit être une image');
+      }
+      
+      // Limiter la taille (5MB max)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (avatarFile.size > maxSize) {
+        throw new Error('L\'avatar ne peut pas dépasser 5MB');
+      }
+      
+      // Générer le chemin pour l'avatar
+      const timestamp = Date.now();
+      const extension = avatarFile.name.split('.').pop() || 'jpg';
+      const filename = `avatar-${userId}-${timestamp}.${extension}`;
+      const path = `avatars/${filename}`;
+      
+      // Upload du fichier
+      const result = await this.uploadFile(avatarFile, path);
+      
+      console.log('✅ Avatar uploadé avec succès:', result.url);
+      
+      return result.url;
+      
+    } catch (error) {
+      console.error('❌ Erreur upload avatar:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 📱 Upload pour validation de tâche
    */
   async uploadTaskValidation(file, taskId, userId) {
     try {
       const timestamp = Date.now();
       const extension = file.name.split('.').pop();
-      const fileType = file.type.startsWith('video/') ? 'video' : 'photo';
-      const filename = `${taskId}-${fileType}-${timestamp}.${extension}`;
-      const path = `task-validations/${userId}/${filename}`;
+      const fileType = file.type.startsWith('video/') ? 'video' : 'image';
+      const filename = `task-${taskId}-${userId}-${timestamp}.${extension}`;
+      const path = `task-validations/${filename}`;
       
       return await this.uploadFile(file, path);
       
     } catch (error) {
       console.error('❌ Erreur upload validation tâche:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🎨 Upload pour contenu créatif
+   */
+  async uploadCreativeContent(file, contentType, userId) {
+    try {
+      const timestamp = Date.now();
+      const extension = file.name.split('.').pop();
+      const filename = `creative-${contentType}-${userId}-${timestamp}.${extension}`;
+      const path = `creative-content/${filename}`;
+      
+      return await this.uploadFile(file, path);
+      
+    } catch (error) {
+      console.error('❌ Erreur upload contenu créatif:', error);
       throw error;
     }
   }
@@ -202,7 +262,7 @@ class StorageService {
       }
       
       console.log('🗑️ Fichier supprimé:', path);
-      return true;
+      return { success: true, path };
       
     } catch (error) {
       console.error('❌ Erreur suppression fichier:', error);
@@ -211,7 +271,7 @@ class StorageService {
   }
 
   /**
-   * 📊 Obtenir les informations d'un fichier
+   * 📊 Obtenir les métadonnées d'un fichier
    */
   async getFileMetadata(path) {
     try {
@@ -220,19 +280,16 @@ class StorageService {
       const metadataUrl = `${this.baseUrl}/${encodedPath}`;
       
       const response = await fetch(metadataUrl, {
-        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
       if (!response.ok) {
-        throw new Error(`Metadata fetch failed: ${response.status}`);
+        throw new Error(`Get metadata failed: ${response.status}`);
       }
       
       const metadata = await response.json();
-      console.log('📊 Métadonnées fichier:', metadata);
-      
       return metadata;
       
     } catch (error) {
@@ -242,149 +299,51 @@ class StorageService {
   }
 
   /**
-   * 📋 Lister les fichiers d'un dossier
-   */
-  async listFiles(folder = '', maxResults = 100) {
-    try {
-      const token = await this.getAuthToken();
-      const prefix = folder ? `&prefix=${encodeURIComponent(folder)}` : '';
-      const listUrl = `${this.baseUrl}?maxResults=${maxResults}${prefix}`;
-      
-      const response = await fetch(listUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`List failed: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('📋 Fichiers listés:', result.items?.length || 0);
-      
-      return result.items || [];
-      
-    } catch (error) {
-      console.error('❌ Erreur listage fichiers:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🔄 Créer une URL de téléchargement temporaire
-   */
-  async createTemporaryDownloadURL(path, expirationMinutes = 60) {
-    try {
-      const token = await this.getAuthToken();
-      const encodedPath = encodeURIComponent(path);
-      
-      // Calculer la date d'expiration
-      const expirationTime = new Date();
-      expirationTime.setMinutes(expirationTime.getMinutes() + expirationMinutes);
-      const expiration = expirationTime.toISOString();
-      
-      // URL temporaire avec expiration
-      const temporaryUrl = `${this.baseUrl}/${encodedPath}?alt=media&token=${token}&expires=${expiration}`;
-      
-      console.log('🔄 URL temporaire créée, expire dans', expirationMinutes, 'minutes');
-      
-      return {
-        url: temporaryUrl,
-        expiresAt: expirationTime,
-        expiresIn: expirationMinutes * 60 * 1000 // en millisecondes
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur création URL temporaire:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🎯 Valider un fichier avant upload
+   * ✅ Valider un fichier avant upload
    */
   validateFile(file, options = {}) {
-    const {
-      maxSize = 100 * 1024 * 1024, // 100MB par défaut
-      allowedTypes = ['image/*', 'video/*'],
-      maxDuration = null // Pour les vidéos
-    } = options;
-
     const errors = [];
-
-    // Vérifier la taille
-    if (file.size > maxSize) {
-      errors.push(`Fichier trop volumineux: ${(file.size / 1024 / 1024).toFixed(2)}MB (max: ${(maxSize / 1024 / 1024).toFixed(2)}MB)`);
+    
+    if (!file) {
+      errors.push('Aucun fichier fourni');
+      return { valid: false, errors };
     }
-
-    // Vérifier le type
-    const isTypeAllowed = allowedTypes.some(type => {
-      if (type.endsWith('/*')) {
-        return file.type.startsWith(type.replace('/*', '/'));
-      }
-      return file.type === type;
-    });
-
-    if (!isTypeAllowed) {
+    
+    // Vérifier la taille
+    const maxSize = options.maxSize || 50 * 1024 * 1024; // 50MB par défaut
+    if (file.size > maxSize) {
+      errors.push(`Fichier trop volumineux: ${(file.size / 1024 / 1024).toFixed(2)}MB (max: ${(maxSize / 1024 / 1024).toFixed(0)}MB)`);
+    }
+    
+    // Vérifier le type si spécifié
+    if (options.allowedTypes && !options.allowedTypes.includes(file.type)) {
       errors.push(`Type de fichier non autorisé: ${file.type}`);
     }
-
+    
     return {
       valid: errors.length === 0,
-      errors
+      errors,
+      size: file.size,
+      type: file.type
     };
-  }
-
-  /**
-   * 📈 Obtenir les statistiques d'utilisation
-   */
-  async getStorageStats(folder = '') {
-    try {
-      const files = await this.listFiles(folder);
-      
-      const stats = {
-        totalFiles: files.length,
-        totalSize: 0,
-        byType: {
-          images: 0,
-          videos: 0,
-          others: 0
-        },
-        sizeByType: {
-          images: 0,
-          videos: 0,
-          others: 0
-        }
-      };
-
-      files.forEach(file => {
-        const size = parseInt(file.size) || 0;
-        stats.totalSize += size;
-
-        if (file.contentType?.startsWith('image/')) {
-          stats.byType.images++;
-          stats.sizeByType.images += size;
-        } else if (file.contentType?.startsWith('video/')) {
-          stats.byType.videos++;
-          stats.sizeByType.videos += size;
-        } else {
-          stats.byType.others++;
-          stats.sizeByType.others += size;
-        }
-      });
-
-      console.log('📈 Statistiques stockage:', stats);
-      return stats;
-      
-    } catch (error) {
-      console.error('❌ Erreur statistiques stockage:', error);
-      throw error;
-    }
   }
 }
 
-// Créer et exporter une instance unique
+// Instance singleton
 const storageService = new StorageService();
-export { storageService };
+
+// Export des méthodes principales
+export const {
+  uploadFile,
+  uploadImage,
+  uploadVideo,
+  uploadUserAvatar,
+  uploadTaskValidation,
+  uploadCreativeContent,
+  getPublicDownloadURL,
+  deleteFile,
+  getFileMetadata,
+  validateFile
+} = storageService;
+
+export default storageService;
