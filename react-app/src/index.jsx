@@ -1,15 +1,12 @@
 // ==========================================
 // 📁 react-app/src/index.jsx
-// POINT D'ENTRÉE AVEC CORRECTIF REACT CRITIQUE
+// POINT D'ENTRÉE AVEC TOUS LES CORRECTIFS CRITIQUES
 // ==========================================
 
-// 🚨🚨🚨 CORRECTIF REACT EN PREMIER - AVANT TOUT AUTRE IMPORT ! 🚨🚨🚨
+// 🚨🚨🚨 CORRECTIFS EN ORDRE CRITIQUE 🚨🚨🚨
 import './core/reactGlobalFix.js'
-
-// 🛡️ SUPPRESSEUR D'ERREURS DE PRODUCTION
 import './core/productionErrorSuppressor.js'
-
-// 🔧 AUTRES CORRECTIFS D'URGENCE
+import './core/taskDateFix.js'  // 📅 NOUVEAU : Correctif dates Tasks
 import './core/emergencyUsersGlobalFix.js'
 
 import React from 'react'
