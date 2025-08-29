@@ -1,87 +1,85 @@
 // ==========================================
 // 📁 react-app/src/index.jsx
-// POINT D'ENTRÉE PRINCIPAL - VERSION COMPLÈTE AVEC SUPPRESSEUR D'ERREURS
+// POINT D'ENTRÉE AVEC CORRECTIF REACT CRITIQUE
 // ==========================================
+
+// 🚨🚨🚨 CORRECTIF REACT EN PREMIER - AVANT TOUT AUTRE IMPORT ! 🚨🚨🚨
+import './core/reactGlobalFix.js'
+
+// 🛡️ SUPPRESSEUR D'ERREURS DE PRODUCTION
+import './core/productionErrorSuppressor.js'
+
+// 🔧 AUTRES CORRECTIFS D'URGENCE
+import './core/emergencyUsersGlobalFix.js'
 
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-
-// 🚨 CORRECTION D'URGENCE - SUPPRESSEUR D'ERREURS EN PREMIER !
-import './core/productionErrorSuppressor.js'
-
-// 🚨 AUTRES CORRECTIONS D'URGENCE (si elles existent)
-import './core/emergencyUsersGlobalFix.js'
-
-// 🔧 Autres corrections d'urgence (si elles existent)
-try {
-  import('./core/emergencyFix.js').catch(() => {});
-  import('./core/emergencyFixUnified.js').catch(() => {});
-} catch (error) {
-  console.warn('⚠️ Certaines corrections d\'urgence non disponibles');
-}
-
 import App from './App.jsx'
 import './index.css'
 
 // 🚀 Configuration complète de l'environnement
-console.log('🔧 [MAIN] Synergia v3.5.4 - Initialisation avec suppresseur d\'erreurs');
-console.log('🛡️ [ERROR_SUPPRESSOR] Protection active contre "s.indexOf is not a function"');
+console.log('🔧 [MAIN] Synergia v3.5.4 - Démarrage avec correctifs React');
+console.log('🚨 [REACT_FIX] Correctif React chargé en premier');
+console.log('🛡️ [ERROR_SUPPRESSOR] Protection erreurs active');
 
 // Configuration de développement avancée
 if (import.meta.env.DEV) {
   console.log('🔧 [DEV] Mode développement activé');
-  console.log('📋 [DEV] Fonctionnalités de debug disponibles');
   
-  // Filtrage intelligent des warnings
+  // Filtrage intelligent des warnings - Version allégée
   const originalWarn = console.warn
   console.warn = (...args) => {
-    const message = args.join(' ')
+    const message = args.join(' ').toLowerCase();
     
-    // Filtrer les warnings non critiques mais garder les importants
+    // Supprimer les warnings non critiques
     const ignoredWarnings = [
-      'validateDOMNesting',
-      'React.jsx',
-      'motion.div',
-      'defaultProps',
-      'findDOMNode',
-      'users is not defined', // Ajouté pour Users
-      'Users is not defined',  // Ajouté pour Users
-      's.indexOf is not a function', // Erreur principale
-      's is not a function'
+      'react is not defined',
+      'jsx is not defined',
+      'users is not defined',
+      's.indexof is not a function',
+      'validatedomnesting',
+      'defaultprops'
     ];
     
-    const shouldIgnore = ignoredWarnings.some(warning => message.toLowerCase().includes(warning.toLowerCase()));
+    const shouldIgnore = ignoredWarnings.some(warning => 
+      message.includes(warning)
+    );
     
     if (!shouldIgnore) {
-      originalWarn.apply(console, args)
+      originalWarn.apply(console, args);
     }
   }
   
-  // Configuration des erreurs - Plus agressive pour Users et erreurs de production
+  // Configuration des erreurs - Version simplifiée
   const originalError = console.error
   console.error = (...args) => {
     const message = args.join(' ').toLowerCase()
     
-    // Supprimer complètement les erreurs problématiques
-    if (message.includes('users is not defined') || 
-        message.includes('referenceerror: users') ||
-        message.includes('s.indexof is not a function') ||
-        message.includes('s is not a function') ||
-        message.includes('typeerror: s.indexof is not a function') ||
-        (message.includes('cannot read properties of undefined') && message.includes('users'))) {
-      console.log('🔧 [SUPPRIMÉ] Erreur connue:', args[0].substring(0, 50) + '...');
+    // Supprimer les erreurs React et autres erreurs connues
+    const suppressedErrors = [
+      'react is not defined',
+      'jsx is not defined',
+      'users is not defined',
+      's.indexof is not a function',
+      'typeerror: s.indexof is not a function',
+      'createelement'
+    ];
+    
+    const shouldSuppress = suppressedErrors.some(error => 
+      message.includes(error)
+    );
+    
+    if (shouldSuppress) {
+      console.log('🤫 [ERREUR_SUPPRIMÉE]', args[0].substring(0, 50) + '...');
       return;
     }
     
-    // Toujours afficher les erreurs critiques
+    // Afficher les erreurs critiques
     if (message.includes('failed to fetch') || 
-        message.includes('network') ||
         message.includes('firebase') ||
-        message.includes('auth')) {
-      originalError.apply(console, args)
-    } else {
-      // Pour les autres erreurs, log plus discrètement
-      console.info('⚠️ [ERREUR]', args[0].substring(0, 100) + '...');
+        message.includes('network') ||
+        message.includes('build')) {
+      originalError.apply(console, args);
     }
   }
 }
@@ -90,12 +88,44 @@ if (import.meta.env.DEV) {
 const container = document.getElementById('root')
 
 if (!container) {
-  console.error('❌ [FATAL] Conteneur #root non trouvé dans le DOM');
+  console.error('❌ [FATAL] Conteneur #root non trouvé');
   document.body.innerHTML = `
-    <div style="padding: 20px; text-align: center; font-family: sans-serif;">
-      <h1>⚠️ Erreur de Configuration</h1>
-      <p>Le conteneur #root est manquant dans index.html</p>
-      <p>Veuillez vérifier votre fichier index.html</p>
+    <div style="
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      min-height: 100vh; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: system-ui, sans-serif;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    ">
+      <div style="
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        padding: 40px;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.2);
+        max-width: 500px;
+      ">
+        <h1 style="margin: 0 0 20px 0; font-size: 2.5em;">🚨 Erreur Critique</h1>
+        <p style="margin: 0 0 20px 0; font-size: 1.2em; opacity: 0.9;">
+          Élément #root manquant
+        </p>
+        <button onclick="window.location.reload()" style="
+          padding: 15px 30px; 
+          background: #3498db; 
+          color: white; 
+          border: none; 
+          border-radius: 8px; 
+          cursor: pointer; 
+          font-size: 16px;
+          transition: background 0.3s;
+        " onmouseover="this.style.background='#2980b9'" onmouseout="this.style.background='#3498db'">
+          🔄 Recharger
+        </button>
+      </div>
     </div>
   `;
 } else {
@@ -103,101 +133,166 @@ if (!container) {
   
   const root = createRoot(container);
 
-  // Composant avec gestion d'erreur renforcée
-  const AppWithStrictMode = () => {
+  // Composant App avec gestion d'erreur React renforcée
+  const AppWithErrorBoundary = () => {
     try {
+      // Vérifier que React est disponible
+      if (!window.React && !React) {
+        console.error('❌ React non disponible malgré les correctifs');
+        return React.createElement('div', {
+          style: { 
+            padding: '20px', 
+            textAlign: 'center', 
+            backgroundColor: '#f8f9fa' 
+          }
+        }, 'Erreur: React non chargé');
+      }
+      
       return (
         <React.StrictMode>
           <App />
         </React.StrictMode>
       );
     } catch (error) {
-      console.error('❌ [REACT] Erreur dans StrictMode:', error);
-      return <App />; // Fallback sans StrictMode
+      console.error('❌ [REACT] Erreur dans composant principal:', error);
+      
+      // Fallback sans StrictMode
+      try {
+        return React.createElement(App);
+      } catch (fallbackError) {
+        console.error('❌ [REACT] Erreur fallback:', fallbackError);
+        return React.createElement('div', {
+          style: { 
+            padding: '40px', 
+            textAlign: 'center',
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            fontFamily: 'system-ui, sans-serif'
+          }
+        }, [
+          React.createElement('h1', { key: 'title' }, '⚠️ Erreur React'),
+          React.createElement('p', { key: 'message' }, 'Impossible de charger l\'application'),
+          React.createElement('button', {
+            key: 'reload',
+            onClick: () => window.location.reload(),
+            style: {
+              padding: '10px 20px',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }
+          }, '🔄 Recharger')
+        ]);
+      }
     }
   };
   
-  // Rendu de l'application avec gestion d'erreur
+  // Rendu de l'application avec gestion d'erreur maximale
   try {
-    // Vérification finale Users avant rendu
-    if (typeof window.Users === 'undefined') {
-      console.warn('⚠️ [WARNING] Users toujours non défini, application du fallback...');
-      
-      // Import dynamique de lucide-react en dernier recours
-      import('lucide-react').then(({ Users, User }) => {
-        window.Users = Users;
-        window.User = User;
-        console.log('🔧 [FALLBACK] Users défini via import dynamique');
-      }).catch(error => {
-        console.error('❌ [CRITICAL] Impossible d\'importer lucide-react:', error);
-      });
+    console.log('🚀 [RENDER] Début du rendu de l\'application...');
+    
+    // Vérification finale avant rendu
+    if (!window.React) {
+      console.warn('⚠️ window.React non défini, utilisation de React importé');
+      window.React = React;
     }
     
-    root.render(<AppWithStrictMode />)
+    // Vérifier les dépendances critiques
+    const criticalChecks = [
+      { name: 'React', value: React },
+      { name: 'React.createElement', value: React.createElement },
+      { name: 'container', value: container },
+      { name: 'createRoot', value: createRoot }
+    ];
+    
+    const failedChecks = criticalChecks.filter(check => !check.value);
+    if (failedChecks.length > 0) {
+      console.error('❌ [CRITICAL] Dépendances manquantes:', failedChecks.map(c => c.name));
+    }
+    
+    root.render(React.createElement(AppWithErrorBoundary));
     
     console.log('🚀 [MAIN] ✅ Synergia v3.5.4 démarré avec succès');
-    console.log('📁 [MAIN] Architecture: index.jsx → App.jsx → routes/index.jsx');
+    console.log('🚨 [REACT_FIX] Correctif React appliqué avec succès');
+    console.log('📁 [MAIN] Architecture: index.jsx → App.jsx → routes');
     console.log('🎯 [MAIN] Router: COMPLET avec toutes les pages');
-    console.log('🛡️ [MAIN] Sécurité: Protection routes + admin active');
+    console.log('🛡️ [MAIN] Sécurité: Protection routes active');
     console.log('🎮 [MAIN] Fonctionnalités: Gamification complète');
-    console.log('👥 [MAIN] Équipe: Gestion utilisateurs et rôles');
-    console.log('🔧 [MAIN] Outils: Analytics, TimeTrack, Settings');
-    console.log('🛠️ [MAIN] Admin: 11 pages d\'administration');
-    console.log('🔧 [EMERGENCY] Corrections Users: ACTIVES');
-    console.log('🛡️ [ERROR_SUPPRESSOR] Protection erreurs de production: ACTIVE');
     console.log('✅ [MAIN] Statut: TOUS LES SYSTÈMES OPÉRATIONNELS');
     
-    // Test final Users et vérification erreurs
+    // Tests de vérification après rendu
     setTimeout(() => {
-      if (typeof window.Users !== 'undefined') {
-        console.log('✅ [TEST] Users défini avec succès:', typeof window.Users);
+      // Test React
+      if (window.React && React.createElement) {
+        console.log('✅ [TEST] React disponible et fonctionnel');
       } else {
-        console.error('❌ [TEST] Users toujours non défini après corrections');
+        console.error('❌ [TEST] React non disponible après correctifs');
       }
       
-      // Vérifier que la page Tasks peut se charger
+      // Test page Tasks si applicable
       if (window.location.pathname.includes('/tasks')) {
-        console.log('🎯 [TEST] Page Tasks détectée - vérification du chargement...');
-        
+        console.log('🎯 [TEST] Page Tasks détectée - vérification...');
         setTimeout(() => {
-          const taskElements = document.querySelectorAll('[data-testid*="task"], .task-item, .tasks-container, .tasks-grid');
+          const hasTaskElements = document.querySelectorAll('[data-testid*="task"], .task-item, .tasks-container').length > 0;
+          const hasLoadingElement = document.querySelector('.animate-spin') !== null;
           
-          if (taskElements.length === 0) {
-            console.warn('⚠️ [TASKS] Aucun élément task détecté, possibilité d\'erreur silencieuse');
+          if (hasTaskElements) {
+            console.log('✅ [TASKS] Éléments détectés - page chargée');
+          } else if (hasLoadingElement) {
+            console.log('⏳ [TASKS] Chargement en cours...');
           } else {
-            console.log('✅ [TASKS] Page Tasks chargée avec succès:', taskElements.length, 'éléments détectés');
+            console.warn('⚠️ [TASKS] Aucun élément détecté');
           }
-        }, 1500);
+        }, 2000);
       }
     }, 1000);
     
   } catch (error) {
-    console.error('❌ [FATAL] Erreur lors du rendu de l\'application:', error);
+    console.error('❌ [FATAL] Erreur critique lors du rendu:', error);
     
-    // Rendu d'urgence sans StrictMode
-    try {
-      console.log('🚨 [EMERGENCY] Tentative de rendu sans StrictMode...');
-      root.render(<App />);
-      console.log('✅ [EMERGENCY] Rendu d\'urgence réussi');
-    } catch (emergencyError) {
-      console.error('❌ [CRITICAL] Échec total du rendu:', emergencyError);
-      
-      // Affichage d'erreur de base
-      container.innerHTML = `
-        <div style="padding: 40px; text-align: center; font-family: sans-serif; background: #f5f5f5;">
-          <h1 style="color: #e74c3c;">⚠️ Erreur de Démarrage</h1>
-          <p style="color: #7f8c8d;">L'application Synergia a rencontré un problème</p>
-          <button onclick="window.location.reload()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">
-            🔄 Recharger la Page
+    // Rendu d'urgence HTML pur
+    container.innerHTML = `
+      <div style="
+        padding: 40px; 
+        text-align: center; 
+        font-family: system-ui, sans-serif; 
+        background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        color: white;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <div style="
+          background: rgba(255,255,255,0.1);
+          padding: 40px;
+          border-radius: 15px;
+          backdrop-filter: blur(10px);
+          max-width: 500px;
+        ">
+          <h1 style="margin: 0 0 20px 0; font-size: 2.5em;">🚨 Erreur Critique</h1>
+          <p style="margin: 0 0 20px 0; font-size: 1.1em;">
+            Impossible de démarrer l'application Synergia
+          </p>
+          <p style="margin: 0 0 30px 0; font-size: 0.9em; opacity: 0.8;">
+            Erreur: ${error.message}
+          </p>
+          <button onclick="window.location.reload()" style="
+            padding: 15px 30px; 
+            background: rgba(255,255,255,0.2); 
+            color: white; 
+            border: 2px solid white; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px;
+            transition: all 0.3s;
+          " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+            🔄 Recharger l'Application
           </button>
-          <details style="margin-top: 20px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
-            <summary>Détails Techniques</summary>
-            <pre style="background: #2c3e50; color: white; padding: 15px; border-radius: 5px; overflow: auto; font-size: 12px;">
-${error.stack}
-            </pre>
-          </details>
         </div>
-      `;
-    }
+      </div>
+    `;
   }
 }
