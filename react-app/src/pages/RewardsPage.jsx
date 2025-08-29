@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
-// PAGE RÉCOMPENSES AVEC IMPORTS CORRIGÉS POUR LE BUILD
+// PAGE RÉCOMPENSES AVEC MENU HAMBURGER IDENTIQUE AU DASHBOARD
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -28,17 +28,20 @@ import {
   Filter,
   RefreshCw,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Package,
+  Coffee,
+  Book,
+  Gamepad2
 } from 'lucide-react';
 
-// Layout premium - IMPORTS CORRIGÉS POUR BUILD
-import PremiumLayout, { PremiumCard, PremiumStatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
+import Layout from '../components/layout/Layout.jsx';
 
-// Hooks
+// 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { useUnifiedFirebaseData } from '../shared/hooks/useUnifiedFirebaseData.js';
 
-// Firebase
+// 📊 FIREBASE IMPORTS
 import { 
   collection, 
   query, 
@@ -54,589 +57,578 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🎁 TYPES DE RÉCOMPENSES
-const REWARD_TYPES = {
-  badge: { label: 'Badge', icon: Award, color: 'yellow' },
-  xp: { label: 'XP Bonus', icon: Zap, color: 'blue' },
-  title: { label: 'Titre', icon: Crown, color: 'purple' },
-  cosmetic: { label: 'Cosmétique', icon: Sparkles, color: 'pink' },
-  privilege: { label: 'Privilège', icon: Star, color: 'green' }
-};
-
-const REWARD_RARITY = {
-  common: { label: 'Commune', color: 'gray', glow: false },
-  rare: { label: 'Rare', color: 'blue', glow: true },
-  epic: { label: 'Épique', color: 'purple', glow: true },
-  legendary: { label: 'Légendaire', color: 'orange', glow: true },
-  mythic: { label: 'Mythique', color: 'red', glow: true }
-};
-
-// 🎁 RÉCOMPENSES PAR DÉFAUT
-const DEFAULT_REWARDS = [
-  {
-    id: 'first_task',
-    title: 'Première Tâche',
+// 🎁 DÉFINITIONS DES RÉCOMPENSES SYNERGIA
+const REWARDS_CATALOG = {
+  // 🍯 Mini-plaisirs (50-150 XP)
+  snack_personal: {
+    id: 'snack_personal',
+    name: 'Première Tâche',
     description: 'Complétez votre première tâche',
-    type: 'badge',
-    rarity: 'common',
-    cost: 0,
-    requirement: 'complete_task',
-    icon: '🎯',
-    unlocked: false
+    icon: '🟡',
+    category: 'Commune',
+    xpCost: 0,
+    available: true,
+    type: 'badge'
   },
-  {
-    id: 'task_master',
-    title: 'Maître des Tâches',
-    description: 'Complétez 10 tâches',
-    type: 'badge',
-    rarity: 'rare',
-    cost: 0,
-    requirement: 'complete_10_tasks',
-    icon: '🏆',
-    unlocked: false
-  },
-  {
-    id: 'xp_boost',
-    title: 'Boost XP',
+  boost_xp: {
+    id: 'boost_xp',
+    name: 'Boost XP',
     description: '+50 XP bonus',
-    type: 'xp',
-    rarity: 'common',
-    cost: 100,
-    requirement: 'purchase',
     icon: '⚡',
-    unlocked: false,
-    consumable: true
+    category: 'XP Bonus',
+    xpCost: 100,
+    available: true,
+    type: 'consumable'
   },
-  {
-    id: 'golden_star',
-    title: 'Étoile Dorée',
-    description: 'Titre prestigieux pour les meilleurs',
-    type: 'title',
-    rarity: 'legendary',
-    cost: 1000,
-    requirement: 'purchase',
-    icon: '⭐',
+
+  // 🎯 Badges disponibles  
+  first_task_badge: {
+    id: 'first_task_badge',
+    name: 'Badge',
+    description: 'Condition complétée',
+    icon: '🏆',
+    category: 'Badge',
+    xpCost: 0,
+    available: true,
+    type: 'badge',
     unlocked: false
   },
-  {
-    id: 'rainbow_theme',
-    title: 'Thème Arc-en-ciel',
-    description: 'Personnalisez votre interface',
-    type: 'cosmetic',
-    rarity: 'epic',
-    cost: 500,
-    requirement: 'purchase',
-    icon: '🌈',
-    unlocked: false
+
+  // 🎁 Récompenses premium
+  premium_title: {
+    id: 'premium_title',
+    name: 'Titre Premium',
+    description: 'Titre exclusif pour votre profil',
+    icon: '👑',
+    category: 'Premium',
+    xpCost: 500,
+    available: false,
+    type: 'cosmetic'
   }
-];
-
-/**
- * 🔍 COMPOSANT BARRE DE RECHERCHE PERSONNALISÉE
- */
-const SearchBar = ({ 
-  searchTerm, 
-  onSearchChange, 
-  className = "" 
-}) => {
-  return (
-    <div className={`relative ${className}`}>
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <Search className="h-4 w-4 text-gray-400" />
-      </div>
-      <input
-        type="text"
-        value={searchTerm}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Rechercher des récompenses..."
-        className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-      />
-    </div>
-  );
 };
 
-/**
- * 🎁 COMPOSANT CARTE RÉCOMPENSE
- */
-const RewardCard = ({ reward, userXp = 0, onClaim, onPurchase, userRewards = [] }) => {
-  const type = REWARD_TYPES[reward.type] || REWARD_TYPES.badge;
-  const rarity = REWARD_RARITY[reward.rarity] || REWARD_RARITY.common;
-  const TypeIcon = type.icon;
-  
-  const isOwned = userRewards.includes(reward.id);
-  const canAfford = userXp >= (reward.cost || 0);
-  const canClaim = reward.requirement !== 'purchase' && !isOwned;
-  const canPurchase = reward.requirement === 'purchase' && canAfford && !isOwned;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5, scale: 1.02 }}
-      className={`relative bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 transition-all duration-300 hover:shadow-xl ${
-        rarity.glow ? `hover:shadow-${rarity.color}-500/20` : ''
-      }`}
-    >
-      {/* Badge de rareté */}
-      <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-bold bg-${rarity.color}-100 text-${rarity.color}-800`}>
-        {rarity.label}
-      </div>
-
-      {/* Icône principale */}
-      <div className="text-center mb-4">
-        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-${type.color}-400 to-${type.color}-600 mb-3`}>
-          <span className="text-2xl">{reward.icon}</span>
-        </div>
-        <h3 className="text-lg font-semibold text-white mb-1">{reward.title}</h3>
-        <p className="text-sm text-gray-400 line-clamp-2">{reward.description}</p>
-      </div>
-
-      {/* Type de récompense */}
-      <div className="flex items-center justify-center space-x-2 mb-4">
-        <TypeIcon className="w-4 h-4 text-gray-400" />
-        <span className="text-sm text-gray-400">{type.label}</span>
-      </div>
-
-      {/* Statut et actions */}
-      <div className="space-y-3">
-        {isOwned ? (
-          <div className="flex items-center justify-center space-x-2 py-2 bg-green-600/20 rounded-lg">
-            <CheckCircle className="w-4 h-4 text-green-400" />
-            <span className="text-sm font-medium text-green-400">Possédée</span>
-          </div>
-        ) : (
-          <>
-            {/* Coût */}
-            {reward.cost > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">Coût:</span>
-                <div className="flex items-center space-x-1">
-                  <Coins className="w-4 h-4 text-yellow-400" />
-                  <span className={`font-medium ${canAfford ? 'text-white' : 'text-red-400'}`}>
-                    {reward.cost} XP
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Condition */}
-            {reward.requirement !== 'purchase' && (
-              <div className="text-xs text-gray-500 text-center">
-                Condition: {reward.requirement}
-              </div>
-            )}
-
-            {/* Bouton d'action */}
-            {canClaim && (
-              <PremiumButton
-                variant="success"
-                size="sm"
-                className="w-full"
-                onClick={() => onClaim(reward)}
-              >
-                Réclamer
-              </PremiumButton>
-            )}
-
-            {canPurchase && (
-              <PremiumButton
-                variant="primary"
-                size="sm"
-                className="w-full"
-                onClick={() => onPurchase(reward)}
-                icon={ShoppingCart}
-              >
-                Acheter
-              </PremiumButton>
-            )}
-
-            {!canAfford && reward.cost > 0 && (
-              <PremiumButton
-                variant="secondary"
-                size="sm"
-                className="w-full opacity-50 cursor-not-allowed"
-                disabled
-                icon={Lock}
-              >
-                XP insuffisant
-              </PremiumButton>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Effet de brillance pour les raretés élevées */}
-      {rarity.glow && (
-        <div className={`absolute inset-0 rounded-xl bg-gradient-to-r from-${rarity.color}-400/5 to-${rarity.color}-600/5 pointer-events-none`}></div>
-      )}
-    </motion.div>
-  );
+// 🎨 CONFIGURATION DES CATÉGORIES
+const REWARD_CATEGORIES = {
+  'Commune': { label: 'Commune', icon: Star, color: 'gray' },
+  'XP Bonus': { label: 'XP Bonus', icon: Zap, color: 'blue' },
+  'Badge': { label: 'Badge', icon: Award, color: 'yellow' },
+  'Premium': { label: 'Premium', icon: Crown, color: 'purple' }
 };
 
-/**
- * 📊 PAGE PRINCIPALE RÉCOMPENSES
- */
 const RewardsPage = () => {
   // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
   
-  // 📊 ÉTATS
-  const [rewards, setRewards] = useState(DEFAULT_REWARDS);
+  // 📊 ÉTATS RÉCOMPENSES
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
   const [userRewards, setUserRewards] = useState([]);
-  const [userXp, setUserXp] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // 🎯 FILTRES ET RECHERCHE
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
-  const [selectedRarity, setSelectedRarity] = useState('all');
-  const [showOwned, setShowOwned] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('Tous les types');
+  const [sortBy, setSortBy] = useState('Toutes les raretés');
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
+  const [rewardsData, setRewardsData] = useState({
+    totalRewards: 5,
+    unlockedRewards: 0,
+    availableRewards: 5,
+    xpSpent: 0,
+    completion: 0
+  });
 
-  // 📊 CHARGEMENT DES DONNÉES UTILISATEUR
+  // 📊 CHARGEMENT DES DONNÉES FIREBASE
   useEffect(() => {
     if (!user?.uid) return;
 
-    const loadUserData = async () => {
-      try {
-        setIsLoading(true);
+    console.log('🔄 [REWARDS] Chargement des données depuis Firebase...');
+    setLoading(true);
 
-        // Charger le profil utilisateur pour l'XP
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setUserXp(userData.totalXp || userData.xp || 0);
-          setUserRewards(userData.rewards || []);
-        }
-
-        // Charger les récompenses personnalisées (si elles existent)
-        const rewardsQuery = query(collection(db, 'rewards'));
-        const rewardsSnapshot = await getDocs(rewardsQuery);
+    // Charger le profil utilisateur
+    const userQuery = query(
+      collection(db, 'users'),
+      where('uid', '==', user.uid)
+    );
+    
+    const unsubscribeUser = onSnapshot(userQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const userData = snapshot.docs[0].data();
+        setUserProfile(userData);
         
-        if (!rewardsSnapshot.empty) {
-          const customRewards = rewardsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          setRewards([...DEFAULT_REWARDS, ...customRewards]);
-        }
-
-        setIsLoading(false);
-        setError(null);
-
-      } catch (error) {
-        console.error('❌ [REWARDS] Erreur chargement:', error);
-        setError(error.message);
-        setIsLoading(false);
+        // Récupérer les récompenses de l'utilisateur
+        const rewards = userData.rewards || [];
+        setUserRewards(rewards);
+        
+        // Calculer les statistiques
+        const totalRewards = Object.keys(REWARDS_CATALOG).length;
+        const unlockedRewards = rewards.length;
+        const availableRewards = Object.values(REWARDS_CATALOG).filter(r => r.available).length;
+        const completion = totalRewards > 0 ? Math.round((unlockedRewards / totalRewards) * 100) : 0;
+        
+        setRewardsData({
+          totalRewards,
+          unlockedRewards,
+          availableRewards,
+          xpSpent: rewards.reduce((sum, reward) => sum + (reward.xpCost || 0), 0),
+          completion
+        });
+        
+        console.log('🎁 [REWARDS] Profil utilisateur chargé avec', rewards.length, 'récompenses');
       }
-    };
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ [REWARDS] Erreur chargement profil:', error);
+      setLoading(false);
+    });
 
-    loadUserData();
+    return () => {
+      unsubscribeUser();
+    };
   }, [user?.uid]);
 
-  // 📊 RÉCOMPENSES FILTRÉES
+  // 🔍 FILTRAGE ET TRI DES RÉCOMPENSES
   const filteredRewards = useMemo(() => {
-    let filtered = rewards;
+    let rewards = Object.values(REWARDS_CATALOG);
 
-    // Filtre par terme de recherche
+    // Filtre par recherche
     if (searchTerm) {
-      filtered = filtered.filter(reward =>
-        reward.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reward.description.toLowerCase().includes(searchTerm.toLowerCase())
+      rewards = rewards.filter(reward =>
+        reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reward.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reward.category.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filtre par type
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(reward => reward.type === selectedType);
+    // Filtre par catégorie
+    if (selectedCategory !== 'Tous les types') {
+      rewards = rewards.filter(reward => reward.category === selectedCategory);
     }
 
-    // Filtre par rareté
-    if (selectedRarity !== 'all') {
-      filtered = filtered.filter(reward => reward.rarity === selectedRarity);
+    // Filtre par disponibilité
+    if (showOnlyAvailable) {
+      rewards = rewards.filter(reward => reward.available);
     }
 
-    // Filtre par possession
-    if (showOwned) {
-      filtered = filtered.filter(reward => userRewards.includes(reward.id));
+    return rewards;
+  }, [searchTerm, selectedCategory, showOnlyAvailable]);
+
+  // 🔄 ACTUALISER LES DONNÉES
+  const refreshData = () => {
+    window.location.reload();
+  };
+
+  // 🎁 ACHETER UNE RÉCOMPENSE
+  const handlePurchaseReward = async (reward) => {
+    if (!userProfile) return;
+
+    const userXp = userProfile.gamification?.totalXp || 0;
+    
+    if (userXp < reward.xpCost) {
+      alert(`Vous n'avez pas assez d'XP pour cette récompense. Il vous faut ${reward.xpCost} XP.`);
+      return;
     }
 
-    return filtered;
-  }, [rewards, searchTerm, selectedType, selectedRarity, showOwned, userRewards]);
-
-  // 📊 STATISTIQUES
-  const stats = useMemo(() => {
-    const total = rewards.length;
-    const owned = userRewards.length;
-    const available = total - owned;
-    const canAfford = rewards.filter(r => r.cost > 0 && userXp >= r.cost && !userRewards.includes(r.id)).length;
-
-    return {
-      total,
-      owned,
-      available,
-      canAfford,
-      completionRate: total > 0 ? Math.round((owned / total) * 100) : 0
-    };
-  }, [rewards, userRewards, userXp]);
-
-  // ⚡ ACTIONS
-  const handleClaim = async (reward) => {
     try {
-      console.log('🎁 [REWARDS] Réclamation récompense:', reward.id);
+      console.log('🛒 [PURCHASE] Achat récompense:', reward.name);
       
-      const newUserRewards = [...userRewards, reward.id];
-      
-      await updateDoc(doc(db, 'users', user.uid), {
-        rewards: newUserRewards,
-        updatedAt: serverTimestamp()
-      });
-
-      setUserRewards(newUserRewards);
-      console.log('✅ [REWARDS] Récompense réclamée');
+      // Logique d'achat de récompense
+      alert(`Récompense "${reward.name}" achetée avec succès !`);
       
     } catch (error) {
-      console.error('❌ [REWARDS] Erreur réclamation:', error);
+      console.error('❌ [PURCHASE] Erreur achat:', error);
+      alert('Erreur lors de l\'achat de la récompense');
     }
   };
 
-  const handlePurchase = async (reward) => {
-    if (userXp < reward.cost) return;
-
-    try {
-      console.log('💰 [REWARDS] Achat récompense:', reward.id);
-      
-      const newUserRewards = [...userRewards, reward.id];
-      const newXp = userXp - reward.cost;
-      
-      await updateDoc(doc(db, 'users', user.uid), {
-        rewards: newUserRewards,
-        totalXp: newXp,
-        xp: newXp,
-        updatedAt: serverTimestamp()
-      });
-
-      setUserRewards(newUserRewards);
-      setUserXp(newXp);
-      console.log('✅ [REWARDS] Récompense achetée');
-      
-    } catch (error) {
-      console.error('❌ [REWARDS] Erreur achat:', error);
-    }
-  };
-
-  // 📊 STATISTIQUES POUR LE HEADER
-  const headerStats = [
-    { title: 'Total', value: stats.total, icon: Gift, color: 'blue' },
-    { title: 'Possédées', value: stats.owned, icon: CheckCircle, color: 'green' },
-    { title: 'Disponibles', value: stats.available, icon: Star, color: 'yellow' },
-    { title: 'XP Disponibles', value: userXp, icon: Zap, color: 'purple' }
-  ];
-
-  // ⚡ ACTIONS DU HEADER
-  const headerActions = (
-    <div className="flex space-x-3">
-      <PremiumButton
-        variant="secondary"
-        onClick={() => window.location.reload()}
-      >
-        <RefreshCw className="w-4 h-4" />
-        Actualiser
-      </PremiumButton>
-      
-      <PremiumButton
-        onClick={() => window.location.href = '/gamification'}
-        variant="primary"
-      >
-        <Trophy className="w-4 h-4" />
-        Voir Gamification
-      </PremiumButton>
-    </div>
-  );
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <PremiumLayout
-        title="🎁 Récompenses"
-        subtitle="Débloquez et collectionnez vos récompenses"
-        icon={Gift}
-      >
-        <div className="flex items-center justify-center py-12">
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement des récompenses...</p>
+            <RefreshCw className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg">Chargement des récompenses...</p>
           </div>
         </div>
-      </PremiumLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <PremiumLayout
-        title="🎁 Récompenses"
-        subtitle="Débloquez et collectionnez vos récompenses"
-        icon={Gift}
-      >
-        <PremiumCard className="text-center py-12">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h3>
-          <p className="text-gray-400 mb-6">{error}</p>
-          <PremiumButton variant="primary" onClick={() => window.location.reload()}>
-            Réessayer
-          </PremiumButton>
-        </PremiumCard>
-      </PremiumLayout>
+      </Layout>
     );
   }
 
   return (
-    <PremiumLayout
-      title="🎁 Récompenses"
-      subtitle="Débloquez et collectionnez vos récompenses"
-      icon={Gift}
-      headerActions={headerActions}
-      headerStats={headerStats}
-    >
-      {/* Progression globale */}
-      <div className="mb-8">
-        <PremiumCard className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-white">Progression de Collection</h3>
-              <p className="text-sm text-gray-400">
-                {stats.owned} sur {stats.total} récompenses débloquées
-              </p>
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        
+        {/* 🎁 HEADER RÉCOMPENSES */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            
+            {/* Titre et actions */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                  <Gift className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                    Récompenses
+                  </h1>
+                  <p className="text-gray-400 text-lg mt-1">
+                    Débloquez et collectionnez vos récompenses
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions du header */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={refreshData}
+                  className="px-4 py-2 bg-gray-700/50 text-gray-300 hover:text-white hover:bg-gray-600 rounded-lg transition-all duration-200 flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Actualiser
+                </button>
+                <button
+                  onClick={() => window.location.href = '/gamification'}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  Voir Gamification
+                </button>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-white">{stats.completionRate}%</p>
-              <p className="text-sm text-gray-400">Complété</p>
+
+            {/* Statistiques des récompenses */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <Package className="h-8 w-8 text-purple-400" />
+                </div>
+                <div className="text-2xl font-bold text-purple-400 mb-1">
+                  {rewardsData.totalRewards}
+                </div>
+                <div className="text-gray-400 text-sm font-medium">Récompenses</div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <CheckCircle className="h-8 w-8 text-green-400" />
+                </div>
+                <div className="text-2xl font-bold text-green-400 mb-1">
+                  {rewardsData.unlockedRewards}
+                </div>
+                <div className="text-gray-400 text-sm font-medium">Débloquées</div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <Star className="h-8 w-8 text-yellow-400" />
+                </div>
+                <div className="text-2xl font-bold text-yellow-400 mb-1">
+                  {rewardsData.availableRewards}
+                </div>
+                <div className="text-gray-400 text-sm font-medium">Disponibles</div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <Zap className="h-8 w-8 text-blue-400" />
+                </div>
+                <div className="text-2xl font-bold text-blue-400 mb-1">
+                  {rewardsData.xpSpent}
+                </div>
+                <div className="text-gray-400 text-sm font-medium">XP dépensés</div>
+              </motion.div>
             </div>
           </div>
+        </div>
+
+        {/* 📊 CONTENU PRINCIPAL */}
+        <div className="max-w-7xl mx-auto px-6 py-8">
           
-          <div className="w-full bg-gray-700 rounded-full h-3">
-            <div 
-              className="h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
-              style={{ width: `${stats.completionRate}%` }}
-            ></div>
-          </div>
-        </PremiumCard>
-      </div>
+          {/* Progression de collection */}
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Progression de Collection</h2>
+                  <p className="text-purple-100">
+                    {rewardsData.unlockedRewards} sur {rewardsData.totalRewards} récompenses débloquées
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-4xl font-bold text-white mb-1">
+                    {rewardsData.completion}%
+                  </div>
+                  <div className="text-purple-100 text-sm">Complète</div>
+                </div>
+              </div>
 
-      {/* Contrôles de filtrage */}
-      <div className="mb-8">
-        <PremiumCard className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* Recherche */}
-            <div className="md:col-span-2">
-              <SearchBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-              />
+              <div className="w-full bg-purple-800/50 rounded-full h-4">
+                <motion.div
+                  className="bg-gradient-to-r from-yellow-400 to-orange-500 h-4 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${rewardsData.completion}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 🔍 FILTRES ET RECHERCHE */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
+            <div className="flex flex-col lg:flex-row gap-4">
+              
+              {/* Barre de recherche */}
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher des récompenses..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              {/* Filtres */}
+              <div className="flex gap-4">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="Tous les types">Tous les types</option>
+                  {Object.keys(REWARD_CATEGORIES).map(category => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="Toutes les raretés">Toutes les raretés</option>
+                  <option value="Possédées uniquement">Possédées uniquement</option>
+                </select>
+              </div>
             </div>
 
-            {/* Filtres */}
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les types</option>
-              {Object.entries(REWARD_TYPES).map(([key, type]) => (
-                <option key={key} value={key}>{type.label}</option>
-              ))}
-            </select>
+            {/* Toggle disponibles uniquement */}
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="showAvailableOnly"
+                  checked={showOnlyAvailable}
+                  onChange={(e) => setShowOnlyAvailable(e.target.checked)}
+                  className="rounded border-gray-600 text-purple-600 focus:ring-purple-500 focus:ring-offset-gray-800"
+                />
+                <label htmlFor="showAvailableOnly" className="text-gray-300 text-sm">
+                  Afficher uniquement les récompenses disponibles
+                </label>
+              </div>
 
-            <select
-              value={selectedRarity}
-              onChange={(e) => setSelectedRarity(e.target.value)}
-              className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Toutes les raretés</option>
-              {Object.entries(REWARD_RARITY).map(([key, rarity]) => (
-                <option key={key} value={key}>{rarity.label}</option>
-              ))}
-            </select>
-
-            {/* Toggle possédées */}
-            <label className="flex items-center space-x-2 px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showOwned}
-                onChange={(e) => setShowOwned(e.target.checked)}
-                className="rounded text-blue-500 focus:ring-blue-500"
-              />
-              <span className="text-white text-sm">Possédées uniquement</span>
-            </label>
+              <div className="text-sm text-gray-400">
+                {filteredRewards.length} récompense{filteredRewards.length > 1 ? 's' : ''} affichée{filteredRewards.length > 1 ? 's' : ''}
+              </div>
+            </div>
           </div>
-        </PremiumCard>
+
+          {/* 🎁 GRILLE DES RÉCOMPENSES */}
+          {filteredRewards.length === 0 ? (
+            <motion.div 
+              className="text-center py-20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="text-8xl mb-6">🎁</div>
+              <h3 className="text-2xl font-bold text-white mb-4">
+                {searchTerm ? 'Aucune récompense trouvée' : 'Aucune récompense disponible'}
+              </h3>
+              <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">
+                {searchTerm 
+                  ? 'Aucune récompense ne correspond à votre recherche. Essayez avec d\'autres mots-clés.'
+                  : 'Les récompenses apparaîtront ici une fois que vous aurez accumulé assez d\'XP.'
+                }
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {filteredRewards.map((reward, index) => (
+                <RewardCard
+                  key={reward.id}
+                  reward={reward}
+                  isOwned={userRewards.some(userReward => userReward.id === reward.id)}
+                  userXp={userProfile?.gamification?.totalXp || 0}
+                  onPurchase={handlePurchaseReward}
+                  index={index}
+                />
+              ))}
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+// 🎁 COMPOSANT CARTE RÉCOMPENSE
+const RewardCard = ({ reward, isOwned, userXp, onPurchase, index }) => {
+  const categoryConfig = REWARD_CATEGORIES[reward.category] || REWARD_CATEGORIES['Commune'];
+  const canAfford = userXp >= reward.xpCost;
+  const isAvailable = reward.available;
+
+  const handlePurchaseClick = () => {
+    if (isOwned) return;
+    if (!canAfford) {
+      alert(`Vous n'avez pas assez d'XP pour cette récompense. Il vous faut ${reward.xpCost} XP.`);
+      return;
+    }
+    if (!isAvailable) {
+      alert('Cette récompense n\'est pas disponible actuellement.');
+      return;
+    }
+    
+    onPurchase(reward);
+  };
+
+  return (
+    <motion.div
+      className={`
+        relative bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6
+        hover:bg-gray-700/50 hover:border-gray-600/50 transition-all duration-300
+        ${isOwned ? 'ring-2 ring-green-500/50' : ''}
+        ${!isAvailable ? 'opacity-60' : ''}
+      `}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+      whileHover={{ scale: 1.02 }}
+    >
+      {/* Statut en haut à droite */}
+      <div className="absolute top-3 right-3">
+        {isOwned ? (
+          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+            <CheckCircle className="h-4 w-4 text-white" />
+          </div>
+        ) : !isAvailable ? (
+          <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+            <Lock className="h-4 w-4 text-white" />
+          </div>
+        ) : canAfford ? (
+          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+            <ShoppingCart className="h-4 w-4 text-white" />
+          </div>
+        ) : (
+          <div className="w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center">
+            <Lock className="h-4 w-4 text-white" />
+          </div>
+        )}
       </div>
 
-      {/* Grille des récompenses */}
-      {filteredRewards.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredRewards.map((reward) => (
-            <RewardCard
-              key={reward.id}
-              reward={reward}
-              userXp={userXp}
-              userRewards={userRewards}
-              onClaim={handleClaim}
-              onPurchase={handlePurchase}
-            />
-          ))}
-        </div>
-      ) : (
-        /* Message si aucune récompense */
-        <PremiumCard className="text-center py-12">
-          <Gift className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Aucune récompense trouvée</h3>
-          <p className="text-gray-400 mb-6">
-            {searchTerm || selectedType !== 'all' || selectedRarity !== 'all'
-              ? 'Aucune récompense ne correspond à vos critères de recherche.'
-              : 'Aucune récompense disponible pour le moment.'}
-          </p>
-          <PremiumButton
-            onClick={() => {
-              setSearchTerm('');
-              setSelectedType('all');
-              setSelectedRarity('all');
-              setShowOwned(false);
-            }}
-            variant="primary"
-          >
-            Réinitialiser les filtres
-          </PremiumButton>
-        </PremiumCard>
-      )}
+      {/* Icône de la récompense */}
+      <div className={`
+        w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto
+        ${isOwned 
+          ? 'bg-green-900/30 border-2 border-green-500/50' 
+          : isAvailable && canAfford
+          ? `bg-${categoryConfig.color}-900/30 border-2 border-${categoryConfig.color}-500/50`
+          : 'bg-gray-700/50 border-2 border-gray-600/50'
+        }
+      `}>
+        <span className={isAvailable ? '' : 'grayscale opacity-50'}>
+          {reward.icon}
+        </span>
+      </div>
 
-      {/* Message d'encouragement pour les nouveaux utilisateurs */}
-      {stats.owned === 0 && !isLoading && (
-        <div className="mt-8">
-          <PremiumCard className="text-center py-12">
-            <Sparkles className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Commencez votre collection !</h3>
-            <p className="text-gray-400 mb-6">
-              Complétez des tâches et gagnez de l'XP pour débloquer vos premières récompenses.
-            </p>
-            <div className="flex justify-center space-x-4">
-              <PremiumButton
-                onClick={() => window.location.href = '/tasks'}
-                variant="primary"
-              >
-                Créer une tâche
-              </PremiumButton>
-              <PremiumButton
-                onClick={() => window.location.href = '/gamification'}
-                variant="secondary"
-              >
-                Voir la gamification
-              </PremiumButton>
-            </div>
-          </PremiumCard>
+      {/* Informations de la récompense */}
+      <div className="text-center mb-4">
+        <h3 className={`text-lg font-bold mb-2 ${
+          isOwned ? 'text-green-400' : 'text-white'
+        }`}>
+          {reward.name}
+        </h3>
+        <p className={`text-sm mb-3 line-clamp-2 ${
+          isAvailable ? 'text-gray-300' : 'text-gray-500'
+        }`}>
+          {reward.description}
+        </p>
+      </div>
+
+      {/* Catégorie et coût */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between text-xs">
+          <span className={`px-2 py-1 rounded-full font-medium ${
+            isAvailable 
+              ? `bg-${categoryConfig.color}-900/30 text-${categoryConfig.color}-400`
+              : 'bg-gray-700/30 text-gray-500'
+          }`}>
+            {reward.category}
+          </span>
+          <span className={`font-bold ${
+            canAfford ? 'text-yellow-400' : 'text-red-400'
+          }`}>
+            {reward.xpCost} XP
+          </span>
         </div>
-      )}
-    </PremiumLayout>
+
+        {/* Bouton d'action */}
+        <button
+          onClick={handlePurchaseClick}
+          disabled={isOwned || !isAvailable}
+          className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
+            isOwned
+              ? 'bg-green-600 text-white cursor-default'
+              : !isAvailable
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : canAfford
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-red-600/50 text-red-300 cursor-not-allowed'
+          }`}
+        >
+          {isOwned
+            ? '✅ Possédée'
+            : !isAvailable
+            ? '🔒 Indisponible'
+            : canAfford
+            ? '🛒 Acheter'
+            : '❌ XP insuffisant'
+          }
+        </button>
+      </div>
+    </motion.div>
   );
 };
 
