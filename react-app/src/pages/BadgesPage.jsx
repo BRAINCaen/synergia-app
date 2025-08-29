@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/BadgesPage.jsx
 // PAGE COLLECTION DE BADGES AVEC GESTION ADMIN COMPLÈTE
-// SUPPRESSION BADGES PAR DÉFAUT INTÉGRÉE
+// SUPPRESSION BADGES PAR DÉFAUT INTÉGRÉE + FIREBASE INTÉGRÉ
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -133,14 +133,16 @@ const BadgesPage = () => {
   };
 
   // 📋 STATISTIQUES DES BADGES
-  const badgeStats = {
-    totalBadges: userBadges.length,
-    badgesAvailable: Object.keys(BADGE_DEFINITIONS).length,
-    completionPercentage: Object.keys(BADGE_DEFINITIONS).length > 0 
-      ? Math.round((userBadges.length / Object.keys(BADGE_DEFINITIONS).length) * 100)
-      : 0,
-    totalXpEarned: userBadges.reduce((sum, badge) => sum + (badge.xpReward || 0), 0)
-  };
+  const badgeStats = useMemo(() => {
+    return {
+      totalBadges: userBadges.length,
+      badgesAvailable: allBadges.length > 0 ? allBadges.length : Object.keys(BADGE_DEFINITIONS).length,
+      completionPercentage: allBadges.length > 0 
+        ? Math.round((userBadges.length / allBadges.length) * 100)
+        : Math.round((userBadges.length / Object.keys(BADGE_DEFINITIONS).length) * 100),
+      totalXpEarned: userBadges.reduce((sum, badge) => sum + (badge.xpReward || 0), 0)
+    };
+  }, [userBadges, allBadges]);
 
   // 🎨 CATÉGORIES DISPONIBLES
   const categories = [
@@ -187,28 +189,58 @@ const BadgesPage = () => {
   };
 
   /**
-   * 📊 CHARGEMENT DE TOUS LES BADGES (ADMIN)
+   * 📊 CHARGEMENT DE TOUS LES BADGES (ADMIN) - FIREBASE UNIQUEMENT
    */
   const loadAllBadges = async () => {
     try {
+      console.log('📊 Chargement de TOUS les badges depuis Firebase...');
+      
+      // 1️⃣ CHARGER LES BADGES FIREBASE
       const badgesQuery = query(collection(db, 'badges'), orderBy('createdAt', 'desc'));
       const badgesSnapshot = await getDocs(badgesQuery);
       
-      const badges = [];
+      const firebaseBadges = [];
       badgesSnapshot.forEach((doc) => {
-        badges.push({ id: doc.id, ...doc.data() });
+        const badgeData = doc.data();
+        firebaseBadges.push({ 
+          id: doc.id, 
+          ...badgeData,
+          isFirebase: true,
+          source: 'firebase'
+        });
       });
 
-      // Ajouter les badges par défaut qui ne sont pas dans Firestore
-      Object.values(BADGE_DEFINITIONS).forEach(defaultBadge => {
-        if (!badges.some(b => b.id === defaultBadge.id)) {
-          badges.push(defaultBadge);
-        }
+      // 2️⃣ AJOUTER LES BADGES PAR DÉFAUT (ceux qui ne sont pas supprimés)
+      const suppressedBadgesQuery = query(collection(db, 'badge_suppressions'));
+      const suppressedSnapshot = await getDocs(suppressedBadgesQuery);
+      
+      const suppressedBadgeIds = [];
+      suppressedSnapshot.forEach((doc) => {
+        suppressedBadgeIds.push(doc.id);
       });
 
-      setAllBadges(badges);
+      const defaultBadges = Object.values(BADGE_DEFINITIONS)
+        .filter(badge => !suppressedBadgeIds.includes(badge.id))
+        .map(badge => ({
+          ...badge,
+          isDefault: true,
+          source: 'default'
+        }));
+
+      // 3️⃣ COMBINER TOUS LES BADGES
+      const allBadgesArray = [...firebaseBadges, ...defaultBadges];
+      
+      setAllBadges(allBadgesArray);
+      console.log(`✅ ${allBadgesArray.length} badges chargés (${firebaseBadges.length} Firebase + ${defaultBadges.length} par défaut)`);
+      
     } catch (error) {
       console.error('❌ Erreur chargement tous les badges:', error);
+      // Fallback sur les badges par défaut uniquement
+      setAllBadges(Object.values(BADGE_DEFINITIONS).map(badge => ({
+        ...badge,
+        isDefault: true,
+        source: 'default'
+      })));
     }
   };
 
@@ -233,6 +265,7 @@ const BadgesPage = () => {
       });
 
       setAllUsers(users);
+      console.log(`✅ ${users.length} utilisateurs chargés`);
     } catch (error) {
       console.error('❌ Erreur chargement utilisateurs:', error);
     }
@@ -248,12 +281,24 @@ const BadgesPage = () => {
     }
 
     try {
-      await addDoc(collection(db, 'badges'), {
-        ...badgeForm,
+      console.log('🎨 Création badge:', badgeForm);
+      
+      const badgeData = {
+        name: badgeForm.name,
+        description: badgeForm.description,
+        icon: badgeForm.icon,
+        category: badgeForm.category,
+        rarity: badgeForm.rarity,
+        xpReward: parseInt(badgeForm.xpReward) || 100,
+        requirements: badgeForm.requirements || {},
+        isActive: badgeForm.isActive !== false,
         createdAt: serverTimestamp(),
         createdBy: user.uid,
         isCustom: true
-      });
+      };
+
+      const docRef = await addDoc(collection(db, 'badges'), badgeData);
+      console.log('✅ Badge créé avec ID:', docRef.id);
 
       showNotification('Badge créé avec succès !', 'success');
       setShowCreateBadgeModal(false);
@@ -271,7 +316,7 @@ const BadgesPage = () => {
       await loadAllBadges();
     } catch (error) {
       console.error('❌ Erreur création badge:', error);
-      showNotification('Erreur lors de la création', 'error');
+      showNotification('Erreur lors de la création: ' + error.message, 'error');
     }
   };
 
@@ -280,7 +325,14 @@ const BadgesPage = () => {
     
     try {
       await updateDoc(doc(db, 'badges', selectedBadge.id), {
-        ...badgeForm,
+        name: badgeForm.name,
+        description: badgeForm.description,
+        icon: badgeForm.icon,
+        category: badgeForm.category,
+        rarity: badgeForm.rarity,
+        xpReward: parseInt(badgeForm.xpReward) || 100,
+        requirements: badgeForm.requirements || {},
+        isActive: badgeForm.isActive !== false,
         updatedAt: serverTimestamp(),
         updatedBy: user.uid
       });
@@ -297,7 +349,7 @@ const BadgesPage = () => {
   };
 
   /**
-   * 🗑️ SUPPRESSION BADGE NORMAL
+   * 🗑️ SUPPRESSION BADGE NORMAL (FIREBASE)
    */
   const handleDeleteBadge = async (badgeId) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce badge ?')) return;
@@ -437,7 +489,13 @@ const BadgesPage = () => {
           
           if (!hasBadge) {
             const newBadge = {
-              ...selectedBadge,
+              id: selectedBadge.id,
+              name: selectedBadge.name,
+              description: selectedBadge.description,
+              icon: selectedBadge.icon,
+              category: selectedBadge.category,
+              rarity: selectedBadge.rarity,
+              xpReward: selectedBadge.xpReward || 0,
               earnedAt: new Date(),
               assignedBy: user.uid,
               manuallyAssigned: true
@@ -485,12 +543,18 @@ const BadgesPage = () => {
    * 🔍 FILTRAGE DES BADGES
    */
   const filteredBadges = useMemo(() => {
-    let badges = userIsAdmin && showAdminPanel ? 
-      allBadges : 
-      Object.values(BADGE_DEFINITIONS).map(def => {
+    let badges = [];
+    
+    if (userIsAdmin && showAdminPanel) {
+      // Mode admin : afficher tous les badges (Firebase + par défaut non supprimés)
+      badges = allBadges;
+    } else {
+      // Mode utilisateur : afficher badges avec statut obtenu/non obtenu
+      badges = Object.values(BADGE_DEFINITIONS).map(def => {
         const userBadge = userBadges.find(ub => ub.id === def.id);
         return userBadge ? { ...def, ...userBadge, earned: true } : { ...def, earned: false };
       });
+    }
 
     // Filtrer par terme de recherche
     if (searchTerm) {
@@ -551,7 +615,7 @@ const BadgesPage = () => {
             Collection de Badges
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Débloquez des badges en accomplissant des défis (2 obtenus)
+            Débloquez des badges en accomplissant des défis ({badgeStats.totalBadges} obtenus)
           </p>
         </div>
 
@@ -644,6 +708,7 @@ const BadgesPage = () => {
                 onClick={() => {
                   loadAllBadges();
                   loadAllUsers();
+                  loadUserBadges();
                 }}
                 className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
               >
@@ -755,6 +820,18 @@ const BadgesPage = () => {
                     </span>
                   )}
                 </div>
+
+                {/* Source Badge */}
+                {userIsAdmin && showAdminPanel && (
+                  <div className="mt-1">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      badge.isDefault ? 'bg-orange-100 text-orange-800' : 
+                      badge.isFirebase ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {badge.isDefault ? 'Défaut' : badge.isFirebase ? 'Personnalisé' : 'Firebase'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Badge Info */}
@@ -788,12 +865,12 @@ const BadgesPage = () => {
                     onClick={() => {
                       setSelectedBadge(badge);
                       setBadgeForm({
-                        name: badge.name,
-                        description: badge.description,
-                        icon: badge.icon,
-                        category: badge.category,
-                        rarity: badge.rarity,
-                        xpReward: badge.xpReward,
+                        name: badge.name || '',
+                        description: badge.description || '',
+                        icon: badge.icon || '🏆',
+                        category: badge.category || 'Accomplissement',
+                        rarity: badge.rarity || 'Commun',
+                        xpReward: badge.xpReward || 100,
                         requirements: badge.requirements || {},
                         isActive: badge.isActive !== false
                       });
@@ -806,7 +883,7 @@ const BadgesPage = () => {
                   </button>
                   
                   {/* Bouton de suppression - différent pour badges par défaut */}
-                  {badge.isDefault || BADGE_DEFINITIONS[badge.id] ? (
+                  {badge.isDefault ? (
                     <button
                       onClick={() => handleDeleteDefaultBadge(badge.id)}
                       className="bg-red-600 text-white py-2 px-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
