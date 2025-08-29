@@ -1,17 +1,18 @@
 // ==========================================
 // 📁 react-app/src/pages/AnalyticsPage.jsx
-// PAGE ANALYTICS COMPLÈTE AVEC MENU HAMBURGER IDENTIQUE AU DASHBOARD
+// VRAIE PAGE ANALYTICS SYNERGIA AVEC FIREBASE ET DESIGN AUTHENTIQUE
 // ==========================================
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  Target, 
-  CheckCircle2, 
-  Clock, 
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Target,
+  CheckCircle2,
+  Clock,
   Calendar,
   Award,
   Zap,
@@ -23,16 +24,21 @@ import {
   ArrowDown,
   Activity,
   PieChart,
-  LineChart
+  LineChart,
+  Star,
+  Flame,
+  Trophy,
+  BookOpen,
+  Briefcase
 } from 'lucide-react';
 
-// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
+// 🎯 IMPORT DU LAYOUT SYNERGIA AUTHENTIQUE
 import Layout from '../components/layout/Layout.jsx';
 
-// 🔥 HOOKS ET SERVICES
+// 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 📊 FIREBASE
+// 📊 FIREBASE IMPORTS
 import { 
   collection, 
   query, 
@@ -40,21 +46,88 @@ import {
   onSnapshot, 
   where,
   getDocs,
-  startAfter,
   limit
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+
+// 📈 COMPOSANT GRAPHIQUE SIMPLE
+const SimpleChart = ({ data, color = '#8B5CF6', height = 60 }) => {
+  const maxValue = Math.max(...data);
+  const minValue = Math.min(...data);
+  const range = maxValue - minValue || 1;
+
+  return (
+    <div className="flex items-end justify-between h-16 gap-1">
+      {data.map((value, index) => (
+        <motion.div
+          key={index}
+          className="flex-1 bg-gradient-to-t from-blue-600 to-purple-500 rounded-t-sm min-h-1"
+          style={{
+            height: `${((value - minValue) / range) * 100}%`,
+            minHeight: '4px'
+          }}
+          initial={{ height: 0 }}
+          animate={{ height: `${((value - minValue) / range) * 100}%` }}
+          transition={{ duration: 0.5, delay: index * 0.1 }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// 📊 COMPOSANT GRAPHIQUE CIRCULAIRE
+const CircularProgress = ({ percentage, size = 80, strokeWidth = 8, color = '#8B5CF6' }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90"
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(75, 85, 99, 0.3)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1, ease: "easeInOut" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-sm font-bold text-white">{percentage}%</span>
+      </div>
+    </div>
+  );
+};
 
 const AnalyticsPage = () => {
   // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
   
   // 📊 ÉTATS ANALYTICS
-  const [timeRange, setTimeRange] = useState('week');
+  const [timeRange, setTimeRange] = useState('7');
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
   const [analyticsData, setAnalyticsData] = useState({
     overview: {
       totalTasks: 0,
@@ -66,8 +139,10 @@ const AnalyticsPage = () => {
     performance: {
       weeklyXp: 0,
       monthlyXp: 0,
+      totalXp: 0,
+      level: 1,
       completionRate: 0,
-      averageTaskTime: 0
+      streak: 0
     },
     trends: {
       xpHistory: [],
@@ -76,14 +151,28 @@ const AnalyticsPage = () => {
     }
   });
 
-  // 📊 CHARGEMENT DES DONNÉES
+  // 📊 CHARGEMENT DES DONNÉES FIREBASE
   useEffect(() => {
     if (!user?.uid) return;
 
-    console.log('🔄 [ANALYTICS] Chargement des données...');
+    console.log('🔄 [ANALYTICS] Chargement des données depuis Firebase...');
     setLoading(true);
 
-    // Query pour les tâches
+    // 1. Charger le profil utilisateur
+    const userQuery = query(
+      collection(db, 'users'),
+      where('uid', '==', user.uid)
+    );
+    
+    const unsubscribeUser = onSnapshot(userQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const userData = snapshot.docs[0].data();
+        setUserProfile(userData);
+        console.log('👤 [ANALYTICS] Profil utilisateur chargé:', userData.displayName);
+      }
+    });
+
+    // 2. Charger les tâches
     const tasksQuery = query(
       collection(db, 'tasks'),
       orderBy('createdAt', 'desc'),
@@ -102,7 +191,7 @@ const AnalyticsPage = () => {
       console.log('📋 [ANALYTICS] Tâches chargées:', tasksData.length);
     });
 
-    // Query pour les projets
+    // 3. Charger les projets
     const projectsQuery = query(
       collection(db, 'projects'),
       orderBy('createdAt', 'desc'),
@@ -114,17 +203,16 @@ const AnalyticsPage = () => {
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-        dueDate: doc.data().dueDate?.toDate()
+        updatedAt: doc.data().updatedAt?.toDate()
       }));
       setProjects(projectsData);
       console.log('📁 [ANALYTICS] Projets chargés:', projectsData.length);
     });
 
-    // Query pour les utilisateurs
+    // 4. Charger la liste des utilisateurs
     const usersQuery = query(
       collection(db, 'users'),
-      limit(50)
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
@@ -138,46 +226,60 @@ const AnalyticsPage = () => {
     });
 
     return () => {
+      unsubscribeUser();
       unsubscribeTasks();
       unsubscribeProjects();
       unsubscribeUsers();
     };
   }, [user?.uid]);
 
-  // 📊 CALCULER LES DONNÉES ANALYTICS
-  const loadAnalyticsData = useCallback(() => {
+  // 📊 CALCUL DES ANALYTICS EN TEMPS RÉEL
+  const calculateAnalytics = useCallback(() => {
     if (!tasks.length && !projects.length) return;
 
     try {
-      console.log('📊 [ANALYTICS] Calcul des analytics...');
+      console.log('🔄 [ANALYTICS] Calcul des statistiques...');
 
-      // Calculs des métriques de base
-      const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(task => task.status === 'completed').length;
-      const activeProjects = projects.filter(project => project.status === 'active').length;
-      const teamMembers = users.length;
-      const productivity = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      // Filtre par période
+      const daysAgo = parseInt(timeRange);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysAgo);
 
-      // Calculs de performance
-      const now = new Date();
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      const weeklyCompletedTasks = tasks.filter(task => 
-        task.status === 'completed' && 
-        task.updatedAt && 
-        task.updatedAt >= weekAgo
+      // Tâches de l'utilisateur dans la période
+      const userTasks = tasks.filter(task => 
+        task.assignedTo === user.uid || task.createdBy === user.uid
+      );
+      
+      const periodTasks = userTasks.filter(task => 
+        task.createdAt && task.createdAt >= startDate
       );
 
-      const monthlyCompletedTasks = tasks.filter(task => 
-        task.status === 'completed' && 
-        task.updatedAt && 
-        task.updatedAt >= monthAgo
-      );
+      const completedTasks = periodTasks.filter(task => task.status === 'completed');
+      const totalTasks = periodTasks.length;
 
-      const weeklyXp = weeklyCompletedTasks.reduce((total, task) => total + (task.xpReward || 10), 0);
-      const monthlyXp = monthlyCompletedTasks.reduce((total, task) => total + (task.xpReward || 10), 0);
-      const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      // Projets actifs
+      const activeProjects = projects.filter(project => 
+        project.status === 'active' && 
+        (project.members?.includes(user.uid) || project.createdBy === user.uid)
+      ).length;
+
+      // Calculs XP depuis le profil utilisateur
+      const gamificationData = userProfile?.gamification || {};
+      const weeklyXp = gamificationData.weeklyXp || 0;
+      const monthlyXp = gamificationData.monthlyXp || 0;
+      const totalXp = gamificationData.totalXp || 0;
+      const level = gamificationData.level || 1;
+      const streak = gamificationData.loginStreak || 1;
+
+      // Taux de completion
+      const completionRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
+
+      // Score de productivité
+      const productivity = Math.min(100, Math.round(
+        (completionRate * 0.4) + 
+        (Math.min(level * 10, 50) * 0.3) + 
+        (Math.min(streak * 5, 50) * 0.3)
+      ));
 
       // Historique XP (7 derniers jours)
       const xpHistory = [];
@@ -185,115 +287,91 @@ const AnalyticsPage = () => {
         const date = new Date();
         date.setDate(date.getDate() - i);
         
-        const dayTasks = tasks.filter(task => {
-          if (!task.updatedAt || task.status !== 'completed') return false;
-          const completedAt = task.updatedAt;
-          return completedAt.toDateString() === date.toDateString();
+        const dayTasks = completedTasks.filter(task => {
+          if (!task.updatedAt) return false;
+          return task.updatedAt.toDateString() === date.toDateString();
         });
         
-        const dayXp = dayTasks.reduce((total, task) => total + (task.xpReward || 10), 0);
+        const dayXp = dayTasks.reduce((total, task) => total + (task.xpReward || 15), 0);
         
         xpHistory.push({
-          date: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+          day: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
           xp: dayXp,
           tasks: dayTasks.length
         });
       }
 
-      // Historique des tâches par jour
-      const tasksHistory = xpHistory.map(day => ({
-        date: day.date,
-        completed: day.tasks,
-        created: Math.floor(Math.random() * 5) // Estimation
-      }));
-
       // Progression des projets
-      const projectsProgress = projects.slice(0, 5).map(project => ({
-        name: project.title || 'Projet sans nom',
-        progress: Math.floor(Math.random() * 100),
-        tasks: Math.floor(Math.random() * 10) + 1
-      }));
+      const projectsProgress = projects
+        .filter(project => project.members?.includes(user.uid) || project.createdBy === user.uid)
+        .slice(0, 4)
+        .map(project => {
+          const projectTasks = tasks.filter(task => task.projectId === project.id);
+          const projectCompleted = projectTasks.filter(task => task.status === 'completed');
+          const progress = projectTasks.length > 0 ? 
+            Math.round((projectCompleted.length / projectTasks.length) * 100) : 0;
+          
+          return {
+            name: project.title || 'Projet sans nom',
+            progress,
+            tasks: projectTasks.length,
+            icon: project.icon || '📁',
+            status: project.status || 'active'
+          };
+        });
 
       setAnalyticsData({
         overview: {
           totalTasks,
-          completedTasks,
+          completedTasks: completedTasks.length,
           activeProjects,
-          teamMembers,
+          teamMembers: users.length,
           productivity
         },
         performance: {
           weeklyXp,
           monthlyXp,
+          totalXp,
+          level,
           completionRate,
-          averageTaskTime: 2.5 // Estimation
+          streak
         },
         trends: {
           xpHistory,
-          tasksHistory,
+          tasksHistory: xpHistory.map(day => ({
+            day: day.day,
+            completed: day.tasks
+          })),
           projectsProgress
         }
       });
 
-      console.log('✅ [ANALYTICS] Analytics calculées avec succès');
+      console.log('✅ [ANALYTICS] Statistiques calculées avec succès');
 
     } catch (error) {
-      console.error('❌ [ANALYTICS] Erreur calcul analytics:', error);
+      console.error('❌ [ANALYTICS] Erreur calcul statistiques:', error);
     }
-  }, [tasks, projects, users]);
+  }, [tasks, projects, users, userProfile, user?.uid, timeRange]);
 
-  // Charger les données et calculer les analytics
+  // Recalculer quand les données changent
   useEffect(() => {
-    if (tasks.length || projects.length) {
-      loadAnalyticsData();
+    if (user?.uid && !loading) {
+      calculateAnalytics();
     }
-  }, [tasks, projects, users, loadAnalyticsData, timeRange]);
-
-  // ✅ UTILISER LES DONNÉES XP CALCULÉES
-  const totalXpDisplay = analyticsData.performance.monthlyXp || 0;
-  const levelDisplay = Math.floor(totalXpDisplay / 100) + 1;
-  const streakDisplay = 7; // Valeur par défaut
+  }, [user?.uid, loading, calculateAnalytics]);
 
   // 🔄 ACTUALISER LES DONNÉES
   const refreshData = () => {
-    loadAnalyticsData();
+    calculateAnalytics();
   };
-
-  // Stats pour l'en-tête
-  const headerStats = [
-    { 
-      label: "Tâches complétées", 
-      value: `${analyticsData.overview.completedTasks}/${analyticsData.overview.totalTasks}`, 
-      icon: CheckCircle2, 
-      color: "text-green-400" 
-    },
-    { 
-      label: "Score productivité", 
-      value: `${analyticsData.overview.productivity}%`, 
-      icon: TrendingUp, 
-      color: "text-blue-400" 
-    },
-    { 
-      label: "XP cette semaine", 
-      value: analyticsData.performance.weeklyXp.toLocaleString(), 
-      icon: Zap, 
-      color: "text-yellow-400" 
-    },
-    { 
-      label: "Projets actifs", 
-      value: analyticsData.overview.activeProjects, 
-      icon: Target, 
-      color: "text-purple-400" 
-    }
-  ];
 
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Calcul des analytics...</p>
+            <RefreshCw className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg">Chargement des analytics...</p>
           </div>
         </div>
       </Layout>
@@ -302,153 +380,216 @@ const AnalyticsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 p-6">
-        {/* HEADER DE LA PAGE */}
-        <div className="max-w-7xl mx-auto mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">📊 Analytics & Performances</h1>
-              <p className="text-gray-600">Analysez vos performances et suivez vos progrès</p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        
+        {/* 📊 HEADER AVEC TITRE ET CONTRÔLES */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
+          <div className="max-w-7xl mx-auto px-6 py-8">
             
-            <div className="flex items-center gap-4">
-              <div className="flex items-center bg-white border border-gray-300 rounded-lg">
+            {/* Titre principal */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    Analytics & Performances
+                  </h1>
+                  <p className="text-gray-400 text-lg mt-1">
+                    Analysez vos performances et suivez vos progrès
+                  </p>
+                </div>
+              </div>
+
+              {/* Contrôles du header */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-gray-700/50 rounded-lg p-1">
+                  {['7', '30', 'Année'].map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setTimeRange(range === 'Année' ? '365' : range)}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                        timeRange === (range === 'Année' ? '365' : range)
+                          ? 'bg-blue-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-gray-600'
+                      }`}
+                    >
+                      {range} jour{range !== '7' && range !== 'Année' ? 's' : range === 'Année' ? '' : ''}
+                    </button>
+                  ))}
+                </div>
+
                 <button
-                  onClick={() => setTimeRange('week')}
-                  className={`px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
-                    timeRange === 'week' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  onClick={refreshData}
+                  className="px-4 py-2 bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg transition-all duration-200 flex items-center gap-2"
                 >
-                  7 jours
-                </button>
-                <button
-                  onClick={() => setTimeRange('month')}
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    timeRange === 'month' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  30 jours
-                </button>
-                <button
-                  onClick={() => setTimeRange('year')}
-                  className={`px-4 py-2 text-sm font-medium rounded-r-lg transition-colors ${
-                    timeRange === 'year' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Année
+                  <RefreshCw className="h-4 w-4" />
+                  Actualiser
                 </button>
               </div>
-              
-              <button
-                onClick={refreshData}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            </div>
+
+            {/* Statistiques rapides */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ scale: 1.02 }}
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Actualiser
-              </button>
+                <div className="flex items-center justify-center mb-3">
+                  <CheckCircle2 className="h-8 w-8 text-green-400" />
+                </div>
+                <div className="text-2xl font-bold text-white mb-1">
+                  {analyticsData.overview.completedTasks}/{analyticsData.overview.totalTasks}
+                </div>
+                <div className="text-gray-400 text-sm font-medium">Tâches complétées</div>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-3">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${analyticsData.performance.completionRate}%` }}
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <TrendingUp className="h-8 w-8 text-blue-400" />
+                </div>
+                <div className="text-2xl font-bold text-blue-400 mb-1">
+                  {analyticsData.overview.productivity}%
+                </div>
+                <div className="text-gray-400 text-sm font-medium">Score productivité</div>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-3">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${analyticsData.overview.productivity}%` }}
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <Zap className="h-8 w-8 text-yellow-400" />
+                </div>
+                <div className="text-2xl font-bold text-yellow-400 mb-1">
+                  {analyticsData.performance.weeklyXp.toLocaleString()}
+                </div>
+                <div className="text-gray-400 text-sm font-medium">XP cette semaine</div>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-3">
+                  <div 
+                    className="bg-yellow-500 h-2 rounded-full transition-all duration-500" 
+                    style={{ width: `${Math.min(100, (analyticsData.performance.weeklyXp / 200) * 100)}%` }}
+                  />
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="flex items-center justify-center mb-3">
+                  <Briefcase className="h-8 w-8 text-purple-400" />
+                </div>
+                <div className="text-2xl font-bold text-purple-400 mb-1">
+                  {analyticsData.overview.activeProjects}
+                </div>
+                <div className="text-gray-400 text-sm font-medium">Projets actifs</div>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-3">
+                  <div className="bg-purple-500 h-2 rounded-full transition-all duration-500" style={{ width: '75%' }} />
+                </div>
+              </motion.div>
             </div>
           </div>
+        </div>
 
-          {/* STATISTIQUES GLOBALES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {headerStats.map((stat, index) => {
-              const IconComponent = stat.icon;
-              return (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">{stat.label}</p>
-                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                    </div>
-                    <div className={`p-3 rounded-lg ${stat.color} bg-gray-50`}>
-                      <IconComponent className="w-6 h-6" />
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* SECTION PRINCIPALE */}
+        {/* 📈 CONTENU PRINCIPAL */}
+        <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* COLONNE PRINCIPALE - GRAPHIQUES */}
+            {/* COLONNE GAUCHE - Graphiques principaux */}
             <div className="lg:col-span-2 space-y-8">
               
-              {/* ÉVOLUTION XP */}
+              {/* Évolution de l'XP */}
               <motion.div
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                transition={{ delay: 0.5 }}
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Évolution de l'XP</h3>
-                  <div className="flex items-center gap-2">
-                    <LineChart className="w-5 h-5 text-blue-600" />
-                    <span className="text-sm text-gray-600">7 derniers jours</span>
+                  <div className="flex items-center gap-3">
+                    <LineChart className="h-6 w-6 text-blue-400" />
+                    <h3 className="text-xl font-bold text-white">Évolution de l'XP</h3>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {timeRange} derniers jours
                   </div>
                 </div>
-                
-                <div className="h-64 flex items-end justify-between gap-2">
-                  {analyticsData.trends.xpHistory.map((day, index) => {
-                    const maxXp = Math.max(...analyticsData.trends.xpHistory.map(d => d.xp), 1);
-                    const height = (day.xp / maxXp) * 200;
-                    
-                    return (
-                      <div key={day.date} className="flex-1 flex flex-col items-center">
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: `${height}px` }}
-                          transition={{ delay: index * 0.1 }}
-                          className="bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg mb-2 min-h-[20px] w-full max-w-[40px]"
-                          title={`${day.xp} XP - ${day.tasks} tâches`}
-                        />
-                        <span className="text-xs text-gray-600 font-medium">{day.date}</span>
-                        <span className="text-xs text-blue-600 font-bold">{day.xp}</span>
-                      </div>
-                    );
-                  })}
+
+                <div className="mb-6">
+                  <SimpleChart 
+                    data={analyticsData.trends.xpHistory.map(day => day.xp)} 
+                    color="#8B5CF6" 
+                  />
+                </div>
+
+                <div className="grid grid-cols-7 gap-2 text-center text-xs text-gray-400">
+                  {analyticsData.trends.xpHistory.map((day, index) => (
+                    <div key={index} className="space-y-1">
+                      <div className="font-medium">{day.day}</div>
+                      <div className="text-blue-400">{day.xp}</div>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
 
-              {/* PERFORMANCE DES TÂCHES */}
+              {/* Performance des Tâches */}
               <motion.div
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                transition={{ delay: 0.6 }}
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Performance des Tâches</h3>
-                  <BarChart3 className="w-5 h-5 text-green-600" />
+                <div className="flex items-center gap-3 mb-6">
+                  <Activity className="h-6 w-6 text-green-400" />
+                  <h3 className="text-xl font-bold text-white">Performance des Tâches</h3>
                 </div>
-                
+
                 <div className="space-y-4">
                   {analyticsData.trends.tasksHistory.map((day, index) => (
-                    <div key={day.date} className="flex items-center gap-4">
-                      <div className="w-12 text-sm font-medium text-gray-600">{day.date}</div>
-                      <div className="flex-1 flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min((day.completed / 10) * 100, 100)}%` }}
-                            transition={{ delay: index * 0.1 }}
-                            className="bg-green-500 h-2 rounded-full"
+                    <div key={index} className="flex items-center gap-4">
+                      <div className="w-12 text-sm text-gray-400 font-medium">
+                        {day.day}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="text-gray-300">{day.completed} tâche(s)</span>
+                          <span className="text-green-400">{day.completed > 0 ? '✓' : '○'}</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-green-500 to-emerald-400 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, (day.completed / 5) * 100)}%` }}
                           />
                         </div>
-                        <span className="text-sm font-medium text-gray-900 w-8">{day.completed}</span>
                       </div>
                     </div>
                   ))}
@@ -456,191 +597,166 @@ const AnalyticsPage = () => {
               </motion.div>
             </div>
 
-            {/* COLONNE LATÉRALE - STATS */}
+            {/* COLONNE DROITE - Profil et projets */}
             <div className="space-y-8">
               
-              {/* RÉSUMÉ PERSONNEL */}
+              {/* Profil utilisateur */}
               <motion.div
+                className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl p-6 text-white"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white"
+                transition={{ delay: 0.7 }}
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                    <Award className="w-6 h-6" />
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <span className="text-xl">👤</span>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Mon Profil</h3>
-                    <p className="text-blue-100 text-sm">{user?.email || 'Utilisateur'}</p>
+                    <h3 className="font-bold text-lg">Mon Profil</h3>
+                    <p className="text-blue-100 text-sm">
+                      {userProfile?.displayName || user?.email?.split('@')[0] || 'Utilisateur'}
+                    </p>
                   </div>
                 </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-blue-100">Niveau actuel</span>
-                    <span className="font-bold text-xl">{levelDisplay}</span>
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold mb-1">
+                      {analyticsData.performance.level}
+                    </div>
+                    <div className="text-blue-100 text-sm">Niveau actuel</div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-blue-100">XP Total</span>
-                    <span className="font-bold">{totalXpDisplay.toLocaleString()}</span>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold mb-1">
+                      {analyticsData.performance.totalXp.toLocaleString()}
+                    </div>
+                    <div className="text-blue-100 text-sm">XP Total</div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-blue-100">Série de connexions</span>
-                    <span className="font-bold">{streakDisplay} jours</span>
+                </div>
+
+                <div className="text-center">
+                  <div className="text-lg font-bold mb-1">
+                    {analyticsData.performance.streak} jour{analyticsData.performance.streak > 1 ? 's' : ''}
+                  </div>
+                  <div className="text-blue-100 text-sm flex items-center justify-center gap-1">
+                    <Flame className="h-4 w-4" />
+                    Série de connexions
                   </div>
                 </div>
               </motion.div>
 
-              {/* PROGRESSION DES PROJETS */}
+              {/* Projets en cours */}
               <motion.div
+                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                transition={{ delay: 0.8 }}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Projets en Cours</h3>
-                  <PieChart className="w-5 h-5 text-purple-600" />
+                <div className="flex items-center gap-3 mb-6">
+                  <Target className="h-6 w-6 text-purple-400" />
+                  <h3 className="text-xl font-bold text-white">Projets en Cours</h3>
                 </div>
-                
+
                 <div className="space-y-4">
-                  {analyticsData.trends.projectsProgress.slice(0, 5).map((project, index) => (
-                    <div key={project.name} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-900 truncate">
-                          {project.name}
-                        </span>
-                        <span className="text-sm text-gray-600">{project.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${project.progress}%` }}
-                          transition={{ delay: index * 0.1 }}
-                          className={`h-2 rounded-full ${
-                            project.progress >= 80 ? 'bg-green-500' :
-                            project.progress >= 60 ? 'bg-blue-500' :
-                            project.progress >= 40 ? 'bg-yellow-500' :
-                            'bg-red-500'
-                          }`}
-                        />
-                      </div>
-                      <div className="flex items-center text-xs text-gray-500">
-                        <Target className="w-3 h-3 mr-1" />
-                        {project.tasks} tâches
-                      </div>
+                  {analyticsData.trends.projectsProgress.length === 0 ? (
+                    <div className="text-center py-6">
+                      <div className="text-4xl mb-2">📁</div>
+                      <p className="text-gray-400 text-sm">Aucun projet actif</p>
                     </div>
-                  ))}
-                  
-                  {analyticsData.trends.projectsProgress.length === 0 && (
-                    <div className="text-center py-4">
-                      <Target className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">Aucun projet actif</p>
-                    </div>
+                  ) : (
+                    analyticsData.trends.projectsProgress.map((project, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{project.icon}</span>
+                            <span className="text-white font-medium text-sm">
+                              {project.name}
+                            </span>
+                          </div>
+                          <span className="text-sm font-bold text-white">
+                            {project.progress}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${project.progress}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span>{project.tasks} tâche{project.tasks > 1 ? 's' : ''}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            project.status === 'active' 
+                              ? 'bg-green-900/30 text-green-400' 
+                              : 'bg-gray-900/30 text-gray-400'
+                          }`}>
+                            {project.status === 'active' ? '🚀 Actif' : '⏸️ Pause'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
-              </motion.div>
 
-              {/* MÉTRIQUES RAPIDES */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
-              >
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Métriques Clés</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">Temps moyen/tâche</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      {analyticsData.performance.averageTaskTime}h
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-gray-600">Taux de completion</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-medium text-gray-900">
-                        {analyticsData.performance.completionRate}%
-                      </span>
-                      <ArrowUp className="w-3 h-3 text-green-500" />
+                {analyticsData.overview.activeProjects > 0 && (
+                  <div className="mt-6 pt-4 border-t border-gray-700">
+                    <div className="text-center text-xs text-gray-400">
+                      {analyticsData.overview.activeProjects} projet{analyticsData.overview.activeProjects > 1 ? 's' : ''} actif{analyticsData.overview.activeProjects > 1 ? 's' : ''}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm text-gray-600">Équipe active</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      {analyticsData.overview.teamMembers} membres
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-purple-500" />
-                      <span className="text-sm text-gray-600">XP ce mois</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-medium text-gray-900">
-                        {analyticsData.performance.monthlyXp.toLocaleString()}
-                      </span>
-                      <ArrowUp className="w-3 h-3 text-green-500" />
-                    </div>
-                  </div>
-                </div>
+                )}
               </motion.div>
             </div>
           </div>
 
           {/* SECTION INSIGHTS */}
           <motion.div
+            className="mt-8 bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-sm rounded-xl p-6 border border-purple-500/20"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-8 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200"
+            transition={{ delay: 0.9 }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <Eye className="w-6 h-6 text-purple-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Insights & Recommandations</h3>
+            <div className="flex items-center gap-3 mb-6">
+              <Eye className="w-6 h-6 text-purple-400" />
+              <h3 className="text-xl font-bold text-white">Insights & Recommandations</h3>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-lg p-4 border border-purple-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-4 h-4 text-green-500" />
-                  <span className="text-sm font-medium text-green-700">Progression Excellente</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-5 h-5 text-green-400" />
+                  <span className="text-sm font-medium text-green-400">Performance Excellente</span>
                 </div>
-                <p className="text-sm text-gray-600">
-                  Votre productivité a augmenté de 15% cette semaine !
+                <p className="text-sm text-gray-300">
+                  {analyticsData.performance.completionRate >= 80 
+                    ? `Félicitations ! Votre taux de complétion de ${analyticsData.performance.completionRate}% est excellent.`
+                    : analyticsData.performance.completionRate >= 60
+                    ? `Bon travail ! Continuez sur cette lancée pour améliorer votre productivité.`
+                    : `Vous pouvez améliorer votre productivité en organisant mieux vos tâches.`
+                  }
                 </p>
               </div>
               
-              <div className="bg-white rounded-lg p-4 border border-purple-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm font-medium text-blue-700">Objectifs à Jour</span>
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="w-5 h-5 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">Objectifs</span>
                 </div>
-                <p className="text-sm text-gray-600">
-                  Vous êtes en avance sur {analyticsData.overview.activeProjects} projets actifs.
+                <p className="text-sm text-gray-300">
+                  {analyticsData.overview.activeProjects > 0
+                    ? `Vous gérez ${analyticsData.overview.activeProjects} projet${analyticsData.overview.activeProjects > 1 ? 's' : ''} actif${analyticsData.overview.activeProjects > 1 ? 's' : ''}.`
+                    : 'Commencez par créer votre premier projet pour organiser votre travail.'
+                  }
                 </p>
               </div>
               
-              <div className="bg-white rounded-lg p-4 border border-purple-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <Award className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm font-medium text-yellow-700">Nouveau Badge</span>
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
+                  <span className="text-sm font-medium text-yellow-400">Prochain Niveau</span>
                 </div>
-                <p className="text-sm text-gray-600">
-                  Encore {100 - (totalXpDisplay % 100)} XP pour le prochain niveau !
+                <p className="text-sm text-gray-300">
+                  Encore {Math.max(0, (analyticsData.performance.level * 100) - analyticsData.performance.totalXp)} XP pour le niveau {analyticsData.performance.level + 1} !
                 </p>
               </div>
             </div>
