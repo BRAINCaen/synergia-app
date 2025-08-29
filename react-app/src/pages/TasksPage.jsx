@@ -1,56 +1,47 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE TÂCHES COMPLÈTE AVEC MENU HAMBURGER IDENTIQUE AU DASHBOARD
+// PAGE TÂCHES - CORRECTION DES VRAIS PROBLÈMES
 // ==========================================
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { 
   CheckSquare,
   Plus,
   Search,
   Filter,
-  SortAsc,
-  SortDesc,
   User,
   Users,
   Heart,
   Archive,
   FileText,
-  Play,
-  Image as ImageIcon,
-  MessageCircle,
-  Calendar,
-  Target,
-  Zap,
   Clock,
   AlertCircle,
-  ChevronDown,
   Star,
   Eye,
   Edit,
   Trash2,
-  X,
-  ArrowRight,
-  MoreVertical
+  Calendar,
+  Target,
+  X
 } from 'lucide-react';
 
-// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
-import Layout from '../components/layout/Layout.jsx';
+// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM - CORRIGÉ
+import PremiumLayout, { PremiumCard, PremiumStatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
 
-// 🔥 IMPORT DES VRAIS COMPOSANTS QUI MARCHAIENT
+// 🔥 IMPORT COMPOSANT TASK CARD QUI EXISTE
 import TaskCard from '../modules/tasks/TaskCard.jsx';
+
+// 🔥 IMPORT MODAL UI QUI EXISTE VRAIMENT
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
-import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
 
 // 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 📊 FIREBASE
+// 📊 FIREBASE - SANS ORDERBY POUR ÉVITER L'ERREUR D'INDEX
 import { 
   collection, 
-  query, 
-  orderBy, 
+  query,
   onSnapshot, 
   addDoc, 
   updateDoc, 
@@ -62,751 +53,577 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🎮 SERVICES ET CONSTANTES
-import { SYNERGIA_ROLES } from '../core/data/roles.js';
-import { taskService } from '../core/services/taskService.js';
-
 // 📊 CONSTANTES TÂCHES
 const TASK_STATUS = {
   todo: { label: 'À faire', color: 'gray', icon: '⏳' },
   in_progress: { label: 'En cours', color: 'blue', icon: '🔄' },
-  completed: { label: 'Terminé', color: 'green', icon: '✅' },
-  archived: { label: 'Archivé', color: 'red', icon: '🗂️' }
+  completed: { label: 'Terminée', color: 'green', icon: '✅' },
+  blocked: { label: 'Bloquée', color: 'red', icon: '🚫' }
 };
 
 const TASK_PRIORITY = {
-  low: { label: 'Faible', color: 'green', icon: '📗' },
-  medium: { label: 'Moyenne', color: 'yellow', icon: '📙' },
-  high: { label: 'Haute', color: 'orange', icon: '📕' },
-  urgent: { label: 'Urgent', color: 'red', icon: '🚨' }
+  low: { label: 'Faible', color: 'green' },
+  medium: { label: 'Moyenne', color: 'yellow' },
+  high: { label: 'Élevée', color: 'orange' },
+  urgent: { label: 'Urgente', color: 'red' }
 };
 
-const VIEW_MODES = {
-  grid: { label: 'Grille', icon: '⊞' },
-  list: { label: 'Liste', icon: '☰' },
-  kanban: { label: 'Kanban', icon: '📋' }
+const TASK_TABS = {
+  all: { label: 'Toutes', icon: FileText },
+  personal: { label: 'Personnelles', icon: Heart },
+  assigned: { label: 'Assignées', icon: User }
 };
 
+/**
+ * 🔍 COMPOSANT BARRE DE RECHERCHE
+ */
+const SearchBar = ({ searchTerm, onSearchChange, className = "" }) => {
+  return (
+    <div className={`relative ${className}`}>
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <Search className="h-4 w-4 text-gray-400" />
+      </div>
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Rechercher des tâches..."
+        className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+      />
+    </div>
+  );
+};
+
+/**
+ * 🎯 MODAL SIMPLE POUR NOUVELLE TÂCHE
+ */
+const SimpleNewTaskModal = ({ isOpen, onClose, onSave, initialData }) => {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('medium');
+
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title || '');
+      setDescription(initialData.description || '');
+      setPriority(initialData.priority || 'medium');
+    } else {
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+    }
+  }, [initialData, isOpen]);
+
+  const handleSave = async () => {
+    if (!title.trim()) return;
+    
+    try {
+      await onSave({
+        title: title.trim(),
+        description: description.trim(),
+        priority,
+        status: initialData ? initialData.status : 'todo'
+      });
+      
+      onClose();
+    } catch (error) {
+      console.error('Erreur sauvegarde tâche:', error);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-white">
+            {initialData ? 'Modifier la tâche' : 'Nouvelle tâche'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white p-1"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Titre */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Titre *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Titre de la tâche"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description de la tâche"
+              rows={3}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Priorité */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Priorité
+            </label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {Object.entries(TASK_PRIORITY).map(([key, prio]) => (
+                <option key={key} value={key}>{prio.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end space-x-3 mt-6">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {initialData ? 'Modifier' : 'Créer'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+/**
+ * 📊 PAGE PRINCIPALE TÂCHES
+ */
 const TasksPage = () => {
   // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
   
-  // 📊 ÉTATS TÂCHES
+  // 📊 ÉTATS
   const [tasks, setTasks] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState('grid');
+  
+  // 🎯 FILTRES ET RECHERCHE
+  const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
-  const [assigneeFilter, setAssigneeFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('updatedAt');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [showNewTaskModal, setShowNewTaskModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedPriority, setSelectedPriority] = useState('all');
+  
+  // 🎯 MODALS
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
 
-  // 📊 CHARGEMENT DES TÂCHES
+  // 📊 CHARGEMENT DES TÂCHES - SANS ORDERBY POUR ÉVITER L'ERREUR D'INDEX
   useEffect(() => {
     if (!user?.uid) return;
 
-    console.log('🔄 [TASKS] Chargement des tâches...');
-    setLoading(true);
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const tasksRef = collection(db, 'tasks');
+      const q = query(
+        tasksRef,
+        where('userId', '==', user.uid)
+        // ❌ SUPPRESSION DU orderBy POUR ÉVITER L'ERREUR D'INDEX
+      );
 
-    // Query pour les tâches
-    const tasksQuery = query(
-      collection(db, 'tasks'),
-      orderBy(sortBy, sortOrder)
-    );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        try {
+          const tasksData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+            updatedAt: doc.data().updatedAt?.toDate?.() || new Date()
+          }));
 
-    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-        dueDate: doc.data().dueDate?.toDate()
-      }));
+          console.log('📊 [TASKS] Tâches chargées:', tasksData.length);
+          
+          // ✅ PROTECTION CONTRE .map UNDEFINED
+          setTasks(Array.isArray(tasksData) ? tasksData : []);
+          setIsLoading(false);
+          setError(null);
+        } catch (mapError) {
+          console.error('❌ [TASKS] Erreur mapping:', mapError);
+          setTasks([]);
+          setError('Erreur de formatage des données');
+          setIsLoading(false);
+        }
+      }, (firebaseError) => {
+        console.error('❌ [TASKS] Erreur Firebase:', firebaseError);
+        setError(firebaseError.message);
+        setTasks([]);
+        setIsLoading(false);
+      });
 
-      console.log('📊 [TASKS] Tâches chargées:', tasksData.length);
-      setTasks(tasksData);
-      setLoading(false);
-    });
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('❌ [TASKS] Erreur setup listener:', error);
+      setError(error.message);
+      setTasks([]);
+      setIsLoading(false);
+    }
+  }, [user?.uid]);
 
-    // Query pour les projets
-    const projectsQuery = query(
-      collection(db, 'projects'),
-      orderBy('createdAt', 'desc')
-    );
+  // 📊 TÂCHES FILTRÉES - AVEC PROTECTION
+  const filteredTasks = useMemo(() => {
+    if (!Array.isArray(tasks)) return [];
+    
+    let filtered = [...tasks];
 
-    const unsubscribeProjects = onSnapshot(projectsQuery, (snapshot) => {
-      const projectsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate()
-      }));
-
-      console.log('📁 [TASKS] Projets chargés:', projectsData.length);
-      setProjects(projectsData);
-    });
-
-    return () => {
-      unsubscribeTasks();
-      unsubscribeProjects();
-    };
-  }, [user?.uid, sortBy, sortOrder]);
-
-  // 🎯 FILTRES ET TRI
-  const filteredAndSortedTasks = useMemo(() => {
-    let filtered = tasks;
+    // Filtre par onglet
+    if (activeTab !== 'all') {
+      switch (activeTab) {
+        case 'assigned':
+          filtered = filtered.filter(task => task.assignedTo && task.assignedTo !== user?.uid);
+          break;
+        case 'personal':
+          filtered = filtered.filter(task => !task.assignedTo || task.assignedTo === user?.uid);
+          break;
+      }
+    }
 
     // Filtre par terme de recherche
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(task =>
-        task.title?.toLowerCase().includes(term) ||
-        task.description?.toLowerCase().includes(term) ||
-        task.tags?.some(tag => tag.toLowerCase().includes(term))
+        (task.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (task.description || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Filtre par statut
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(task => task.status === statusFilter);
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(task => task.status === selectedStatus);
     }
 
     // Filtre par priorité
-    if (priorityFilter !== 'all') {
-      filtered = filtered.filter(task => task.priority === priorityFilter);
+    if (selectedPriority !== 'all') {
+      filtered = filtered.filter(task => task.priority === selectedPriority);
     }
 
-    // Filtre par projet
-    if (projectFilter !== 'all') {
-      filtered = filtered.filter(task => task.projectId === projectFilter);
-    }
+    // Tri manuel par date
+    return filtered.sort((a, b) => {
+      const dateA = a.createdAt?.getTime?.() || 0;
+      const dateB = b.createdAt?.getTime?.() || 0;
+      return dateB - dateA; // Plus récent d'abord
+    });
+  }, [tasks, activeTab, searchTerm, selectedStatus, selectedPriority, user?.uid]);
 
-    // Filtre par assigné
-    if (assigneeFilter !== 'all') {
-      if (assigneeFilter === 'me') {
-        filtered = filtered.filter(task => 
-          task.assignedTo === user?.uid || 
-          task.createdBy === user?.uid
-        );
-      } else if (assigneeFilter === 'unassigned') {
-        filtered = filtered.filter(task => !task.assignedTo);
-      }
-    }
-
-    return filtered;
-  }, [tasks, searchTerm, statusFilter, priorityFilter, projectFilter, assigneeFilter, user?.uid]);
-
-  // 📊 STATS RAPIDES
+  // 📊 STATISTIQUES - AVEC PROTECTION
   const stats = useMemo(() => {
-    const total = filteredAndSortedTasks.length;
-    const completed = filteredAndSortedTasks.filter(t => t.status === 'completed').length;
-    const inProgress = filteredAndSortedTasks.filter(t => t.status === 'in_progress').length;
-    const todo = filteredAndSortedTasks.filter(t => t.status === 'todo').length;
-    const overdue = filteredAndSortedTasks.filter(t => 
-      t.dueDate && t.dueDate < new Date() && t.status !== 'completed'
-    ).length;
+    if (!Array.isArray(tasks)) return { total: 0, completed: 0, inProgress: 0, todo: 0 };
+    
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+    const todo = tasks.filter(t => t.status === 'todo').length;
 
-    return { total, completed, inProgress, todo, overdue };
-  }, [filteredAndSortedTasks]);
+    return { total, completed, inProgress, todo };
+  }, [tasks]);
 
-  // 🆕 CRÉER UNE NOUVELLE TÂCHE
-  const handleCreateTask = useCallback(async (taskData) => {
+  // ⚡ ACTIONS
+  const handleCreateTask = async (taskData) => {
     try {
+      console.log('📝 [TASKS] Création tâche:', taskData);
+      
       const newTask = {
         ...taskData,
+        userId: user.uid,
         createdBy: user.uid,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: 'todo',
-        priority: taskData.priority || 'medium'
+        updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, 'tasks'), newTask);
-      console.log('✅ [TASKS] Tâche créée:', docRef.id);
-      setShowNewTaskModal(false);
+      await addDoc(collection(db, 'tasks'), newTask);
+      console.log('✅ [TASKS] Tâche créée');
     } catch (error) {
-      console.error('❌ [TASKS] Erreur création tâche:', error);
-      setError('Impossible de créer la tâche');
+      console.error('❌ [TASKS] Erreur création:', error);
+      setError('Erreur lors de la création de la tâche');
     }
-  }, [user]);
+  };
 
-  // ✏️ METTRE À JOUR UNE TÂCHE
-  const handleUpdateTask = useCallback(async (taskId, updates) => {
+  const handleUpdateTask = async (taskId, updates) => {
     try {
-      const taskRef = doc(db, 'tasks', taskId);
-      await updateDoc(taskRef, {
+      console.log('🔄 [TASKS] Mise à jour tâche:', taskId, updates);
+      await updateDoc(doc(db, 'tasks', taskId), {
         ...updates,
         updatedAt: serverTimestamp()
       });
-      console.log('✅ [TASKS] Tâche mise à jour:', taskId);
+      console.log('✅ [TASKS] Tâche mise à jour');
     } catch (error) {
-      console.error('❌ [TASKS] Erreur mise à jour tâche:', error);
-      setError('Impossible de mettre à jour la tâche');
+      console.error('❌ [TASKS] Erreur mise à jour:', error);
+      setError('Erreur lors de la mise à jour');
     }
-  }, []);
+  };
 
-  // 🗑️ SUPPRIMER UNE TÂCHE
-  const handleDeleteTask = useCallback(async (taskId) => {
+  const handleEdit = (task) => {
+    console.log('✏️ [TASKS] Édition tâche:', task.id);
+    setEditingTask(task);
+    setShowTaskModal(true);
+  };
+
+  const handleDelete = async (taskId) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) return;
-
+    
     try {
+      console.log('🗑️ [TASKS] Suppression tâche:', taskId);
       await deleteDoc(doc(db, 'tasks', taskId));
-      console.log('✅ [TASKS] Tâche supprimée:', taskId);
+      console.log('✅ [TASKS] Tâche supprimée');
     } catch (error) {
-      console.error('❌ [TASKS] Erreur suppression tâche:', error);
-      setError('Impossible de supprimer la tâche');
+      console.error('❌ [TASKS] Erreur suppression:', error);
+      setError('Erreur lors de la suppression');
     }
-  }, []);
-
-  // 🔄 RÉINITIALISER FILTRES
-  const resetFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setPriorityFilter('all');
-    setProjectFilter('all');
-    setAssigneeFilter('all');
   };
 
-  // 🎨 RENDU VUE GRILLE
-  const renderGridView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {filteredAndSortedTasks.map(task => (
-        <motion.div
-          key={task.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          layout
-        >
-          <TaskCard
-            task={task}
-            onClick={() => setSelectedTask(task)}
-            onUpdate={handleUpdateTask}
-            onDelete={handleDeleteTask}
-            project={projects.find(p => p.id === task.projectId)}
-          />
-        </motion.div>
-      ))}
+  const handleToggleComplete = async (task) => {
+    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+    await handleUpdateTask(task.id, { status: newStatus });
+  };
+
+  // 📊 STATISTIQUES POUR LE HEADER
+  const headerStats = [
+    { title: 'Total', value: stats.total, icon: FileText, color: 'blue' },
+    { title: 'Terminées', value: stats.completed, icon: CheckSquare, color: 'green' },
+    { title: 'En cours', value: stats.inProgress, icon: Clock, color: 'yellow' },
+    { title: 'À faire', value: stats.todo, icon: Target, color: 'purple' }
+  ];
+
+  // ⚡ ACTIONS DU HEADER
+  const headerActions = (
+    <div className="flex space-x-3">      
+      <PremiumButton
+        onClick={() => {
+          setEditingTask(null);
+          setShowTaskModal(true);
+        }}
+        icon={Plus}
+        variant="primary"
+      >
+        Nouvelle tâche
+      </PremiumButton>
     </div>
   );
 
-  // 📋 RENDU VUE LISTE
-  const renderListView = () => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-600">
-          <div className="col-span-4">Tâche</div>
-          <div className="col-span-2">Statut</div>
-          <div className="col-span-2">Priorité</div>
-          <div className="col-span-2">Projet</div>
-          <div className="col-span-1">Échéance</div>
-          <div className="col-span-1">Actions</div>
-        </div>
-      </div>
-      <div className="divide-y divide-gray-200">
-        {filteredAndSortedTasks.map(task => (
-          <motion.div
-            key={task.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
-            onClick={() => setSelectedTask(task)}
-          >
-            <div className="grid grid-cols-12 gap-4 items-center">
-              {/* Titre et description */}
-              <div className="col-span-4">
-                <h4 className="font-medium text-gray-900 mb-1">{task.title}</h4>
-                {task.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-                )}
-              </div>
-
-              {/* Statut */}
-              <div className="col-span-2">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                  task.status === 'todo' ? 'bg-gray-100 text-gray-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {TASK_STATUS[task.status]?.icon} {TASK_STATUS[task.status]?.label}
-                </span>
-              </div>
-
-              {/* Priorité */}
-              <div className="col-span-2">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                  task.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-green-100 text-green-800'
-                }`}>
-                  {TASK_PRIORITY[task.priority]?.icon} {TASK_PRIORITY[task.priority]?.label}
-                </span>
-              </div>
-
-              {/* Projet */}
-              <div className="col-span-2">
-                {task.projectId ? (
-                  <span className="text-sm text-gray-600">
-                    {projects.find(p => p.id === task.projectId)?.title || 'Projet supprimé'}
-                  </span>
-                ) : (
-                  <span className="text-sm text-gray-400">Aucun projet</span>
-                )}
-              </div>
-
-              {/* Échéance */}
-              <div className="col-span-1">
-                {task.dueDate ? (
-                  <span className={`text-sm ${
-                    task.dueDate < new Date() && task.status !== 'completed'
-                      ? 'text-red-600 font-medium'
-                      : 'text-gray-600'
-                  }`}>
-                    {task.dueDate.toLocaleDateString('fr-FR', { 
-                      day: 'numeric', 
-                      month: 'short' 
-                    })}
-                  </span>
-                ) : (
-                  <span className="text-sm text-gray-400">-</span>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="col-span-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedTask(task);
-                  }}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // 📋 RENDU VUE KANBAN
-  const renderKanbanView = () => {
-    const columns = Object.keys(TASK_STATUS).map(status => ({
-      id: status,
-      title: TASK_STATUS[status].label,
-      icon: TASK_STATUS[status].icon,
-      color: TASK_STATUS[status].color,
-      tasks: filteredAndSortedTasks.filter(task => task.status === status)
-    }));
-
+  if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {columns.map(column => (
-          <div key={column.id} className="bg-gray-50 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                <span>{column.icon}</span>
-                {column.title}
-              </h3>
-              <span className="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full">
-                {column.tasks.length}
-              </span>
-            </div>
-            
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {column.tasks.map(task => (
-                <motion.div
-                  key={task.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => setSelectedTask(task)}
-                >
-                  <h4 className="font-medium text-gray-900 mb-2 line-clamp-2">{task.title}</h4>
-                  
-                  {task.description && (
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">{task.description}</p>
-                  )}
-                  
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                      task.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {TASK_PRIORITY[task.priority]?.icon}
-                    </span>
-                    
-                    {task.dueDate && (
-                      <span className={`text-xs ${
-                        task.dueDate < new Date() && task.status !== 'completed'
-                          ? 'text-red-600 font-medium'
-                          : 'text-gray-600'
-                      }`}>
-                        {task.dueDate.toLocaleDateString('fr-FR', { 
-                          day: 'numeric', 
-                          month: 'short' 
-                        })}
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="min-h-screen flex items-center justify-center">
+      <PremiumLayout
+        title="📝 Tâches"
+        subtitle="Gestion et suivi de vos tâches"
+        icon={CheckSquare}
+      >
+        <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Chargement des tâches...</p>
+            <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-400">Chargement des tâches...</p>
           </div>
         </div>
-      </Layout>
+      </PremiumLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <PremiumLayout
+        title="📝 Tâches"
+        subtitle="Gestion et suivi de vos tâches"
+        icon={CheckSquare}
+      >
+        <PremiumCard className="text-center py-12">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h3>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <div className="flex justify-center space-x-4">
+            <PremiumButton 
+              variant="primary" 
+              onClick={() => window.location.reload()}
+            >
+              Réessayer
+            </PremiumButton>
+            <PremiumButton 
+              variant="secondary" 
+              onClick={() => {
+                setError(null);
+                setTasks([]);
+              }}
+            >
+              Ignorer l'erreur
+            </PremiumButton>
+          </div>
+        </PremiumCard>
+      </PremiumLayout>
     );
   }
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-gray-50 p-6">
-        {/* HEADER DE LA PAGE */}
-        <div className="max-w-7xl mx-auto mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">📝 Gestion des Tâches</h1>
-              <p className="text-gray-600">Organisez et suivez vos tâches efficacement</p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowNewTaskModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Nouvelle tâche
-              </button>
-            </div>
-          </div>
-
-          {/* STATISTIQUES RAPIDES */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CheckSquare className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total</p>
-                  <p className="text-xl font-semibold text-gray-900">{stats.total}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckSquare className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Terminées</p>
-                  <p className="text-xl font-semibold text-gray-900">{stats.completed}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Play className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">En cours</p>
-                  <p className="text-xl font-semibold text-gray-900">{stats.inProgress}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Clock className="w-5 h-5 text-gray-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">À faire</p>
-                  <p className="text-xl font-semibold text-gray-900">{stats.todo}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">En retard</p>
-                  <p className="text-xl font-semibold text-gray-900">{stats.overdue}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* BARRE D'OUTILS */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Recherche */}
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher des tâches..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Filtres rapides */}
-              <div className="flex items-center gap-2">
-                <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">Tous les statuts</option>
-                  {Object.entries(TASK_STATUS).map(([key, status]) => (
-                    <option key={key} value={key}>
-                      {status.icon} {status.label}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                >
-                  <option value="all">Toutes priorités</option>
-                  {Object.entries(TASK_PRIORITY).map(([key, priority]) => (
-                    <option key={key} value={key}>
-                      {priority.icon} {priority.label}
-                    </option>
-                  ))}
-                </select>
-
+    <PremiumLayout
+      title="📝 Tâches"
+      subtitle="Gestion et suivi de vos tâches"
+      icon={CheckSquare}
+      headerActions={headerActions}
+      headerStats={headerStats}
+    >
+      {/* Contrôles de filtrage */}
+      <div className="mb-8">
+        <PremiumCard className="p-4">
+          {/* Onglets */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {Object.entries(TASK_TABS).map(([key, tab]) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === key;
+              
+              return (
                 <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`px-3 py-2 rounded-lg border transition-colors ${
-                    showFilters
-                      ? 'bg-blue-50 border-blue-200 text-blue-700'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white'
                   }`}
                 >
-                  <Filter className="w-5 h-5" />
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                  <span className="text-xs bg-black/20 px-2 py-0.5 rounded-full">
+                    {key === 'all' ? stats.total : filteredTasks.length}
+                  </span>
                 </button>
-
-                {/* Toggle vue */}
-                <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                  {Object.entries(VIEW_MODES).map(([mode, config]) => (
-                    <button
-                      key={mode}
-                      onClick={() => setViewMode(mode)}
-                      className={`px-3 py-2 text-sm font-medium ${
-                        viewMode === mode
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                      title={config.label}
-                    >
-                      {config.icon}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Filtres avancés */}
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="border-t border-gray-200 pt-4 mt-4"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Projet</label>
-                      <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={projectFilter}
-                        onChange={(e) => setProjectFilter(e.target.value)}
-                      >
-                        <option value="all">Tous les projets</option>
-                        <option value="none">Sans projet</option>
-                        {projects.map(project => (
-                          <option key={project.id} value={project.id}>
-                            {project.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Assignation</label>
-                      <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={assigneeFilter}
-                        onChange={(e) => setAssigneeFilter(e.target.value)}
-                      >
-                        <option value="all">Toutes les tâches</option>
-                        <option value="me">Mes tâches</option>
-                        <option value="unassigned">Non assignées</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tri</label>
-                      <div className="flex gap-2">
-                        <select
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value)}
-                        >
-                          <option value="updatedAt">Date modification</option>
-                          <option value="createdAt">Date création</option>
-                          <option value="dueDate">Échéance</option>
-                          <option value="title">Titre</option>
-                          <option value="priority">Priorité</option>
-                        </select>
-                        <button
-                          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                          {sortOrder === 'asc' ? <SortAsc className="w-5 h-5" /> : <SortDesc className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end mt-4">
-                    <button
-                      onClick={resetFilters}
-                      className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      Réinitialiser les filtres
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+              );
+            })}
           </div>
 
-          {/* MESSAGE D'ERREUR */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
-                <p className="text-red-700">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="ml-auto text-red-600 hover:text-red-800"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+          {/* Filtres et recherche */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Recherche */}
+            <div className="md:col-span-2">
+              <SearchBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+              />
             </div>
-          )}
 
-          {/* CONTENU PRINCIPAL */}
-          <AnimatePresence mode="wait">
-            {filteredAndSortedTasks.length === 0 ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center py-12"
-              >
-                <div className="max-w-md mx-auto">
-                  <CheckSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {tasks.length === 0 ? 'Aucune tâche trouvée' : 'Aucun résultat'}
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    {tasks.length === 0 
-                      ? 'Commencez par créer votre première tâche.'
-                      : 'Essayez de modifier vos filtres ou votre recherche.'
-                    }
-                  </p>
-                  {tasks.length === 0 && (
-                    <button
-                      onClick={() => setShowNewTaskModal(true)}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      <Plus className="w-5 h-5 mr-2" />
-                      Créer ma première tâche
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key={viewMode}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                {viewMode === 'grid' && renderGridView()}
-                {viewMode === 'list' && renderListView()}
-                {viewMode === 'kanban' && renderKanbanView()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            {/* Filtres */}
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              {Object.entries(TASK_STATUS).map(([key, status]) => (
+                <option key={key} value={key}>{status.label}</option>
+              ))}
+            </select>
 
-        {/* MODALES */}
-        {showNewTaskModal && (
-          <NewTaskModal
-            isOpen={showNewTaskModal}
-            onClose={() => setShowNewTaskModal(false)}
-            onSubmit={handleCreateTask}
-            projects={projects}
-          />
-        )}
-
-        {selectedTask && (
-          <TaskDetailModal
-            task={selectedTask}
-            isOpen={!!selectedTask}
-            onClose={() => setSelectedTask(null)}
-            onUpdate={handleUpdateTask}
-            onDelete={handleDeleteTask}
-            project={projects.find(p => p.id === selectedTask.projectId)}
-          />
-        )}
+            <select
+              value={selectedPriority}
+              onChange={(e) => setSelectedPriority(e.target.value)}
+              className="px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Toutes les priorités</option>
+              {Object.entries(TASK_PRIORITY).map(([key, priority]) => (
+                <option key={key} value={key}>{priority.label}</option>
+              ))}
+            </select>
+          </div>
+        </PremiumCard>
       </div>
-    </Layout>
+
+      {/* Grille des tâches */}
+      {Array.isArray(filteredTasks) && filteredTasks.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              currentUser={user}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onSubmit={handleToggleComplete}
+              onView={() => setSelectedTaskForDetails(task)}
+              onUpdate={handleUpdateTask}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Message si aucune tâche */
+        <PremiumCard className="text-center py-12">
+          <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
+          <p className="text-gray-400 mb-6">
+            {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all'
+              ? 'Aucune tâche ne correspond à vos critères de recherche.'
+              : `Aucune tâche dans la catégorie "${TASK_TABS[activeTab].label}".`}
+          </p>
+          <PremiumButton
+            onClick={() => {
+              setEditingTask(null);
+              setShowTaskModal(true);
+            }}
+            icon={Plus}
+            variant="primary"
+          >
+            Créer une tâche
+          </PremiumButton>
+        </PremiumCard>
+      )}
+
+      {/* Modal nouvelle/édition tâche */}
+      <SimpleNewTaskModal
+        isOpen={showTaskModal}
+        onClose={() => {
+          setShowTaskModal(false);
+          setEditingTask(null);
+        }}
+        onSave={editingTask ? 
+          (data) => handleUpdateTask(editingTask.id, data) : 
+          handleCreateTask
+        }
+        initialData={editingTask}
+      />
+
+      {/* Modal détails tâche */}
+      {selectedTaskForDetails && (
+        <TaskDetailModal
+          isOpen={!!selectedTaskForDetails}
+          onClose={() => setSelectedTaskForDetails(null)}
+          task={selectedTaskForDetails}
+          currentUser={user}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSubmit={handleToggleComplete}
+          onTaskUpdate={handleUpdateTask}
+        />
+      )}
+    </PremiumLayout>
   );
 };
 
