@@ -527,16 +527,98 @@ const RewardsPage = () => {
   };
 
   /**
-   * 🗑️ SUPPRIMER RÉCOMPENSE (Admin)
+   * 🗑️ SUPPRIMER RÉCOMPENSE (Admin) - TOUTES LES RÉCOMPENSES
    */
   const deleteReward = async (rewardId) => {
     try {
-      if (!window.confirm('Confirmer la suppression de cette récompense ?')) return;
+      const reward = [...Object.values(INDIVIDUAL_REWARDS_CATALOG), ...Object.values(TEAM_REWARDS_CATALOG)].find(r => r.id === rewardId);
+      const isDefaultReward = !!reward;
       
-      await deleteDoc(doc(db, 'rewards', rewardId));
-      showNotification('🗑️ Récompense supprimée', 'info');
+      if (isDefaultReward) {
+        if (!window.confirm(`⚠️ ATTENTION: Supprimer définitivement la récompense "${reward.name}" du catalogue par défaut ?\n\nCette action :\n- Supprimera cette récompense de TOUS les utilisateurs\n- Est IRRÉVERSIBLE\n- Affectera toute l'équipe\n\nConfirmer la suppression ?`)) {
+          return;
+        }
+      } else {
+        if (!window.confirm('Confirmer la suppression de cette récompense personnalisée ?')) {
+          return;
+        }
+      }
+      
+      if (isDefaultReward) {
+        // Supprimer récompense par défaut - logique complexe
+        await deleteDefaultReward(rewardId, reward);
+      } else {
+        // Supprimer récompense custom Firebase
+        await deleteDoc(doc(db, 'rewards', rewardId));
+        showNotification('🗑️ Récompense personnalisée supprimée', 'info');
+      }
     } catch (error) {
       console.error('❌ Erreur suppression:', error);
+      showNotification('❌ Erreur lors de la suppression', 'error');
+    }
+  };
+
+  /**
+   * 🗑️ SUPPRIMER RÉCOMPENSE PAR DÉFAUT (fonction complexe)
+   */
+  const deleteDefaultReward = async (rewardId, reward) => {
+    try {
+      const batch = writeBatch(db);
+      let removedFromUsers = 0;
+      
+      // 1️⃣ SUPPRIMER DE TOUS LES PROFILS UTILISATEURS
+      const usersQuery = query(collection(db, 'users'));
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const userRewards = userData.rewards || [];
+        
+        if (userRewards.some(r => r.id === rewardId || r.rewardId === rewardId)) {
+          const filteredRewards = userRewards.filter(r => r.id !== rewardId && r.rewardId !== rewardId);
+          batch.update(userDoc.ref, { rewards: filteredRewards });
+          removedFromUsers++;
+        }
+      }
+      
+      // 2️⃣ SUPPRIMER DE FIREBASE SI ELLE EXISTE
+      try {
+        const rewardRef = doc(db, 'rewards', rewardId);
+        const rewardDoc = await getDoc(rewardRef);
+        
+        if (rewardDoc.exists()) {
+          batch.delete(rewardRef);
+        }
+      } catch (error) {
+        console.warn('⚠️ Récompense non trouvée dans Firestore:', error.message);
+      }
+      
+      // 3️⃣ ENREGISTRER LA SUPPRESSION
+      const suppressionRecord = {
+        rewardId: rewardId,
+        suppressedAt: serverTimestamp(),
+        suppressedBy: user.uid,
+        reason: 'Suppression récompense par défaut depuis RewardsPage',
+        usersAffected: removedFromUsers,
+        permanent: true,
+        rewardData: reward
+      };
+      
+      batch.set(doc(db, 'reward_suppressions', rewardId), suppressionRecord);
+      
+      // 4️⃣ EXÉCUTER TOUTES LES MODIFICATIONS
+      await batch.commit();
+      
+      console.log(`✅ Récompense par défaut ${rewardId} supprimée définitivement`);
+      console.log(`👥 ${removedFromUsers} utilisateurs affectés`);
+      
+      showNotification(`Récompense "${reward.name}" supprimée définitivement de ${removedFromUsers} utilisateur(s) !`, 'success');
+      
+      // Recharger les données
+      loadUserProfile();
+      
+    } catch (error) {
+      console.error('❌ Erreur suppression récompense par défaut:', error);
       showNotification('❌ Erreur lors de la suppression', 'error');
     }
   };
@@ -865,21 +947,38 @@ const RewardsPage = () => {
                     </div>
 
                     {/* BOUTONS ADMIN */}
-                    {userIsAdmin && showAdminPanel && reward.id && !Object.values(INDIVIDUAL_REWARDS_CATALOG).find(r => r.id === reward.id) && !Object.values(TEAM_REWARDS_CATALOG).find(r => r.id === reward.id) && (
+                    {userIsAdmin && showAdminPanel && (
                       <div className="flex space-x-1">
+                        {/* Bouton Edit/Copy */}
                         <button
                           onClick={() => {
-                            setSelectedReward(reward);
-                            setRewardForm({ ...reward });
+                            if (Object.values(INDIVIDUAL_REWARDS_CATALOG).find(r => r.id === reward.id) || 
+                                Object.values(TEAM_REWARDS_CATALOG).find(r => r.id === reward.id)) {
+                              // Copier récompense par défaut
+                              setRewardForm({ 
+                                ...reward, 
+                                name: `${reward.name} (Copie)`,
+                                id: undefined 
+                              });
+                              setSelectedReward(null);
+                            } else {
+                              // Éditer récompense custom
+                              setSelectedReward(reward);
+                              setRewardForm({ ...reward });
+                            }
                             setShowEditRewardModal(true);
                           }}
                           className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                          title={Object.values(INDIVIDUAL_REWARDS_CATALOG).find(r => r.id === reward.id) || Object.values(TEAM_REWARDS_CATALOG).find(r => r.id === reward.id) ? "Copier" : "Éditer"}
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
+
+                        {/* Bouton Supprimer - TOUS les types de récompenses */}
                         <button
                           onClick={() => deleteReward(reward.id)}
                           className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                          title="Supprimer cette récompense"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
