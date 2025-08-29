@@ -35,8 +35,8 @@ import {
   MoreVertical
 } from 'lucide-react';
 
-// 🎨 IMPORT DU DESIGN SYSTEM PREMIUM
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton, PremiumSearchBar } from '../shared/layouts/PremiumLayout.jsx';
+// 🎯 IMPORT DU LAYOUT STANDARD AVEC MENU HAMBURGER
+import Layout from '../components/layout/Layout.jsx';
 
 // 🔥 IMPORT DES VRAIS COMPOSANTS QUI MARCHAIENT
 import TaskCard from '../modules/tasks/TaskCard.jsx';
@@ -139,7 +139,57 @@ const convertFirebaseTimestamp = (timestamp) => {
 };
 
 /**
- * 🏠 PAGE PRINCIPALE DES TÂCHES AVEC VRAIS COMPOSANTS
+ * 🎨 COMPOSANT CARTE PREMIUM (REMPLACE PremiumCard)
+ */
+const TaskCard_Premium = ({ children, className = "" }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className={`bg-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 ${className}`}
+  >
+    {children}
+  </motion.div>
+);
+
+/**
+ * 🎨 COMPOSANT BOUTON PREMIUM (REMPLACE PremiumButton)
+ */
+const TaskButton = ({ onClick, icon: Icon, variant = 'primary', children, className = "" }) => {
+  const variants = {
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
+    secondary: 'bg-gray-700 hover:bg-gray-600 text-white',
+    danger: 'bg-red-600 hover:bg-red-700 text-white'
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${variants[variant]} ${className}`}
+    >
+      {Icon && <Icon className="w-4 h-4" />}
+      <span>{children}</span>
+    </button>
+  );
+};
+
+/**
+ * 🎨 COMPOSANT BARRE DE RECHERCHE (REMPLACE PremiumSearchBar)
+ */
+const TaskSearchBar = ({ value, onChange, placeholder }) => (
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+    />
+  </div>
+);
+
+/**
+ * 🏠 PAGE PRINCIPALE DES TÂCHES AVEC LAYOUT STANDARD
  */
 const TasksPage = () => {
   const { user } = useAuthStore();
@@ -572,422 +622,442 @@ const TasksPage = () => {
   };
 
   return (
-    <PremiumLayout
-      title="Gestion des Tâches"
-      subtitle="Organisez et suivez vos tâches avec efficacité"
-      icon={CheckSquare}
-      showStats={false}
-      headerActions={
-        <div className="flex items-center space-x-3">
-          {/* Modes d'affichage */}
-          <div className="flex items-center space-x-1 bg-gray-800 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-              title="Vue cartes"
-            >
-              <CheckSquare className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-              title="Vue liste"
-            >
-              <FileText className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
-              }`}
-              title="Vue Kanban"
-            >
-              <Target className="w-4 h-4" />
-            </button>
-          </div>
-
-          <PremiumButton
-            onClick={() => {
-              setSelectedTaskForEdit(null);
-              setShowNewTaskModal(true);
-            }}
-            icon={Plus}
-            variant="primary"
-          >
-            Nouvelle tâche
-          </PremiumButton>
-        </div>
-      }
-    >
-      {/* Barre de recherche */}
-      <div className="mb-6">
-        <PremiumSearchBar
-          value={searchTerm}
-          onChange={setSearchTerm}
-          placeholder="Rechercher des tâches..."
-        />
-      </div>
-
-      {/* Onglets de tri */}
-      {renderTabs()}
-
-      {/* Filtres */}
-      {renderFilters()}
-
-      {/* Contenu principal */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-          <span className="ml-3 text-white">Chargement des tâches...</span>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Vue cartes */}
-          {viewMode === 'cards' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <AnimatePresence>
-                {filteredTasks.map(task => (
-                  <motion.div
-                    key={task.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                  >
-                    <TaskCard
-                      task={task}
-                      currentUser={user}
-                      onViewDetails={handleViewDetails}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onVolunteer={handleVolunteer}
-                      onUnvolunteer={handleUnvolunteer}
-                      onSubmit={handleSubmit}
-                      onTaskUpdate={handleTaskUpdate}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {/* ✅ VUE LISTE COMPLÈTE */}
-          {viewMode === 'list' && (
-            <PremiumCard className="overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-700/50">
-                    <tr className="border-b border-gray-600">
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">Titre</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">Statut</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">Priorité</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">Rôle</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">Assigné à</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">XP</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">Créée le</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-300">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-white">
-                    <AnimatePresence>
-                      {filteredTasks.map((task, index) => {
-                        const statusInfo = TASK_STATUS[task.status] || TASK_STATUS.todo;
-                        const priorityInfo = TASK_PRIORITY[task.priority] || TASK_PRIORITY.medium;
-                        const isAssignedToMe = Array.isArray(task.assignedTo) 
-                          ? task.assignedTo.includes(user?.uid)
-                          : task.assignedTo === user?.uid;
-
-                        return (
-                          <motion.tr
-                            key={task.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
-                          >
-                            {/* Titre */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0">
-                                  {task.hasImage && (
-                                    <ImageIcon className="w-4 h-4 text-blue-400" />
-                                  )}
-                                  {task.hasComment && (
-                                    <MessageCircle className="w-4 h-4 text-green-400" />
-                                  )}
-                                </div>
-                                <div>
-                                  <h3 className="font-medium text-white truncate max-w-xs" title={task.title}>
-                                    {task.title}
-                                  </h3>
-                                  {task.description && (
-                                    <p className="text-sm text-gray-400 truncate max-w-xs" title={task.description}>
-                                      {task.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Statut */}
-                            <td className="py-3 px-4">
-                              <span className={`
-                                inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                ${statusInfo.color === 'gray' ? 'bg-gray-100 text-gray-800' : ''}
-                                ${statusInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' : ''}
-                                ${statusInfo.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                ${statusInfo.color === 'green' ? 'bg-green-100 text-green-800' : ''}
-                                ${statusInfo.color === 'purple' ? 'bg-purple-100 text-purple-800' : ''}
-                                ${statusInfo.color === 'red' ? 'bg-red-100 text-red-800' : ''}
-                                ${statusInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' : ''}
-                              `}>
-                                <span className="mr-1">{statusInfo.icon}</span>
-                                {statusInfo.label}
-                              </span>
-                            </td>
-
-                            {/* Priorité */}
-                            <td className="py-3 px-4">
-                              <span className={`
-                                inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                ${priorityInfo.color === 'gray' ? 'bg-gray-100 text-gray-800' : ''}
-                                ${priorityInfo.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                ${priorityInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' : ''}
-                                ${priorityInfo.color === 'red' ? 'bg-red-100 text-red-800' : ''}
-                              `}>
-                                <span className="mr-1">{priorityInfo.icon}</span>
-                                {priorityInfo.label}
-                              </span>
-                            </td>
-
-                            {/* Rôle */}
-                            <td className="py-3 px-4">
-                              {task.role || task.roleId ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-                                  🎭 {task.role || task.roleId}
-                                </span>
-                              ) : (
-                                <span className="text-gray-500 text-sm">-</span>
-                              )}
-                            </td>
-
-                            {/* Assigné à */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center space-x-2">
-                                {isAssignedToMe ? (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                                    <User className="w-3 h-3 mr-1" />
-                                    Moi
-                                  </span>
-                                ) : task.assignedTo && task.assignedTo.length > 0 ? (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-                                    <Users className="w-3 h-3 mr-1" />
-                                    {Array.isArray(task.assignedTo) ? task.assignedTo.length : 1}
-                                  </span>
-                                ) : task.openToVolunteers ? (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
-                                    <Heart className="w-3 h-3 mr-1" />
-                                    Ouvert
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-500 text-sm">Non assignée</span>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* XP */}
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">
-                                <Star className="w-3 h-3 mr-1" />
-                                {task.xpReward || 25} XP
-                              </span>
-                            </td>
-
-                            {/* Date de création */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center text-sm text-gray-400">
-                                <Calendar className="w-4 h-4 mr-2" />
-                                {convertFirebaseTimestamp(task.createdAt).toLocaleDateString('fr-FR')}
-                              </div>
-                            </td>
-
-                            {/* Actions */}
-                            <td className="py-3 px-4">
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => handleViewDetails(task)}
-                                  className="text-blue-400 hover:text-blue-300 transition-colors"
-                                  title="Voir les détails"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                                
-                                {(isAssignedToMe || user?.isAdmin) && (
-                                  <button
-                                    onClick={() => handleEdit(task)}
-                                    className="text-green-400 hover:text-green-300 transition-colors"
-                                    title="Modifier"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                )}
-                                
-                                {user?.isAdmin && (
-                                  <button
-                                    onClick={() => handleDelete(task)}
-                                    className="text-red-400 hover:text-red-300 transition-colors"
-                                    title="Supprimer"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </motion.tr>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Footer du tableau avec résumé */}
-              <div className="px-4 py-3 bg-gray-700/30 border-t border-gray-600">
-                <div className="flex items-center justify-between text-sm text-gray-400">
-                  <span>
-                    Affichage de {filteredTasks.length} tâche{filteredTasks.length !== 1 ? 's' : ''}
-                    {filteredTasks.length !== tasks.length && ` sur ${tasks.length} au total`}
-                  </span>
-                  <div className="flex items-center space-x-4">
-                    <span>
-                      Total XP: {filteredTasks.reduce((sum, task) => sum + (task.xpReward || 25), 0)}
-                    </span>
-                    <span>
-                      Mes tâches: {filteredTasks.filter(t => {
-                        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-                        return assignedTo.includes(user?.uid);
-                      }).length}
-                    </span>
-                  </div>
+    <Layout>
+      <div className="min-h-screen bg-gray-900">
+        {/* HEADER DE LA PAGE */}
+        <div className="bg-gray-900/50 backdrop-blur-sm border-b border-gray-700/30">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            
+            {/* Titre Principal */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-600/20 rounded-xl border border-blue-500/30">
+                  <CheckSquare className="w-8 h-8 text-blue-400" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">Gestion des Tâches</h1>
+                  <p className="text-gray-400 mt-1">Organisez et suivez vos tâches avec efficacité</p>
                 </div>
               </div>
-            </PremiumCard>
-          )}
+              
+              {/* Actions du header */}
+              <div className="flex items-center space-x-3">
+                {/* Modes d'affichage */}
+                <div className="flex items-center space-x-1 bg-gray-800 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('cards')}
+                    className={`p-2 rounded transition-colors ${
+                      viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Vue cartes"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded transition-colors ${
+                      viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Vue liste"
+                  >
+                    <FileText className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('kanban')}
+                    className={`p-2 rounded transition-colors ${
+                      viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+                    }`}
+                    title="Vue Kanban"
+                  >
+                    <Target className="w-4 h-4" />
+                  </button>
+                </div>
 
-          {/* ✅ VUE KANBAN COMPLÈTE */}
-          {viewMode === 'kanban' && (
-            <div className="overflow-x-auto">
-              <div className="flex space-x-6 min-w-max">
-                {Object.entries(KANBAN_COLUMNS).map(([columnKey, column]) => {
-                  const columnTasks = filteredTasks.filter(task => 
-                    column.statuses.includes(task.status || 'todo')
-                  );
-
-                  return (
-                    <div key={columnKey} className="flex-shrink-0 w-80">
-                      <PremiumCard className="h-full">
-                        {/* Header de la colonne */}
-                        <div className={`${column.color} ${column.textColor} p-4 rounded-t-lg -m-4 mb-4`}>
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-semibold">{column.title}</h3>
-                            <span className="bg-white/20 px-2 py-1 rounded-full text-sm font-medium">
-                              {columnTasks.length}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Liste des tâches */}
-                        <div className="space-y-3 min-h-96 max-h-[600px] overflow-y-auto">
-                          <AnimatePresence>
-                            {columnTasks.map(task => renderKanbanTask(task))}
-                          </AnimatePresence>
-                          
-                          {/* Message si aucune tâche */}
-                          {columnTasks.length === 0 && (
-                            <div className="text-center py-8 text-gray-400">
-                              <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm">Aucune tâche dans cette colonne</p>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Footer avec action rapide */}
-                        <div className="mt-4 pt-4 border-t border-gray-700/50">
-                          <button
-                            onClick={() => setShowNewTaskModal(true)}
-                            className="w-full flex items-center justify-center space-x-2 py-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
-                          >
-                            <Plus className="w-4 h-4" />
-                            <span className="text-sm">Ajouter une tâche</span>
-                          </button>
-                        </div>
-                      </PremiumCard>
-                    </div>
-                  );
-                })}
+                <TaskButton
+                  onClick={() => {
+                    setSelectedTaskForEdit(null);
+                    setShowNewTaskModal(true);
+                  }}
+                  icon={Plus}
+                  variant="primary"
+                >
+                  Nouvelle tâche
+                </TaskButton>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CONTENU PRINCIPAL */}
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          
+          {/* Barre de recherche */}
+          <div className="mb-6">
+            <TaskSearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Rechercher des tâches..."
+            />
+          </div>
+
+          {/* Onglets de tri */}
+          {renderTabs()}
+
+          {/* Filtres */}
+          {renderFilters()}
+
+          {/* Contenu principal */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              <span className="ml-3 text-white">Chargement des tâches...</span>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Vue cartes */}
+              {viewMode === 'cards' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <AnimatePresence>
+                    {filteredTasks.map(task => (
+                      <motion.div
+                        key={task.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                      >
+                        <TaskCard
+                          task={task}
+                          currentUser={user}
+                          onViewDetails={handleViewDetails}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          onVolunteer={handleVolunteer}
+                          onUnvolunteer={handleUnvolunteer}
+                          onSubmit={handleSubmit}
+                          onTaskUpdate={handleTaskUpdate}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* ✅ VUE LISTE COMPLÈTE */}
+              {viewMode === 'list' && (
+                <TaskCard_Premium className="overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-700/50">
+                        <tr className="border-b border-gray-600">
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">Titre</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">Statut</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">Priorité</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">Rôle</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">Assigné à</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">XP</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">Créée le</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-300">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-white">
+                        <AnimatePresence>
+                          {filteredTasks.map((task, index) => {
+                            const statusInfo = TASK_STATUS[task.status] || TASK_STATUS.todo;
+                            const priorityInfo = TASK_PRIORITY[task.priority] || TASK_PRIORITY.medium;
+                            const isAssignedToMe = Array.isArray(task.assignedTo) 
+                              ? task.assignedTo.includes(user?.uid)
+                              : task.assignedTo === user?.uid;
+
+                            return (
+                              <motion.tr
+                                key={task.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors"
+                              >
+                                {/* Titre */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="flex-shrink-0">
+                                      {task.hasImage && (
+                                        <ImageIcon className="w-4 h-4 text-blue-400" />
+                                      )}
+                                      {task.hasComment && (
+                                        <MessageCircle className="w-4 h-4 text-green-400" />
+                                      )}
+                                    </div>
+                                    <div>
+                                      <h3 className="font-medium text-white truncate max-w-xs" title={task.title}>
+                                        {task.title}
+                                      </h3>
+                                      {task.description && (
+                                        <p className="text-sm text-gray-400 truncate max-w-xs" title={task.description}>
+                                          {task.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Statut */}
+                                <td className="py-3 px-4">
+                                  <span className={`
+                                    inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    ${statusInfo.color === 'gray' ? 'bg-gray-100 text-gray-800' : ''}
+                                    ${statusInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' : ''}
+                                    ${statusInfo.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                    ${statusInfo.color === 'green' ? 'bg-green-100 text-green-800' : ''}
+                                    ${statusInfo.color === 'purple' ? 'bg-purple-100 text-purple-800' : ''}
+                                    ${statusInfo.color === 'red' ? 'bg-red-100 text-red-800' : ''}
+                                    ${statusInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' : ''}
+                                  `}>
+                                    <span className="mr-1">{statusInfo.icon}</span>
+                                    {statusInfo.label}
+                                  </span>
+                                </td>
+
+                                {/* Priorité */}
+                                <td className="py-3 px-4">
+                                  <span className={`
+                                    inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    ${priorityInfo.color === 'gray' ? 'bg-gray-100 text-gray-800' : ''}
+                                    ${priorityInfo.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                    ${priorityInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' : ''}
+                                    ${priorityInfo.color === 'red' ? 'bg-red-100 text-red-800' : ''}
+                                  `}>
+                                    <span className="mr-1">{priorityInfo.icon}</span>
+                                    {priorityInfo.label}
+                                  </span>
+                                </td>
+
+                                {/* Rôle */}
+                                <td className="py-3 px-4">
+                                  {task.role || task.roleId ? (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                                      🎭 {task.role || task.roleId}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-500 text-sm">-</span>
+                                  )}
+                                </td>
+
+                                {/* Assigné à */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center space-x-2">
+                                    {isAssignedToMe ? (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                                        <User className="w-3 h-3 mr-1" />
+                                        Moi
+                                      </span>
+                                    ) : task.assignedTo && task.assignedTo.length > 0 ? (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        {Array.isArray(task.assignedTo) ? task.assignedTo.length : 1}
+                                      </span>
+                                    ) : task.openToVolunteers ? (
+                                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
+                                        <Heart className="w-3 h-3 mr-1" />
+                                        Ouvert
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-500 text-sm">Non assignée</span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* XP */}
+                                <td className="py-3 px-4">
+                                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <Star className="w-3 h-3 mr-1" />
+                                    {task.xpReward || 25} XP
+                                  </span>
+                                </td>
+
+                                {/* Date de création */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center text-sm text-gray-400">
+                                    <Calendar className="w-4 h-4 mr-2" />
+                                    {convertFirebaseTimestamp(task.createdAt).toLocaleDateString('fr-FR')}
+                                  </div>
+                                </td>
+
+                                {/* Actions */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => handleViewDetails(task)}
+                                      className="text-blue-400 hover:text-blue-300 transition-colors"
+                                      title="Voir les détails"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                    
+                                    {(isAssignedToMe || user?.isAdmin) && (
+                                      <button
+                                        onClick={() => handleEdit(task)}
+                                        className="text-green-400 hover:text-green-300 transition-colors"
+                                        title="Modifier"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                    
+                                    {user?.isAdmin && (
+                                      <button
+                                        onClick={() => handleDelete(task)}
+                                        className="text-red-400 hover:text-red-300 transition-colors"
+                                        title="Supprimer"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </motion.tr>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Footer du tableau avec résumé */}
+                  <div className="px-4 py-3 bg-gray-700/30 border-t border-gray-600">
+                    <div className="flex items-center justify-between text-sm text-gray-400">
+                      <span>
+                        Affichage de {filteredTasks.length} tâche{filteredTasks.length !== 1 ? 's' : ''}
+                        {filteredTasks.length !== tasks.length && ` sur ${tasks.length} au total`}
+                      </span>
+                      <div className="flex items-center space-x-4">
+                        <span>
+                          Total XP: {filteredTasks.reduce((sum, task) => sum + (task.xpReward || 25), 0)}
+                        </span>
+                        <span>
+                          Mes tâches: {filteredTasks.filter(t => {
+                            const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+                            return assignedTo.includes(user?.uid);
+                          }).length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </TaskCard_Premium>
+              )}
+
+              {/* ✅ VUE KANBAN COMPLÈTE */}
+              {viewMode === 'kanban' && (
+                <div className="overflow-x-auto">
+                  <div className="flex space-x-6 min-w-max">
+                    {Object.entries(KANBAN_COLUMNS).map(([columnKey, column]) => {
+                      const columnTasks = filteredTasks.filter(task => 
+                        column.statuses.includes(task.status || 'todo')
+                      );
+
+                      return (
+                        <div key={columnKey} className="flex-shrink-0 w-80">
+                          <TaskCard_Premium className="h-full">
+                            {/* Header de la colonne */}
+                            <div className={`${column.color} ${column.textColor} p-4 rounded-t-lg -m-4 mb-4`}>
+                              <div className="flex items-center justify-between">
+                                <h3 className="font-semibold">{column.title}</h3>
+                                <span className="bg-white/20 px-2 py-1 rounded-full text-sm font-medium">
+                                  {columnTasks.length}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Liste des tâches */}
+                            <div className="space-y-3 min-h-96 max-h-[600px] overflow-y-auto">
+                              <AnimatePresence>
+                                {columnTasks.map(task => renderKanbanTask(task))}
+                              </AnimatePresence>
+                              
+                              {/* Message si aucune tâche */}
+                              {columnTasks.length === 0 && (
+                                <div className="text-center py-8 text-gray-400">
+                                  <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                  <p className="text-sm">Aucune tâche dans cette colonne</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Footer avec action rapide */}
+                            <div className="mt-4 pt-4 border-t border-gray-700/50">
+                              <button
+                                onClick={() => setShowNewTaskModal(true)}
+                                className="w-full flex items-center justify-center space-x-2 py-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span className="text-sm">Ajouter une tâche</span>
+                              </button>
+                            </div>
+                          </TaskCard_Premium>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Message si aucune tâche */}
+              {filteredTasks.length === 0 && !isLoading && (
+                <TaskCard_Premium className="text-center py-12">
+                  <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
+                  <p className="text-gray-400 mb-6">
+                    {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedRole !== 'all'
+                      ? 'Aucune tâche ne correspond à vos critères de recherche.'
+                      : `Aucune tâche dans la catégorie "${TASK_TABS[activeTab].label}".`}
+                  </p>
+                  <TaskButton
+                    onClick={() => {
+                      setSelectedTaskForEdit(null);
+                      setShowNewTaskModal(true);
+                    }}
+                    icon={Plus}
+                    variant="primary"
+                  >
+                    Créer une tâche
+                  </TaskButton>
+                </TaskCard_Premium>
+              )}
             </div>
           )}
 
-          {/* Message si aucune tâche */}
-          {filteredTasks.length === 0 && !isLoading && (
-            <PremiumCard className="text-center py-12">
-              <CheckSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Aucune tâche trouvée</h3>
-              <p className="text-gray-400 mb-6">
-                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all' || selectedRole !== 'all'
-                  ? 'Aucune tâche ne correspond à vos critères de recherche.'
-                  : `Aucune tâche dans la catégorie "${TASK_TABS[activeTab].label}".`}
-              </p>
-              <PremiumButton
-                onClick={() => {
-                  setSelectedTaskForEdit(null);
-                  setShowNewTaskModal(true);
-                }}
-                icon={Plus}
-                variant="primary"
-              >
-                Créer une tâche
-              </PremiumButton>
-            </PremiumCard>
+          {/* Modal nouvelle tâche */}
+          {showNewTaskModal && (
+            <NewTaskModal
+              isOpen={showNewTaskModal}
+              onClose={() => {
+                setShowNewTaskModal(false);
+                setSelectedTaskForEdit(null);
+              }}
+              onSuccess={handleCreateTask}
+              currentUser={user}
+              initialData={selectedTaskForEdit}
+              mode={selectedTaskForEdit ? 'edit' : 'create'}
+            />
+          )}
+
+          {/* Modal détails tâche */}
+          {selectedTaskForDetails && (
+            <TaskDetailModal
+              isOpen={!!selectedTaskForDetails}
+              onClose={() => setSelectedTaskForDetails(null)}
+              task={selectedTaskForDetails}
+              currentUser={user}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onSubmit={handleSubmit}
+              onTaskUpdate={handleTaskUpdate}
+            />
           )}
         </div>
-      )}
-
-      {/* Modal nouvelle tâche */}
-      {showNewTaskModal && (
-        <NewTaskModal
-          isOpen={showNewTaskModal}
-          onClose={() => {
-            setShowNewTaskModal(false);
-            setSelectedTaskForEdit(null);
-          }}
-          onSuccess={handleCreateTask}
-          currentUser={user}
-          initialData={selectedTaskForEdit}
-          mode={selectedTaskForEdit ? 'edit' : 'create'}
-        />
-      )}
-
-      {/* Modal détails tâche */}
-      {selectedTaskForDetails && (
-        <TaskDetailModal
-          isOpen={!!selectedTaskForDetails}
-          onClose={() => setSelectedTaskForDetails(null)}
-          task={selectedTaskForDetails}
-          currentUser={user}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onSubmit={handleSubmit}
-          onTaskUpdate={handleTaskUpdate}
-        />
-      )}
-    </PremiumLayout>
+      </div>
+    </Layout>
   );
 };
 
