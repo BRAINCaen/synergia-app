@@ -6,12 +6,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Gift, Award, Star, Crown, Zap, Package, Eye, EyeOff, Check, X, Clock, 
-  AlertCircle, Filter, Search, Plus, Edit, Trash2, Settings, RefreshCw,
-  Users, TrendingUp, ShoppingCart, DollarSign, Calendar, Target, Send,
-  Save, Upload, Download, MoreVertical, UserPlus, CheckCircle, XCircle, XOctagon
-} from 'lucide-react';
+// 🔄 IMPORTS AJOUTÉS POUR LA CONVERSION RÉCOMPENSE→BADGE
+import { Trophy } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
 import Layout from '../components/layout/Layout.jsx';
@@ -456,8 +452,109 @@ const RewardsPage = () => {
   };
 
   /**
-   * 🎁 DEMANDER UNE RÉCOMPENSE
+   * 🔄 CONVERTIR UNE RÉCOMPENSE EN BADGE
    */
+  const convertRewardToBadge = async (reward) => {
+    if (!confirm(`Voulez-vous créer un badge basé sur la récompense "${reward.name}" ?`)) {
+      return;
+    }
+    
+    try {
+      console.log('🔄 Conversion récompense → badge:', reward);
+      
+      // Déterminer la rareté selon le coût XP
+      const determineRarityFromCost = (xpCost) => {
+        if (xpCost >= 5000) return 'Légendaire';
+        if (xpCost >= 1000) return 'Épique';
+        if (xpCost >= 500) return 'Rare';
+        if (xpCost >= 100) return 'Peu Commun';
+        return 'Commun';
+      };
+      
+      const badge = {
+        name: `Badge ${reward.name}`,
+        description: `Obtenu en réclamant la récompense "${reward.name}"`,
+        icon: reward.icon || '🏆',
+        category: 'Récompenses',
+        rarity: determineRarityFromCost(reward.xpCost || 0),
+        xpReward: Math.floor((reward.xpCost || 0) * 0.1), // 10% du coût en XP de récompense
+        requirements: {
+          type: 'reward_claim',
+          rewardId: reward.id
+        },
+        isActive: true,
+        createdAt: serverTimestamp(),
+        createdBy: user.uid,
+        isCustom: true,
+        sourceType: 'reward_conversion',
+        sourceRewardId: reward.id
+      };
+      
+      // Créer le badge dans Firebase
+      const docRef = await addDoc(collection(db, 'badges'), badge);
+      console.log('✅ Badge créé avec ID:', docRef.id);
+      
+      showNotification(`Badge "${badge.name}" créé avec succès ! Vous pouvez le voir dans la page Badges.`, 'success');
+      
+    } catch (error) {
+      console.error('❌ Erreur conversion récompense → badge:', error);
+      showNotification(`Erreur lors de la conversion: ${error.message}`, 'error');
+    }
+  };
+
+  /**
+   * 🎁 ATTRIBUER AUTOMATIQUEMENT UN BADGE QUAND UNE RÉCOMPENSE EST RÉCLAMÉE
+   */
+  const awardBadgeOnRewardClaim = async (userId, rewardId, rewardName) => {
+    try {
+      console.log('🎁→🏆 Attribution badge automatique pour récompense réclamée');
+      
+      // Créer un badge spécial pour cette récompense
+      const collectorBadge = {
+        id: `reward_${rewardId}_${Date.now()}`,
+        name: `Collectionneur: ${rewardName}`,
+        description: `Badge obtenu en réclamant la récompense "${rewardName}"`,
+        icon: '🎁',
+        category: 'Collection',
+        rarity: 'Commun',
+        xpReward: 25,
+        earnedAt: new Date(),
+        sourceType: 'reward_claim',
+        sourceRewardId: rewardId,
+        automaticallyAwarded: true
+      };
+      
+      // Ajouter le badge à l'utilisateur
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const currentBadges = userData.badges || [];
+        
+        // Éviter les doublons
+        const hasSameBadge = currentBadges.some(b => 
+          b.sourceRewardId === rewardId && b.sourceType === 'reward_claim'
+        );
+        
+        if (!hasSameBadge) {
+          await updateDoc(userRef, {
+            badges: [...currentBadges, collectorBadge],
+            totalXp: (userData.totalXp || 0) + collectorBadge.xpReward,
+            updatedAt: new Date()
+          });
+          
+          console.log(`✅ Badge "${collectorBadge.name}" attribué automatiquement`);
+          return collectorBadge;
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur attribution badge automatique:', error);
+    }
+    
+    return null;
+  };
   const handleRequestReward = async (reward) => {
     if (!userProfile) return;
 
@@ -687,6 +784,18 @@ const RewardsPage = () => {
               </button>
             </div>
 
+            <div className="bg-green-100 border-l-4 border-green-500 p-4 rounded mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Trophy className="w-5 h-5 text-green-600" />
+                <h3 className="font-semibold text-green-800">Système Récompenses ↔ Badges</h3>
+              </div>
+              <div className="text-green-700 text-sm space-y-2">
+                <p>🎁 <strong>Récompenses</strong> = Objets à acheter avec XP • 🏆 <strong>Badges</strong> = Accomplissements automatiques</p>
+                <p>• <strong>Bouton Trophée</strong> = Convertir récompense en badge permanent</p>
+                <p>• <strong>Réclamer récompense</strong> = Obtient automatiquement un badge "Collectionneur"</p>
+              </div>
+            </div>
+
             <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-5 h-5 text-yellow-600" />
@@ -844,6 +953,15 @@ const RewardsPage = () => {
                     >
                       <Edit className="w-4 h-4" />
                       {reward.isDefault ? 'Copier' : 'Éditer'}
+                    </button>
+                    
+                    {/* 🔄 NOUVEAU : Bouton de conversion vers badge */}
+                    <button
+                      onClick={() => convertRewardToBadge(reward)}
+                      className="bg-purple-600 text-white py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center"
+                      title="Convertir cette récompense en badge"
+                    >
+                      <Trophy className="w-4 h-4" />
                     </button>
                     
                     {/* Bouton de suppression - différent pour récompenses par défaut */}
