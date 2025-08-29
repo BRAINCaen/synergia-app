@@ -1,22 +1,58 @@
 // ==========================================
 // 📁 react-app/src/pages/LeaderboardPage.jsx
-// PAGE CLASSEMENT AVEC VRAIES DONNÉES FIREBASE
+// PAGE CLASSEMENT AVEC MENU HAMBURGER IDENTIQUE AU DASHBOARD
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Crown, Trophy, Medal, TrendingUp, Star, Zap, Award, RefreshCw } from 'lucide-react';
-import PremiumLayout, { PremiumCard, StatCard, PremiumButton } from '../shared/layouts/PremiumLayout.jsx';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Users, 
+  Crown, 
+  Trophy, 
+  Medal, 
+  TrendingUp, 
+  Star, 
+  Zap, 
+  Award, 
+  RefreshCw,
+  Eye,
+  ArrowUp,
+  ArrowDown,
+  Calendar,
+  Target,
+  Flame,
+  BarChart3,
+  Filter
+} from 'lucide-react';
+
+// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
+import Layout from '../components/layout/Layout.jsx';
+
+// 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+
+// 📊 FIREBASE IMPORTS
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  getDocs, 
+  where,
+  onSnapshot
+} from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 const LeaderboardPage = () => {
+  // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
+  
+  // 📊 ÉTATS LEADERBOARD
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('all'); // all, week, month
-  const [category, setCategory] = useState('xp'); // xp, tasks, badges
+  const [timeRange, setTimeRange] = useState('Tout temps');
+  const [category, setCategory] = useState('XP Total');
+  const [userStats, setUserStats] = useState(null);
 
   // Fonction pour nettoyer les noms d'affichage
   const cleanDisplayName = (userData) => {
@@ -40,10 +76,12 @@ const LeaderboardPage = () => {
     return cleanName;
   };
 
-  // Charger les données du classement avec VRAIES données Firebase
+  // 📊 CHARGEMENT DES DONNÉES FIREBASE
   useEffect(() => {
+    if (!user?.uid) return;
+    
     loadLeaderboard();
-  }, [timeRange, category]);
+  }, [user?.uid, timeRange, category]);
 
   const loadLeaderboard = async () => {
     setLoading(true);
@@ -53,13 +91,13 @@ const LeaderboardPage = () => {
       // Construire la requête selon la catégorie
       let orderField;
       switch (category) {
-        case 'xp':
+        case 'XP Total':
           orderField = 'gamification.totalXp';
           break;
-        case 'tasks':
+        case 'Tâches':
           orderField = 'gamification.tasksCompleted';
           break;
-        case 'badges':
+        case 'Badges':
           orderField = 'gamification.badges';
           break;
         default:
@@ -79,7 +117,7 @@ const LeaderboardPage = () => {
       snapshot.forEach((doc, index) => {
         const userData = doc.data();
         
-        // S'assurer que l'utilisateur a des données de gamification
+        // S'assurer que l'utilisateur a des données de gamification ou XP
         if (userData.gamification || userData.totalXp || userData.email) {
           const cleanedName = cleanDisplayName(userData);
           
@@ -93,7 +131,7 @@ const LeaderboardPage = () => {
             totalXp: userData.gamification?.totalXp || userData.totalXp || 0,
             
             // Données niveau (essayer plusieurs sources)
-            level: userData.gamification?.level || userData.level || 1,
+            level: userData.gamification?.level || userData.level || Math.floor((userData.gamification?.totalXp || userData.totalXp || 0) / 100) + 1,
             
             // Données tâches (essayer plusieurs sources)
             tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
@@ -101,335 +139,311 @@ const LeaderboardPage = () => {
             // Données badges (essayer plusieurs sources)
             badgesCount: Array.isArray(userData.gamification?.badges) 
               ? userData.gamification.badges.length 
-              : userData.badgesCount || 0,
+              : (userData.badges?.length || 0),
             
-            // Données additionnelles
-            photoURL: userData.photoURL,
-            department: userData.profile?.department || 'Général',
-            status: userData.status || 'active',
-            lastActivity: userData.gamification?.lastActivityDate || userData.lastActivity,
+            // Données streak
+            loginStreak: userData.gamification?.loginStreak || 0,
             
-            // Marquer l'utilisateur actuel
-            isCurrentUser: doc.id === user?.uid
+            // Avatar par défaut basé sur l'initiale du nom
+            avatar: cleanedName.charAt(0).toUpperCase(),
+            
+            // Métadonnées
+            lastActive: userData.lastLoginAt || userData.updatedAt,
+            department: userData.profile?.department || 'Gestion'
           });
         }
       });
-      
-      console.log(`✅ Leaderboard chargé avec ${users.length} utilisateurs réels`);
-      console.log('📊 Premier utilisateur:', users[0]);
-      
+
+      console.log('✅ [LEADERBOARD] Chargé', users.length, 'utilisateurs depuis Firebase');
       setLeaderboard(users);
       
-    } catch (error) {
-      console.error('❌ Erreur chargement leaderboard:', error);
+      // Trouver les stats de l'utilisateur actuel
+      const currentUserStats = users.find(u => u.email === user.email || u.id === user.uid);
+      setUserStats(currentUserStats);
       
-      // En cas d'erreur, essayer une requête plus simple
-      try {
-        console.log('🔄 Tentative de requête de fallback...');
-        
-        const fallbackQuery = query(
-          collection(db, 'users'),
-          limit(10)
-        );
-        
-        const fallbackSnapshot = await getDocs(fallbackQuery);
-        const fallbackUsers = [];
-        
-        fallbackSnapshot.forEach((doc, index) => {
-          const userData = doc.data();
-          if (userData.email) {
-            fallbackUsers.push({
-              id: doc.id,
-              rank: index + 1,
-              displayName: cleanDisplayName(userData),
-              email: userData.email,
-              totalXp: userData.gamification?.totalXp || userData.totalXp || 0,
-              level: userData.gamification?.level || userData.level || 1,
-              tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
-              badgesCount: 0,
-              isCurrentUser: doc.id === user?.uid
-            });
-          }
-        });
-        
-        setLeaderboard(fallbackUsers);
-        console.log('✅ Fallback réussi avec', fallbackUsers.length, 'utilisateurs');
-        
-      } catch (fallbackError) {
-        console.error('❌ Fallback échoué:', fallbackError);
-        setLeaderboard([]);
-      }
+    } catch (error) {
+      console.error('❌ [LEADERBOARD] Erreur chargement:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Trouver la position de l'utilisateur actuel
-  const userPosition = leaderboard.findIndex(u => u.id === user?.uid) + 1;
-  const userStats = leaderboard.find(u => u.id === user?.uid);
+  // 🔄 ACTUALISER LES DONNÉES
+  const refreshData = () => {
+    loadLeaderboard();
+  };
 
-  // Statistiques pour le header
-  const headerStats = [
-    { 
-      label: "Participants", 
-      value: leaderboard.length, 
-      icon: Users, 
-      color: "text-blue-400" 
-    },
-    { 
-      label: "Ma position", 
-      value: userPosition > 0 ? `${userPosition}${userPosition === 1 ? 'er' : 'e'}` : 'Non classé', 
-      icon: TrendingUp, 
-      color: userPosition <= 3 ? "text-green-400" : "text-yellow-400" 
-    },
-    { 
-      label: "Leader XP", 
-      value: leaderboard[0]?.totalXp?.toLocaleString() || '0', 
-      icon: Crown, 
-      color: "text-yellow-400" 
-    },
-    { 
-      label: "Mon XP", 
-      value: userStats?.totalXp?.toLocaleString() || '0', 
-      icon: Zap, 
-      color: "text-purple-400" 
-    }
-  ];
-
-  // Actions du header
-  const headerActions = (
-    <div className="flex gap-2">
-      <PremiumButton 
-        variant="secondary" 
-        icon={RefreshCw}
-        onClick={loadLeaderboard}
-        disabled={loading}
-      >
-        {loading ? 'Actualisation...' : 'Actualiser'}
-      </PremiumButton>
-      <PremiumButton variant="primary" icon={Trophy}>
-        Voir historique
-      </PremiumButton>
-    </div>
-  );
-
-  // Fonction pour obtenir l'icône selon le rang
+  // 🎨 FONCTION POUR OBTENIR L'ICÔNE DE RANG
   const getRankIcon = (rank) => {
     switch (rank) {
-      case 1: return <Crown className="w-6 h-6 text-yellow-500" />;
-      case 2: return <Medal className="w-6 h-6 text-gray-400" />;
-      case 3: return <Award className="w-6 h-6 text-orange-500" />;
-      default: return <span className="w-6 h-6 flex items-center justify-center text-gray-400 font-bold">#{rank}</span>;
+      case 1: return <Crown className="w-6 h-6 text-yellow-400" />;
+      case 2: return <Medal className="w-6 h-6 text-gray-300" />;
+      case 3: return <Award className="w-6 h-6 text-orange-400" />;
+      default: return (
+        <div className="w-6 h-6 flex items-center justify-center bg-gray-600 text-white text-sm font-bold rounded">
+          {rank}
+        </div>
+      );
     }
   };
 
-  // Fonction pour obtenir la couleur de fond selon le rang
-  const getRankBgColor = (rank) => {
+  // 🎨 FONCTION POUR OBTENIR LA COULEUR DE FOND DU RANG
+  const getRankBgColor = (rank, isCurrentUser = false) => {
+    if (isCurrentUser) {
+      return 'bg-blue-900/30 border border-blue-500/50';
+    }
+    
     switch (rank) {
-      case 1: return 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/50';
-      case 2: return 'bg-gradient-to-r from-gray-400/20 to-gray-500/20 border-gray-400/50';
-      case 3: return 'bg-gradient-to-r from-orange-500/20 to-red-500/20 border-orange-500/50';
-      default: return 'bg-gray-800/50 border-gray-700/50';
+      case 1: return 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30';
+      case 2: return 'bg-gradient-to-r from-gray-400/20 to-gray-500/20 border border-gray-400/30';
+      case 3: return 'bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30';
+      default: return 'bg-gray-800/50 border border-gray-700/50';
     }
   };
 
   if (loading) {
     return (
-      <PremiumLayout
-        title="Classement"
-        subtitle="Chargement du classement..."
-        icon={Trophy}
-      >
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
-          <span className="ml-3 text-gray-400">Récupération des vraies données...</span>
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <RefreshCw className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-400 text-lg">Chargement du classement...</p>
+          </div>
         </div>
-      </PremiumLayout>
+      </Layout>
     );
   }
 
   return (
-    <PremiumLayout
-      title="Classement"
-      subtitle="Tableau de classement de l'équipe par performance (Données réelles Firebase)"
-      icon={Trophy}
-      headerActions={headerActions}
-      showStats={true}
-      stats={headerStats}
-    >
-      {/* Filtres */}
-      <div className="mb-8 flex flex-wrap gap-4">
-        {/* Filtre période */}
-        <div className="flex gap-2">
-          <span className="text-gray-400 text-sm font-medium self-center">Période:</span>
-          {['all', 'month', 'week'].map((period) => (
-            <button
-              key={period}
-              onClick={() => setTimeRange(period)}
-              className={`px-3 py-1 rounded-lg text-sm transition-all duration-300 ${
-                timeRange === period
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {period === 'all' ? 'Tout temps' : period === 'month' ? 'Ce mois' : 'Cette semaine'}
-            </button>
-          ))}
-        </div>
-
-        {/* Filtre catégorie */}
-        <div className="flex gap-2">
-          <span className="text-gray-400 text-sm font-medium self-center">Catégorie:</span>
-          {['xp', 'tasks', 'badges'].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-3 py-1 rounded-lg text-sm transition-all duration-300 ${
-                category === cat
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {cat === 'xp' ? 'XP Total' : cat === 'tasks' ? 'Tâches' : 'Badges'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <PremiumCard>
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-white mb-6">Classement complet</h2>
-
-          {leaderboard.map((player, index) => (
-            <motion.div
-              key={player.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={`
-                p-4 rounded-xl border-2 transition-all duration-300 hover:scale-[1.01]
-                ${getRankBgColor(player.rank)}
-                ${player.isCurrentUser ? 'ring-2 ring-blue-500 bg-blue-900/30' : ''}
-              `}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  {getRankIcon(player.rank)}
-                  
-                  <div className="flex items-center space-x-3">
-                    {player.photoURL ? (
-                      <img 
-                        src={player.photoURL} 
-                        alt={player.displayName}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">
-                          {player.displayName.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                    
-                    <div>
-                      <h3 className={`font-bold ${
-                        player.rank <= 3 ? 'text-white' : 'text-gray-200'
-                      }`}>
-                        {player.displayName}
-                        {player.isCurrentUser && (
-                          <span className="ml-2 text-xs bg-blue-500 px-2 py-1 rounded-full">Vous</span>
-                        )}
-                      </h3>
-                      <p className={`text-sm ${
-                        player.rank <= 3 ? 'text-gray-300' : 'text-gray-400'
-                      }`}>
-                        Niveau {player.level} • {player.department}
-                      </p>
-                    </div>
-                  </div>
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        
+        {/* 🏆 HEADER CLASSEMENT */}
+        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            
+            {/* Titre et actions */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center">
+                  <Trophy className="h-6 w-6 text-white" />
                 </div>
-
-                <div className="text-right">
-                  <p className={`text-lg font-bold ${
-                    player.rank <= 3 ? 'text-white' : 'text-gray-200'
-                  }`}>
-                    {category === 'xp' && `${player.totalXp?.toLocaleString() || 0} XP`}
-                    {category === 'tasks' && `${player.tasksCompleted || 0} tâches`}
-                    {category === 'badges' && `${player.badgesCount || 0} badges`}
+                <div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                    Classement
+                  </h1>
+                  <p className="text-gray-400 text-lg mt-1">
+                    Tableau de classement de l'équipe par performance (Données réelles Firebase)
                   </p>
-                  <div className="flex items-center space-x-3 text-sm text-gray-400">
-                    <span className="flex items-center space-x-1">
-                      <Zap className="w-3 h-3" />
-                      <span>{player.totalXp || 0}</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <Trophy className="w-3 h-3" />
-                      <span>{player.badgesCount || 0}</span>
-                    </span>
-                  </div>
                 </div>
               </div>
-            </motion.div>
-          ))}
+
+              {/* Actions du header */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={refreshData}
+                  className="px-4 py-2 bg-gray-700/50 text-gray-300 hover:text-white hover:bg-gray-600 rounded-lg transition-all duration-200 flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Actualiser
+                </button>
+                <button
+                  onClick={() => window.location.href = '/analytics'}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  Voir historique
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Message si aucun participant */}
-        {leaderboard.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <h3 className="text-white text-xl font-semibold mb-2">Aucun participant trouvé</h3>
-            <p className="text-gray-400">Vérifiez votre connexion Firebase ou actualisez la page.</p>
-            <button 
-              onClick={loadLeaderboard}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
-            >
-              Réessayer
-            </button>
-          </div>
-        )}
-      </PremiumCard>
-
-      {/* Ma position (si pas dans le top visible) */}
-      {userPosition > 10 && userStats && (
-        <div className="mt-6">
-          <PremiumCard>
-            <h3 className="text-white text-lg font-semibold mb-4">Ma position</h3>
-            <div className="p-4 bg-blue-600/20 border border-blue-500/50 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="w-8 h-8 flex items-center justify-center bg-blue-600 text-white font-bold rounded-full">
-                    #{userPosition}
-                  </span>
-                  <div>
-                    <h4 className="text-white font-semibold">{userStats.displayName}</h4>
-                    <p className="text-gray-300 text-sm">Niveau {userStats.level}</p>
+        {/* 📊 CONTENU PRINCIPAL */}
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          
+          {/* 🔍 FILTRES */}
+          <div className="mb-8">
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                
+                {/* Filtre période */}
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-400 text-sm font-medium">Période:</span>
+                  <div className="flex gap-2">
+                    {['Tout temps', 'Ce mois', 'Cette semaine'].map((period) => (
+                      <button
+                        key={period}
+                        onClick={() => setTimeRange(period)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                          timeRange === period
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-600'
+                        }`}
+                      >
+                        {period}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-white font-bold text-lg">{userStats.totalXp} XP</p>
-                  <p className="text-gray-300 text-sm">{userStats.tasksCompleted} tâches</p>
+
+                {/* Filtre catégorie */}
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-400 text-sm font-medium">Catégorie:</span>
+                  <div className="flex gap-2">
+                    {['XP Total', 'Tâches', 'Badges'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setCategory(cat)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                          category === cat
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'bg-gray-700/50 text-gray-400 hover:text-white hover:bg-gray-600'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </PremiumCard>
-        </div>
-      )}
+          </div>
 
-      {/* Debug info en développement */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-6 p-4 bg-gray-900 rounded-lg border border-gray-700">
-          <h4 className="text-gray-400 font-mono text-sm mb-2">Debug Info:</h4>
-          <pre className="text-xs text-gray-500">
-            {JSON.stringify({ 
-              totalUsers: leaderboard.length, 
-              currentUserId: user?.uid,
-              userInLeaderboard: !!userStats,
-              firstUser: leaderboard[0] 
-            }, null, 2)}
-          </pre>
+          {/* 📈 CLASSEMENT COMPLET */}
+          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <BarChart3 className="h-6 w-6 text-purple-400" />
+              <h2 className="text-2xl font-bold text-white">Classement complet</h2>
+            </div>
+
+            {leaderboard.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="text-6xl mb-4">🏆</div>
+                <h3 className="text-xl font-bold text-white mb-2">Aucun classement disponible</h3>
+                <p className="text-gray-400">Les données de classement apparaîtront ici une fois que les utilisateurs auront de l'activité.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {leaderboard.map((member, index) => {
+                  const isCurrentUser = member.email === user?.email || member.id === user?.uid;
+                  
+                  return (
+                    <motion.div
+                      key={member.id || index}
+                      className={`
+                        flex items-center gap-6 p-6 rounded-xl transition-all duration-300
+                        ${getRankBgColor(member.rank, isCurrentUser)}
+                        hover:scale-[1.01] hover:shadow-xl
+                      `}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      whileHover={{ scale: 1.01 }}
+                    >
+                      {/* Rang et avatar */}
+                      <div className="flex items-center gap-4">
+                        {getRankIcon(member.rank)}
+                        
+                        <div className={`
+                          w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg
+                          ${member.rank === 1 ? 'bg-yellow-500' : 
+                            member.rank === 2 ? 'bg-gray-400' :
+                            member.rank === 3 ? 'bg-orange-500' :
+                            'bg-blue-600'
+                          }
+                        `}>
+                          {member.avatar}
+                        </div>
+                      </div>
+
+                      {/* Informations utilisateur */}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold text-white">
+                            {member.displayName}
+                            {isCurrentUser && (
+                              <span className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                                Vous
+                              </span>
+                            )}
+                          </h3>
+                          {member.rank <= 3 && (
+                            <div className="flex items-center gap-1 text-xs">
+                              <span className={`
+                                px-2 py-1 rounded-full font-medium
+                                ${member.rank === 1 ? 'bg-yellow-500/20 text-yellow-300' :
+                                  member.rank === 2 ? 'bg-gray-400/20 text-gray-300' :
+                                  'bg-orange-500/20 text-orange-300'
+                                }
+                              `}>
+                                {member.rank === 1 ? '👑 Première place' :
+                                 member.rank === 2 ? '🥈 Deuxième place' :
+                                 '🥉 Troisième place'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                          <span>Niveau {member.level} • {member.department}</span>
+                          {member.loginStreak > 0 && (
+                            <div className="flex items-center gap-1">
+                              <Flame className="h-4 w-4 text-orange-400" />
+                              <span>{member.loginStreak} jours</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Statistiques */}
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white mb-1">
+                          {category === 'XP Total' ? `${member.totalXp} XP` :
+                           category === 'Tâches' ? `${member.tasksCompleted}` :
+                           `${member.badgesCount}`}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-400 justify-end">
+                          {category === 'XP Total' && (
+                            <>
+                              <Star className="h-4 w-4 text-yellow-400" />
+                              <span>{member.totalXp} XP</span>
+                            </>
+                          )}
+                          {category === 'Tâches' && (
+                            <>
+                              <Target className="h-4 w-4 text-green-400" />
+                              <span>{member.tasksCompleted} tâches</span>
+                            </>
+                          )}
+                          {category === 'Badges' && (
+                            <>
+                              <Award className="h-4 w-4 text-purple-400" />
+                              <span>{member.badgesCount} badges</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Footer avec info utilisateur actuel */}
+            {userStats && (
+              <div className="mt-8 pt-6 border-t border-gray-700">
+                <div className="text-center text-sm text-gray-400">
+                  <span>Votre position actuelle : </span>
+                  <span className="text-blue-400 font-medium">#{userStats.rank} sur {leaderboard.length}</span>
+                  <span className="mx-2">•</span>
+                  <span>{userStats.totalXp} XP total</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </PremiumLayout>
+      </div>
+    </Layout>
   );
 };
 
