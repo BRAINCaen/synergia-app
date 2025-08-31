@@ -1,40 +1,35 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT AVEC MENU HAMBURGER SIMPLE - REACT PUR
+// LAYOUT AVEC MENU REACT PORTAL - SOLUTION DÉFINITIVE
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
-const Layout = ({ children }) => {
-  const { user, signOut } = useAuthStore();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  
-  const userIsAdmin = isAdmin(user);
+// Composant Menu séparé
+const HamburgerMenu = ({ isOpen, onClose, user, userIsAdmin, location, navigate }) => {
+  if (!isOpen) return null;
 
-  // Déconnexion
   const handleLogout = async () => {
     try {
+      const { signOut } = useAuthStore.getState();
       await signOut();
       navigate('/login');
-      setMenuOpen(false);
+      onClose();
     } catch (error) {
       console.error('Erreur déconnexion:', error);
     }
   };
 
-  // Navigation
   const handleNavigation = (path) => {
     navigate(path);
-    setMenuOpen(false);
+    onClose();
   };
 
-  // Menu items
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -59,7 +54,6 @@ const Layout = ({ children }) => {
     ]}
   ];
 
-  // Menu Admin
   if (userIsAdmin) {
     menuItems.push({
       section: 'ADMINISTRATION',
@@ -84,139 +78,180 @@ const Layout = ({ children }) => {
     });
   }
 
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[999999] bg-black/80 backdrop-blur-sm"
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999 }}
+    >
+      <div className="fixed left-0 top-0 h-full w-80 bg-gradient-to-b from-gray-800 to-gray-900 shadow-2xl">
+        
+        {/* HEADER */}
+        <div className="p-6 border-b border-gray-700/50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold">S</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">SYNERGIA</h2>
+                <p className="text-xs text-gray-400">v3.5</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white p-1 hover:bg-gray-700 rounded"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {user && (
+            <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-semibold text-sm">
+                  {user.displayName?.[0] || user.email?.[0] || 'U'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium truncate">
+                  {user.displayName || 'Utilisateur'}
+                </p>
+                <p className="text-sm text-gray-400 truncate">{user.email}</p>
+                {userIsAdmin && (
+                  <span className="inline-block px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded-full mt-1">
+                    ADMIN
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* NAVIGATION */}
+        <nav className="p-4 space-y-6 flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          {menuItems.map((section, sectionIndex) => {
+            const isAdminSection = section.section === 'ADMINISTRATION';
+            return (
+              <div key={sectionIndex}>
+                <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 px-2 ${
+                  isAdminSection ? 'text-yellow-400' : 'text-gray-500'
+                }`}>
+                  {isAdminSection ? '🛡️ ' : ''}{section.section}
+                </h3>
+                <div className="space-y-1">
+                  {section.items.map((item, itemIndex) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <button
+                        key={itemIndex}
+                        onClick={() => handleNavigation(item.path)}
+                        className={`
+                          w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
+                          transition-all duration-200 group
+                          ${isActive 
+                            ? (isAdminSection 
+                              ? 'bg-gradient-to-r from-red-500/20 to-orange-500/20 text-white border border-red-500/30'
+                              : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
+                            ) 
+                            : 'text-gray-300 hover:bg-gray-700/30 hover:text-white'
+                          }
+                        `}
+                      >
+                        <span className="text-lg">{item.icon}</span>
+                        <span className="flex-1 font-medium">{item.label}</span>
+                        {isAdminSection && (
+                          <span className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-400 rounded">
+                            ADMIN
+                          </span>
+                        )}
+                        {isActive && (
+                          <div className={`w-2 h-2 rounded-full shadow-lg ${
+                            isAdminSection ? 'bg-red-400 shadow-red-400/50' : 'bg-blue-400 shadow-blue-400/50'
+                          }`} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* FOOTER */}
+        <div className="p-4 border-t border-gray-700/50">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+          >
+            <span className="text-lg">🚪</span>
+            <span className="font-medium">Déconnexion</span>
+          </button>
+        </div>
+      </div>
+
+      {/* BACKDROP */}
+      <div 
+        className="absolute inset-0 -z-10" 
+        onClick={onClose}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}
+      />
+    </div>,
+    document.body
+  );
+};
+
+const Layout = ({ children }) => {
+  const { user } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  
+  const userIsAdmin = isAdmin(user);
+
+  // Empêcher le scroll du body quand le menu est ouvert
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [menuOpen]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* BOUTON HAMBURGER FLOTTANT */}
+      {/* BOUTON HAMBURGER */}
       <button
         onClick={() => setMenuOpen(true)}
-        className="fixed top-5 left-5 z-[99999] w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
+        className="fixed top-5 left-5 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
+        style={{ 
+          position: 'fixed', 
+          top: '20px', 
+          left: '20px', 
+          zIndex: 999998,
+          width: '56px',
+          height: '56px'
+        }}
       >
         <Menu className="w-6 h-6 text-white" />
       </button>
 
-      {/* OVERLAY MENU */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-[100000] bg-black/80 backdrop-blur-sm">
-          
-          {/* MENU PANEL */}
-          <div className="fixed left-0 top-0 h-full w-80 bg-gradient-to-b from-gray-800 to-gray-900 shadow-2xl transform transition-transform duration-300">
-            
-            {/* HEADER */}
-            <div className="p-6 border-b border-gray-700/50">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold">S</span>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">SYNERGIA</h2>
-                    <p className="text-xs text-gray-400">v3.5</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="text-gray-400 hover:text-white p-1"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+      {/* MENU PORTAL */}
+      <HamburgerMenu
+        isOpen={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        user={user}
+        userIsAdmin={userIsAdmin}
+        location={location}
+        navigate={navigate}
+      />
 
-              {/* USER INFO */}
-              {user && (
-                <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm">
-                      {user.displayName?.[0] || user.email?.[0] || 'U'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium truncate">
-                      {user.displayName || 'Utilisateur'}
-                    </p>
-                    <p className="text-sm text-gray-400 truncate">{user.email}</p>
-                    {userIsAdmin && (
-                      <span className="inline-block px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded-full mt-1">
-                        ADMIN
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* NAVIGATION */}
-            <nav className="p-4 space-y-6 flex-1 overflow-y-auto">
-              {menuItems.map((section, sectionIndex) => {
-                const isAdminSection = section.section === 'ADMINISTRATION';
-                return (
-                  <div key={sectionIndex}>
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 px-2 ${
-                      isAdminSection ? 'text-yellow-400' : 'text-gray-500'
-                    }`}>
-                      {isAdminSection ? '🛡️ ' : ''}{section.section}
-                    </h3>
-                    <div className="space-y-1">
-                      {section.items.map((item, itemIndex) => {
-                        const isActive = location.pathname === item.path;
-                        return (
-                          <button
-                            key={itemIndex}
-                            onClick={() => handleNavigation(item.path)}
-                            className={`
-                              w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
-                              transition-all duration-200 group
-                              ${isActive 
-                                ? (isAdminSection 
-                                  ? 'bg-gradient-to-r from-red-500/20 to-orange-500/20 text-white border border-red-500/30'
-                                  : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
-                                ) 
-                                : 'text-gray-300 hover:bg-gray-700/30 hover:text-white'
-                              }
-                            `}
-                          >
-                            <span className="text-lg">{item.icon}</span>
-                            <span className="flex-1 font-medium">{item.label}</span>
-                            {isAdminSection && (
-                              <span className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-400 rounded">
-                                ADMIN
-                              </span>
-                            )}
-                            {isActive && (
-                              <div className={`w-2 h-2 rounded-full shadow-lg ${
-                                isAdminSection ? 'bg-red-400 shadow-red-400/50' : 'bg-blue-400 shadow-blue-400/50'
-                              }`} />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </nav>
-
-            {/* FOOTER - DÉCONNEXION */}
-            <div className="p-4 border-t border-gray-700/50">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
-              >
-                <span className="text-lg">🚪</span>
-                <span className="font-medium">Déconnexion</span>
-              </button>
-            </div>
-          </div>
-
-          {/* CLOSE ON OVERLAY CLICK */}
-          <div 
-            className="absolute inset-0 -z-10" 
-            onClick={() => setMenuOpen(false)}
-          />
-        </div>
-      )}
-
-      {/* CONTENU PRINCIPAL */}
+      {/* CONTENU */}
       <main className="min-h-screen">
         {children}
       </main>
