@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT STANDARD AVEC MENU HAMBURGER ET TOUTES LES PAGES ADMIN CORRIGÉES
+// LAYOUT STANDARD AVEC MENU HAMBURGER CORRIGÉ - USEEFFECT FIX
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
@@ -24,18 +24,24 @@ const Layout = ({ children }) => {
   // 🛡️ PERMISSIONS
   const userIsAdmin = isAdmin(user);
 
-  // 🚪 DÉCONNEXION
-  const handleLogout = async () => {
+  // 🚪 DÉCONNEXION - USECALLBACK POUR ÉVITER RERENDERS
+  const handleLogout = useCallback(async () => {
     try {
       await signOut();
       navigate('/login');
+      setMenuOpen(false);
       console.log('✅ [LAYOUT] Déconnexion réussie');
     } catch (error) {
       console.error('❌ [LAYOUT] Erreur déconnexion:', error);
     }
-  };
+  }, [signOut, navigate]);
 
-  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES ADMIN - VERSION CORRIGÉE
+  // ✅ FERMETURE MENU SUR NAVIGATION - USECALLBACK
+  const handleNavClick = useCallback(() => {
+    setMenuOpen(false);
+  }, []);
+
+  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES ADMIN
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -94,14 +100,17 @@ const Layout = ({ children }) => {
     });
   }
 
-  // ✅ FERMETURE MENU SUR NAVIGATION
-  const handleNavClick = () => {
-    setMenuOpen(false);
-  };
-
-  // ✅ CRÉATION DU MENU AVEC DOM MANIPULATION
+  // 🔧 USEEFFECT CORRIGÉ - SANS FONCTIONS DANS LES DÉPENDANCES
   useEffect(() => {
+    console.log('🔄 [LAYOUT] Menu state changed:', menuOpen);
+    
     if (menuOpen) {
+      // Supprimer menu existant
+      const existingMenu = document.getElementById('hamburger-menu-overlay');
+      if (existingMenu) {
+        existingMenu.remove();
+      }
+
       // Créer le menu directement dans le body
       const menuOverlay = document.createElement('div');
       menuOverlay.id = 'hamburger-menu-overlay';
@@ -152,7 +161,7 @@ const Layout = ({ children }) => {
             ">S</div>
             <div>
               <h2 style="color: white; font-size: 18px; font-weight: bold; margin: 0;">SYNERGIA</h2>
-              <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0;">v3.5 Admin</p>
+              <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0;">v3.5</p>
             </div>
           </div>
           <button id="close-menu-btn" style="
@@ -180,7 +189,7 @@ const Layout = ({ children }) => {
               ${user.displayName || 'Utilisateur'}
             </p>
             <p style="color: rgba(255,255,255,0.6); font-size: 12px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${user.email}
+              ${user.email || ''}
             </p>
             ${userIsAdmin ? '<span style="display: inline-block; padding: 2px 8px; font-size: 10px; background: rgba(251,191,36,0.2); color: #fbbf24; border-radius: 10px; margin-top: 4px;">ADMIN</span>' : ''}
           </div>
@@ -191,10 +200,7 @@ const Layout = ({ children }) => {
 
       // Navigation
       const nav = document.createElement('nav');
-      nav.style.cssText = `
-        padding: 20px !important;
-        flex: 1 !important;
-      `;
+      nav.style.cssText = `padding: 20px !important; flex: 1 !important;`;
 
       let navHTML = '';
       menuItems.forEach((section, sectionIndex) => {
@@ -203,13 +209,9 @@ const Layout = ({ children }) => {
           <div style="margin-bottom: 25px;">
             <div style="
               color: ${isAdminSection ? '#fbbf24' : 'rgba(255,255,255,0.6)'};
-              font-size: 12px;
-              font-weight: bold;
-              text-transform: uppercase;
-              letter-spacing: 1px;
+              font-size: 12px; font-weight: bold; text-transform: uppercase;
+              letter-spacing: 1px; padding-bottom: 8px; margin-bottom: 10px;
               border-bottom: 1px solid ${isAdminSection ? 'rgba(251, 191, 36, 0.3)' : 'rgba(255,255,255,0.1)'};
-              padding-bottom: 8px;
-              margin-bottom: 10px;
             ">
               ${isAdminSection ? '🛡️ ' : ''}${section.section}
             </div>
@@ -220,18 +222,13 @@ const Layout = ({ children }) => {
           const isActive = location.pathname === item.path;
           navHTML += `
             <a href="${item.path}" class="menu-item" style="
-              display: flex !important;
-              align-items: center !important;
-              gap: 15px !important;
-              padding: 12px 15px !important;
+              display: flex !important; align-items: center !important; gap: 15px !important;
+              padding: 12px 15px !important; margin-bottom: 4px !important;
               color: ${isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.8)'} !important;
-              text-decoration: none !important;
-              transition: all 0.2s !important;
+              text-decoration: none !important; transition: all 0.2s !important;
               background: ${isActive ? (isAdminSection ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'transparent'} !important;
               border-left: 3px solid ${isActive ? (isAdminSection ? '#ef4444' : '#60a5fa') : 'transparent'} !important;
-              border-radius: 8px !important;
-              margin-bottom: 4px !important;
-              font-weight: ${isActive ? '600' : '500'} !important;
+              border-radius: 8px !important; font-weight: ${isActive ? '600' : '500'} !important;
             " onmouseover="
               if (!this.style.background.includes('gradient')) {
                 this.style.background = '${isAdminSection ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'}';
@@ -250,13 +247,12 @@ const Layout = ({ children }) => {
             </a>
           `;
         });
-        
         navHTML += '</div></div>';
       });
 
       nav.innerHTML = navHTML;
 
-      // Footer
+      // Footer avec déconnexion
       const footer = document.createElement('div');
       footer.style.cssText = `
         padding: 20px !important;
@@ -268,21 +264,19 @@ const Layout = ({ children }) => {
         <button id="logout-btn" style="
           width: 100%; display: flex; align-items: center; gap: 15px;
           padding: 12px 15px; background: none; border: none;
-          color: #ef4444; text-decoration: none; transition: all 0.2s;
-          border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
+          color: #ef4444; font-size: 14px; font-weight: 500; cursor: pointer;
+          border-radius: 8px; transition: all 0.2s;
         " onmouseover="
           this.style.background = 'rgba(239, 68, 68, 0.1)';
-          this.style.borderLeft = '3px solid #ef4444';
         " onmouseout="
           this.style.background = 'transparent';
-          this.style.borderLeft = '3px solid transparent';
         ">
           <span style="font-size: 16px;">🚪</span>
           <span style="flex: 1;">Déconnexion</span>
         </button>
       `;
 
-      // Assemblage du menu
+      // Assemblage
       menuContainer.appendChild(header);
       menuContainer.appendChild(nav);
       menuContainer.appendChild(footer);
@@ -298,8 +292,12 @@ const Layout = ({ children }) => {
       const closeBtn = document.getElementById('close-menu-btn');
       const logoutBtn = document.getElementById('logout-btn');
       
-      closeBtn?.addEventListener('click', handleNavClick);
-      logoutBtn?.addEventListener('click', handleLogout);
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => setMenuOpen(false));
+      }
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+      }
       
       // Fermeture sur overlay
       menuOverlay.addEventListener('click', (e) => {
@@ -308,12 +306,13 @@ const Layout = ({ children }) => {
         }
       });
 
-      // Gestion des liens
+      // Gestion des liens de navigation
       const menuLinks = menuOverlay.querySelectorAll('.menu-item');
       menuLinks.forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
-          navigate(link.getAttribute('href'));
+          const path = link.getAttribute('href');
+          navigate(path);
           setMenuOpen(false);
         });
       });
@@ -333,14 +332,17 @@ const Layout = ({ children }) => {
         menuToRemove.remove();
       }
     };
-  }, [menuOpen, location.pathname, user, userIsAdmin, navigate]);
+  }, [menuOpen, location.pathname, user, userIsAdmin]); // 🔧 DÉPENDANCES CORRIGÉES
 
   return (
     <div className="min-h-screen bg-gray-50">
       
       {/* BOUTON MENU HAMBURGER FLOTTANT */}
       <button
-        onClick={() => setMenuOpen(true)}
+        onClick={() => {
+          console.log('🍔 [LAYOUT] Clic bouton hamburger');
+          setMenuOpen(true);
+        }}
         style={{
           position: 'fixed',
           top: '20px',
