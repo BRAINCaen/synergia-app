@@ -1,79 +1,59 @@
 // ==========================================
-// 📁 react-app/src/shared/layouts/PremiumLayout.jsx  
-// LAYOUT PREMIUM AVEC MENU HAMBURGER INTÉGRÉ - COMPLET
+// 📁 react-app/src/shared/layouts/PremiumLayout.jsx
+// LAYOUT PREMIUM AVEC MENU HAMBURGER COMPLET
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Menu, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Search, Bell, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
 /**
- * 🎨 COMPOSANT CARD PREMIUM
+ * 📊 COMPOSANT DE STATISTIQUE PREMIUM
  */
-export const PremiumCard = ({ 
-  children, 
-  className = "",
-  hover = true,
-  onClick,
-  as: Component = "div"
-}) => {
-  return (
-    <Component
-      onClick={onClick}
-      className={`
-        bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 
-        rounded-xl p-6 shadow-lg
-        ${hover ? 'hover:scale-[1.02] hover:shadow-xl hover:border-purple-500/30' : ''}
-        transition-all duration-300 cursor-pointer
-        ${className}
-      `}
-    >
-      {children}
-    </Component>
-  );
-};
-
-/**
- * 📊 COMPOSANT STAT CARD
- */
-export const StatCard = ({ 
+export const PremiumStat = ({ 
   title, 
   value, 
-  icon: Icon, 
-  color = "blue",
-  trend,
-  subtitle 
+  change, 
+  icon: Icon,
+  trend = null,
+  color = "blue"
 }) => {
-  const colorMap = {
-    blue: "from-blue-500 to-cyan-500",
-    purple: "from-purple-500 to-pink-500", 
-    green: "from-green-500 to-emerald-500",
-    orange: "from-orange-500 to-red-500",
-    indigo: "from-indigo-500 to-purple-500"
+  const colors = {
+    blue: "from-blue-500 to-blue-600",
+    purple: "from-purple-500 to-purple-600", 
+    green: "from-green-500 to-green-600",
+    orange: "from-orange-500 to-orange-600",
+    pink: "from-pink-500 to-pink-600"
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:scale-[1.02] transition-all duration-300"
+      whileHover={{ scale: 1.02, y: -2 }}
+      className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50"
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-400 text-sm font-medium">{title}</p>
-          <p className="text-2xl font-bold text-white mt-1">{value}</p>
-          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+      <div className="flex items-center justify-between mb-2">
+        <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${colors[color]} flex items-center justify-center`}>
+          {Icon && <Icon className="w-5 h-5 text-white" />}
         </div>
-        <div className={`p-3 rounded-lg bg-gradient-to-br ${colorMap[color]} shadow-lg`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
+        {change && (
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+            change.startsWith('+') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+          }`}>
+            {change}
+          </span>
+        )}
       </div>
+      
+      <p className="text-2xl font-bold text-white mb-1">{value}</p>
+      <p className="text-sm text-gray-400">{title}</p>
+      
       {trend && (
-        <div className="mt-3 flex items-center">
-          <span className={`text-sm font-medium ${trend.positive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="flex items-center mt-2">
+          <span className={`text-xs font-medium ${
+            trend.positive ? 'text-green-400' : 'text-red-400'}`}>
             {trend.positive ? '↗' : '↘'} {trend.value}
           </span>
           <span className="text-xs text-gray-500 ml-2">{trend.label}</span>
@@ -207,7 +187,7 @@ const PremiumLayout = ({
       { path: '/badges', label: 'Badges', icon: '🏆' },
       { path: '/leaderboard', label: 'Classement', icon: '🥇' },
       { path: '/rewards', label: 'Récompenses', icon: '🎁' },
-      { path: '/time-track', label: 'Suivi Temps', icon: '⏱️' }
+      { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' }
     ]},
     { section: 'UTILISATEURS', items: [
       { path: '/team', label: 'Équipe', icon: '👥' },
@@ -220,16 +200,25 @@ const PremiumLayout = ({
     ]}
   ];
 
-  // 🛡️ MENU ADMIN (conditionnel)
+  // 🛡️ MENU ADMIN COMPLET (conditionnel) - AVEC TOUS LES LIENS RÉELS
   if (userIsAdmin) {
     menuItems.push({
       section: 'ADMINISTRATION', 
       items: [
-        { path: '/admin', label: 'Admin Dashboard', icon: '👑' },
-        { path: '/admin/users', label: 'Gestion Utilisateurs', icon: '👨‍💼' },
-        { path: '/admin/analytics', label: 'Analytics Admin', icon: '📈' },
-        { path: '/admin/settings', label: 'Config Système', icon: '🔧' },
+        { path: '/admin', label: 'Dashboard Admin', icon: '🏠' },
         { path: '/admin/task-validation', label: 'Validation Tâches', icon: '🛡️' },
+        { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
+        { path: '/admin/users', label: 'Gestion Utilisateurs', icon: '👥' },
+        { path: '/admin/analytics', label: 'Analytics Admin', icon: '📈' },
+        { path: '/admin/settings', label: 'Config Système', icon: '⚙️' },
+        { path: '/admin/badges', label: 'Gestion Badges', icon: '🏆' },
+        { path: '/admin/rewards', label: 'Gestion Récompenses', icon: '🎁' },
+        { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
+        { path: '/admin/sync', label: 'Synchronisation', icon: '🔄' },
+        { path: '/admin/dashboard-tuteur', label: 'Dashboard Tuteur', icon: '🎓' },
+        { path: '/admin/dashboard-manager', label: 'Dashboard Manager', icon: '📊' },
+        { path: '/admin/interview', label: 'Gestion Entretiens', icon: '💼' },
+        { path: '/admin/demo-cleaner', label: 'Nettoyage Démo', icon: '🧹' },
         { path: '/admin/complete-test', label: 'Test Complet', icon: '🧪' },
         { path: '/admin/profile-test', label: 'Test Profil', icon: '🧑‍🔬' }
       ]
@@ -292,39 +281,33 @@ const PremiumLayout = ({
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed top-0 left-0 w-80 h-full bg-gradient-to-b from-gray-900 to-slate-900 z-50 shadow-2xl overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800"
+              transition={{ type: 'spring', damping: 20 }}
+              className="fixed left-0 top-0 h-full w-80 bg-gradient-to-b from-gray-800 to-gray-900 shadow-2xl z-50"
             >
               
               {/* Header Menu */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-700/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
-                    <span className="text-white font-bold text-lg">⚡</span>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                      Synergia
-                    </h2>
-                    <p className="text-xs text-gray-400">v3.5 Premium</p>
-                  </div>
-                </div>
-                <button
-                  onClick={closeMenu}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* User Info */}
-              {user && (
-                <div className="p-6 border-b border-gray-700/50">
+              <div className="p-6 border-b border-gray-700/50">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white font-bold text-lg">
-                        {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
-                      </span>
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">S</span>
+                    </div>
+                    <h2 className="text-xl font-bold text-white">SYNERGIA</h2>
+                  </div>
+                  <button onClick={closeMenu} className="text-gray-400 hover:text-white p-1">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* User Info */}
+                {user && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {user.displayName?.[0] || user.email?.[0] || 'U'}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium truncate">
@@ -338,8 +321,8 @@ const PremiumLayout = ({
                       )}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Navigation Menu */}
               <nav className="p-4 space-y-6">
@@ -404,133 +387,80 @@ const PremiumLayout = ({
 
       {/* 📱 HEADER MOBILE AVEC MENU HAMBURGER */}
       <header className="sticky top-0 z-40 bg-gray-900/80 backdrop-blur-sm border-b border-gray-700/50">
-        <div className="flex items-center justify-between p-4">
-          
-          {/* Menu Hamburger + Logo */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="p-2 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors lg:hidden"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
             
-            {/* Logo Desktop */}
-            <div className="hidden lg:flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">⚡</span>
-              </div>
-              <div>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  Synergia
-                </h1>
-              </div>
-            </div>
-          </div>
-
-          {/* Menu Hamburger Desktop */}
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="hidden lg:flex items-center gap-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-            <span className="text-sm font-medium">Menu</span>
-          </button>
-        </div>
-      </header>
-
-      {/* 📄 CONTENU PRINCIPAL */}
-      <main className="flex-1">
-        
-        {/* Header Page avec Titre */}
-        <div className="bg-gray-900/50 backdrop-blur-sm border-b border-gray-700/30">
-          <div className="max-w-7xl mx-auto px-6 py-8">
-            
-            {/* Titre Principal */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="flex items-center gap-4">
+            {/* Left - Menu Button */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="p-2 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              
+              <div className="flex items-center gap-3">
                 {Icon && (
-                  <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                    <Icon className="w-8 h-8 text-white" />
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-white" />
                   </div>
                 )}
                 <div>
-                  <motion.h1 
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
-                  >
-                    {title}
-                  </motion.h1>
-                  {subtitle && (
-                    <motion.p 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-gray-400 text-lg mt-1"
-                    >
-                      {subtitle}
-                    </motion.p>
-                  )}
+                  <h1 className="text-lg font-bold text-white">{title}</h1>
+                  {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
                 </div>
               </div>
-              
-              {/* Actions Header */}
-              {headerActions && (
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="flex items-center gap-3"
-                >
-                  {headerActions}
-                </motion.div>
-              )}
             </div>
 
-            {/* Stats Header */}
-            {(showStats && stats.length > 0) || headerStats.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="grid grid-cols-2 md:grid-cols-4 gap-4"
-              >
-                {(headerStats.length > 0 ? headerStats : stats).map((stat, index) => (
-                  <div 
-                    key={index} 
-                    className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-lg p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      {stat.icon && (
-                        <div className={`p-2 rounded-lg ${stat.color || 'bg-blue-500/20'}`}>
-                          <stat.icon className="w-5 h-5 text-blue-400" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-2xl font-bold text-white">{stat.value}</p>
-                        <p className="text-xs text-gray-400">{stat.label}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-            
+            {/* Right - Actions */}
+            <div className="flex items-center gap-2">
+              {headerActions}
+              
+              {/* Notifications */}
+              <button className="p-2 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200 relative">
+                <Bell className="w-5 h-5" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+              </button>
+              
+              {/* Profile */}
+              <button className="p-2 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200">
+                <User className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Header Stats Row */}
+          {headerStats && headerStats.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {headerStats.map((stat, index) => (
+                <div key={index} className="bg-gray-800/50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-white">{stat.value}</div>
+                  <div className="text-xs text-gray-400">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* 📊 STATISTIQUES EN HEADER (optionnel) */}
+      {showStats && stats.length > 0 && (
+        <div className="bg-gray-800/30 backdrop-blur-sm border-b border-gray-700/50">
+          <div className="px-4 py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((stat, index) => (
+                <PremiumStat key={index} {...stat} />
+              ))}
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Contenu de la page */}
-        <div className={`max-w-7xl mx-auto px-6 py-8 ${className}`}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            {children}
-          </motion.div>
+      {/* 📄 CONTENU PRINCIPAL */}
+      <main className={`flex-1 ${className}`}>
+        <div className="px-4 py-6">
+          {children}
         </div>
-        
       </main>
     </div>
   );
