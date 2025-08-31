@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT STANDARD AVEC MENU HAMBURGER ET TOUTES LES PAGES ADMIN
+// LAYOUT STANDARD AVEC MENU HAMBURGER ET TOUTES LES PAGES ADMIN CORRIGÉES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -35,7 +35,7 @@ const Layout = ({ children }) => {
     }
   };
 
-  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES ADMIN
+  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES ADMIN - VERSION CORRIGÉE
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -55,11 +55,12 @@ const Layout = ({ children }) => {
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '📚' },
       { path: '/profile', label: 'Mon Profil', icon: '👨‍💼' },
-      { path: '/settings', label: 'Paramètres', icon: '⚙️' }
+      { path: '/settings', label: 'Paramètres', icon: '⚙️' },
+      { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' }
     ]}
   ];
 
-  // 🛡️ TOUTES LES PAGES ADMIN - MENU COMPLET
+  // 🛡️ TOUTES LES PAGES ADMIN - MENU COMPLET AVEC TOUS LES VRAIS LIENS
   if (userIsAdmin) {
     menuItems.push({
       section: 'ADMINISTRATION',
@@ -70,7 +71,7 @@ const Layout = ({ children }) => {
         { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
         { path: '/admin/users', label: 'Gestion Utilisateurs', icon: '👑' },
         { path: '/admin/analytics', label: 'Analytics Admin', icon: '📈' },
-        { path: '/admin/settings', label: 'Config Système', icon: '🔧' },
+        { path: '/admin/settings', label: 'Config Système', icon: '⚙️' },
         
         // Gamification Admin
         { path: '/admin/badges', label: 'Gestion Badges', icon: '🏆' },
@@ -81,9 +82,9 @@ const Layout = ({ children }) => {
         
         // Outils Admin Avancés
         { path: '/admin/sync', label: 'Synchronisation', icon: '🔄' },
-        { path: '/admin/dashboard-tuteur', label: 'Dashboard Tuteur', icon: '👨‍🏫' },
-        { path: '/admin/dashboard-manager', label: 'Dashboard Manager', icon: '👨‍💼' },
-        { path: '/admin/interview', label: 'Gestion Entretiens', icon: '🎤' },
+        { path: '/admin/dashboard-tuteur', label: 'Dashboard Tuteur', icon: '🎓' },
+        { path: '/admin/dashboard-manager', label: 'Dashboard Manager', icon: '📊' },
+        { path: '/admin/interview', label: 'Gestion Entretiens', icon: '💼' },
         { path: '/admin/demo-cleaner', label: 'Nettoyage Démo', icon: '🧹' },
         
         // Pages de Test Admin
@@ -136,45 +137,70 @@ const Layout = ({ children }) => {
       header.style.cssText = `
         padding: 25px 20px !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-        background: linear-gradient(135deg, #0f172a, #1e293b) !important;
-      `;
-      header.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-          <h2 style="color: white; font-size: 20px; font-weight: bold; margin: 0;">SYNERGIA v3.5</h2>
-          <button id="close-menu-btn" style="background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
-        </div>
-        <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin: 0;">Navigation principale</p>
       `;
 
-      // Informations utilisateur
-      const userInfo = document.createElement('div');
-      userInfo.style.cssText = `
+      // Logo et titre
+      const headerContent = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="
+              width: 40px; height: 40px; 
+              background: linear-gradient(135deg, #8b5cf6, #ec4899); 
+              border-radius: 10px; 
+              display: flex; align-items: center; justify-content: center; 
+              font-weight: bold; color: white; font-size: 16px;
+            ">S</div>
+            <div>
+              <h2 style="color: white; font-size: 18px; font-weight: bold; margin: 0;">SYNERGIA</h2>
+              <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0;">v3.5 Admin</p>
+            </div>
+          </div>
+          <button id="close-menu-btn" style="
+            background: none; border: none; color: rgba(255,255,255,0.7); 
+            font-size: 20px; cursor: pointer; padding: 5px;
+          ">✕</button>
+        </div>
+      `;
+
+      // Info utilisateur
+      const userInfo = user ? `
+        <div style="
+          display: flex; align-items: center; gap: 12px; 
+          padding: 15px; background: rgba(255,255,255,0.05); 
+          border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+        ">
+          <div style="
+            width: 35px; height: 35px; 
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
+            border-radius: 50%; display: flex; align-items: center; 
+            justify-content: center; font-weight: bold; color: white; font-size: 14px;
+          ">${user.displayName?.[0] || user.email?.[0] || 'U'}</div>
+          <div style="flex: 1; min-width: 0;">
+            <p style="color: white; font-size: 14px; font-weight: 500; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${user.displayName || 'Utilisateur'}
+            </p>
+            <p style="color: rgba(255,255,255,0.6); font-size: 12px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${user.email}
+            </p>
+            ${userIsAdmin ? '<span style="display: inline-block; padding: 2px 8px; font-size: 10px; background: rgba(251,191,36,0.2); color: #fbbf24; border-radius: 10px; margin-top: 4px;">ADMIN</span>' : ''}
+          </div>
+        </div>
+      ` : '';
+
+      header.innerHTML = headerContent + userInfo;
+
+      // Navigation
+      const nav = document.createElement('nav');
+      nav.style.cssText = `
         padding: 20px !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-        background: rgba(255,255,255,0.05) !important;
+        flex: 1 !important;
       `;
-      userInfo.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-          <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-            ${user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-          </div>
-          <div>
-            <div style="color: white; font-weight: 600; font-size: 14px;">${user?.displayName || 'Utilisateur'}</div>
-            <div style="color: rgba(255,255,255,0.6); font-size: 12px;">${user?.email || ''}</div>
-          </div>
-        </div>
-        ${userIsAdmin ? '<div style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-align: center; text-transform: uppercase;">🛡️ ADMINISTRATEUR</div>' : ''}
-      `;
-
-      // Navigation avec sections
-      const navigation = document.createElement('nav');
-      navigation.style.cssText = 'flex: 1 !important; padding-bottom: 20px !important;';
 
       let navHTML = '';
-      menuItems.forEach(section => {
+      menuItems.forEach((section, sectionIndex) => {
         const isAdminSection = section.section === 'ADMINISTRATION';
         navHTML += `
-          <div style="padding: 20px 20px 0 20px;">
+          <div style="margin-bottom: 25px;">
             <div style="
               color: ${isAdminSection ? '#fbbf24' : 'rgba(255,255,255,0.6)'};
               font-size: 12px;
@@ -219,50 +245,46 @@ const Layout = ({ children }) => {
             ">
               <span style="font-size: 16px;">${item.icon}</span>
               <span style="flex: 1; font-size: 14px;">${item.label}</span>
-              ${isAdminSection ? '<span style="color: #fbbf24; font-size: 10px;">ADMIN</span>' : ''}
+              ${isAdminSection ? '<span style="padding: 2px 6px; font-size: 10px; background: rgba(251,191,36,0.2); color: #fbbf24; border-radius: 4px;">ADMIN</span>' : ''}
+              ${isActive ? '<div style="width: 6px; height: 6px; background: #60a5fa; border-radius: 50%; box-shadow: 0 0 10px rgba(96,165,250,0.5);"></div>' : ''}
             </a>
           `;
         });
         
-        navHTML += `
-            </div>
-          </div>
-        `;
+        navHTML += '</div></div>';
       });
 
-      navigation.innerHTML = navHTML;
+      nav.innerHTML = navHTML;
 
-      // Footer avec déconnexion
+      // Footer
       const footer = document.createElement('div');
       footer.style.cssText = `
         padding: 20px !important;
-        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-        background: rgba(0,0,0,0.2) !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        margin-top: auto !important;
       `;
+
       footer.innerHTML = `
         <button id="logout-btn" style="
-          width: 100% !important;
-          padding: 12px !important;
-          background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 8px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          transition: all 0.2s !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 8px !important;
+          width: 100%; display: flex; align-items: center; gap: 15px;
+          padding: 12px 15px; background: none; border: none;
+          color: #ef4444; text-decoration: none; transition: all 0.2s;
+          border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
+        " onmouseover="
+          this.style.background = 'rgba(239, 68, 68, 0.1)';
+          this.style.borderLeft = '3px solid #ef4444';
+        " onmouseout="
+          this.style.background = 'transparent';
+          this.style.borderLeft = '3px solid transparent';
         ">
-          🚪 Se déconnecter
+          <span style="font-size: 16px;">🚪</span>
+          <span style="flex: 1;">Déconnexion</span>
         </button>
       `;
 
-      // Assemblage
+      // Assemblage du menu
       menuContainer.appendChild(header);
-      menuContainer.appendChild(userInfo);
-      menuContainer.appendChild(navigation);
+      menuContainer.appendChild(nav);
       menuContainer.appendChild(footer);
       menuOverlay.appendChild(menuContainer);
       document.body.appendChild(menuOverlay);
