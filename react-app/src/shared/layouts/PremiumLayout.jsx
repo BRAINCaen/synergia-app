@@ -1,59 +1,79 @@
 // ==========================================
-// 📁 react-app/src/shared/layouts/PremiumLayout.jsx
-// LAYOUT PREMIUM AVEC MENU HAMBURGER COMPLET
+// 📁 react-app/src/shared/layouts/PremiumLayout.jsx  
+// LAYOUT PREMIUM AVEC MENU HAMBURGER INTÉGRÉ - COMPLET
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Search, Bell, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Menu, X, Bell, User } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
 /**
- * 📊 COMPOSANT DE STATISTIQUE PREMIUM
+ * 🎨 COMPOSANT CARD PREMIUM - EXPORT AJOUTÉ POUR CORRIGER L'ERREUR BUILD
  */
-export const PremiumStat = ({ 
+export const PremiumCard = ({ 
+  children, 
+  className = "",
+  hover = true,
+  onClick,
+  as: Component = "div"
+}) => {
+  return (
+    <Component
+      onClick={onClick}
+      className={`
+        bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 
+        rounded-xl p-6 shadow-lg
+        ${hover ? 'hover:scale-[1.02] hover:shadow-xl hover:border-purple-500/30' : ''}
+        transition-all duration-300 cursor-pointer
+        ${className}
+      `}
+    >
+      {children}
+    </Component>
+  );
+};
+
+/**
+ * 📊 COMPOSANT STAT CARD - EXPORT AJOUTÉ POUR CORRIGER L'ERREUR BUILD
+ */
+export const StatCard = ({ 
   title, 
   value, 
-  change, 
-  icon: Icon,
-  trend = null,
-  color = "blue"
+  icon: Icon, 
+  color = "blue",
+  trend,
+  subtitle 
 }) => {
-  const colors = {
-    blue: "from-blue-500 to-blue-600",
-    purple: "from-purple-500 to-purple-600", 
-    green: "from-green-500 to-green-600",
-    orange: "from-orange-500 to-orange-600",
-    pink: "from-pink-500 to-pink-600"
+  const colorMap = {
+    blue: "from-blue-500 to-cyan-500",
+    purple: "from-purple-500 to-pink-500", 
+    green: "from-green-500 to-emerald-500",
+    orange: "from-orange-500 to-red-500",
+    indigo: "from-indigo-500 to-purple-500"
   };
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
-      className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:scale-[1.02] transition-all duration-300"
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${colors[color]} flex items-center justify-center`}>
-          {Icon && <Icon className="w-5 h-5 text-white" />}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-gray-400 text-sm font-medium">{title}</p>
+          <p className="text-2xl font-bold text-white mt-1">{value}</p>
+          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
         </div>
-        {change && (
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-            change.startsWith('+') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-          }`}>
-            {change}
-          </span>
-        )}
+        <div className={`p-3 rounded-lg bg-gradient-to-br ${colorMap[color]} shadow-lg`}>
+          <Icon className="w-6 h-6 text-white" />
+        </div>
       </div>
-      
-      <p className="text-2xl font-bold text-white mb-1">{value}</p>
-      <p className="text-sm text-gray-400">{title}</p>
-      
       {trend && (
-        <div className="flex items-center mt-2">
-          <span className={`text-xs font-medium ${
-            trend.positive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="mt-3 flex items-center">
+          <span className={`text-sm font-medium ${trend.positive ? 'text-green-400' : 'text-red-400'}`}>
             {trend.positive ? '↗' : '↘'} {trend.value}
           </span>
           <span className="text-xs text-gray-500 ml-2">{trend.label}</span>
@@ -140,91 +160,6 @@ export const PremiumSearchBar = ({
 };
 
 /**
- * 🎨 COMPOSANT PREMIUM CARD (manquant - cause de l'erreur)
- */
-export const PremiumCard = ({ 
-  children, 
-  className = "",
-  variant = "default",
-  gradient = false,
-  noPadding = false,
-  ...props 
-}) => {
-  const variants = {
-    default: "bg-gray-800/60 backdrop-blur-sm border border-gray-700/50",
-    gradient: "bg-gradient-to-br from-gray-800/80 via-gray-800/60 to-gray-900/80 backdrop-blur-sm border border-gray-700/50",
-    glass: "bg-white/5 backdrop-blur-lg border border-white/10"
-  };
-
-  return (
-    <motion.div
-      whileHover={{ scale: 1.01, y: -2 }}
-      className={`
-        ${variants[gradient ? 'gradient' : variant]}
-        rounded-xl shadow-xl
-        ${noPadding ? '' : 'p-6'}
-        transition-all duration-200
-        ${className}
-      `}
-      {...props}
-    >
-      {children}
-    </motion.div>
-  );
-};
-
-/**
- * 📊 COMPOSANT STAT CARD (manquant - utilisé dans Dashboard)
- */
-export const StatCard = ({ 
-  title, 
-  value, 
-  change, 
-  icon: Icon,
-  color = "blue",
-  trend = null,
-  className = ""
-}) => {
-  const colors = {
-    blue: "from-blue-500 to-blue-600",
-    purple: "from-purple-500 to-purple-600", 
-    green: "from-green-500 to-green-600",
-    orange: "from-orange-500 to-orange-600",
-    pink: "from-pink-500 to-pink-600"
-  };
-
-  return (
-    <PremiumCard className={className}>
-      <div className="flex items-center justify-between mb-2">
-        <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${colors[color]} flex items-center justify-center`}>
-          {Icon && <Icon className="w-5 h-5 text-white" />}
-        </div>
-        {change && (
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-            change.startsWith('+') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-          }`}>
-            {change}
-          </span>
-        )}
-      </div>
-      
-      <p className="text-2xl font-bold text-white mb-1">{value}</p>
-      <p className="text-sm text-gray-400">{title}</p>
-      
-      {trend && (
-        <div className="flex items-center mt-2">
-          <span className={`text-xs font-medium ${
-            trend.positive ? 'text-green-400' : 'text-red-400'}`}>
-            {trend.positive ? '↗' : '↘'} {trend.value}
-          </span>
-          <span className="text-xs text-gray-500 ml-2">{trend.label}</span>
-        </div>
-      )}
-    </PremiumCard>
-  );
-};
-
-/**
  * 🎨 LAYOUT PREMIUM PRINCIPAL AVEC MENU HAMBURGER
  */
 const PremiumLayout = ({ 
@@ -259,7 +194,7 @@ const PremiumLayout = ({
     }
   };
 
-  // 🧭 NAVIGATION STRUCTURE COMPLÈTE
+  // 🧭 NAVIGATION STRUCTURE COMPLÈTE - AVEC TOUTES LES PAGES ADMIN
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -285,7 +220,7 @@ const PremiumLayout = ({
     ]}
   ];
 
-  // 🛡️ MENU ADMIN COMPLET (conditionnel) - AVEC TOUS LES LIENS RÉELS
+  // 🛡️ MENU ADMIN COMPLET (conditionnel) - AVEC TOUS LES VRAIS LIENS
   if (userIsAdmin) {
     menuItems.push({
       section: 'ADMINISTRATION', 
@@ -534,7 +469,7 @@ const PremiumLayout = ({
           <div className="px-4 py-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {stats.map((stat, index) => (
-                <PremiumStat key={index} {...stat} />
+                <StatCard key={index} {...stat} />
               ))}
             </div>
           </div>
