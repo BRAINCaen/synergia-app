@@ -140,6 +140,91 @@ export const PremiumSearchBar = ({
 };
 
 /**
+ * 🎨 COMPOSANT PREMIUM CARD (manquant - cause de l'erreur)
+ */
+export const PremiumCard = ({ 
+  children, 
+  className = "",
+  variant = "default",
+  gradient = false,
+  noPadding = false,
+  ...props 
+}) => {
+  const variants = {
+    default: "bg-gray-800/60 backdrop-blur-sm border border-gray-700/50",
+    gradient: "bg-gradient-to-br from-gray-800/80 via-gray-800/60 to-gray-900/80 backdrop-blur-sm border border-gray-700/50",
+    glass: "bg-white/5 backdrop-blur-lg border border-white/10"
+  };
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.01, y: -2 }}
+      className={`
+        ${variants[gradient ? 'gradient' : variant]}
+        rounded-xl shadow-xl
+        ${noPadding ? '' : 'p-6'}
+        transition-all duration-200
+        ${className}
+      `}
+      {...props}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+/**
+ * 📊 COMPOSANT STAT CARD (manquant - utilisé dans Dashboard)
+ */
+export const StatCard = ({ 
+  title, 
+  value, 
+  change, 
+  icon: Icon,
+  color = "blue",
+  trend = null,
+  className = ""
+}) => {
+  const colors = {
+    blue: "from-blue-500 to-blue-600",
+    purple: "from-purple-500 to-purple-600", 
+    green: "from-green-500 to-green-600",
+    orange: "from-orange-500 to-orange-600",
+    pink: "from-pink-500 to-pink-600"
+  };
+
+  return (
+    <PremiumCard className={className}>
+      <div className="flex items-center justify-between mb-2">
+        <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${colors[color]} flex items-center justify-center`}>
+          {Icon && <Icon className="w-5 h-5 text-white" />}
+        </div>
+        {change && (
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+            change.startsWith('+') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+          }`}>
+            {change}
+          </span>
+        )}
+      </div>
+      
+      <p className="text-2xl font-bold text-white mb-1">{value}</p>
+      <p className="text-sm text-gray-400">{title}</p>
+      
+      {trend && (
+        <div className="flex items-center mt-2">
+          <span className={`text-xs font-medium ${
+            trend.positive ? 'text-green-400' : 'text-red-400'}`}>
+            {trend.positive ? '↗' : '↘'} {trend.value}
+          </span>
+          <span className="text-xs text-gray-500 ml-2">{trend.label}</span>
+        </div>
+      )}
+    </PremiumCard>
+  );
+};
+
+/**
  * 🎨 LAYOUT PREMIUM PRINCIPAL AVEC MENU HAMBURGER
  */
 const PremiumLayout = ({ 
