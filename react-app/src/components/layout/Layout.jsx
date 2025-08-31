@@ -1,47 +1,40 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT STANDARD AVEC MENU HAMBURGER CORRIGÉ - USEEFFECT FIX
+// LAYOUT AVEC MENU HAMBURGER SIMPLE - REACT PUR
 // ==========================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { isAdmin } from '../../core/services/adminService.js';
 
-/**
- * 🎯 LAYOUT PRINCIPAL AVEC MENU HAMBURGER - SANS HEADER
- */
 const Layout = ({ children }) => {
-  // 🔌 HOOKS
   const { user, signOut } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // 📱 ÉTATS
   const [menuOpen, setMenuOpen] = useState(false);
   
-  // 🛡️ PERMISSIONS
   const userIsAdmin = isAdmin(user);
 
-  // 🚪 DÉCONNEXION - USECALLBACK POUR ÉVITER RERENDERS
-  const handleLogout = useCallback(async () => {
+  // Déconnexion
+  const handleLogout = async () => {
     try {
       await signOut();
       navigate('/login');
       setMenuOpen(false);
-      console.log('✅ [LAYOUT] Déconnexion réussie');
     } catch (error) {
-      console.error('❌ [LAYOUT] Erreur déconnexion:', error);
+      console.error('Erreur déconnexion:', error);
     }
-  }, [signOut, navigate]);
+  };
 
-  // ✅ FERMETURE MENU SUR NAVIGATION - USECALLBACK
-  const handleNavClick = useCallback(() => {
+  // Navigation
+  const handleNavigation = (path) => {
+    navigate(path);
     setMenuOpen(false);
-  }, []);
+  };
 
-  // 🧭 NAVIGATION STRUCTURE AVEC TOUTES LES PAGES ADMIN
+  // Menu items
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
@@ -66,314 +59,165 @@ const Layout = ({ children }) => {
     ]}
   ];
 
-  // 🛡️ TOUTES LES PAGES ADMIN - MENU COMPLET AVEC TOUS LES VRAIS LIENS
+  // Menu Admin
   if (userIsAdmin) {
     menuItems.push({
       section: 'ADMINISTRATION',
       items: [
-        // Pages Admin Principales
         { path: '/admin', label: 'Dashboard Admin', icon: '🏠' },
         { path: '/admin/task-validation', label: 'Validation Tâches', icon: '🛡️' },
         { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
         { path: '/admin/users', label: 'Gestion Utilisateurs', icon: '👑' },
         { path: '/admin/analytics', label: 'Analytics Admin', icon: '📈' },
         { path: '/admin/settings', label: 'Config Système', icon: '⚙️' },
-        
-        // Gamification Admin
         { path: '/admin/badges', label: 'Gestion Badges', icon: '🏆' },
         { path: '/admin/rewards', label: 'Gestion Récompenses', icon: '🎁' },
-        
-        // Sécurité & Permissions
         { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
-        
-        // Outils Admin Avancés
         { path: '/admin/sync', label: 'Synchronisation', icon: '🔄' },
         { path: '/admin/dashboard-tuteur', label: 'Dashboard Tuteur', icon: '🎓' },
         { path: '/admin/dashboard-manager', label: 'Dashboard Manager', icon: '📊' },
         { path: '/admin/interview', label: 'Gestion Entretiens', icon: '💼' },
         { path: '/admin/demo-cleaner', label: 'Nettoyage Démo', icon: '🧹' },
-        
-        // Pages de Test Admin
         { path: '/admin/complete-test', label: 'Test Complet', icon: '🧪' },
         { path: '/admin/profile-test', label: 'Test Profil', icon: '👤' }
       ]
     });
   }
 
-  // 🔧 USEEFFECT CORRIGÉ - SANS FONCTIONS DANS LES DÉPENDANCES
-  useEffect(() => {
-    console.log('🔄 [LAYOUT] Menu state changed:', menuOpen);
-    
-    if (menuOpen) {
-      // Supprimer menu existant
-      const existingMenu = document.getElementById('hamburger-menu-overlay');
-      if (existingMenu) {
-        existingMenu.remove();
-      }
-
-      // Créer le menu directement dans le body
-      const menuOverlay = document.createElement('div');
-      menuOverlay.id = 'hamburger-menu-overlay';
-      menuOverlay.style.cssText = `
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        background: rgba(0, 0, 0, 0.8) !important;
-        z-index: 999999 !important;
-        backdrop-filter: blur(10px) !important;
-      `;
-
-      // Conteneur du menu
-      const menuContainer = document.createElement('div');
-      menuContainer.style.cssText = `
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 350px !important;
-        height: 100vh !important;
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
-        transform: translateX(-100%) !important;
-        transition: transform 0.3s ease !important;
-        overflow-y: auto !important;
-        scrollbar-width: thin !important;
-        scrollbar-color: rgba(255,255,255,0.3) transparent !important;
-      `;
-
-      // Header du menu
-      const header = document.createElement('div');
-      header.style.cssText = `
-        padding: 25px 20px !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-      `;
-
-      // Logo et titre
-      const headerContent = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="
-              width: 40px; height: 40px; 
-              background: linear-gradient(135deg, #8b5cf6, #ec4899); 
-              border-radius: 10px; 
-              display: flex; align-items: center; justify-content: center; 
-              font-weight: bold; color: white; font-size: 16px;
-            ">S</div>
-            <div>
-              <h2 style="color: white; font-size: 18px; font-weight: bold; margin: 0;">SYNERGIA</h2>
-              <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0;">v3.5</p>
-            </div>
-          </div>
-          <button id="close-menu-btn" style="
-            background: none; border: none; color: rgba(255,255,255,0.7); 
-            font-size: 20px; cursor: pointer; padding: 5px;
-          ">✕</button>
-        </div>
-      `;
-
-      // Info utilisateur
-      const userInfo = user ? `
-        <div style="
-          display: flex; align-items: center; gap: 12px; 
-          padding: 15px; background: rgba(255,255,255,0.05); 
-          border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
-        ">
-          <div style="
-            width: 35px; height: 35px; 
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
-            border-radius: 50%; display: flex; align-items: center; 
-            justify-content: center; font-weight: bold; color: white; font-size: 14px;
-          ">${user.displayName?.[0] || user.email?.[0] || 'U'}</div>
-          <div style="flex: 1; min-width: 0;">
-            <p style="color: white; font-size: 14px; font-weight: 500; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${user.displayName || 'Utilisateur'}
-            </p>
-            <p style="color: rgba(255,255,255,0.6); font-size: 12px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${user.email || ''}
-            </p>
-            ${userIsAdmin ? '<span style="display: inline-block; padding: 2px 8px; font-size: 10px; background: rgba(251,191,36,0.2); color: #fbbf24; border-radius: 10px; margin-top: 4px;">ADMIN</span>' : ''}
-          </div>
-        </div>
-      ` : '';
-
-      header.innerHTML = headerContent + userInfo;
-
-      // Navigation
-      const nav = document.createElement('nav');
-      nav.style.cssText = `padding: 20px !important; flex: 1 !important;`;
-
-      let navHTML = '';
-      menuItems.forEach((section, sectionIndex) => {
-        const isAdminSection = section.section === 'ADMINISTRATION';
-        navHTML += `
-          <div style="margin-bottom: 25px;">
-            <div style="
-              color: ${isAdminSection ? '#fbbf24' : 'rgba(255,255,255,0.6)'};
-              font-size: 12px; font-weight: bold; text-transform: uppercase;
-              letter-spacing: 1px; padding-bottom: 8px; margin-bottom: 10px;
-              border-bottom: 1px solid ${isAdminSection ? 'rgba(251, 191, 36, 0.3)' : 'rgba(255,255,255,0.1)'};
-            ">
-              ${isAdminSection ? '🛡️ ' : ''}${section.section}
-            </div>
-            <div style="padding: 10px 0;">
-        `;
-        
-        section.items.forEach(item => {
-          const isActive = location.pathname === item.path;
-          navHTML += `
-            <a href="${item.path}" class="menu-item" style="
-              display: flex !important; align-items: center !important; gap: 15px !important;
-              padding: 12px 15px !important; margin-bottom: 4px !important;
-              color: ${isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.8)'} !important;
-              text-decoration: none !important; transition: all 0.2s !important;
-              background: ${isActive ? (isAdminSection ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #3b82f6, #2563eb)') : 'transparent'} !important;
-              border-left: 3px solid ${isActive ? (isAdminSection ? '#ef4444' : '#60a5fa') : 'transparent'} !important;
-              border-radius: 8px !important; font-weight: ${isActive ? '600' : '500'} !important;
-            " onmouseover="
-              if (!this.style.background.includes('gradient')) {
-                this.style.background = '${isAdminSection ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'}';
-                this.style.borderLeft = '3px solid ${isAdminSection ? '#ef4444' : '#60a5fa'}';
-              }
-            " onmouseout="
-              if (!this.style.background.includes('gradient')) {
-                this.style.background = 'transparent';
-                this.style.borderLeft = '3px solid transparent';
-              }
-            ">
-              <span style="font-size: 16px;">${item.icon}</span>
-              <span style="flex: 1; font-size: 14px;">${item.label}</span>
-              ${isAdminSection ? '<span style="padding: 2px 6px; font-size: 10px; background: rgba(251,191,36,0.2); color: #fbbf24; border-radius: 4px;">ADMIN</span>' : ''}
-              ${isActive ? '<div style="width: 6px; height: 6px; background: #60a5fa; border-radius: 50%; box-shadow: 0 0 10px rgba(96,165,250,0.5);"></div>' : ''}
-            </a>
-          `;
-        });
-        navHTML += '</div></div>';
-      });
-
-      nav.innerHTML = navHTML;
-
-      // Footer avec déconnexion
-      const footer = document.createElement('div');
-      footer.style.cssText = `
-        padding: 20px !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important;
-        margin-top: auto !important;
-      `;
-
-      footer.innerHTML = `
-        <button id="logout-btn" style="
-          width: 100%; display: flex; align-items: center; gap: 15px;
-          padding: 12px 15px; background: none; border: none;
-          color: #ef4444; font-size: 14px; font-weight: 500; cursor: pointer;
-          border-radius: 8px; transition: all 0.2s;
-        " onmouseover="
-          this.style.background = 'rgba(239, 68, 68, 0.1)';
-        " onmouseout="
-          this.style.background = 'transparent';
-        ">
-          <span style="font-size: 16px;">🚪</span>
-          <span style="flex: 1;">Déconnexion</span>
-        </button>
-      `;
-
-      // Assemblage
-      menuContainer.appendChild(header);
-      menuContainer.appendChild(nav);
-      menuContainer.appendChild(footer);
-      menuOverlay.appendChild(menuContainer);
-      document.body.appendChild(menuOverlay);
-
-      // Animation d'entrée
-      setTimeout(() => {
-        menuContainer.style.transform = 'translateX(0)';
-      }, 10);
-
-      // Gestion des événements
-      const closeBtn = document.getElementById('close-menu-btn');
-      const logoutBtn = document.getElementById('logout-btn');
-      
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => setMenuOpen(false));
-      }
-      if (logoutBtn) {
-        logoutBtn.addEventListener('click', handleLogout);
-      }
-      
-      // Fermeture sur overlay
-      menuOverlay.addEventListener('click', (e) => {
-        if (e.target === menuOverlay) {
-          setMenuOpen(false);
-        }
-      });
-
-      // Gestion des liens de navigation
-      const menuLinks = menuOverlay.querySelectorAll('.menu-item');
-      menuLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          const path = link.getAttribute('href');
-          navigate(path);
-          setMenuOpen(false);
-        });
-      });
-
-    } else {
-      // Supprimer le menu
-      const existingMenu = document.getElementById('hamburger-menu-overlay');
-      if (existingMenu) {
-        existingMenu.remove();
-      }
-    }
-
-    // Cleanup
-    return () => {
-      const menuToRemove = document.getElementById('hamburger-menu-overlay');
-      if (menuToRemove) {
-        menuToRemove.remove();
-      }
-    };
-  }, [menuOpen, location.pathname, user, userIsAdmin]); // 🔧 DÉPENDANCES CORRIGÉES
-
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* BOUTON MENU HAMBURGER FLOTTANT */}
+      {/* BOUTON HAMBURGER FLOTTANT */}
       <button
-        onClick={() => {
-          console.log('🍔 [LAYOUT] Clic bouton hamburger');
-          setMenuOpen(true);
-        }}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          zIndex: 999998,
-          width: '60px',
-          height: '60px',
-          background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-          border: 'none',
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 8px 25px rgba(59, 130, 246, 0.3)',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.1)';
-          e.target.style.boxShadow = '0 12px 35px rgba(59, 130, 246, 0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1)';
-          e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.3)';
-        }}
+        onClick={() => setMenuOpen(true)}
+        className="fixed top-5 left-5 z-[99999] w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
       >
         <Menu className="w-6 h-6 text-white" />
       </button>
 
+      {/* OVERLAY MENU */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-[100000] bg-black/80 backdrop-blur-sm">
+          
+          {/* MENU PANEL */}
+          <div className="fixed left-0 top-0 h-full w-80 bg-gradient-to-b from-gray-800 to-gray-900 shadow-2xl transform transition-transform duration-300">
+            
+            {/* HEADER */}
+            <div className="p-6 border-b border-gray-700/50">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold">S</span>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">SYNERGIA</h2>
+                    <p className="text-xs text-gray-400">v3.5</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="text-gray-400 hover:text-white p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* USER INFO */}
+              {user && (
+                <div className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">
+                      {user.displayName?.[0] || user.email?.[0] || 'U'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium truncate">
+                      {user.displayName || 'Utilisateur'}
+                    </p>
+                    <p className="text-sm text-gray-400 truncate">{user.email}</p>
+                    {userIsAdmin && (
+                      <span className="inline-block px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded-full mt-1">
+                        ADMIN
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* NAVIGATION */}
+            <nav className="p-4 space-y-6 flex-1 overflow-y-auto">
+              {menuItems.map((section, sectionIndex) => {
+                const isAdminSection = section.section === 'ADMINISTRATION';
+                return (
+                  <div key={sectionIndex}>
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider mb-3 px-2 ${
+                      isAdminSection ? 'text-yellow-400' : 'text-gray-500'
+                    }`}>
+                      {isAdminSection ? '🛡️ ' : ''}{section.section}
+                    </h3>
+                    <div className="space-y-1">
+                      {section.items.map((item, itemIndex) => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <button
+                            key={itemIndex}
+                            onClick={() => handleNavigation(item.path)}
+                            className={`
+                              w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
+                              transition-all duration-200 group
+                              ${isActive 
+                                ? (isAdminSection 
+                                  ? 'bg-gradient-to-r from-red-500/20 to-orange-500/20 text-white border border-red-500/30'
+                                  : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
+                                ) 
+                                : 'text-gray-300 hover:bg-gray-700/30 hover:text-white'
+                              }
+                            `}
+                          >
+                            <span className="text-lg">{item.icon}</span>
+                            <span className="flex-1 font-medium">{item.label}</span>
+                            {isAdminSection && (
+                              <span className="px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-400 rounded">
+                                ADMIN
+                              </span>
+                            )}
+                            {isActive && (
+                              <div className={`w-2 h-2 rounded-full shadow-lg ${
+                                isAdminSection ? 'bg-red-400 shadow-red-400/50' : 'bg-blue-400 shadow-blue-400/50'
+                              }`} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </nav>
+
+            {/* FOOTER - DÉCONNEXION */}
+            <div className="p-4 border-t border-gray-700/50">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+              >
+                <span className="text-lg">🚪</span>
+                <span className="font-medium">Déconnexion</span>
+              </button>
+            </div>
+          </div>
+
+          {/* CLOSE ON OVERLAY CLICK */}
+          <div 
+            className="absolute inset-0 -z-10" 
+            onClick={() => setMenuOpen(false)}
+          />
+        </div>
+      )}
+
       {/* CONTENU PRINCIPAL */}
-      <main style={{ minHeight: '100vh' }}>
+      <main className="min-h-screen">
         {children}
       </main>
     </div>
