@@ -1,13 +1,14 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT FINAL AVEC MEMO ET STABILITÉ GARANTIE - FIXÉ
+// LAYOUT FINAL AVEC ISOLATION COMPLÈTE DU MENU - ANTI RE-RENDER
 // ==========================================
 
-import React, { useState, memo, useRef } from 'react';
+import React, { useState, memo, useRef, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-// Composant Menu externe pour éviter les re-renders
-const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
+// 🔒 COMPOSANT MENU COMPLÈTEMENT ISOLÉ - OUTSIDE COMPONENT TREE
+const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
   if (!isOpen) return null;
 
   const menuItems = [
@@ -53,16 +54,30 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
     ]}
   ];
 
-  // Navigation handler
-  const handleNavigation = (path) => {
+  // Navigation handler stable
+  const handleNavigation = useCallback((path) => {
     console.log('🧭 [LAYOUT] Navigation vers:', path);
-    onClose(); // Fermer le menu avant de naviguer
-    navigate(path); // Utiliser React Router au lieu de window.location
-  };
+    onClose(); // Fermer le menu AVANT la navigation
+    setTimeout(() => {
+      navigateFunction(path);
+    }, 100); // Petit délai pour permettre la fermeture
+  }, [onClose, navigateFunction]);
+
+  // Handle backdrop click - stable
+  const handleBackdropClick = useCallback((e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
+  // Handle panel click - prevent close
+  const handlePanelClick = useCallback((e) => {
+    e.stopPropagation();
+  }, []);
 
   return (
     <div 
-      onClick={onClose}
+      onClick={handleBackdropClick}
       style={{
         position: 'fixed',
         top: 0,
@@ -76,7 +91,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
     >
       {/* MENU PANEL */}
       <div 
-        onClick={(e) => e.stopPropagation()} // Empêcher la fermeture quand on clique dans le menu
+        onClick={handlePanelClick}
         style={{
           position: 'fixed',
           left: 0,
@@ -210,10 +225,8 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
           borderTop: '1px solid #374151',
           backgroundColor: '#111827'
         }}>
-          <a
-            href="/login"
-            onClick={(e) => {
-              e.preventDefault();
+          <button
+            onClick={() => {
               onClose();
               // Ajouter ici la logique de déconnexion
               console.log('Déconnexion...');
@@ -224,45 +237,60 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
               gap: '12px',
               padding: '10px 12px',
               color: '#ef4444',
-              textDecoration: 'none',
+              background: 'none',
+              border: 'none',
               borderRadius: '8px',
               backgroundColor: '#7f1d1d20',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              width: '100%',
+              cursor: 'pointer'
             }}
           >
             <span style={{ fontSize: '16px' }}>🚪</span>
             <span style={{ fontSize: '14px', fontWeight: '500' }}>Déconnexion</span>
-          </a>
+          </button>
         </div>
       </div>
     </div>
   );
 });
 
-// Layout principal avec memo pour éviter les re-renders
+// 🔒 LAYOUT PRINCIPAL AVEC ISOLATION COMPLÈTE DES RE-RENDERS
 const Layout = memo(({ children }) => {
+  // État du menu complètement isolé
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuStateRef = useRef(menuOpen);
+  const menuOpenRef = useRef(false);
+  const navigate = useNavigate();
   
-  // Sync ref avec state
-  menuStateRef.current = menuOpen;
+  // 🔒 FONCTION NAVIGATION STABLE
+  const navigateFunction = useCallback((path) => {
+    navigate(path);
+  }, [navigate]);
 
-  const openMenu = () => {
+  // 🔒 FONCTION OUVERTURE STABLE
+  const openMenu = useCallback(() => {
     console.log('🟢 MENU OUVERTURE');
     setMenuOpen(true);
-  };
+    menuOpenRef.current = true;
+  }, []);
 
-  const closeMenu = () => {
+  // 🔒 FONCTION FERMETURE STABLE  
+  const closeMenu = useCallback(() => {
     console.log('🔴 MENU FERMETURE');
     setMenuOpen(false);
-  };
+    menuOpenRef.current = false;
+  }, []);
 
-  console.log('🔄 [LAYOUT RENDER]', { menuOpen });
+  // Debug uniquement quand le menu change réellement
+  if (menuOpenRef.current !== menuOpen) {
+    console.log('🔄 [LAYOUT RENDER]', { menuOpen });
+    menuOpenRef.current = menuOpen;
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       
-      {/* BOUTON HAMBURGER STABLE */}
+      {/* 🔒 BOUTON HAMBURGER STABLE - PAS DE RE-RENDER */}
       <button
         onClick={openMenu}
         style={{
@@ -294,10 +322,11 @@ const Layout = memo(({ children }) => {
         <Menu style={{ width: '24px', height: '24px', color: 'white' }} />
       </button>
 
-      {/* MENU STABLE */}
+      {/* 🔒 MENU STABLE - ISOLATION COMPLÈTE */}
       <HamburgerMenuStable 
         isOpen={menuOpen} 
         onClose={closeMenu}
+        navigateFunction={navigateFunction}
       />
 
       {/* CONTENU */}
@@ -308,6 +337,7 @@ const Layout = memo(({ children }) => {
   );
 });
 
+// Noms pour React DevTools
 Layout.displayName = 'Layout';
 HamburgerMenuStable.displayName = 'HamburgerMenuStable';
 
