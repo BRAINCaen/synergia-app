@@ -63,16 +63,26 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
     }, 100); // Petit délai pour permettre la fermeture
   }, [onClose, navigateFunction]);
 
-  // Handle backdrop click - stable
+  // Handle backdrop click avec protection renforcée
   const handleBackdropClick = useCallback((e) => {
-    if (e.target === e.currentTarget) {
+    // Protection contre fermeture immédiate après ouverture
+    const now = Date.now();
+    if (lastOpenTime.current && now - lastOpenTime.current < 500) {
+      console.log('🛡️ FERMETURE BACKDROP BLOQUÉE - trop rapide');
+      return;
+    }
+    
+    // Vérifier que le clic est vraiment sur le backdrop
+    if (e.target === e.currentTarget && menuOpenRef.current) {
+      console.log('🔴 BACKDROP CLIC - Fermeture menu');
       onClose();
     }
   }, [onClose]);
 
-  // Handle panel click - prevent close
+  // Handle panel click - prevent close avec protection
   const handlePanelClick = useCallback((e) => {
     e.stopPropagation();
+    e.preventDefault();
   }, []);
 
   return (
