@@ -20,7 +20,8 @@ import {
   CheckCircle,
   Database,
   Wifi,
-  WifiOff
+  WifiOff,
+  Trophy
 } from 'lucide-react';
 
 // Import du layout avec menu hamburger
