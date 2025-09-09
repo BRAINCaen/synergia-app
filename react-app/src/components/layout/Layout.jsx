@@ -57,7 +57,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
   const handleNavigation = (path) => {
     console.log('🧭 [LAYOUT] Navigation vers:', path);
     onClose(); // Fermer le menu avant de naviguer
-    window.location.href = path; // Navigation simple
+    navigate(path); // Utiliser React Router au lieu de window.location
   };
 
   return (
