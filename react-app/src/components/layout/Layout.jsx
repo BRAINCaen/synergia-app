@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT FINAL AVEC MEMO ET STABILITÉ GARANTIE
+// LAYOUT FINAL AVEC MEMO ET STABILITÉ GARANTIE - FIXÉ
 // ==========================================
 
 import React, { useState, memo, useRef } from 'react';
@@ -16,6 +16,22 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
       { path: '/tasks', label: 'Tâches', icon: '✅' },
       { path: '/projects', label: 'Projets', icon: '📁' },
       { path: '/analytics', label: 'Analytics', icon: '📊' }
+    ]},
+    { section: 'GAMIFICATION', items: [
+      { path: '/gamification', label: 'Gamification', icon: '🎮' },
+      { path: '/badges', label: 'Badges', icon: '🏆' },
+      { path: '/leaderboard', label: 'Classement', icon: '🥇' },
+      { path: '/rewards', label: 'Récompenses', icon: '🎁' }
+    ]},
+    { section: 'ÉQUIPE', items: [
+      { path: '/team', label: 'Équipe', icon: '👥' },
+      { path: '/users', label: 'Utilisateurs', icon: '👤' },
+      { path: '/profile', label: 'Profil', icon: '🧑‍💼' },
+      { path: '/settings', label: 'Paramètres', icon: '⚙️' }
+    ]},
+    { section: 'OUTILS', items: [
+      { path: '/onboarding', label: 'Intégration', icon: '🎯' },
+      { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' }
     ]},
     { section: 'ADMIN', items: [
       { path: '/admin', label: 'Dashboard Admin', icon: '👑' },
@@ -37,8 +53,16 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
     ]}
   ];
 
+  // Navigation handler
+  const handleNavigation = (path) => {
+    console.log('🧭 [LAYOUT] Navigation vers:', path);
+    onClose(); // Fermer le menu avant de naviguer
+    window.location.href = path; // Navigation simple
+  };
+
   return (
     <div 
+      onClick={onClose}
       style={{
         position: 'fixed',
         top: 0,
@@ -50,7 +74,9 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
         backdropFilter: 'blur(4px)'
       }}
     >
+      {/* MENU PANEL */}
       <div 
+        onClick={(e) => e.stopPropagation()} // Empêcher la fermeture quand on clique dans le menu
         style={{
           position: 'fixed',
           left: 0,
@@ -59,117 +85,138 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
           height: '100vh',
           backgroundColor: '#1f2937',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          zIndex: 1000000
         }}
       >
-        
-        {/* HEADER FIXE */}
-        <div style={{ padding: '24px', borderBottom: '1px solid #374151' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-                SYNERGIA
-              </h2>
-              <p style={{ color: '#9ca3af', fontSize: '12px', margin: 0 }}>Administration</p>
+        {/* HEADER MENU */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '20px',
+          borderBottom: '1px solid #374151'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px'
+            }}>
+              🚀
             </div>
-            <button 
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#9ca3af',
-                fontSize: '18px',
-                cursor: 'pointer',
-                padding: '4px',
-                borderRadius: '4px'
-              }}
-            >
-              ✕
-            </button>
+            <div>
+              <h2 style={{ color: 'white', fontSize: '18px', fontWeight: 'bold', margin: 0 }}>
+                Synergia
+              </h2>
+              <p style={{ color: '#9ca3af', fontSize: '12px', margin: 0 }}>
+                v3.5.4
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#9ca3af',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '6px',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.color = 'white';
+              e.target.style.backgroundColor = '#374151';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = '#9ca3af';
+              e.target.style.backgroundColor = 'transparent';
+            }}
+          >
+            <X style={{ width: '20px', height: '20px' }} />
+          </button>
         </div>
 
-        {/* NAVIGATION FIXE */}
+        {/* SECTIONS MENU */}
         <div style={{ padding: '16px' }}>
           {menuItems.map((section, sectionIndex) => (
-            <div key={sectionIndex} style={{ marginBottom: '24px' }}>
-              
-              <h3 style={{ 
-                color: section.section === 'ADMIN' ? '#fbbf24' : '#9ca3af',
+            <div key={section.section} style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                color: '#9ca3af',
                 fontSize: '11px',
-                fontWeight: 'bold',
+                fontWeight: '600',
                 textTransform: 'uppercase',
-                letterSpacing: '1px',
+                letterSpacing: '0.05em',
                 marginBottom: '12px',
                 paddingLeft: '8px'
               }}>
-                {section.section === 'ADMIN' ? '🛡️ ' : ''}{section.section}
+                {section.section}
               </h3>
               
-              <div>
-                {section.items.map((item, itemIndex) => (
-                  <a
-                    key={itemIndex}
-                    href={item.path}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = item.path;
-                    }}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {section.items.map((item) => (
+                  <button
+                    key={item.path}
+                    onClick={() => handleNavigation(item.path)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
-                      padding: '10px 12px',
-                      color: 'white',
-                      textDecoration: 'none',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
                       borderRadius: '8px',
-                      marginBottom: '4px',
-                      backgroundColor: section.section === 'ADMIN' ? '#ef444420' : '#37415120',
-                      border: section.section === 'ADMIN' ? '1px solid #ef444440' : '1px solid transparent',
-                      transition: 'all 0.2s'
+                      color: '#d1d5db',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      width: '100%'
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = section.section === 'ADMIN' ? '#ef444440' : '#37415140';
+                      e.target.style.backgroundColor = '#374151';
+                      e.target.style.color = 'white';
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = section.section === 'ADMIN' ? '#ef444420' : '#37415120';
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.color = '#d1d5db';
                     }}
                   >
                     <span style={{ fontSize: '16px' }}>{item.icon}</span>
                     <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</span>
-                    {section.section === 'ADMIN' && (
-                      <span style={{
-                        marginLeft: 'auto',
-                        padding: '2px 6px',
-                        fontSize: '10px',
-                        backgroundColor: '#fbbf2420',
-                        color: '#fbbf24',
-                        borderRadius: '4px'
-                      }}>
-                        ADMIN
-                      </span>
-                    )}
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
           ))}
         </div>
 
-        {/* FOOTER FIXE */}
-        <div style={{ 
-          position: 'absolute', 
-          bottom: 0, 
-          left: 0, 
-          right: 0, 
-          padding: '16px', 
-          borderTop: '1px solid #374151' 
+        {/* FOOTER MENU */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '16px',
+          borderTop: '1px solid #374151',
+          backgroundColor: '#111827'
         }}>
           <a
             href="/login"
             onClick={(e) => {
               e.preventDefault();
-              window.location.href = '/login';
+              onClose();
+              // Ajouter ici la logique de déconnexion
+              console.log('Déconnexion...');
             }}
             style={{
               display: 'flex',
@@ -188,19 +235,6 @@ const HamburgerMenuStable = memo(({ isOpen, onClose }) => {
           </a>
         </div>
       </div>
-
-      {/* BACKDROP */}
-      <div 
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: -1
-        }}
-      />
     </div>
   );
 });
