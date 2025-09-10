@@ -1,9 +1,6 @@
-import { clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-
-// Fonction utilitaire pour combiner les classes CSS
+// Fonction utilitaire pour combiner les classes CSS - VERSION SIMPLIFIÉE
 export function cn(...inputs) {
-  return twMerge(clsx(inputs))
+  return inputs.filter(Boolean).join(' ');
 }
 
 // Capitaliser la première lettre
