@@ -1,13 +1,13 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT FINAL AVEC ISOLATION COMPLÈTE DU MENU - ANTI RE-RENDER + DEBUG
+// LAYOUT FINAL AVEC MENU PREMIUM - DESIGN HARMONISÉ
 // ==========================================
 
 import React, { useState, memo, useRef, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// 🔒 COMPOSANT MENU COMPLÈTEMENT ISOLÉ - OUTSIDE COMPONENT TREE
+// 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ
 const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
   console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen);
   
@@ -65,62 +65,104 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
         width: '100vw',
         height: '100vh',
         zIndex: 999999,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(88, 28, 135, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%)',
+        backdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        animation: 'fadeIn 0.3s ease-out'
       }}
       onClick={onClose}
     >
-      {/* CONTENU MENU */}
+      {/* CONTENU MENU PREMIUM */}
       <div 
         style={{
-          backgroundColor: 'white',
-          borderRadius: '20px',
+          background: 'linear-gradient(135deg, rgba(31, 41, 55, 0.8) 0%, rgba(55, 65, 81, 0.8) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(156, 163, 175, 0.2)',
+          borderRadius: '24px',
           width: '90%',
-          maxWidth: '600px',
-          maxHeight: '90vh',
+          maxWidth: '700px',
+          maxHeight: '85vh',
           overflowY: 'auto',
-          padding: '30px',
-          position: 'relative'
+          padding: '32px',
+          position: 'relative',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+          animation: 'slideUp 0.4s ease-out'
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* HEADER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>Navigation</h2>
+        {/* HEADER PREMIUM */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '32px' 
+        }}>
+          <div>
+            <h2 style={{ 
+              fontSize: '32px', 
+              fontWeight: '800',
+              background: 'linear-gradient(135deg, #60a5fa 0%, #a855f7 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              marginBottom: '8px'
+            }}>
+              Navigation
+            </h2>
+            <p style={{
+              color: '#9ca3af',
+              fontSize: '16px',
+              fontWeight: '400'
+            }}>
+              Explorez toutes les fonctionnalités de Synergia
+            </p>
+          </div>
           <button
             onClick={onClose}
             style={{
-              padding: '8px',
-              backgroundColor: '#f3f4f6',
-              border: 'none',
-              borderRadius: '50%',
+              padding: '12px',
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '12px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(220, 38, 38, 0.3) 100%)';
+              e.target.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)';
+              e.target.style.transform = 'scale(1)';
             }}
           >
-            <X style={{ width: '20px', height: '20px', color: '#6b7280' }} />
+            <X style={{ width: '20px', height: '20px', color: '#ef4444' }} />
           </button>
         </div>
 
-        {/* SECTIONS */}
-        <div style={{ display: 'grid', gap: '25px' }}>
+        {/* SECTIONS PREMIUM */}
+        <div style={{ display: 'grid', gap: '28px' }}>
           {menuItems.map((section, index) => (
             <div key={index}>
               <h3 style={{ 
-                fontSize: '14px', 
-                fontWeight: '600', 
+                fontSize: '12px', 
+                fontWeight: '700', 
                 color: '#6b7280', 
-                marginBottom: '15px',
+                marginBottom: '16px',
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em'
+                letterSpacing: '0.1em',
+                borderLeft: '3px solid #8b5cf6',
+                paddingLeft: '12px'
               }}>
                 {section.section}
               </h3>
-              <div style={{ display: 'grid', gap: '8px' }}>
+              <div style={{ display: 'grid', gap: '6px' }}>
                 {section.items.map((item, itemIndex) => (
                   <button
                     key={itemIndex}
@@ -128,41 +170,121 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px 16px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
+                      gap: '16px',
+                      padding: '14px 18px',
+                      background: 'linear-gradient(135deg, rgba(55, 65, 81, 0.3) 0%, rgba(75, 85, 99, 0.3) 100%)',
+                      border: '1px solid rgba(156, 163, 175, 0.1)',
                       borderRadius: '12px',
                       cursor: 'pointer',
-                      fontSize: '16px',
+                      fontSize: '15px',
                       fontWeight: '500',
-                      color: '#374151',
+                      color: '#f3f4f6',
                       textAlign: 'left',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      backdropFilter: 'blur(5px)'
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#f3f4f6';
-                      e.target.style.color = '#1f2937';
+                      e.target.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.2) 100%)';
+                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                      e.target.style.transform = 'translateX(8px)';
+                      e.target.style.boxShadow = '0 10px 25px -5px rgba(59, 130, 246, 0.2)';
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = 'transparent';
-                      e.target.style.color = '#374151';
+                      e.target.style.background = 'linear-gradient(135deg, rgba(55, 65, 81, 0.3) 0%, rgba(75, 85, 99, 0.3) 100%)';
+                      e.target.style.borderColor = 'rgba(156, 163, 175, 0.1)';
+                      e.target.style.transform = 'translateX(0)';
+                      e.target.style.boxShadow = 'none';
                     }}
                   >
-                    <span style={{ fontSize: '20px' }}>{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span style={{ 
+                      fontSize: '20px',
+                      width: '24px',
+                      textAlign: 'center'
+                    }}>
+                      {item.icon}
+                    </span>
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    <div style={{
+                      width: '4px',
+                      height: '4px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #60a5fa 0%, #a855f7 100%)',
+                      opacity: 0.6
+                    }} />
                   </button>
                 ))}
               </div>
             </div>
           ))}
         </div>
+
+        {/* FOOTER PREMIUM */}
+        <div style={{
+          marginTop: '32px',
+          padding: '20px',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+          borderRadius: '16px',
+          textAlign: 'center'
+        }}>
+          <p style={{
+            color: '#10b981',
+            fontSize: '14px',
+            fontWeight: '600',
+            marginBottom: '4px'
+          }}>
+            🚀 Synergia v3.5
+          </p>
+          <p style={{
+            color: '#6b7280',
+            fontSize: '12px'
+          }}>
+            Plateforme de gestion d'équipe nouvelle génération
+          </p>
+        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+          from { 
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+          }
+          to { 
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        /* Scrollbar styling */
+        div::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        div::-webkit-scrollbar-track {
+          background: rgba(55, 65, 81, 0.3);
+          border-radius: 3px;
+        }
+        
+        div::-webkit-scrollbar-thumb {
+          background: linear-gradient(135deg, #60a5fa 0%, #a855f7 100%);
+          border-radius: 3px;
+        }
+        
+        div::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(135deg, #3b82f6 0%, #9333ea 100%);
+        }
+      `}</style>
     </div>
   );
 });
 
-// 🔒 LAYOUT PRINCIPAL AVEC ISOLATION COMPLÈTE
+// 🔒 LAYOUT PRINCIPAL AVEC BOUTON PREMIUM
 const Layout = memo(({ children }) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -200,39 +322,42 @@ const Layout = memo(({ children }) => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       
-      {/* 🔒 BOUTON HAMBURGER STABLE - PAS DE RE-RENDER */}
+      {/* 🔒 BOUTON HAMBURGER PREMIUM */}
       <button
         onClick={openMenu}
         style={{
           position: 'fixed',
-          top: '20px',
-          left: '20px',
+          top: '24px',
+          left: '24px',
           zIndex: 999998,
-          width: '56px',
-          height: '56px',
-          backgroundColor: '#3b82f6',
+          width: '64px',
+          height: '64px',
+          background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
           border: 'none',
-          borderRadius: '50%',
+          borderRadius: '20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          boxShadow: '0 10px 25px rgba(59, 130, 246, 0.4)',
-          transition: 'all 0.3s ease'
+          boxShadow: '0 20px 40px -10px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          backdropFilter: 'blur(10px)'
         }}
         onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.1)';
-          e.target.style.backgroundColor = '#2563eb';
+          e.target.style.transform = 'scale(1.05) translateY(-2px)';
+          e.target.style.background = 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)';
+          e.target.style.boxShadow = '0 25px 50px -10px rgba(59, 130, 246, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2)';
         }}
         onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1)';
-          e.target.style.backgroundColor = '#3b82f6';
+          e.target.style.transform = 'scale(1) translateY(0)';
+          e.target.style.background = 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)';
+          e.target.style.boxShadow = '0 20px 40px -10px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)';
         }}
       >
-        <Menu style={{ width: '24px', height: '24px', color: 'white' }} />
+        <Menu style={{ width: '28px', height: '28px', color: 'white' }} />
       </button>
 
-      {/* 🔒 MENU STABLE - ISOLATION COMPLÈTE */}
+      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE */}
       <HamburgerMenuStable 
         isOpen={menuOpen} 
         onClose={closeMenu}
