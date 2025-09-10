@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// COMPOSANT TÂCHE CORRIGÉ - CHARGEMENT UTILISATEURS ET FONCTIONNALITÉS
+// COMPOSANT TÂCHE AVEC BADGE COMMENTAIRES INTÉGRÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -24,23 +24,96 @@ import {
 
 // 🔥 IMPORTS SERVICES ET STORES
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 
 /**
- * 📬 COMPOSANT BADGE DE NOTIFICATION COMMENTAIRES
+ * 💬 BADGE COMMENTAIRES AVEC TEMPS RÉEL INTÉGRÉ
  */
-const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
+const CommentBadge = ({ taskId, onClick }) => {
   const [commentCount, setCommentCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [hasRecent, setHasRecent] = useState(false);
+
+  useEffect(() => {
+    if (!taskId) {
+      setLoading(false);
+      return;
+    }
+
+    console.log('🔔 [COMMENT_BADGE] Initialisation pour tâche:', taskId);
+
+    // Créer l'écoute temps réel Firebase
+    const commentsQuery = query(
+      collection(db, 'comments'),
+      where('entityType', '==', 'task'),
+      where('entityId', '==', taskId)
+    );
+
+    const unsubscribe = onSnapshot(commentsQuery, 
+      (snapshot) => {
+        const count = snapshot.size;
+        console.log('🔔 [COMMENT_BADGE] Mise à jour:', count, 'commentaires pour', taskId);
+        
+        setCommentCount(count);
+        
+        // Vérifier s'il y a des commentaires récents (dernières 24h)
+        if (count > 0) {
+          const docs = snapshot.docs;
+          const hasRecentComment = docs.some(doc => {
+            const data = doc.data();
+            if (data.createdAt && data.createdAt.seconds) {
+              const commentDate = new Date(data.createdAt.seconds * 1000);
+              const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+              return commentDate > dayAgo;
+            }
+            return false;
+          });
+          setHasRecent(hasRecentComment);
+        } else {
+          setHasRecent(false);
+        }
+        
+        setLoading(false);
+      },
+      (error) => {
+        console.error('❌ [COMMENT_BADGE] Erreur écoute:', error);
+        setCommentCount(0);
+        setLoading(false);
+      }
+    );
+
+    // Nettoyage
+    return () => {
+      console.log('🧹 [COMMENT_BADGE] Nettoyage pour tâche:', taskId);
+      unsubscribe();
+    };
+  }, [taskId]);
+
+  // Ne rien afficher pendant le chargement ou si aucun commentaire
+  if (loading) {
+    return (
+      <div className="w-4 h-4 bg-gray-300 rounded-full animate-pulse"></div>
+    );
+  }
+
+  if (commentCount === 0) {
+    return null;
+  }
 
   return (
     <button
       onClick={onClick}
-      className={`relative flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-gray-600/20 text-gray-400 border border-gray-600/30 hover:bg-gray-600/30 ${className}`}
-      title="Voir les commentaires"
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+        hasRecent 
+          ? 'bg-blue-600 text-white shadow-md animate-pulse' 
+          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      }`}
+      title={`${commentCount} commentaire${commentCount > 1 ? 's' : ''}${hasRecent ? ' (nouveau)' : ''}`}
     >
       <MessageCircle className="w-3 h-3" />
       <span>{commentCount}</span>
+      {hasRecent && <div className="w-1 h-1 bg-yellow-300 rounded-full"></div>}
     </button>
   );
 };
@@ -77,481 +150,338 @@ const SubmitTaskButton = ({ task, onSubmit, onTaskUpdate }) => {
       className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
     >
       <Send className="w-4 h-4" />
-      {submitting ? 'Soumission...' : 'Soumettre'}
+      {submitting ? 'Envoi...' : 'Soumettre'}
     </button>
   );
 };
 
 /**
- * 🎯 COMPOSANT TASKCARD CORRIGÉ
+ * 🎯 COMPOSANT PRINCIPAL TASKCARD
  */
 const TaskCard = ({ 
   task, 
-  currentUser,
   onEdit, 
   onDelete, 
-  onViewDetails, 
-  onSubmit,
-  onVolunteer,
-  onUnvolunteer,
+  onView, 
+  onSubmit, 
   onTaskUpdate,
-  isMyTask = false
+  currentUser,
+  showActions = true,
+  compact = false 
 }) => {
   const { user } = useAuthStore();
-  
-  // 🔥 ÉTATS POUR GÉRER LES DONNÉES UTILISATEUR
-  const [creatorInfo, setCreatorInfo] = useState({ name: 'Chargement...', loading: true });
-  const [assigneeInfo, setAssigneeInfo] = useState({ names: [], loading: true });
-  const [volunteering, setVolunteering] = useState(false);
+  const [creatorName, setCreatorName] = useState('');
+  const [assigneeNames, setAssigneeNames] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
-  // ✅ FONCTION CORRIGÉE POUR RÉCUPÉRER UN UTILISATEUR
-  const fetchUserInfo = async (userId) => {
-    try {
-      if (!userId) {
-        return { displayName: 'Utilisateur inconnu', email: '' };
-      }
+  const effectiveUser = currentUser || user;
+  const isAssignedToMe = effectiveUser && task?.assignedTo?.includes(effectiveUser.uid);
+  const canSubmit = isAssignedToMe && task?.status !== 'completed' && onSubmit;
 
-      console.log('🔍 [TASKCARD] Récupération utilisateur:', userId);
-      
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        console.log('✅ [TASKCARD] Utilisateur trouvé:', userData.displayName || userData.email);
-        return {
-          displayName: userData.displayName || userData.email || 'Utilisateur',
-          email: userData.email || ''
-        };
-      } else {
-        console.warn('⚠️ [TASKCARD] Utilisateur non trouvé:', userId);
-        return { displayName: 'Utilisateur inconnu', email: '' };
-      }
-    } catch (error) {
-      console.error('❌ [TASKCARD] Erreur récupération utilisateur:', userId, error);
-      return { displayName: 'Erreur de chargement', email: '' };
-    }
-  };
-
-  // ✅ CHARGER LES INFOS DU CRÉATEUR
+  // Charger les informations des utilisateurs
   useEffect(() => {
-    const loadCreatorInfo = async () => {
-      if (!task?.createdBy) {
-        setCreatorInfo({ name: 'Créateur inconnu', loading: false });
-        return;
-      }
-
+    const loadUserInfo = async () => {
+      if (!task) return;
+      
+      setLoadingUsers(true);
       try {
-        const userInfo = await fetchUserInfo(task.createdBy);
-        setCreatorInfo({ 
-          name: userInfo.displayName, 
-          loading: false 
-        });
-      } catch (error) {
-        console.error('❌ [TASKCARD] Erreur chargement créateur:', error);
-        setCreatorInfo({ name: 'Erreur de chargement', loading: false });
-      }
-    };
-
-    loadCreatorInfo();
-  }, [task?.createdBy]);
-
-  // ✅ CHARGER LES INFOS DES ASSIGNÉS
-  useEffect(() => {
-    const loadAssigneeInfo = async () => {
-      if (!task?.assignedTo || !Array.isArray(task.assignedTo) || task.assignedTo.length === 0) {
-        setAssigneeInfo({ names: [], loading: false });
-        return;
-      }
-
-      try {
-        const assigneePromises = task.assignedTo.map(userId => fetchUserInfo(userId));
-        const assigneeData = await Promise.all(assigneePromises);
-        const names = assigneeData.map(user => user.displayName);
-        
-        setAssigneeInfo({ 
-          names: names, 
-          loading: false 
-        });
-      } catch (error) {
-        console.error('❌ [TASKCARD] Erreur chargement assignés:', error);
-        setAssigneeInfo({ names: ['Erreur de chargement'], loading: false });
-      }
-    };
-
-    loadAssigneeInfo();
-  }, [task?.assignedTo]);
-
-  // 🎯 FONCTION VOLONTARIAT CORRIGÉE - FIREBASE DIRECT
-  const handleVolunteer = async () => {
-    if (!user?.uid || !task?.id || volunteering) return;
-
-    setVolunteering(true);
-    
-    try {
-      console.log('🤝 [TASKCARD] Se porter volontaire pour:', task.id);
-      
-      const taskRef = doc(db, 'tasks', task.id);
-      const taskDoc = await getDoc(taskRef);
-      
-      if (!taskDoc.exists()) {
-        throw new Error('Tâche introuvable');
-      }
-      
-      const taskData = taskDoc.data();
-      const currentAssigned = Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [];
-      
-      // Vérifier si déjà assigné
-      if (currentAssigned.includes(user.uid)) {
-        if (window.showNotification) {
-          window.showNotification('Vous êtes déjà assigné à cette tâche', 'info');
+        // Charger le créateur
+        if (task.createdBy) {
+          const creatorDoc = await getDoc(doc(db, 'users', task.createdBy));
+          if (creatorDoc.exists()) {
+            const creatorData = creatorDoc.data();
+            setCreatorName(`${creatorData.firstName || ''} ${creatorData.lastName || ''}`.trim() || creatorData.email || 'Utilisateur');
+          }
         }
-        return;
+
+        // Charger les assignés
+        if (task.assignedTo && task.assignedTo.length > 0) {
+          const assigneePromises = task.assignedTo.map(async (userId) => {
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              return `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || 'Utilisateur';
+            }
+            return 'Utilisateur';
+          });
+          const names = await Promise.all(assigneePromises);
+          setAssigneeNames(names);
+        }
+      } catch (error) {
+        console.error('Erreur chargement utilisateurs:', error);
+      } finally {
+        setLoadingUsers(false);
       }
+    };
+
+    loadUserInfo();
+  }, [task]);
+
+  // Gestion des favoris
+  const toggleFavorite = async (e) => {
+    e.stopPropagation();
+    
+    if (!effectiveUser?.uid || favoriteLoading) return;
+    
+    setFavoriteLoading(true);
+    try {
+      const userDoc = doc(db, 'users', effectiveUser.uid);
+      const userSnapshot = await getDoc(userDoc);
       
-      // Ajouter l'utilisateur aux assignés
-      const updatedAssigned = [...currentAssigned, user.uid];
-      
-      await updateDoc(taskRef, {
-        assignedTo: updatedAssigned,
-        status: 'in_progress',
-        updatedAt: new Date()
-      });
-
-      console.log('✅ [TASKCARD] Volontariat enregistré');
-      
-      // Notification succès
-      if (window.showNotification) {
-        window.showNotification('Vous vous êtes porté volontaire !', 'success');
+      if (userSnapshot.exists()) {
+        const userData = userSnapshot.data();
+        const currentFavorites = userData.favoriteTasks || [];
+        
+        let newFavorites;
+        if (isFavorite) {
+          newFavorites = currentFavorites.filter(id => id !== task.id);
+        } else {
+          newFavorites = [...currentFavorites, task.id];
+        }
+        
+        await updateDoc(userDoc, {
+          favoriteTasks: newFavorites
+        });
+        
+        setIsFavorite(!isFavorite);
       }
-
-      // Callback parents
-      if (onVolunteer) {
-        onVolunteer(task);
-      }
-
-      if (onTaskUpdate) {
-        onTaskUpdate();
-      }
-
     } catch (error) {
-      console.error('❌ [TASKCARD] Erreur volontariat:', error);
-      
-      if (window.showNotification) {
-        window.showNotification('Erreur lors du volontariat', 'error');
-      }
+      console.error('Erreur toggle favori:', error);
     } finally {
-      setVolunteering(false);
+      setFavoriteLoading(false);
     }
   };
 
-  // 🔄 FONCTION SE DÉSASSIGNER CORRIGÉE
-  const handleUnvolunteer = async () => {
-    if (!user?.uid || !task?.id || volunteering) return;
-
-    setVolunteering(true);
+  // Formatage des dates
+  const formatDate = (date) => {
+    if (!date) return '';
     
     try {
-      console.log('↩️ [TASKCARD] Se désassigner de:', task.id);
-      
-      const taskRef = doc(db, 'tasks', task.id);
-      const taskDoc = await getDoc(taskRef);
-      
-      if (!taskDoc.exists()) {
-        throw new Error('Tâche introuvable');
-      }
-      
-      const taskData = taskDoc.data();
-      const currentAssigned = Array.isArray(taskData.assignedTo) ? taskData.assignedTo : [];
-      
-      // Retirer l'utilisateur des assignés
-      const updatedAssigned = currentAssigned.filter(id => id !== user.uid);
-      
-      // Déterminer le nouveau statut
-      const newStatus = updatedAssigned.length === 0 ? 'todo' : taskData.status;
-      
-      await updateDoc(taskRef, {
-        assignedTo: updatedAssigned,
-        status: newStatus,
-        updatedAt: new Date()
+      const dateObj = date.toDate ? date.toDate() : new Date(date);
+      return dateObj.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit'
       });
+    } catch {
+      return '';
+    }
+  };
 
-      console.log('✅ [TASKCARD] Désassignation effectuée');
+  // Calcul de l'urgence
+  const getUrgencyLevel = () => {
+    if (!task.dueDate) return 'normal';
+    
+    try {
+      const dueDate = task.dueDate.toDate ? task.dueDate.toDate() : new Date(task.dueDate);
+      const now = new Date();
+      const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
       
-      // Notification
-      if (window.showNotification) {
-        window.showNotification('Vous n\'êtes plus assigné à cette tâche', 'info');
-      }
-
-      // Callbacks
-      if (onUnvolunteer) {
-        onUnvolunteer(task);
-      }
-
-      if (onTaskUpdate) {
-        onTaskUpdate();
-      }
-
-    } catch (error) {
-      console.error('❌ [TASKCARD] Erreur désassignation:', error);
-      
-      if (window.showNotification) {
-        window.showNotification('Erreur lors de la désassignation', 'error');
-      }
-    } finally {
-      setVolunteering(false);
+      if (diffDays < 0) return 'overdue';
+      if (diffDays <= 1) return 'urgent';
+      if (diffDays <= 3) return 'warning';
+      return 'normal';
+    } catch {
+      return 'normal';
     }
   };
 
-  // ✅ VÉRIFICATIONS DE STATUT
-  const isTaskOwner = user && task && task.createdBy === user.uid;
-  const isAssignedToMe = Array.isArray(task?.assignedTo) 
-    ? task.assignedTo.includes(user?.uid)
-    : task?.assignedTo === user?.uid;
-  
-  const canVolunteer = !isAssignedToMe && 
-                      !isTaskOwner && 
-                      task?.status !== 'completed' && 
-                      task?.status !== 'validation_pending' &&
-                      task?.openToVolunteers !== false;
-
-  // 🎨 COULEURS SELON LE STATUT
-  const getStatusColor = () => {
-    switch (task?.status) {
-      case 'completed':
-        return 'border-green-500 bg-green-900/20';
-      case 'in_progress':
-        return 'border-blue-500 bg-blue-900/20';
-      case 'validation_pending':
-        return 'border-yellow-500 bg-yellow-900/20';
-      default:
-        return 'border-gray-600 bg-gray-800/50';
-    }
+  const urgencyLevel = getUrgencyLevel();
+  const urgencyStyles = {
+    overdue: 'border-red-500 bg-red-50',
+    urgent: 'border-orange-500 bg-orange-50',
+    warning: 'border-yellow-500 bg-yellow-50',
+    normal: 'border-gray-200 bg-white'
   };
 
-  const getStatusIcon = () => {
-    switch (task?.status) {
-      case 'completed':
-        return '✅';
-      case 'in_progress':
-        return '🔄';
-      case 'validation_pending':
-        return '⏳';
-      default:
-        return '📋';
-    }
+  const priorityColors = {
+    high: 'text-red-600',
+    medium: 'text-yellow-600',
+    low: 'text-green-600'
   };
 
-  if (!task) {
-    return (
-      <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
-        <p className="text-gray-400">Tâche non disponible</p>
-      </div>
-    );
-  }
+  const statusColors = {
+    todo: 'bg-gray-100 text-gray-800',
+    in_progress: 'bg-blue-100 text-blue-800',
+    review: 'bg-yellow-100 text-yellow-800',
+    completed: 'bg-green-100 text-green-800'
+  };
+
+  if (!task) return null;
 
   return (
-    <div className={`border rounded-lg p-4 backdrop-blur-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${getStatusColor()}`}>
-      
-      {/* Header avec titre et statut */}
+    <div 
+      className={`
+        group relative bg-white rounded-xl border-2 transition-all duration-200 
+        hover:shadow-lg hover:-translate-y-1 cursor-pointer
+        ${urgencyStyles[urgencyLevel]}
+        ${compact ? 'p-3' : 'p-4'}
+      `}
+      onClick={() => onView?.(task)}
+    >
+      {/* Badge d'urgence */}
+      {urgencyLevel === 'overdue' && (
+        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+          En retard
+        </div>
+      )}
+      {urgencyLevel === 'urgent' && (
+        <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+          Urgent
+        </div>
+      )}
+
+      {/* En-tête */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg">{getStatusIcon()}</span>
-            <h3 className="text-lg font-semibold text-white line-clamp-2">
-              {task.title || 'Tâche sans titre'}
-            </h3>
-          </div>
+          <h3 className={`font-semibold text-gray-900 line-clamp-2 ${compact ? 'text-sm' : 'text-base'}`}>
+            {task.title}
+          </h3>
           
-          {task.description && (
-            <p className="text-gray-300 text-sm line-clamp-2 mb-2">
-              {task.description}
-            </p>
+          {/* Badges statut et priorité */}
+          <div className="flex items-center gap-2 mt-2">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[task.status] || statusColors.todo}`}>
+              {task.status === 'todo' ? 'À faire' :
+               task.status === 'in_progress' ? 'En cours' :
+               task.status === 'review' ? 'Révision' :
+               task.status === 'completed' ? 'Terminé' : task.status}
+            </span>
+            
+            {task.priority && (
+              <span className={`text-xs font-medium ${priorityColors[task.priority] || priorityColors.medium}`}>
+                {task.priority === 'high' ? 'Haute' :
+                 task.priority === 'medium' ? 'Moyenne' :
+                 task.priority === 'low' ? 'Faible' : task.priority}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions rapides */}
+        <div className="flex items-center gap-1">
+          {/* Badge commentaires */}
+          <CommentBadge 
+            taskId={task.id} 
+            onClick={(e) => {
+              e.stopPropagation();
+              onView?.(task, 'comments');
+            }}
+          />
+          
+          {/* Favori */}
+          {effectiveUser && (
+            <button
+              onClick={toggleFavorite}
+              disabled={favoriteLoading}
+              className={`p-1 rounded transition-colors ${
+                isFavorite ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+              }`}
+            >
+              <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
           )}
         </div>
-
-        <CommentNotificationBadge 
-          taskId={task.id} 
-          onClick={() => onViewDetails && onViewDetails(task)}
-        />
       </div>
 
-      {/* Informations de la tâche */}
-      <div className="space-y-2 text-sm text-gray-300 mb-4">
-        
-        {/* Créé par - VERSION CORRIGÉE */}
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-gray-400" />
-          <span>
-            Créé par: {creatorInfo.loading ? (
-              <span className="text-gray-500 animate-pulse">Chargement...</span>
-            ) : (
-              <span className="text-white font-medium">{creatorInfo.name}</span>
-            )}
-          </span>
-        </div>
+      {/* Description */}
+      {task.description && !compact && (
+        <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+          {task.description}
+        </p>
+      )}
 
-        {/* Assignés - VERSION CORRIGÉE */}
-        {task.assignedTo && Array.isArray(task.assignedTo) && task.assignedTo.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-gray-400" />
-            <span>
-              Assigné à: {assigneeInfo.loading ? (
-                <span className="text-gray-500 animate-pulse">Chargement...</span>
-              ) : assigneeInfo.names.length > 0 ? (
-                <div className="inline-flex flex-wrap gap-1 mt-1">
-                  {assigneeInfo.names.map((name, index) => (
-                    <span 
-                      key={index} 
-                      className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-xs font-medium"
-                    >
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-gray-500">Non assigné</span>
-              )}
-            </span>
-          </div>
-        )}
-
-        {/* Échéance */}
+      {/* Méta-informations */}
+      <div className="space-y-2 text-xs text-gray-500">
+        {/* Date d'échéance */}
         {task.dueDate && (
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            <span>Échéance: {formatDate(task.dueDate)}</span>
+          </div>
+        )}
+
+        {/* Créateur */}
+        {creatorName && (
+          <div className="flex items-center gap-1">
+            <User className="w-3 h-3" />
+            <span>Créé par: {loadingUsers ? '...' : creatorName}</span>
+          </div>
+        )}
+
+        {/* Assignés */}
+        {task.assignedTo && task.assignedTo.length > 0 && (
+          <div className="flex items-center gap-1">
+            <Users className="w-3 h-3" />
             <span>
-              Échéance: <span className="text-white">
-                {new Date(task.dueDate).toLocaleDateString('fr-FR')}
-              </span>
+              Assigné à: {loadingUsers ? '...' : assigneeNames.join(', ')}
             </span>
           </div>
         )}
 
-        {/* Récompense XP */}
-        {task.xpReward && (
-          <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-yellow-400" />
-            <span className="text-yellow-400 font-medium">+{task.xpReward} XP</span>
-          </div>
-        )}
-
-        {/* Ouvert aux volontaires */}
-        {task.openToVolunteers && (
-          <div className="flex items-center gap-2">
-            <Heart className="w-4 h-4 text-red-400" />
-            <span className="text-green-400 font-medium">Ouvert aux volontaires</span>
+        {/* Points XP */}
+        {task.xpReward && task.xpReward > 0 && (
+          <div className="flex items-center gap-1 text-yellow-600">
+            <Trophy className="w-3 h-3" />
+            <span>+{task.xpReward} XP</span>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
-        
-        {/* Voir détails */}
-        <button
-          onClick={() => onViewDetails && onViewDetails(task)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
-        >
-          <Eye className="w-4 h-4" />
-          Détails
-        </button>
-
-        {/* Bouton de soumission */}
-        {isAssignedToMe && task.status !== 'completed' && task.status !== 'validation_pending' && (
-          <SubmitTaskButton
-            task={task}
-            onSubmit={onSubmit}
-            onTaskUpdate={onTaskUpdate}
-          />
-        )}
-
-        {/* 🔥 BOUTON VOLONTARIAT CORRIGÉ */}
-        {canVolunteer && (
-          <button
-            onClick={handleVolunteer}
-            disabled={volunteering || !user}
-            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
-          >
-            {volunteering ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Traitement...
-              </>
-            ) : (
-              <>
-                <UserPlus className="w-4 h-4" />
-                Se porter volontaire
-              </>
+      {showActions && (
+        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
+          
+          {/* Soumission rapide */}
+          {canSubmit && (
+            <SubmitTaskButton 
+              task={task}
+              onSubmit={onSubmit}
+              onTaskUpdate={onTaskUpdate}
+            />
+          )}
+          
+          {/* Actions secondaires */}
+          <div className="flex items-center gap-1 ml-auto">
+            {onEdit && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task);
+                }}
+                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                title="Modifier"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
             )}
-          </button>
-        )}
-
-        {/* Se désassigner */}
-        {isAssignedToMe && !isTaskOwner && (
-          <button
-            onClick={handleUnvolunteer}
-            disabled={volunteering}
-            className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 transition-colors disabled:opacity-50"
-          >
-            {volunteering ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Traitement...
-              </>
-            ) : (
-              <>
-                <UserMinus className="w-4 h-4" />
-                Se désassigner
-              </>
+            
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(task);
+                }}
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Supprimer"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             )}
-          </button>
-        )}
-
-        {/* Actions propriétaire */}
-        {(isTaskOwner || isMyTask) && (
-          <>
-            <button
-              onClick={() => onEdit && onEdit(task)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 transition-colors"
-            >
-              <Edit className="w-4 h-4" />
-              Modifier
-            </button>
             
             <button
-              onClick={() => onDelete && onDelete(task.id)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onView?.(task);
+              }}
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
+              title="Voir détails"
             >
-              <Trash2 className="w-4 h-4" />
-              Supprimer
+              <Eye className="w-4 h-4" />
             </button>
-          </>
-        )}
-      </div>
-
-      {/* 🔥 INDICATEUR D'ASSIGNATION */}
-      {isAssignedToMe && (
-        <div className="mt-3 px-3 py-2 bg-green-900/30 border border-green-600/50 rounded-lg text-green-300 text-sm flex items-center gap-2">
-          <UserPlus className="w-4 h-4" />
-          <span className="font-medium">✅ Vous êtes assigné à cette tâche</span>
+          </div>
         </div>
       )}
-
-      {/* Indicateur de statut en validation */}
-      {task.status === 'validation_pending' && isAssignedToMe && (
-        <div className="mt-3 px-3 py-2 bg-yellow-900/30 border border-yellow-600/50 rounded-lg text-yellow-300 text-sm flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          <span className="font-medium">⏳ En attente de validation</span>
-        </div>
-      )}
-
-      {/* Debug info */}
-      <div className="mt-3 pt-2 border-t border-gray-600/50">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>ID: {task.id?.slice(-8)}</span>
-          <span>Status: {task.status}</span>
-        </div>
-      </div>
     </div>
   );
 };
