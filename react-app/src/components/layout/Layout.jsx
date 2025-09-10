@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 
 // 🔒 COMPOSANT MENU COMPLÈTEMENT ISOLÉ - OUTSIDE COMPONENT TREE
 const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
+  console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen);
+  
   if (!isOpen) return null;
 
   const menuItems = [
