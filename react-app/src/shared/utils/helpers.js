@@ -6,15 +6,6 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs))
 }
 
-// Formatage des dates
-export const formatDate = (date) => {
-  return new Intl.DateTimeFormat('fr-FR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }).format(new Date(date))
-}
-
 // Capitaliser la première lettre
 export const capitalize = (str) => {
   return str.charAt(0).toUpperCase() + str.slice(1)
@@ -24,7 +15,8 @@ export const capitalize = (str) => {
 export const generateId = () => {
   return Math.random().toString(36).substr(2, 9)
 }
-// Formatage des dates - VERSION SÉCURISÉE
+
+// Formatage des dates - VERSION SÉCURISÉE UNIQUE
 export const formatDate = (date) => {
   if (!date) return 'Date non définie';
   
