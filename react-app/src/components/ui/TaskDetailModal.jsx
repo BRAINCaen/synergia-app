@@ -272,7 +272,7 @@ export const TaskDetailsModal = ({
       statusText: task.status === 'completed' ? 'Terminée' :
                   task.status === 'in_progress' ? 'En cours' : 'En attente',
       formattedDate: task.dueDate ? formatDate(task.dueDate) : 'Aucune',
-      timeFromNow: task.dueDate ? formatDistanceToNow(task.dueDate) : null
+      timeFromNow: task.dueDate ? `Échéance dans ${Math.ceil((new Date(task.dueDate) - new Date()) / (1000 * 60 * 60 * 24))} jours` : null
     };
   }, [task]);
 
