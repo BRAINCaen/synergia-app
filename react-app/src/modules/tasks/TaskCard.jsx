@@ -1,109 +1,66 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// COMPOSANT TÂCHE CORRIGÉ - CHARGEMENT UTILISATEURS ET FONCTIONNALITÉS
+// CORRECTION DU BOUTON SUPPRIMER
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar,
-  User,
-  Users,
-  Trophy,
-  Heart,
-  Clock,
-  AlertCircle,
-  Eye,
-  Edit,
-  Trash2,
-  UserPlus,
-  UserMinus,
-  MessageCircle,
-  Bell,
+  Users, 
+  Calendar, 
+  Clock, 
+  ChevronRight, 
+  UserPlus, 
+  UserMinus, 
+  Edit, 
+  Trash2, 
+  CheckCircle,
   Send
 } from 'lucide-react';
-
-// 🔥 IMPORTS SERVICES ET STORES
-import { useAuthStore } from '../../shared/stores/authStore.js';
-import { doc, getDoc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
+import { useAuthStore } from '../../shared/stores/authStore.js';
 
 /**
- * 📬 COMPOSANT BADGE DE NOTIFICATION COMMENTAIRES - AMÉLIORÉ AVEC FIREBASE
+ * 🎯 CONFIGURATION DES PRIORITÉS
  */
-const CommentNotificationBadge = ({ taskId, onClick, className = '' }) => {
-  const [commentCount, setCommentCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!taskId) {
-      setLoading(false);
-      return;
-    }
-
-    // Écoute temps réel Firebase
-    const commentsQuery = query(
-      collection(db, 'comments'),
-      where('entityType', '==', 'task'),
-      where('entityId', '==', taskId)
-    );
-
-    const unsubscribe = onSnapshot(commentsQuery, 
-      (snapshot) => {
-        setCommentCount(snapshot.size);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Erreur badge commentaires:', error);
-        setCommentCount(0);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [taskId]);
-
-  if (loading) {
-    return (
-      <div className="w-4 h-4 bg-gray-300 rounded-full animate-pulse"></div>
-    );
+const PRIORITY_CONFIG = {
+  low: {
+    label: 'Priorité basse',
+    color: 'bg-green-600',
+    textColor: 'text-green-300'
+  },
+  medium: {
+    label: 'Priorité medium',
+    color: 'bg-yellow-600',
+    textColor: 'text-yellow-300'
+  },
+  high: {
+    label: 'Priorité high',
+    color: 'bg-red-600',
+    textColor: 'text-red-300'
   }
-
-  if (commentCount === 0) {
-    return null;
-  }
-
-  return (
-    <button
-      onClick={onClick}
-      className={`relative flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 ${className}`}
-      title="Voir les commentaires"
-    >
-      <MessageCircle className="w-3 h-3" />
-      <span>{commentCount}</span>
-    </button>
-  );
 };
 
 /**
- * 🔘 COMPOSANT BOUTON SOUMISSION
+ * 🎯 CONFIGURATION DES STATUTS
  */
-const SubmitTaskButton = ({ task, onSubmit, onTaskUpdate }) => {
+const STATUS_CONFIG = {
+  todo: { label: 'À faire', color: 'bg-gray-600', textColor: 'text-gray-300' },
+  in_progress: { label: 'En cours', color: 'bg-blue-600', textColor: 'text-blue-300' },
+  validation_pending: { label: 'En validation', color: 'bg-yellow-600', textColor: 'text-yellow-300' },
+  completed: { label: 'Terminée', color: 'bg-green-600', textColor: 'text-green-300' }
+};
+
+/**
+ * 🎯 COMPOSANT SUBMIT BUTTON
+ */
+const SubmitButton = ({ task, onSubmit, disabled }) => {
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (submitting) return;
-    
     setSubmitting(true);
     try {
-      if (onSubmit) {
-        await onSubmit(task.id);
-      }
-      
-      if (onTaskUpdate) {
-        await onTaskUpdate();
-      }
-    } catch (error) {
-      console.error('Erreur soumission:', error);
+      await onSubmit(task);
     } finally {
       setSubmitting(false);
     }
@@ -112,10 +69,79 @@ const SubmitTaskButton = ({ task, onSubmit, onTaskUpdate }) => {
   return (
     <button
       onClick={handleSubmit}
-      disabled={submitting}
+      disabled={disabled || submitting}
       className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
     >
-      <Send className="w-4 h-4" />
+      {submitting ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          Soumission...
+        </>
+      ) : (
+        <>
+          <Send className="w-4 h-4" />
+          Soumettre
+        </>
+      )}
+    </button>
+  );
+};
+
+/**
+ * 🎯 BADGE DE RÉCOMPENSE XP
+ */
+const XPBadge = ({ xp }) => {
+  if (!xp) return null;
+  
+  return (
+    <div className="flex items-center gap-1 px-2 py-1 bg-yellow-900/30 border border-yellow-600/50 rounded-full text-yellow-300 text-xs font-medium">
+      <span className="text-yellow-400">⭐</span>
+      +{xp} XP
+    </div>
+  );
+};
+
+/**
+ * 🎯 INDICATEUR DE RÔLES
+ */
+const RoleIndicator = ({ requiredRole }) => {
+  if (!requiredRole) return null;
+  
+  const roleLabels = {
+    family_member: '👨‍👩‍👧‍👦 Famille',
+    coloc: '🏠 Coloc',
+    teammate: '⚽ Équipe',
+    admin: '👑 Admin'
+  };
+  
+  return (
+    <div className="px-2 py-1 bg-purple-900/30 border border-purple-600/50 rounded-full text-purple-300 text-xs font-medium">
+      {roleLabels[requiredRole] || requiredRole}
+    </div>
+  );
+};
+
+/**
+ * 🎯 COMPOSANT SUBMITBUTTON SÉPARÉ POUR LE BOUTON SOUMETTRE
+ */
+const SubmitButtonComponent = ({ task, onSubmit, disabled }) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await onSubmit(task);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleSubmit}
+      disabled={disabled || submitting}
+      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+    >
       {submitting ? 'Soumission...' : 'Soumettre'}
     </button>
   );
@@ -203,96 +229,160 @@ const TaskCard = ({
       }
 
       try {
-        console.log('👥 [TASKCARD] Chargement assignés:', task.assignedTo);
+        console.log('🔍 [TASKCARD] Chargement assignés:', task.assignedTo);
         
         const assigneePromises = task.assignedTo.map(userId => fetchUserInfo(userId));
-        const assigneeResults = await Promise.all(assigneePromises);
-        const assigneeNames = assigneeResults.map(result => result.displayName);
+        const assigneeData = await Promise.all(assigneePromises);
         
-        console.log('✅ [TASKCARD] Assignés chargés:', assigneeNames);
-        setAssigneeInfo({ names: assigneeNames, loading: false });
+        const names = assigneeData.map(user => user.displayName);
+        
+        console.log('✅ [TASKCARD] Assignés chargés:', names);
+        setAssigneeInfo({ names, loading: false });
       } catch (error) {
         console.error('❌ [TASKCARD] Erreur chargement assignés:', error);
-        setAssigneeInfo({ names: [], loading: false });
+        setAssigneeInfo({ names: ['Erreur de chargement'], loading: false });
       }
     };
 
     loadAssigneeInfo();
   }, [task?.assignedTo]);
 
-  // 🎯 FONCTIONS DE GESTION
-  const effectiveUser = currentUser || user;
-  const isAssignedToMe = effectiveUser && task?.assignedTo?.includes(effectiveUser.uid);
-  const isTaskOwner = effectiveUser && task?.createdBy === effectiveUser.uid;
-  const canSubmit = isAssignedToMe && task?.status !== 'completed' && onSubmit;
-
-  // ✅ SE PORTER VOLONTAIRE
+  // ✅ GESTIONNAIRE DE VOLONTARIAT
   const handleVolunteer = async () => {
-    if (!effectiveUser?.uid || volunteering) return;
+    if (!user || !task) return;
     
     setVolunteering(true);
     try {
-      if (onVolunteer) {
-        await onVolunteer(task.id);
-      } else {
-        // Fallback: ajouter directement à Firebase
-        const taskRef = doc(db, 'tasks', task.id);
-        const currentAssigned = task.assignedTo || [];
-        
-        if (!currentAssigned.includes(effectiveUser.uid)) {
-          await updateDoc(taskRef, {
-            assignedTo: [...currentAssigned, effectiveUser.uid]
-          });
+      console.log('🙋 [TASKCARD] Se porter volontaire pour:', task.title);
+      
+      const taskRef = doc(db, 'tasks', task.id);
+      const taskData = task;
+      
+      // Récupérer les assignés actuels
+      const currentAssigned = Array.isArray(taskData.assignedTo) 
+        ? taskData.assignedTo 
+        : [];
+      
+      // Vérifier si déjà assigné
+      if (currentAssigned.includes(user.uid)) {
+        console.log('⚠️ [TASKCARD] Déjà assigné');
+        if (window.showNotification) {
+          window.showNotification('Vous êtes déjà assigné à cette tâche', 'info');
         }
+        return;
       }
       
-      if (onTaskUpdate) {
-        await onTaskUpdate();
+      // Ajouter l'utilisateur aux assignés
+      const updatedAssigned = [...currentAssigned, user.uid];
+      
+      await updateDoc(taskRef, {
+        assignedTo: updatedAssigned,
+        status: 'in_progress',
+        updatedAt: new Date()
+      });
+
+      console.log('✅ [TASKCARD] Volontariat enregistré');
+      
+      // Notification
+      if (window.showNotification) {
+        window.showNotification('Vous êtes maintenant assigné à cette tâche', 'success');
       }
+
+      // Callbacks
+      if (onVolunteer) {
+        onVolunteer(task);
+      }
+
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      }
+
     } catch (error) {
       console.error('❌ [TASKCARD] Erreur volontariat:', error);
+      
+      if (window.showNotification) {
+        window.showNotification('Erreur lors de l\'assignation', 'error');
+      }
     } finally {
       setVolunteering(false);
     }
   };
 
-  // ✅ SE DÉSASSIGNER
+  // ✅ GESTIONNAIRE DE DÉSASSIGNATION
   const handleUnvolunteer = async () => {
-    if (!effectiveUser?.uid || volunteering) return;
+    if (!user || !task) return;
     
     setVolunteering(true);
     try {
-      if (onUnvolunteer) {
-        await onUnvolunteer(task.id);
-      } else {
-        // Fallback: retirer directement de Firebase
-        const taskRef = doc(db, 'tasks', task.id);
-        const currentAssigned = task.assignedTo || [];
-        
-        const newAssigned = currentAssigned.filter(uid => uid !== effectiveUser.uid);
-        await updateDoc(taskRef, {
-          assignedTo: newAssigned
-        });
-      }
+      console.log('👋 [TASKCARD] Se désassigner de:', task.title);
       
-      if (onTaskUpdate) {
-        await onTaskUpdate();
+      const taskRef = doc(db, 'tasks', task.id);
+      const taskData = task;
+      
+      // Récupérer les assignés actuels
+      const currentAssigned = Array.isArray(taskData.assignedTo) 
+        ? taskData.assignedTo 
+        : [];
+      
+      // Retirer l'utilisateur des assignés
+      const updatedAssigned = currentAssigned.filter(id => id !== user.uid);
+      
+      // Déterminer le nouveau statut
+      const newStatus = updatedAssigned.length === 0 ? 'todo' : taskData.status;
+      
+      await updateDoc(taskRef, {
+        assignedTo: updatedAssigned,
+        status: newStatus,
+        updatedAt: new Date()
+      });
+
+      console.log('✅ [TASKCARD] Désassignation effectuée');
+      
+      // Notification
+      if (window.showNotification) {
+        window.showNotification('Vous n\'êtes plus assigné à cette tâche', 'info');
       }
+
+      // Callbacks
+      if (onUnvolunteer) {
+        onUnvolunteer(task);
+      }
+
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      }
+
     } catch (error) {
       console.error('❌ [TASKCARD] Erreur désassignation:', error);
+      
+      if (window.showNotification) {
+        window.showNotification('Erreur lors de la désassignation', 'error');
+      }
     } finally {
       setVolunteering(false);
     }
   };
 
-  // 🎨 FORMATAGE DE DATE
-  const formatDate = (timestamp) => {
-    if (!timestamp) return '';
+  // ✅ VÉRIFICATIONS DE STATUT
+  const isTaskOwner = user && task && task.createdBy === user.uid;
+  const isAssignedToMe = Array.isArray(task?.assignedTo) 
+    ? task.assignedTo.includes(user?.uid) 
+    : false;
+  const canVolunteer = !isTaskOwner && !isAssignedToMe && task.status === 'todo';
+  const canSubmit = isAssignedToMe && task.status === 'in_progress';
+
+  // 🎨 Configuration de la priorité
+  const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+  const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo;
+
+  // 📅 Formater la date
+  const formatDate = (date) => {
+    if (!date) return 'Non définie';
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
+      const dateObj = date.toDate ? date.toDate() : new Date(date);
+      return dateObj.toLocaleDateString('fr-FR', { 
+        day: 'numeric', 
+        month: 'short',
         year: 'numeric'
       });
     } catch (error) {
@@ -300,137 +390,87 @@ const TaskCard = ({
     }
   };
 
-  // 🎨 COULEURS DE PRIORITÉ
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'text-red-600 bg-red-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'low': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  // 🎨 COULEURS DE STATUT
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'text-green-600 bg-green-100';
-      case 'in_progress': return 'text-blue-600 bg-blue-100';
-      case 'validation_pending': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  if (!task) {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-        <div className="text-gray-500">Aucune tâche à afficher</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white p-6 rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow">
-      {/* En-tête avec titre et badge commentaires */}
-      <div className="flex items-start justify-between mb-4">
+    <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 hover:border-purple-500/30 transition-all duration-300">
+      {/* En-tête avec badges */}
+      <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {task.title}
-          </h3>
-          
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Statut */}
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-              {task.status === 'completed' ? 'Terminée' :
-               task.status === 'in_progress' ? 'En cours' :
-               task.status === 'validation_pending' ? 'En validation' : 'À faire'}
+          <h3 className="text-lg font-semibold text-white mb-2">{task.title}</h3>
+          <div className="flex flex-wrap gap-2">
+            <span className={`px-2 py-1 ${statusConfig.color} ${statusConfig.textColor} rounded-full text-xs font-medium`}>
+              {statusConfig.label}
             </span>
-            
-            {/* Priorité */}
-            {task.priority && (
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                Priorité {task.priority}
-              </span>
-            )}
-            
-            {/* Badge commentaires - AMÉLIORATION ICI */}
-            <CommentNotificationBadge 
-              taskId={task.id} 
-              onClick={() => onViewDetails && onViewDetails(task, 'comments')}
-            />
+            <span className={`px-2 py-1 ${priorityConfig.color} ${priorityConfig.textColor} rounded-full text-xs font-medium`}>
+              {priorityConfig.label}
+            </span>
+            <RoleIndicator requiredRole={task.requiredRole} />
+            <XPBadge xp={task.xpReward} />
           </div>
-        </div>
-
-        {/* Actions rapides */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onViewDetails && onViewDetails(task)}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded"
-            title="Voir détails"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
       {/* Description */}
       {task.description && (
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-          {task.description}
-        </p>
+        <p className="text-gray-400 text-sm mb-4 line-clamp-2">{task.description}</p>
       )}
 
-      {/* Méta-informations */}
-      <div className="space-y-2 text-sm text-gray-500 mb-4">
+      {/* Métadonnées */}
+      <div className="space-y-2 mb-4 text-sm">
         {/* Créateur */}
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4" />
+        <div className="flex items-center gap-2 text-gray-400">
+          <Users className="w-4 h-4" />
           <span>Créé par: {creatorInfo.loading ? 'Chargement...' : creatorInfo.name}</span>
         </div>
 
         {/* Assignés */}
-        {task.assignedTo && task.assignedTo.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
+        {assigneeInfo.names.length > 0 && (
+          <div className="flex items-center gap-2 text-gray-400">
+            <UserPlus className="w-4 h-4" />
             <span>
-              Assigné à: {assigneeInfo.loading ? 'Chargement...' : assigneeInfo.names.join(', ')}
+              Assignés: {assigneeInfo.loading ? 'Chargement...' : assigneeInfo.names.join(', ')}
             </span>
           </div>
         )}
 
-        {/* Date d'échéance */}
+        {/* Date limite */}
         {task.dueDate && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-gray-400">
             <Calendar className="w-4 h-4" />
             <span>Échéance: {formatDate(task.dueDate)}</span>
           </div>
         )}
 
-        {/* XP */}
-        {task.xpReward && task.xpReward > 0 && (
-          <div className="flex items-center gap-2 text-yellow-600">
-            <Trophy className="w-4 h-4" />
-            <span>+{task.xpReward} XP</span>
+        {/* Temps estimé */}
+        {task.estimatedTime && (
+          <div className="flex items-center gap-2 text-gray-400">
+            <Clock className="w-4 h-4" />
+            <span>Durée estimée: {task.estimatedTime}</span>
           </div>
         )}
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Soumission pour assignés */}
-        {canSubmit && (
-          <SubmitTaskButton 
-            task={task}
-            onSubmit={onSubmit}
-            onTaskUpdate={onTaskUpdate}
-          />
+        {/* Voir détails */}
+        <button
+          onClick={() => onViewDetails && onViewDetails(task)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 text-white rounded text-sm hover:bg-gray-600 transition-colors"
+        >
+          Voir détails
+          <ChevronRight className="w-4 h-4" />
+        </button>
+
+        {/* Soumettre */}
+        {canSubmit && onSubmit && (
+          <SubmitButton task={task} onSubmit={onSubmit} disabled={false} />
         )}
 
         {/* Se porter volontaire */}
-        {effectiveUser && !isAssignedToMe && !isTaskOwner && task.status !== 'completed' && (
+        {canVolunteer && (
           <button
             onClick={handleVolunteer}
             disabled={volunteering}
-            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
           >
             {volunteering ? (
               <>
@@ -479,7 +519,7 @@ const TaskCard = ({
             </button>
             
             <button
-              onClick={() => onDelete && onDelete(task.id)}
+              onClick={() => onDelete && onDelete(task)}
               className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
