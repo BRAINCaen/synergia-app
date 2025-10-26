@@ -36,24 +36,32 @@ import { useAuthStore } from '../../shared/stores/authStore.js';
 import { createTaskSafely } from '../../core/services/taskCreationFix.js';
 
 /**
- * 🎭 RÔLES SYNERGIA COMPLETS
+ * 🎭 RÔLES SYNERGIA OFFICIELS
  */
 const SYNERGIA_ROLES = {
+  game_master: {
+    id: 'game_master',
+    name: 'Game Master',
+    icon: '🕹️',
+    color: 'bg-gradient-to-r from-purple-500 to-pink-500',
+    textColor: 'text-purple-600',
+    description: 'Animateur des sessions, garant de l\'immersion et satisfaction client'
+  },
   maintenance: {
     id: 'maintenance',
     name: 'Entretien & Maintenance',
-    icon: '🔧',
+    icon: '🛠️',
     color: 'bg-gradient-to-r from-orange-500 to-red-500',
     textColor: 'text-orange-600',
-    description: 'Maintenance technique et matériel'
+    description: 'Garant du bon état, sécurité et qualité des salles'
   },
   reputation: {
     id: 'reputation',
     name: 'Gestion des Avis & Réputation',
-    icon: '⭐',
+    icon: '🌟',
     color: 'bg-gradient-to-r from-yellow-500 to-amber-500',
     textColor: 'text-yellow-600',
-    description: 'Gestion de la réputation et avis clients'
+    description: 'Surveillance et valorisation des avis clients'
   },
   stock: {
     id: 'stock',
@@ -61,47 +69,55 @@ const SYNERGIA_ROLES = {
     icon: '📦',
     color: 'bg-gradient-to-r from-blue-500 to-cyan-500',
     textColor: 'text-blue-600',
-    description: 'Inventaires et approvisionnements'
+    description: 'Disponibilité et organisation du matériel'
   },
-  client_experience: {
-    id: 'client_experience',
-    name: 'Expérience Client',
-    icon: '😊',
+  organization: {
+    id: 'organization',
+    name: 'Organisation Interne (RH, Plannings)',
+    icon: '🗓️',
+    color: 'bg-gradient-to-r from-indigo-500 to-purple-500',
+    textColor: 'text-indigo-600',
+    description: 'Fluidité organisation, horaires, absences/congés'
+  },
+  content: {
+    id: 'content',
+    name: 'Création de Contenu & Affichage',
+    icon: '🎨',
     color: 'bg-gradient-to-r from-pink-500 to-rose-500',
     textColor: 'text-pink-600',
-    description: 'Satisfaction et parcours client'
+    description: 'Supports visuels communication interne/externe'
+  },
+  mentoring: {
+    id: 'mentoring',
+    name: 'Mentorat & Formation',
+    icon: '👩‍🏫',
+    color: 'bg-gradient-to-r from-green-500 to-emerald-500',
+    textColor: 'text-green-600',
+    description: 'Accompagnement nouveaux, formations, progression collective'
+  },
+  partnerships: {
+    id: 'partnerships',
+    name: 'Partenariats & Référencement',
+    icon: '🤝',
+    color: 'bg-gradient-to-r from-teal-500 to-cyan-500',
+    textColor: 'text-teal-600',
+    description: 'Relations extérieures et visibilité numérique'
   },
   communication: {
     id: 'communication',
-    name: 'Communication & Marketing',
-    icon: '📣',
-    color: 'bg-gradient-to-r from-purple-500 to-indigo-500',
-    textColor: 'text-purple-600',
-    description: 'Promotion et communication'
+    name: 'Communication & Réseaux Sociaux',
+    icon: '📱',
+    color: 'bg-gradient-to-r from-blue-600 to-indigo-600',
+    textColor: 'text-blue-600',
+    description: 'Animation présence marque sur réseaux sociaux'
   },
-  admin: {
-    id: 'admin',
-    name: 'Administration & Gestion',
-    icon: '📋',
+  b2b: {
+    id: 'b2b',
+    name: 'Relations B2B & Devis',
+    icon: '💼',
     color: 'bg-gradient-to-r from-gray-600 to-gray-700',
     textColor: 'text-gray-600',
-    description: 'Tâches administratives'
-  },
-  environment: {
-    id: 'environment',
-    name: 'Développement Durable',
-    icon: '🌱',
-    color: 'bg-gradient-to-r from-green-500 to-emerald-500',
-    textColor: 'text-green-600',
-    description: 'Écologie et durabilité'
-  },
-  innovation: {
-    id: 'innovation',
-    name: 'Innovation & Amélioration',
-    icon: '💡',
-    color: 'bg-gradient-to-r from-cyan-500 to-blue-500',
-    textColor: 'text-cyan-600',
-    description: 'Projets d\'innovation'
+    description: 'Relations commerciales entreprises et devis'
   }
 };
 
