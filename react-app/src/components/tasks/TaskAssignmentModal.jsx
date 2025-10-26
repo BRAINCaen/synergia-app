@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/TaskAssignmentModal.jsx
-// MODAL ASSIGNATION TÂCHES - VERSION CORRIGÉE SANS BUG USER
+// MODAL ASSIGNATION TÂCHES - VERSION CORRIGÉE RESPONSIVE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -81,19 +81,14 @@ const TaskAssignmentModal = ({
     }
   };
 
-  // Charger les membres quand le modal s'ouvre
+  // Charger les membres à l'ouverture
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && user) {
       loadAvailableMembers();
-      // Reset des états
-      setSelectedMembers([]);
-      setContributions({});
-      setStep(1);
-      setError('');
     }
-  }, [isOpen]);
+  }, [isOpen, user]);
 
-  // Gérer la fermeture
+  // Fermeture et réinitialisation
   const handleClose = () => {
     setSelectedMembers([]);
     setContributions({});
@@ -102,130 +97,153 @@ const TaskAssignmentModal = ({
     onClose();
   };
 
-  // Sélectionner/désélectionner un membre
-  const toggleMemberSelection = (member) => {
+  // Sélection/désélection d'un membre
+  const toggleMemberSelection = (memberId) => {
     setSelectedMembers(prev => {
-      const isSelected = prev.find(m => m.id === member.id);
-      
-      if (isSelected) {
+      if (prev.includes(memberId)) {
         // Retirer le membre
-        const updated = prev.filter(m => m.id !== member.id);
-        
-        // Retirer de contributions si présent
-        setContributions(prevContrib => {
-          const newContrib = { ...prevContrib };
-          delete newContrib[member.id];
-          return newContrib;
-        });
-        
+        const updated = prev.filter(id => id !== memberId);
+        // Supprimer sa contribution
+        const updatedContributions = { ...contributions };
+        delete updatedContributions[memberId];
+        setContributions(updatedContributions);
         return updated;
       } else {
         // Ajouter le membre
-        return [...prev, member];
+        return [...prev, memberId];
       }
     });
   };
 
-  // Calculer le total des pourcentages
-  const getTotalPercentage = () => {
-    return Object.values(contributions).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+  // Mise à jour du pourcentage de contribution
+  const updateContribution = (memberId, percentage) => {
+    setContributions(prev => ({
+      ...prev,
+      [memberId]: Math.max(0, Math.min(100, parseInt(percentage) || 0))
+    }));
   };
 
-  // Distribuer équitablement les pourcentages
+  // Distribution automatique équitable
   const distributeEqually = () => {
     if (selectedMembers.length === 0) return;
     
-    const equalPercentage = Math.floor(100 / selectedMembers.length);
-    const remainder = 100 - (equalPercentage * selectedMembers.length);
+    const equal = Math.floor(100 / selectedMembers.length);
+    const remainder = 100 - (equal * selectedMembers.length);
     
     const newContributions = {};
-    selectedMembers.forEach((member, index) => {
-      if (index === selectedMembers.length - 1) {
-        // Le dernier membre récupère le reste
-        newContributions[member.id] = equalPercentage + remainder;
-      } else {
-        newContributions[member.id] = equalPercentage;
-      }
+    selectedMembers.forEach((memberId, index) => {
+      newContributions[memberId] = equal + (index === 0 ? remainder : 0);
     });
     
     setContributions(newContributions);
   };
 
-  // Mettre à jour une contribution individuelle
-  const updateContribution = (memberId, value) => {
-    const numValue = parseInt(value) || 0;
-    const clampedValue = Math.max(0, Math.min(100, numValue));
-    
-    setContributions(prev => ({
-      ...prev,
-      [memberId]: clampedValue
-    }));
-  };
-
-  // Gérer la soumission
-  const handleSubmitAssignment = async () => {
-    // Validation des paramètres
-    if (!task?.id) {
-      setError('Tâche invalide');
-      return;
-    }
-
-    if (selectedMembers.length === 0) {
-      setError('Veuillez sélectionner au moins un membre');
-      return;
-    }
-
-    // Si étape 1 et sélection multiple, passer à l'étape 2
-    if (step === 1 && selectedMembers.length > 1) {
-      setStep(2);
-      distributeEqually(); // Distribuer automatiquement
-      return;
-    }
-
-    // Validation des pourcentages pour assignation multiple
-    if (selectedMembers.length > 1 && getTotalPercentage() !== 100) {
-      setError(`Les pourcentages doivent totaliser 100% (actuellement ${getTotalPercentage()}%)`);
-      return;
-    }
-
-    setSubmitting(true);
-    setError('');
-
+  // Validation et soumission
+  const handleSubmit = async () => {
     try {
-      console.log('🎯 Soumission assignation:', {
+      setSubmitting(true);
+      setError('');
+
+      // Vérifications
+      if (selectedMembers.length === 0) {
+        setError('Veuillez sélectionner au moins un membre');
+        setSubmitting(false);
+        return;
+      }
+
+      // Si étape 1, passer à l'étape 2 (pourcentages)
+      if (step === 1) {
+        setStep(2);
+        distributeEqually(); // Initialiser avec distribution équitable
+        setSubmitting(false);
+        return;
+      }
+
+      // Étape 2 : Valider les pourcentages
+      const total = Object.values(contributions).reduce((sum, val) => sum + val, 0);
+      
+      if (Math.abs(total - 100) > 0.1) {
+        setError(`Le total doit être égal à 100% (actuellement ${total}%)`);
+        setSubmitting(false);
+        return;
+      }
+
+      // Assignation via le service
+      console.log('📤 Assignation de la tâche:', {
         taskId: task.id,
-        selectedMembers: selectedMembers.map(m => ({ id: m.id, name: m.name })),
-        contributions: selectedMembers.length > 1 ? contributions : null
+        members: selectedMembers,
+        contributions
       });
 
-      // Assigner la tâche avec le service corrigé
       const result = await taskAssignmentService.assignTaskToMembers(
         task.id,
-        selectedMembers.map(m => m.id),
+        selectedMembers,
+        contributions,
         user.uid
       );
 
-      // Gérer les pourcentages si assignation multiple
-      if (selectedMembers.length > 1 && contributions) {
-        try {
-          await taskAssignmentService.updateContributionPercentages(task.id, contributions);
-          console.log('✅ Pourcentages mis à jour');
-        } catch (percentageError) {
-          console.warn('⚠️ Erreur mise à jour pourcentages:', percentageError);
-          // Continuer quand même, l'assignation principale a réussi
-        }
-      }
-
       console.log('✅ Assignation réussie:', result);
-      
-      // Notifier le parent
+
+      // Callback de succès
       if (onAssignmentSuccess) {
         onAssignmentSuccess({
-          success: true,
-          assignedMembers: selectedMembers,
           taskId: task.id,
-          assignmentCount: selectedMembers.length,
-          contributions: selectedMembers.length > 1 ? contributions : null
+          assignedMembers: selectedMembers,
+          contributions: contributions
+        });
+      } else if (result.success) {
+        // Fallback: notification simple
+        if (window.showNotification) {
+          window.showNotification(
+            `Tâche assignée à ${selectedMembers.length} membre(s) avec succès`,
+            'success'
+          );
+        }
+      } else {
+        setError(result.message || 'Erreur lors de l\'assignation');
+        setSubmitting(false);
+        return;
+      }
+
+      // Si assignation partielle
+      if (result.partialSuccess) {
+        console.warn('⚠️ Assignation partielle:', result.failedMembers);
+        if (window.showNotification) {
+          window.showNotification(
+            `Assignation partielle : ${result.failedMembers?.length || 0} membre(s) en erreur`,
+            'warning'
+          );
+        }
+        
+        // Mettre à jour l'état avec les membres réussis uniquement
+        setSelectedMembers(result.successfulMembers || []);
+        setContributions(prev => {
+          const updated = { ...prev };
+          result.failedMembers?.forEach(memberId => {
+            delete updated[memberId];
+          });
+          return updated;
+        });
+        
+        // Ne pas fermer si erreur partielle
+        setSubmitting(false);
+        return;
+      }
+
+      // Si erreur totale
+      if (!result.success) {
+        setError(result.message || 'Erreur lors de l\'assignation');
+        setSubmitting(false);
+        return;
+      }
+
+      // Si assignation via callback (mode ancien)
+      if (!result.task && !result.success && onAssignmentSuccess) {
+        onAssignmentSuccess({
+          taskId: task.id,
+          assignedMembers: selectedMembers,
+          contributions: contributions,
+          contributionsEnabled: Object.keys(contributions).length > 0 ? true : null
         });
       }
       
@@ -249,14 +267,14 @@ const TaskAssignmentModal = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-start sm:items-center sm:justify-center z-50 p-0 sm:p-4"
         onClick={(e) => e.target === e.currentTarget && handleClose()}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+          className="bg-white rounded-none sm:rounded-xl shadow-xl w-full max-w-[375px] sm:max-w-[95vw] md:max-w-4xl h-[100vh] sm:h-auto sm:max-h-[95vh] overflow-hidden"
         >
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -287,149 +305,100 @@ const TaskAssignmentModal = ({
                   }`}>
                     2
                   </span>
-                  <span className="text-sm text-gray-600">Répartition</span>
+                  <span className="text-sm text-gray-600">Contributions</span>
                 </div>
-                
-                <button
-                  onClick={handleClose}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+              </div>
+              
+              {/* Bouton fermer */}
+              <button
+                onClick={handleClose}
+                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Info tâche */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <div className="font-medium text-blue-900">{task.title}</div>
+                  <div className="text-sm text-blue-700 mt-1">
+                    <Trophy className="w-4 h-4 inline mr-1" />
+                    {task.xpReward || 25} XP • {task.difficulty === 'easy' ? 'Facile' : task.difficulty === 'normal' ? 'Normal' : 'Difficile'}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Contenu */}
-          <div className="overflow-y-auto max-h-[60vh]">
-            
-            {/* Affichage des erreurs */}
-            {error && (
-              <div className="m-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-2 text-red-800">
+          {/* Corps avec scroll */}
+          <div className="overflow-y-auto flex-1" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+            <div className="p-6">
+              
+              {/* Erreurs */}
+              {error && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5" />
-                  <span className="font-medium">Erreur</span>
+                  {error}
                 </div>
-                <p className="text-red-700 mt-1">{error}</p>
-                
-                {/* Bouton retry si erreur de chargement */}
-                {error.includes('chargement') && (
-                  <button
-                    onClick={loadAvailableMembers}
-                    disabled={loading}
-                    className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {loading && <Loader className="w-4 h-4 animate-spin" />}
-                    Réessayer
-                  </button>
-                )}
-              </div>
-            )}
+              )}
 
-            {/* Étape 1: Sélection des membres */}
-            {step === 1 && (
-              <div className="p-6 space-y-6">
-                
-                {/* Header de sélection */}
-                <div className="text-center">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Sélectionnez les membres à assigner
+              {/* ÉTAPE 1: Sélection des membres */}
+              {step === 1 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-600" />
+                    Sélectionner les membres
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    Tâche: <span className="font-medium">{task?.title || 'Sans titre'}</span>
-                  </p>
-                </div>
 
-                {/* Membres sélectionnés */}
-                {selectedMembers.length > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
-                      <Check className="w-4 h-4" />
-                      Membres sélectionnés ({selectedMembers.length})
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedMembers.map(member => (
-                        <span
-                          key={member.id}
-                          className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                        >
-                          <User className="w-3 h-3" />
-                          {member.name}
-                          <button
-                            onClick={() => toggleMemberSelection(member)}
-                            className="hover:text-blue-600"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Liste des membres */}
-                <div className="space-y-3">
                   {loading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                      <p className="text-gray-600 mt-2">Chargement des membres...</p>
+                    <div className="flex items-center justify-center py-12">
+                      <Loader className="w-8 h-8 animate-spin text-blue-600" />
+                      <span className="ml-3 text-gray-600">Chargement des membres...</span>
                     </div>
                   ) : availableMembers.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-600 mb-4">Aucun membre disponible</p>
-                      <button
-                        onClick={loadAvailableMembers}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Recharger
-                      </button>
+                    <div className="text-center py-12 text-gray-500">
+                      <Users className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                      <p>Aucun membre disponible</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {availableMembers.map(member => {
-                        const isSelected = selectedMembers.find(m => m.id === member.id);
+                        const isSelected = selectedMembers.includes(member.id);
                         
                         return (
                           <div
                             key={member.id}
-                            onClick={() => toggleMemberSelection(member)}
-                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                              isSelected 
-                                ? 'border-blue-500 bg-blue-50 shadow-md' 
-                                : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                            }`}
+                            onClick={() => toggleMemberSelection(member.id)}
+                            className={`
+                              p-4 rounded-lg border-2 cursor-pointer transition-all
+                              ${isSelected 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                              }
+                            `}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
-                                isSelected ? 'bg-blue-600' : 'bg-gray-400'
-                              }`}>
-                                {isSelected ? (
-                                  <Check className="w-5 h-5" />
-                                ) : (
-                                  member.name.charAt(0).toUpperCase()
-                                )}
+                              <div className={`
+                                w-10 h-10 rounded-full flex items-center justify-center font-medium text-white
+                                ${isSelected ? 'bg-blue-600' : 'bg-gray-400'}
+                              `}>
+                                {member.displayName?.charAt(0).toUpperCase() || 'U'}
                               </div>
                               
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-medium text-gray-900 truncate">
-                                  {member.name}
-                                </h4>
-                                <p className="text-sm text-gray-600 truncate">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900">
+                                  {member.displayName || 'Utilisateur'}
+                                </div>
+                                <div className="text-sm text-gray-500">
                                   {member.email}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Trophy className="w-3 h-3 text-yellow-500" />
-                                  <span className="text-xs text-gray-500">
-                                    Niveau {member.level} • {member.totalXp} XP
-                                  </span>
                                 </div>
                               </div>
                               
                               {isSelected && (
-                                <div className="text-blue-600">
-                                  <Check className="w-5 h-5" />
-                                </div>
+                                <Check className="w-5 h-5 text-blue-600" />
                               )}
                             </div>
                           </div>
@@ -438,105 +407,110 @@ const TaskAssignmentModal = ({
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Étape 2: Répartition des pourcentages */}
-            {step === 2 && (
-              <div className="p-6 space-y-6">
-                
-                {/* Header répartition */}
-                <div className="text-center">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Définir la répartition des contributions
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Total: <span className={`font-bold ${getTotalPercentage() === 100 ? 'text-green-600' : 'text-red-600'}`}>
-                      {getTotalPercentage()}%
-                    </span>
-                  </p>
-                </div>
-
-                {/* Bouton distribution automatique */}
-                <div className="flex justify-center">
-                  <button
-                    onClick={distributeEqually}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                  >
-                    <Percent className="w-4 h-4" />
-                    Distribuer équitablement
-                  </button>
-                </div>
-
-                {/* Répartition par membre */}
-                <div className="space-y-4">
-                  {selectedMembers.map(member => (
-                    <div key={member.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                        {member.name.charAt(0).toUpperCase()}
-                      </div>
-                      
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{member.name}</h4>
-                        <p className="text-sm text-gray-600">{member.email}</p>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={contributions[member.id] || 0}
-                          onChange={(e) => updateContribution(member.id, e.target.value)}
-                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-gray-600">%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Validation pourcentages */}
-                {getTotalPercentage() !== 100 && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-orange-800">
-                      <Info className="w-5 h-5" />
-                      <span className="font-medium">Attention</span>
-                    </div>
-                    <p className="text-orange-700 mt-1">
-                      Le total doit être exactement 100%. 
-                      Actuellement: {getTotalPercentage()}%
-                    </p>
+              {/* ÉTAPE 2: Pourcentages de contribution */}
+              {step === 2 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Percent className="w-5 h-5 text-blue-600" />
+                      Répartir les contributions
+                    </h3>
+                    
+                    <button
+                      onClick={distributeEqually}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Répartir équitablement
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
+
+                  <div className="space-y-3">
+                    {selectedMembers.map(memberId => {
+                      const member = availableMembers.find(m => m.id === memberId);
+                      if (!member) return null;
+                      
+                      const contribution = contributions[memberId] || 0;
+                      
+                      return (
+                        <div key={memberId} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-medium text-white">
+                                {member.displayName?.charAt(0).toUpperCase() || 'U'}
+                              </div>
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {member.displayName || 'Utilisateur'}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {member.email}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={contribution}
+                                onChange={(e) => updateContribution(memberId, e.target.value)}
+                                className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                              />
+                              <span className="text-gray-600">%</span>
+                            </div>
+                          </div>
+                          
+                          {/* Barre de progression */}
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all"
+                              style={{ width: `${contribution}%` }}
+                            />
+                          </div>
+                          
+                          {/* XP prévu */}
+                          <div className="mt-2 text-sm text-gray-600">
+                            <Trophy className="w-4 h-4 inline mr-1" />
+                            {Math.round((task.xpReward || 25) * contribution / 100)} XP
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Total */}
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-blue-900">Total des contributions</span>
+                      <span className={`text-lg font-bold ${
+                        Math.abs(Object.values(contributions).reduce((sum, val) => sum + val, 0) - 100) < 0.1
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}>
+                        {Object.values(contributions).reduce((sum, val) => sum + val, 0)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Footer avec actions */}
+          {/* Footer */}
           <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
-              
-              {/* Info étape */}
               <div className="text-sm text-gray-600">
-                {step === 1 ? (
-                  selectedMembers.length > 0 ? (
-                    `${selectedMembers.length} membre${selectedMembers.length > 1 ? 's' : ''} sélectionné${selectedMembers.length > 1 ? 's' : ''}`
-                  ) : (
-                    'Sélectionnez au moins un membre'
-                  )
-                ) : (
-                  `Répartition pour ${selectedMembers.length} membre${selectedMembers.length > 1 ? 's' : ''}`
-                )}
+                {selectedMembers.length} membre(s) sélectionné(s)
               </div>
               
-              {/* Actions */}
-              <div className="flex items-center gap-3">
+              <div className="flex gap-3">
                 {step === 2 && (
                   <button
                     onClick={() => setStep(1)}
-                    disabled={submitting}
-                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
                   >
                     Retour
                   </button>
@@ -544,24 +518,26 @@ const TaskAssignmentModal = ({
                 
                 <button
                   onClick={handleClose}
-                  disabled={submitting}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   Annuler
                 </button>
                 
                 <button
-                  onClick={handleSubmitAssignment}
-                  disabled={submitting || selectedMembers.length === 0 || (step === 2 && getTotalPercentage() !== 100)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  onClick={handleSubmit}
+                  disabled={selectedMembers.length === 0 || submitting}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
-                  {submitting && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                  {step === 1 ? (
-                    selectedMembers.length > 1 ? 'Définir la répartition' : 'Assigner'
+                  {submitting ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      {step === 1 ? 'Chargement...' : 'Assignation...'}
+                    </>
                   ) : (
-                    submitting ? 'Assignation...' : 'Confirmer l\'assignation'
+                    <>
+                      {step === 1 ? 'Suivant' : 'Assigner'}
+                    </>
                   )}
-                  {step === 1 && selectedMembers.length > 0 && <UserPlus className="w-4 h-4" />}
                 </button>
               </div>
             </div>
