@@ -3,7 +3,7 @@
 // CORRECTION LARGEUR RESPONSIVE - CONTENU IDENTIQUE
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -118,6 +118,7 @@ const NewTaskModal = ({
   const [tagInput, setTagInput] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -142,6 +143,31 @@ const NewTaskModal = ({
     attachments: [],
     notes: ''
   });
+
+  // ✅ CALCUL AUTOMATIQUE DES XP - OBLIGATOIRE
+  useEffect(() => {
+    // Calculer XP automatiquement selon difficulté, priorité et récurrence
+    const baseXP = {
+      easy: 15,
+      medium: 25,
+      hard: 40
+    }[formData.difficulty] || 25;
+
+    const priorityMultiplier = {
+      low: 1.0,
+      medium: 1.2,
+      high: 1.5
+    }[formData.priority] || 1.2;
+
+    const recurrenceMultiplier = formData.isRecurring ? 0.8 : 1.0;
+
+    const calculatedXP = Math.round(baseXP * priorityMultiplier * recurrenceMultiplier);
+
+    setFormData(prev => ({
+      ...prev,
+      xpReward: Math.max(5, calculatedXP) // Minimum 5 XP
+    }));
+  }, [formData.difficulty, formData.priority, formData.isRecurring]);
 
   useEffect(() => {
     if (isOpen) {
@@ -542,8 +568,8 @@ const NewTaskModal = ({
                 </div>
               </div>
 
-              {/* Ligne 4: Temps estimé + XP */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Ligne 4: Temps estimé UNIQUEMENT (XP calculé automatiquement) */}
+              <div className="grid grid-cols-1 gap-6">
                 {/* Temps estimé */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -559,22 +585,9 @@ const NewTaskModal = ({
                     step="0.5"
                     className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                   />
-                </div>
-
-                {/* XP Reward */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <Trophy className="w-4 h-4 inline mr-2" />
-                    Récompense XP
-                  </label>
-                  <input
-                    type="number"
-                    name="xpReward"
-                    value={formData.xpReward}
-                    onChange={handleInputChange}
-                    min="0"
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    💡 Les XP sont calculés automatiquement selon la difficulté, la priorité et la récurrence
+                  </p>
                 </div>
               </div>
 
@@ -620,6 +633,55 @@ const NewTaskModal = ({
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Upload fichiers/photos/vidéos */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Upload className="w-4 h-4 inline mr-2" />
+                  Pièce jointe (photo/vidéo/fichier)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-500 transition-colors">
+                  {selectedFile ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center gap-3 text-sm text-gray-700">
+                        <Paperclip className="w-5 h-5 text-indigo-600" />
+                        <span className="font-medium">{selectedFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFile(null)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={(e) => setSelectedFile(e.target.files[0])}
+                        accept="image/*,video/*,.pdf,.doc,.docx"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full p-4 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-medium flex items-center justify-center gap-2"
+                      >
+                        <Upload className="w-5 h-5" />
+                        Choisir un fichier
+                      </button>
+                      <p className="text-xs text-gray-500">
+                        Photos, vidéos, PDF ou documents (max 10MB)
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Options avancées */}
