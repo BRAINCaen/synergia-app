@@ -1,13 +1,12 @@
 // ==========================================
 // 📁 react-app/src/shared/components/ui/ModalWrapper.jsx
-// WRAPPER MODAL + TaskDetailModal CORRIGÉE AVEC COMMENTAIRES FONCTIONNELS
+// WRAPPER MODAL - VERSION RESPONSIVE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Users, Calendar, Target, Trophy, Clock, Tag, Send, MessageCircle, User, AlertCircle } from 'lucide-react';
 
-// 🚨 IMPORT COLLABORATION SERVICE POUR COMMENTAIRES
 import { collaborationService } from '../../../core/services/collaborationService.js';
 import { useAuthStore } from '../../stores/authStore.js';
 
@@ -25,11 +24,11 @@ const ModalWrapper = ({
   if (!isOpen) return null;
 
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-    full: 'max-w-7xl'
+    sm: 'max-w-[375px] sm:max-w-[95vw] md:max-w-md',
+    md: 'max-w-[375px] sm:max-w-[95vw] md:max-w-lg',
+    lg: 'max-w-[375px] sm:max-w-[95vw] md:max-w-2xl',
+    xl: 'max-w-[375px] sm:max-w-[95vw] md:max-w-4xl',
+    full: 'max-w-[375px] sm:max-w-[95vw] md:max-w-7xl'
   };
 
   return createPortal(
@@ -37,14 +36,14 @@ const ModalWrapper = ({
       className="fixed inset-0 z-50 overflow-y-auto"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
     >
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
+      <div className="flex items-start justify-start sm:items-center sm:justify-center min-h-screen px-0 sm:px-4 pt-0 sm:pt-4 pb-0 sm:pb-20">
         <div 
-          className={`relative w-full ${sizeClasses[size]} bg-gray-900 rounded-lg shadow-xl border border-gray-700`}
+          className={`relative w-full ${sizeClasses[size]} bg-gray-900 rounded-none sm:rounded-lg shadow-xl border-0 sm:border border-gray-700 h-[100vh] sm:h-auto sm:max-h-[95vh] overflow-hidden flex flex-col`}
         >
           {/* Header */}
           {(title || showCloseButton) && (
             <div 
-              className="flex items-center justify-between px-6 py-4 border-b border-gray-700"
+              className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0"
             >
               {title && (
                 <h3 className="text-lg font-semibold text-white">
@@ -54,17 +53,16 @@ const ModalWrapper = ({
               {showCloseButton && (
                 <button
                   onClick={onClose}
-                  className="p-1 hover:bg-gray-700 rounded-lg transition-colors text-gray-400"
-                  aria-label="Fermer"
+                  className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 text-gray-400" />
                 </button>
               )}
             </div>
           )}
 
-          {/* Content */}
-          <div className="modal-content-wrapper text-gray-300">
+          {/* Body avec scroll */}
+          <div className="flex-1 overflow-y-auto">
             {children}
           </div>
         </div>
@@ -75,423 +73,297 @@ const ModalWrapper = ({
 };
 
 /**
- * 🎯 FORMATAGE DATE FRANÇAIS
+ * 📋 MODAL DE DÉTAILS DE TÂCHE
  */
-const formatDate = (date) => {
-  try {
-    if (!date) return 'Date inconnue';
-    
-    if (date.seconds) {
-      return new Date(date.seconds * 1000).toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-    
-    if (date instanceof Date) {
-      return date.toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-    
-    return new Date(date).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (error) {
-    console.warn('Erreur formatage date:', error);
-    return 'Date invalide';
-  }
-};
-
-/**
- * 💬 SECTION COMMENTAIRES AVEC SAUVEGARDE FIREBASE
- */
-const TaskCommentsSection = ({ task }) => {
+export const TaskDetailModal = ({ task, isOpen, onClose, onEdit, onDelete }) => {
   const { user } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('details');
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [sendingComment, setSendingComment] = useState(false);
 
-  // 🔄 CHARGER LES COMMENTAIRES EXISTANTS
   useEffect(() => {
-    if (!task?.id) {
-      setLoading(false);
-      return;
+    if (isOpen && task && activeTab === 'comments') {
+      loadComments();
     }
-
-    loadComments();
-    
-    // 📡 LISTENER TEMPS RÉEL
-    const unsubscribe = collaborationService.subscribeToComments(
-      'task',
-      task.id,
-      (updatedComments) => {
-        console.log('📡 [TASK_COMMENTS] Mise à jour temps réel:', updatedComments.length);
-        setComments(updatedComments);
-        setLoading(false);
-        setError(null);
-      }
-    );
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [task?.id]);
+  }, [isOpen, task, activeTab]);
 
   const loadComments = async () => {
+    if (!task?.id) return;
+    
+    setLoadingComments(true);
     try {
-      console.log('📖 [TASK_COMMENTS] Chargement pour tâche:', task.id);
-      const existingComments = await collaborationService.getComments('task', task.id);
-      setComments(existingComments);
-      console.log('📖 [TASK_COMMENTS] Chargés:', existingComments.length);
+      const taskComments = await collaborationService.getTaskComments(task.id);
+      setComments(taskComments || []);
     } catch (error) {
-      console.error('❌ [TASK_COMMENTS] Erreur chargement:', error);
-      setError('Impossible de charger les commentaires');
+      console.error('Erreur chargement commentaires:', error);
     } finally {
-      setLoading(false);
+      setLoadingComments(false);
     }
   };
 
-  // 📤 ENVOYER UN COMMENTAIRE AVEC SAUVEGARDE FIREBASE
-  const handleSubmitComment = async (e) => {
-    e.preventDefault();
+  const handleSendComment = async () => {
+    if (!newComment.trim() || !task?.id || !user) return;
     
-    if (!newComment.trim() || submitting || !user?.uid) {
-      return;
-    }
-
-    console.log('📤 [TASK_COMMENTS] Envoi commentaire pour tâche:', task.id);
-    
-    setSubmitting(true);
-    setError(null);
-    
+    setSendingComment(true);
     try {
-      // 📝 UTILISER LE SERVICE COLLABORATION EXISTANT
-      const commentData = {
-        entityType: 'task',
-        entityId: task.id,
-        userId: user.uid,
-        userName: user.displayName || user.email || 'Utilisateur',
-        userEmail: user.email || '',
-        content: newComment.trim()
-      };
-      
-      console.log('📝 [TASK_COMMENTS] Données commentaire:', commentData);
-      
-      // 🚀 SAUVEGARDE AVEC COLLABORATION SERVICE
-      const savedComment = await collaborationService.addComment(commentData);
-      
-      if (savedComment) {
-        console.log('✅ [TASK_COMMENTS] Commentaire sauvegardé:', savedComment.id);
-        
-        // Réinitialiser le champ
-        setNewComment('');
-        
-        // ✅ RÉCHARGER LES COMMENTAIRES POUR VOIR LE NOUVEAU
-        await loadComments();
-        
-        console.log('✅ [TASK_COMMENTS] Liste rechargée');
-      }
-      
+      await collaborationService.addTaskComment(
+        task.id,
+        newComment.trim(),
+        user.uid,
+        user.displayName || user.email
+      );
+      setNewComment('');
+      await loadComments();
     } catch (error) {
-      console.error('❌ [TASK_COMMENTS] Erreur envoi commentaire:', error);
-      setError(`Impossible d'envoyer le commentaire: ${error.message}`);
+      console.error('Erreur envoi commentaire:', error);
     } finally {
-      setSubmitting(false);
+      setSendingComment(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <span className="ml-3 text-gray-400 text-sm">Chargement des commentaires...</span>
-      </div>
-    );
-  }
+  if (!task) return null;
 
-  return (
-    <div className="space-y-4">
-      
-      {/* Message d'erreur */}
-      {error && (
-        <div className="p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-300 text-sm">
-          {error}
-        </div>
-      )}
+  const isAssignedToMe = task.assignedTo?.includes(user?.uid);
 
-      {/* Liste des commentaires */}
-      <div className="space-y-4 max-h-96 overflow-y-auto">
-        {comments.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageCircle className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">Aucun commentaire pour le moment</p>
-            <p className="text-gray-600 text-xs mt-1">Soyez le premier à commenter cette tâche !</p>
+  const CommentsSection = () => (
+    <div className="p-6 space-y-4">
+      <div className="space-y-3">
+        {loadingComments ? (
+          <div className="text-center py-8 text-gray-400">
+            Chargement des commentaires...
+          </div>
+        ) : comments.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+            Aucun commentaire pour le moment
           </div>
         ) : (
-          comments.map(comment => (
-            <div key={comment.id} className="bg-gray-800 rounded-lg p-4 border-l-4 border-blue-500">
-              {/* En-tête du commentaire */}
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                  {comment.userName ? comment.userName.charAt(0).toUpperCase() : 'U'}
+          comments.map((comment) => (
+            <div key={comment.id} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  {comment.userName?.charAt(0).toUpperCase() || 'U'}
                 </div>
-                <div>
-                  <span className="font-medium text-white">
-                    {comment.userName || 'Utilisateur'}
-                  </span>
-                  <div className="text-xs text-gray-400">
-                    {formatDate(comment.createdAt)}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-white">
+                      {comment.userName || 'Utilisateur'}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {comment.createdAt?.toDate?.().toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
                   </div>
+                  <p className="text-gray-300">{comment.text}</p>
                 </div>
               </div>
-              
-              {/* Contenu du commentaire */}
-              <p className="text-gray-300 whitespace-pre-wrap">{comment.content}</p>
             </div>
           ))
         )}
       </div>
 
-      {/* Formulaire d'ajout de commentaire */}
-      {user && (
-        <form onSubmit={handleSubmitComment} className="mt-4">
-          <div className="space-y-3">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Ajouter un commentaire à cette tâche..."
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              rows={3}
-              disabled={submitting}
-            />
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-xs">
-                {comments.length > 0 ? '🟢 Synchronisé en temps réel' : '💬 Premier commentaire'}
-              </span>
-              <button
-                type="submit"
-                disabled={!newComment.trim() || submitting}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-              >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Envoi...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    Envoyer
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
-
-      {/* Message si non connecté */}
-      {!user && (
-        <div className="text-center py-4 text-gray-400 text-sm">
-          Connectez-vous pour ajouter un commentaire
-        </div>
-      )}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendComment()}
+          placeholder="Ajouter un commentaire..."
+          className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          disabled={sendingComment}
+        />
+        <button
+          onClick={handleSendComment}
+          disabled={!newComment.trim() || sendingComment}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
-};
-
-/**
- * Modal pour les détails de tâche - ✅ COULEURS SOMBRES + COMMENTAIRES FONCTIONNELS
- */
-export const TaskDetailModal = ({ task, isOpen, onClose, onEdit, onDelete, onSubmit }) => {
-  if (!task) return null;
 
   return (
     <ModalWrapper
       isOpen={isOpen}
       onClose={onClose}
-      title={task.title}
-      size="lg"
+      title={null}
+      size="xl"
     >
-      <div className="p-6 space-y-6">
-        {/* Description */}
-        {task.description && (
-          <div>
-            <h4 className="font-medium mb-2 text-white">
-              Description
-            </h4>
-            <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
-              <p className="text-gray-300">{task.description}</p>
-            </div>
-          </div>
-        )}
+      <div className="flex flex-col h-full">
+        <div className="px-6 py-4 border-b border-gray-700 bg-gradient-to-r from-blue-600 to-purple-600 flex-shrink-0">
+          <h2 className="text-2xl font-bold text-white mb-2">{task.title}</h2>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
+              task.status === 'completed' ? 'bg-green-800/50 text-green-300 border-green-600' :
+              task.status === 'in_progress' ? 'bg-blue-800/50 text-blue-300 border-blue-600' :
+              task.status === 'pending' ? 'bg-yellow-800/50 text-yellow-300 border-yellow-600' :
+              'bg-gray-800/50 text-gray-300 border-gray-600'
+            }`}>
+              {task.status === 'completed' ? 'Terminé' :
+               task.status === 'in_progress' ? 'En cours' :
+               task.status === 'pending' ? 'En attente' :
+               task.status}
+            </span>
+            
+            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
+              task.difficulty === 'easy' ? 'bg-green-800/50 text-green-300 border-green-600' :
+              task.difficulty === 'normal' ? 'bg-blue-800/50 text-blue-300 border-blue-600' :
+              task.difficulty === 'hard' ? 'bg-red-800/50 text-red-300 border-red-600' :
+              'bg-gray-800/50 text-gray-300 border-gray-600'
+            }`}>
+              {task.difficulty === 'easy' ? 'Facile' :
+               task.difficulty === 'normal' ? 'Normal' :
+               task.difficulty === 'hard' ? 'Difficile' :
+               task.difficulty}
+            </span>
 
-        {/* Informations principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* Assignation */}
-          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="w-4 h-4 text-blue-400" />
-              <h4 className="font-medium text-white">Assignation</h4>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="text-gray-400">Créé par :</span>
-                <span className="ml-2 text-gray-200">{task.creatorName || 'Utilisateur'}</span>
-              </div>
-              {task.assignedTo && task.assignedTo.length > 0 && (
-                <div>
-                  <span className="text-gray-400">Assigné à :</span>
-                  <span className="ml-2 text-gray-200">{task.assignedTo.length} personne(s)</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Caractéristiques */}
-          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-            <div className="flex items-center gap-2 mb-3">
-              <Target className="w-4 h-4 text-blue-400" />
-              <h4 className="font-medium text-white">Caractéristiques</h4>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Difficulté :</span>
-                <span className={`px-2 py-1 rounded text-xs font-medium border ${
-                  task.difficulty === 'easy' ? 'bg-green-800/50 text-green-300 border-green-600' :
-                  task.difficulty === 'normal' ? 'bg-blue-800/50 text-blue-300 border-blue-600' :
-                  task.difficulty === 'hard' ? 'bg-orange-800/50 text-orange-300 border-orange-600' :
-                  'bg-gray-800/50 text-gray-300 border-gray-600'
-                }`}>
-                  {task.difficulty === 'easy' ? 'Facile' :
-                   task.difficulty === 'normal' ? 'Normal' :
-                   task.difficulty === 'hard' ? 'Difficile' :
-                   task.difficulty || 'Non définie'}
-                </span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span className="text-gray-400">Récompense :</span>
-                <span className="flex items-center text-yellow-400 font-medium">
-                  <Trophy className="w-4 h-4 mr-1" />
-                  +{task.xpReward || 0} XP
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-gray-400">Priorité :</span>
-                <span className={`px-2 py-1 rounded text-xs font-medium border ${
-                  task.priority === 'haute' ? 'bg-red-800/50 text-red-300 border-red-600' :
-                  task.priority === 'moyenne' ? 'bg-yellow-800/50 text-yellow-300 border-yellow-600' :
-                  'bg-green-800/50 text-green-300 border-green-600'
-                }`}>
-                  {task.priority || 'Moyenne'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-gray-400">Catégorie :</span>
-                <span className="text-purple-300">{task.category || 'Général'}</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-gray-400">Durée estimée :</span>
-                <span className="flex items-center text-gray-200">
-                  <Clock className="w-4 h-4 mr-1 text-gray-400" />
-                  {task.estimatedHours ? `${task.estimatedHours}h` : '1h'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Dates */}
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="w-4 h-4 text-blue-400" />
-            <h4 className="font-medium text-white">Dates</h4>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-400">Créée :</span>
-              <div className="text-gray-200">{formatDate(task.createdAt)}</div>
-            </div>
-            {task.updatedAt && (
-              <div>
-                <span className="text-gray-400">Modifiée :</span>
-                <div className="text-gray-200">{formatDate(task.updatedAt)}</div>
-              </div>
+            {task.xpReward && (
+              <span className="px-3 py-1 bg-purple-800/50 text-purple-300 rounded-full text-xs font-medium border border-purple-600">
+                <Trophy className="w-3 h-3 inline mr-1" />
+                {task.xpReward} XP
+              </span>
             )}
           </div>
         </div>
 
-        {/* Tags */}
-        {task.tags && task.tags.length > 0 && (
-          <div>
-            <h4 className="font-medium mb-3 flex items-center text-white">
-              <Tag className="w-4 h-4 mr-2 text-blue-400" />
-              Tags
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {task.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-sm font-medium border border-gray-600"
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
+        <div className="border-b border-gray-700 flex-shrink-0">
+          <div className="flex px-6">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'details'
+                  ? 'text-blue-400 border-blue-400'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
+              }`}
+            >
+              <Target className="w-4 h-4 inline mr-2" />
+              Détails
+            </button>
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'comments'
+                  ? 'text-blue-400 border-blue-400'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4 inline mr-2" />
+              Commentaires ({comments.length})
+            </button>
           </div>
-        )}
-
-        {/* 🚨 SECTION COMMENTAIRES AVEC FIREBASE */}
-        <div>
-          <h4 className="font-medium mb-3 text-white">
-            Commentaires
-          </h4>
-          <TaskCommentsSection task={task} />
         </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
-          {/* Soumettre pour validation */}
-          {onSubmit && task.status !== 'completed' && task.status !== 'validation_pending' && (
-            <button
-              onClick={() => onSubmit(task)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              Soumettre pour validation
-            </button>
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === 'details' && (
+            <div className="p-6 space-y-6">
+              {task.description && (
+                <div>
+                  <h4 className="font-medium mb-2 text-white">
+                    Description
+                  </h4>
+                  <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
+                    <p className="text-gray-300">{task.description}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="w-4 h-4 text-blue-400" />
+                    <h4 className="font-medium text-white">Assignation</h4>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-gray-400">Créé par :</span>
+                      <span className="ml-2 text-gray-200">{task.creatorName || 'Utilisateur'}</span>
+                    </div>
+                    {task.assignedTo && task.assignedTo.length > 0 && (
+                      <div>
+                        <span className="text-gray-400">Assigné à :</span>
+                        <span className="ml-2 text-gray-200">{task.assignedTo.length} personne(s)</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target className="w-4 h-4 text-blue-400" />
+                    <h4 className="font-medium text-white">Caractéristiques</h4>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Difficulté :</span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium border ${
+                        task.difficulty === 'easy' ? 'bg-green-800/50 text-green-300 border-green-600' :
+                        task.difficulty === 'normal' ? 'bg-blue-800/50 text-blue-300 border-blue-600' :
+                        task.difficulty === 'hard' ? 'bg-orange-800/50 text-orange-300 border-orange-600' :
+                        'bg-gray-800/50 text-gray-300 border-gray-600'
+                      }`}>
+                        {task.difficulty === 'easy' ? 'Facile' :
+                         task.difficulty === 'normal' ? 'Normal' :
+                         task.difficulty === 'hard' ? 'Difficile' :
+                         task.difficulty}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">XP :</span>
+                      <span className="text-purple-400 font-medium">{task.xpReward || 25} XP</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {task.tags && task.tags.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2 text-white">
+                    <Tag className="w-4 h-4 inline mr-2 text-blue-400" />
+                    Tags
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {task.tags.map((tag, index) => (
+                      <span 
+                        key={index}
+                        className="px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-full text-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {task.notes && (
+                <div>
+                  <h4 className="font-medium mb-2 text-white">Notes</h4>
+                  <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <p className="text-gray-300 whitespace-pre-wrap">{task.notes}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
-          
-          <button
-            onClick={() => onEdit(task)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Modifier
-          </button>
-          <button
-            onClick={() => onDelete(task.id)}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Supprimer
-          </button>
+
+          {activeTab === 'comments' && <CommentsSection />}
+        </div>
+
+        <div className="bg-gray-900 border-t border-gray-700 p-4 flex-shrink-0">
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
     </ModalWrapper>
@@ -512,7 +384,6 @@ export const ProjectDetailModal = ({ project, isOpen, onClose, onEdit, onDelete 
       size="lg"
     >
       <div className="p-6 space-y-6">
-        {/* Description */}
         {project.description && (
           <div>
             <h4 className="font-medium mb-2 text-white">
@@ -522,7 +393,6 @@ export const ProjectDetailModal = ({ project, isOpen, onClose, onEdit, onDelete 
           </div>
         )}
 
-        {/* Métadonnées */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-sm font-medium text-gray-400">Priorité :</span>
@@ -538,7 +408,6 @@ export const ProjectDetailModal = ({ project, isOpen, onClose, onEdit, onDelete 
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
           <button
             onClick={() => onEdit(project)}
@@ -572,7 +441,6 @@ export const UserProfileModal = ({ user, isOpen, onClose, onSave }) => {
       size="md"
     >
       <div className="p-6 space-y-4">
-        {/* Nom */}
         <div>
           <label className="block text-sm font-medium mb-2 text-gray-300">
             Nom complet
@@ -585,7 +453,6 @@ export const UserProfileModal = ({ user, isOpen, onClose, onSave }) => {
           />
         </div>
 
-        {/* Email */}
         <div>
           <label className="block text-sm font-medium mb-2 text-gray-300">
             Email
@@ -598,7 +465,6 @@ export const UserProfileModal = ({ user, isOpen, onClose, onSave }) => {
           />
         </div>
 
-        {/* Département */}
         <div>
           <label className="block text-sm font-medium mb-2 text-gray-300">
             Département
@@ -611,7 +477,6 @@ export const UserProfileModal = ({ user, isOpen, onClose, onSave }) => {
           />
         </div>
 
-        {/* Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
           <button
             onClick={onClose}
