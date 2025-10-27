@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/NewTaskModal.jsx
-// CORRECTION IMPORT STORAGESERVICE
+// CORRECTION RESPONSIVE MOBILE
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -348,7 +348,7 @@ const NewTaskModal = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
         onClick={handleClose}
       >
         <motion.div
@@ -357,58 +357,59 @@ const NewTaskModal = ({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] flex flex-col mx-auto"
+          style={{ maxWidth: 'calc(100vw - 16px)' }}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-t-2xl flex-shrink-0">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 sm:p-6 rounded-t-2xl flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-lg">
-                  <Plus className="w-6 h-6" />
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 rounded-lg flex-shrink-0">
+                  <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-2xl font-bold truncate">
                     {mode === 'edit' ? 'Modifier la tâche' : 'Nouvelle tâche'}
                   </h2>
-                  <p className="text-indigo-100 text-sm mt-1">
-                    Créez une tâche pour votre équipe Synergia
+                  <p className="text-indigo-100 text-xs sm:text-sm mt-1 truncate">
+                    Créez une tâche pour votre équipe
                   </p>
                 </div>
               </div>
               <button
                 onClick={handleClose}
                 disabled={loading}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0 ml-2"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
           </div>
 
           {/* Erreur */}
           {error && (
-            <div className="mx-6 mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-red-800 font-medium">Erreur</p>
-                <p className="text-red-600 text-sm mt-1">{error}</p>
+            <div className="mx-3 sm:mx-6 mt-3 sm:mt-4 p-3 sm:p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-2 sm:gap-3">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-red-800 font-medium text-sm sm:text-base">Erreur</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1 break-words">{error}</p>
               </div>
             </div>
           )}
 
           {/* Contenu scrollable */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Informations de base */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <Info className="w-5 h-5 text-indigo-600" />
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <Info className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                   Informations de base
                 </h3>
 
                 {/* Titre */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
                     Titre de la tâche <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -418,13 +419,13 @@ const NewTaskModal = ({
                     onChange={handleInputChange}
                     placeholder="Ex: Nettoyer la salle Dracula"
                     required
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                    className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
@@ -433,22 +434,22 @@ const NewTaskModal = ({
                     onChange={handleInputChange}
                     placeholder="Décrivez la tâche en détail..."
                     rows="4"
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none"
+                    className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none text-sm sm:text-base"
                   />
                 </div>
 
                 {/* Type et Catégorie */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <Target className="w-4 h-4 inline mr-2" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                      <Target className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                       Type de tâche
                     </label>
                     <select
                       name="type"
                       value={formData.type}
                       onChange={handleInputChange}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                     >
                       {TASK_TYPES.map(type => (
                         <option key={type.value} value={type.value}>
@@ -459,15 +460,15 @@ const NewTaskModal = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <Tag className="w-4 h-4 inline mr-2" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                      <Tag className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                       Catégorie
                     </label>
                     <select
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                     >
                       {TASK_CATEGORIES.map(cat => (
                         <option key={cat.value} value={cat.value}>
@@ -479,17 +480,17 @@ const NewTaskModal = ({
                 </div>
 
                 {/* Difficulté et Priorité */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <Zap className="w-4 h-4 inline mr-2" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                      <Zap className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                       Difficulté
                     </label>
                     <select
                       name="difficulty"
                       value={formData.difficulty}
                       onChange={handleInputChange}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                     >
                       {DIFFICULTY_LEVELS.map(diff => (
                         <option key={diff.value} value={diff.value}>
@@ -500,15 +501,15 @@ const NewTaskModal = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <Flag className="w-4 h-4 inline mr-2" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                      <Flag className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                       Priorité
                     </label>
                     <select
                       name="priority"
                       value={formData.priority}
                       onChange={handleInputChange}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                     >
                       {PRIORITY_LEVELS.map(prio => (
                         <option key={prio.value} value={prio.value}>
@@ -520,10 +521,10 @@ const NewTaskModal = ({
                 </div>
 
                 {/* Date d'échéance et Rôle assigné */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <Calendar className="w-4 h-4 inline mr-2" />
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                       Date d'échéance
                     </label>
                     <input
@@ -531,20 +532,20 @@ const NewTaskModal = ({
                       name="dueDate"
                       value={formData.dueDate}
                       onChange={handleInputChange}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      <User className="w-4 h-4 inline mr-2" />
-                      Rôle assigné (optionnel)
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                      <User className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
+                      Rôle assigné
                     </label>
                     <select
                       name="assignedRole"
                       value={formData.assignedRole}
                       onChange={handleInputChange}
-                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                     >
                       <option value="">Tous les rôles</option>
                       {Object.values(SYNERGIA_ROLES).map(role => (
@@ -558,24 +559,24 @@ const NewTaskModal = ({
 
                 {/* Localisation */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <MapPin className="w-4 h-4 inline mr-2" />
-                    Localisation (optionnel)
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                    <MapPin className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
+                    Localisation
                   </label>
                   <input
                     type="text"
                     name="location"
                     value={formData.location}
                     onChange={handleInputChange}
-                    placeholder="Ex: Salle Dracula, Bureau, Extérieur..."
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                    placeholder="Ex: Salle Dracula, Bureau..."
+                    className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                   />
                 </div>
 
                 {/* Tags */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <Tag className="w-4 h-4 inline mr-2" />
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                    <Tag className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                     Tags
                   </label>
                   <div className="flex gap-2 mb-2">
@@ -585,27 +586,27 @@ const NewTaskModal = ({
                       onChange={(e) => setCurrentTag(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
                       placeholder="Ajouter un tag..."
-                      className="flex-1 p-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                      className="flex-1 p-2 sm:p-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                     />
                     <button
                       type="button"
                       onClick={handleAddTag}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                      className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex-shrink-0"
                     >
-                      <Plus className="w-5 h-5" />
+                      <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {formData.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
+                        className="inline-flex items-center gap-2 px-2 sm:px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs sm:text-sm"
                       >
-                        {tag}
+                        <span className="truncate max-w-[120px] sm:max-w-none">{tag}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveTag(tag)}
-                          className="hover:text-indigo-900"
+                          className="hover:text-indigo-900 flex-shrink-0"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -616,53 +617,53 @@ const NewTaskModal = ({
               </div>
 
               {/* Options avancées */}
-              <div className="border-t pt-6">
+              <div className="border-t pt-4 sm:pt-6">
                 <button
                   type="button"
                   onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-4"
+                  className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium mb-3 sm:mb-4 text-sm sm:text-base"
                 >
                   {showAdvanced ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   Options avancées
                 </button>
 
                 {showAdvanced && (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {/* Checkboxes */}
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="space-y-2 sm:space-y-3">
+                      <label className="flex items-center gap-2 sm:gap-3 cursor-pointer">
                         <input
                           type="checkbox"
                           name="isPrivate"
                           checked={formData.isPrivate}
                           onChange={handleInputChange}
-                          className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                          className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
                         />
-                        <span className="text-sm font-medium text-gray-700">
-                          <Shield className="w-4 h-4 inline mr-2" />
-                          Tâche privée (visible uniquement par les admins)
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">
+                          <Shield className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
+                          Tâche privée
                         </span>
                       </label>
 
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-2 sm:gap-3 cursor-pointer">
                         <input
                           type="checkbox"
                           name="needsValidation"
                           checked={formData.needsValidation}
                           onChange={handleInputChange}
-                          className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                          className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
                         />
-                        <span className="text-sm font-medium text-gray-700">
-                          <CheckCircle className="w-4 h-4 inline mr-2" />
-                          Nécessite une validation admin
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">
+                          <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
+                          Validation admin requise
                         </span>
                       </label>
                     </div>
 
                     {/* XP personnalisés */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <Trophy className="w-4 h-4 inline mr-2" />
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                        <Trophy className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                         XP personnalisés
                       </label>
                       <input
@@ -672,23 +673,23 @@ const NewTaskModal = ({
                         onChange={handleInputChange}
                         min="1"
                         max="100"
-                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                        className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all text-sm sm:text-base"
                       />
                     </div>
 
                     {/* Notes */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <FileText className="w-4 h-4 inline mr-2" />
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                        <FileText className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                         Notes supplémentaires
                       </label>
                       <textarea
                         name="notes"
                         value={formData.notes}
                         onChange={handleInputChange}
-                        placeholder="Notes internes, instructions spéciales..."
+                        placeholder="Notes internes..."
                         rows="3"
-                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none"
+                        className="w-full p-3 sm:p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none text-sm sm:text-base"
                       />
                     </div>
                   </div>
@@ -699,17 +700,17 @@ const NewTaskModal = ({
           </div>
 
           {/* Footer */}
-          <div className="bg-gray-50 border-t border-gray-200 p-4 flex-shrink-0">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div className="bg-gray-50 border-t border-gray-200 p-3 sm:p-4 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-3">
               <div className="text-xs text-gray-500 text-center sm:text-left">
                 Les XP sont calculés automatiquement
               </div>
               
-              <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 sm:flex-none px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base"
                 >
                   Annuler
                 </button>
@@ -717,12 +718,13 @@ const NewTaskModal = ({
                 <button
                   onClick={handleSubmit}
                   disabled={loading || !formData.title.trim()}
-                  className="flex-1 sm:flex-none px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2 justify-center"
+                  className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2 justify-center text-sm sm:text-base"
                 >
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      {mode === 'edit' ? 'Modification...' : 'Création...'}
+                      <span className="hidden sm:inline">{mode === 'edit' ? 'Modification...' : 'Création...'}</span>
+                      <span className="sm:hidden">...</span>
                     </>
                   ) : (
                     <>
