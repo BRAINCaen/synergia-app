@@ -35,8 +35,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { createTaskSafely } from '../../core/services/taskCreationFix.js';
-import { storageService } from '../../core/services/storageService.js';
-
+import storageService from '../../core/services/storageService.js';
 /**
  * 🎭 RÔLES SYNERGIA OFFICIELS
  */
