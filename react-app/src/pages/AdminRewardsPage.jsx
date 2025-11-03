@@ -1,714 +1,729 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminRewardsPage.jsx
-// PAGE ADMIN RÉCOMPENSES AVEC VRAIES DONNÉES FIREBASE
+// PAGE ADMIN RÉCOMPENSES AVEC ÉDITION/SUPPRESSION FONCTIONNELLE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Shield, 
-  CheckCircle, 
-  X, 
-  Eye, 
-  User, 
-  Calendar, 
-  AlertCircle, 
-  BarChart3, 
-  RefreshCw, 
-  Gift, 
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Gift,
+  Plus,
+  Edit3,
+  Trash2,
+  Eye,
+  EyeOff,
+  Search,
+  Filter,
+  Star,
   Coins,
-  Clock4,
-  MessageSquare
+  Check,
+  X,
+  AlertCircle,
+  Save,
+  Package,
+  TrendingUp,
+  Users,
+  Clock
 } from 'lucide-react';
-
-// Firebase imports
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  getDoc,
-  increment,
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../core/firebase.js';
-
-// Stores
-import { useAuthStore } from '../shared/stores/authStore.js';
+import { useAuth } from '../shared/stores/authStore.js';
+import rewardsService from '../core/services/rewardsService.js';
 
 /**
- * 👑 PAGE ADMIN RÉCOMPENSES AVEC VRAIES DONNÉES FIREBASE
+ * 🛡️ PAGE ADMIN GESTION DES RÉCOMPENSES
  */
 const AdminRewardsPage = () => {
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   
-  // États locaux
-  const [requests, setRequests] = useState([]);
+  // États principaux
+  const [rewards, setRewards] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('view');
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingReward, setEditingReward] = useState(null);
+  const [stats, setStats] = useState({});
 
-  // Statistiques réelles
-  const [stats, setStats] = useState({
-    totalRequests: 0,
-    pendingRequests: 0,
-    approvedToday: 0,
-    totalXpDistributed: 0
-  });
-
-  // 🔥 ÉCOUTE FIREBASE EN TEMPS RÉEL DES DEMANDES DE RÉCOMPENSES
+  // Charger les données
   useEffect(() => {
-    if (!user?.uid) return;
+    loadRewards();
+  }, []);
 
-    console.log('🔄 AdminRewards - Écoute Firebase des demandes...');
-    
-    // Query pour les demandes de récompenses en attente
-    const rewardRequestsQuery = query(
-      collection(db, 'rewardRequests'),
-      where('status', '==', 'pending'),
-      orderBy('requestedAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(rewardRequestsQuery, async (snapshot) => {
-      console.log(`📥 ${snapshot.docs.length} demandes trouvées`);
-      
-      const requestsWithUserData = [];
-      
-      for (const requestDoc of snapshot.docs) {
-        const requestData = requestDoc.data();
-        
-        try {
-          // Récupérer les données utilisateur
-          const userRef = doc(db, 'users', requestData.userId);
-          const userDoc = await getDoc(userRef);
-          const userData = userDoc.exists() ? userDoc.data() : null;
-
-          requestsWithUserData.push({
-            id: requestDoc.id,
-            ...requestData,
-            userData,
-            userName: userData?.profile?.displayName || userData?.email?.split('@')[0] || 'Utilisateur inconnu',
-            userEmail: userData?.email || 'Email inconnu',
-            userXP: userData?.gamification?.totalXp || 0
-          });
-        } catch (error) {
-          console.error('❌ Erreur récupération utilisateur:', error);
-          requestsWithUserData.push({
-            id: requestDoc.id,
-            ...requestData,
-            userData: null,
-            userName: 'Utilisateur inconnu',
-            userEmail: 'Email inconnu',
-            userXP: 0
-          });
-        }
-      }
-      
-      setRequests(requestsWithUserData);
-      setLoading(false);
-      
-      // Mettre à jour les stats
-      setStats(prev => ({
-        ...prev,
-        pendingRequests: requestsWithUserData.length
-      }));
-      
-    }, (error) => {
-      console.error('❌ Erreur écoute Firebase:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  // 🔥 ÉCOUTE FIREBASE POUR LES STATISTIQUES GÉNÉRALES
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    // Écouter toutes les demandes pour les statistiques
-    const allRequestsQuery = query(
-      collection(db, 'rewardRequests'),
-      orderBy('requestedAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(allRequestsQuery, (snapshot) => {
-      const allRequests = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Calculer les statistiques
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const approvedToday = allRequests.filter(req => {
-        if (req.status !== 'approved' || !req.approvedAt) return false;
-        
-        const approvedDate = req.approvedAt.toDate ? req.approvedAt.toDate() : new Date(req.approvedAt);
-        approvedDate.setHours(0, 0, 0, 0);
-        
-        return approvedDate.getTime() === today.getTime();
-      }).length;
-
-      // Calculer XP total distribué (estimation basée sur les demandes approuvées)
-      const totalXpDistributed = allRequests
-        .filter(req => req.status === 'approved')
-        .reduce((sum, req) => sum + (req.xpCost || 0), 0);
-
-      setStats({
-        totalRequests: allRequests.length,
-        pendingRequests: allRequests.filter(req => req.status === 'pending').length,
-        approvedToday,
-        totalXpDistributed
-      });
-    });
-
-    return () => unsubscribe();
-  }, [user?.uid]);
-
-  /**
-   * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE
-   */
-  const getRewardDetails = (rewardId) => {
-    const rewardMap = {
-      'snack_personal': { name: 'Goûter personnalisé', xpCost: 50, category: 'Mini-plaisirs' },
-      'mini_game': { name: 'Mini-jeu de bureau', xpCost: 80, category: 'Mini-plaisirs' },
-      'unlimited_break': { name: 'Pause illimitée', xpCost: 100, category: 'Mini-plaisirs' },
-      'time_off_15min': { name: '15 min off', xpCost: 120, category: 'Petits avantages' },
-      'nap_authorized': { name: 'Pause sieste autorisée', xpCost: 150, category: 'Petits avantages' },
-      'light_shift': { name: 'Shift "super light"', xpCost: 180, category: 'Petits avantages' },
-      'action_voucher': { name: 'Bon "action"', xpCost: 220, category: 'Plaisirs utiles' },
-      'breakfast_surprise': { name: 'Petit-déj surprise', xpCost: 280, category: 'Plaisirs utiles' },
-      'book_choice': { name: 'Livre au choix', xpCost: 320, category: 'Plaisirs utiles' },
-      'pizza_lunch': { name: 'Pizza du midi', xpCost: 380, category: 'Plaisirs utiles' },
-      'restaurant_voucher': { name: 'Bon d\'achat "restauration"', xpCost: 450, category: 'Plaisirs food & cadeaux' },
-      'poke_bowl': { name: 'Poke bowl/burger livré', xpCost: 520, category: 'Plaisirs food & cadeaux' },
-      'gift_voucher': { name: 'Bon cadeau magasins', xpCost: 600, category: 'Plaisirs food & cadeaux' },
-      'board_game': { name: 'Jeu de société offert', xpCost: 680, category: 'Plaisirs food & cadeaux' },
-      'cinema_tickets': { name: '2 places de cinéma', xpCost: 1100, category: 'Loisirs & sorties' },
-      'escape_game': { name: 'Place d\'escape game', xpCost: 1200, category: 'Loisirs & sorties' },
-      'discovery_activity': { name: 'Initiation/découverte', xpCost: 1350, category: 'Loisirs & sorties' },
-      'premium_card': { name: 'Carte cadeau premium', xpCost: 6500, category: 'Premium' },
-      'hotel_night': { name: '1 nuit d\'hôtel pour 2', xpCost: 8000, category: 'Premium' },
-      'spa_day': { name: 'Journée spa', xpCost: 12500, category: 'Premium' }
-    };
-    
-    return rewardMap[rewardId] || { name: rewardId, xpCost: 0, category: 'Inconnue' };
-  };
-
-  /**
-   * ✅ APPROUVER UNE DEMANDE FIREBASE
-   */
-  const handleApprove = async (request) => {
+  const loadRewards = async () => {
     try {
-      console.log('✅ Approbation Firebase de la demande:', request.id);
+      setLoading(true);
+      const [rewardsData, statsData] = await Promise.all([
+        rewardsService.getAllRewards(true),
+        rewardsService.getRewardsStats()
+      ]);
       
-      const rewardDetails = getRewardDetails(request.rewardId);
-      
-      // Vérifier si l'utilisateur a encore assez d'XP
-      if (request.userXP < rewardDetails.xpCost) {
-        alert('❌ L\'utilisateur n\'a plus assez d\'XP pour cette récompense.');
-        return;
-      }
-
-      // Mettre à jour la demande dans Firebase
-      const requestRef = doc(db, 'rewardRequests', request.id);
-      await updateDoc(requestRef, {
-        status: 'approved',
-        approvedAt: serverTimestamp(),
-        approvedBy: user.uid,
-        adminEmail: user.email
-      });
-
-      // Déduire les XP de l'utilisateur
-      const userRef = doc(db, 'users', request.userId);
-      await updateDoc(userRef, {
-        'gamification.totalXp': increment(-rewardDetails.xpCost),
-        'gamification.rewardsRedeemed': increment(1),
-        'gamification.lastRewardRedeemed': serverTimestamp(),
-        lastActivity: serverTimestamp()
-      });
-
-      setShowModal(false);
-      setSelectedRequest(null);
-      
-      console.log(`✅ Récompense "${rewardDetails.name}" approuvée pour ${request.userName}`);
-      alert(`✅ Récompense approuvée !\n\n"${rewardDetails.name}" pour ${request.userName}\n${rewardDetails.xpCost} XP déduits.`);
-      
+      setRewards(rewardsData);
+      setStats(statsData);
     } catch (error) {
-      console.error('❌ Erreur approbation Firebase:', error);
-      alert('❌ Erreur lors de l\'approbation : ' + error.message);
+      console.error('❌ Erreur chargement récompenses:', error);
+      alert('Erreur lors du chargement des récompenses');
+    } finally {
+      setLoading(false);
     }
   };
 
-  /**
-   * ❌ REJETER UNE DEMANDE FIREBASE
-   */
-  const handleReject = async (request) => {
-    if (!rejectionReason.trim()) {
-      alert('⚠️ Veuillez indiquer une raison pour le rejet');
+  // Filtrer les récompenses
+  const filteredRewards = rewards.filter(reward => {
+    const matchesSearch = !searchTerm || 
+      reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reward.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = typeFilter === 'all' || reward.type === typeFilter;
+    
+    return matchesSearch && matchesType;
+  });
+
+  // Supprimer une récompense
+  const handleDelete = async (rewardId, rewardName) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${rewardName}" ?`)) {
       return;
     }
 
     try {
-      console.log('❌ Rejet Firebase de la demande:', request.id, 'Raison:', rejectionReason);
-      
-      // Mettre à jour la demande dans Firebase
-      const requestRef = doc(db, 'rewardRequests', request.id);
-      await updateDoc(requestRef, {
-        status: 'rejected',
-        rejectedAt: serverTimestamp(),
-        rejectedBy: user.uid,
-        rejectionReason: rejectionReason.trim(),
-        adminEmail: user.email
-      });
-
-      setShowModal(false);
-      setSelectedRequest(null);
-      setRejectionReason('');
-      
-      console.log(`❌ Récompense rejetée pour ${request.userName}: ${rejectionReason}`);
-      alert(`❌ Demande rejetée.\n\nRaison: ${rejectionReason}`);
-      
+      await rewardsService.deleteReward(user.uid, rewardId);
+      alert('Récompense supprimée avec succès !');
+      loadRewards();
     } catch (error) {
-      console.error('❌ Erreur rejet Firebase:', error);
-      alert('❌ Erreur lors du rejet : ' + error.message);
+      console.error('❌ Erreur suppression:', error);
+      alert(`Erreur: ${error.message}`);
     }
   };
 
-  /**
-   * 🔄 RAFRAÎCHIR LES DONNÉES
-   */
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    
-    // Les données se rafraîchissent automatiquement via onSnapshot
-    // Simulation d'un délai pour l'UX
-    setTimeout(() => {
-      setRefreshing(false);
-      console.log('🔄 Données rafraîchies automatiquement via Firebase');
-    }, 1000);
-  };
-
-  /**
-   * 👁️ OUVRIR LE MODAL
-   */
-  const openModal = (request, type = 'view') => {
-    const rewardDetails = getRewardDetails(request.rewardId);
-    setSelectedRequest({
-      ...request,
-      rewardDetails
-    });
-    setModalType(type);
-    setShowModal(true);
-  };
-
-  /**
-   * 📊 FORMATER UNE DATE
-   */
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Date inconnue';
-    
+  // Basculer l'état actif/inactif
+  const toggleActive = async (rewardId, currentState) => {
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      await rewardsService.updateReward(user.uid, rewardId, {
+        isActive: !currentState
       });
+      loadRewards();
     } catch (error) {
-      return 'Date invalide';
+      console.error('❌ Erreur activation:', error);
+      alert(`Erreur: ${error.message}`);
     }
   };
-
-  /**
-   * ⏰ TEMPS RELATIF
-   */
-  const getRelativeTime = (timestamp) => {
-    if (!timestamp) return 'Date inconnue';
-    
-    try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      const now = new Date();
-      const diff = now - date;
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      
-      if (hours < 1) return 'Il y a moins d\'1h';
-      if (hours < 24) return `Il y a ${hours}h`;
-      return `Il y a ${Math.floor(hours / 24)} jour(s)`;
-    } catch (error) {
-      return 'Date invalide';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-white">Chargement administration...</h2>
-          <p className="text-gray-400 mt-2">Synchronisation Firebase en cours</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* En-tête admin */}
-        <motion.div 
-          className="mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-red-400 to-purple-400 bg-clip-text text-transparent flex items-center">
-                <Shield className="w-10 h-10 mr-4 text-red-400" />
-                Administration des Récompenses
-              </h1>
-              <p className="text-gray-400 text-lg mt-2">
-                Gérer les demandes en temps réel via Firebase
-              </p>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>Actualiser</span>
-              </button>
-              
-              <a
-                href="/rewards"
-                className="flex items-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <Gift className="w-4 h-4" />
-                <span>Page utilisateur</span>
-              </a>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      
+      {/* En-tête avec gradient Synergia */}
+      <motion.div
+        className="mb-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              🛡️ Gestion des Récompenses
+            </h1>
+            <p className="text-gray-400 text-lg mt-2">
+              Créez, modifiez et gérez les récompenses disponibles
+            </p>
           </div>
 
-          {/* Statistiques Firebase temps réel */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-yellow-600/20 border border-yellow-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-400 text-sm font-medium">En attente</p>
-                  <p className="text-2xl font-bold text-yellow-300">{stats.pendingRequests}</p>
-                  <p className="text-yellow-500 text-xs">Temps réel Firebase</p>
-                </div>
-                <Clock4 className="w-6 h-6 text-yellow-400" />
-              </div>
-            </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-lg font-medium transition-all shadow-lg hover:shadow-green-500/50 flex items-center space-x-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Créer une récompense</span>
+          </button>
+        </div>
 
-            <div className="bg-blue-600/20 border border-blue-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-400 text-sm font-medium">Total demandes</p>
-                  <p className="text-2xl font-bold text-blue-300">{stats.totalRequests}</p>
-                  <p className="text-blue-500 text-xs">Depuis le début</p>
-                </div>
-                <BarChart3 className="w-6 h-6 text-blue-400" />
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <motion.div
+            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Total récompenses</p>
+                <p className="text-2xl font-bold text-white">{stats.totalRewards || 0}</p>
               </div>
+              <Package className="w-8 h-8 text-purple-400" />
             </div>
+          </motion.div>
 
-            <div className="bg-green-600/20 border border-green-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-400 text-sm font-medium">Approuvées aujourd'hui</p>
-                  <p className="text-2xl font-bold text-green-300">{stats.approvedToday}</p>
-                  <p className="text-green-500 text-xs">Depuis 00h00</p>
-                </div>
-                <CheckCircle className="w-6 h-6 text-green-400" />
+          <motion.div
+            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.05 }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Actives</p>
+                <p className="text-2xl font-bold text-green-400">{stats.activeRewards || 0}</p>
               </div>
+              <Eye className="w-8 h-8 text-green-400" />
             </div>
+          </motion.div>
 
-            <div className="bg-purple-600/20 border border-purple-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-400 text-sm font-medium">XP distribués</p>
-                  <p className="text-2xl font-bold text-purple-300">{stats.totalXpDistributed.toLocaleString()}</p>
-                  <p className="text-purple-500 text-xs">Total approuvé</p>
-                </div>
-                <Coins className="w-6 h-6 text-purple-400" />
+          <motion.div
+            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Échanges totaux</p>
+                <p className="text-2xl font-bold text-blue-400">{stats.totalRedemptions || 0}</p>
               </div>
+              <TrendingUp className="w-8 h-8 text-blue-400" />
             </div>
+          </motion.div>
+
+          <motion.div
+            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.15 }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">En attente</p>
+                <p className="text-2xl font-bold text-yellow-400">{stats.pendingRedemptions || 0}</p>
+              </div>
+              <Clock className="w-8 h-8 text-yellow-400" />
+            </div>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Barre de recherche et filtres */}
+      <motion.div
+        className="mb-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher une récompense..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-700/50 text-white pl-12 pr-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none transition-colors"
+            />
           </div>
-        </motion.div>
 
-        {/* Liste des demandes Firebase */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          {requests.length === 0 ? (
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Aucune demande en attente</h3>
-              <p className="text-gray-400">Toutes les demandes ont été traitées ! 🎉</p>
-              <p className="text-gray-500 text-sm mt-2">
-                Les nouvelles demandes apparaîtront automatiquement via Firebase
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
-                <div className="w-3 h-3 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                Demandes en attente ({requests.length}) - Temps réel
-              </h2>
-              
-              {requests.map((request) => {
-                const rewardDetails = getRewardDetails(request.rewardId);
-                const canAfford = request.userXP >= rewardDetails.xpCost;
-
-                return (
-                  <motion.div
-                    key={request.id}
-                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-purple-500/50 transition-colors"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                          <Gift className="w-6 h-6 text-white" />
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h4 className="font-semibold text-white text-lg">{rewardDetails.name}</h4>
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${
-                              canAfford ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-                            }`}>
-                              {rewardDetails.xpCost} XP
-                            </span>
-                            <span className="px-2 py-1 bg-gray-600 text-gray-200 rounded text-xs">
-                              {rewardDetails.category}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-4 text-sm text-gray-400">
-                            <div className="flex items-center space-x-1">
-                              <User className="w-4 h-4" />
-                              <span>{request.userName}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="w-4 h-4" />
-                              <span>{getRelativeTime(request.requestedAt)}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Coins className="w-4 h-4" />
-                              <span>{request.userXP} XP disponibles</span>
-                            </div>
-                          </div>
-
-                          {!canAfford && (
-                            <div className="mt-2 flex items-center space-x-2 text-red-400 text-sm">
-                              <AlertCircle className="w-4 h-4" />
-                              <span>⚠️ Utilisateur n'a pas assez d'XP ({request.userXP}/{rewardDetails.xpCost})</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => openModal(request, 'view')}
-                          className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                          title="Voir les détails"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => openModal(request, 'approve')}
-                          disabled={!canAfford}
-                          className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Approuver"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => openModal(request, 'reject')}
-                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                          title="Rejeter"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Modal d'action */}
-        {showModal && selectedRequest && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+          <div className="relative">
+            <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-gray-700/50 text-white pl-12 pr-8 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none transition-colors appearance-none cursor-pointer"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">
-                  {modalType === 'view' && 'Détails de la demande Firebase'}
-                  {modalType === 'approve' && 'Approuver la demande'}
-                  {modalType === 'reject' && 'Rejeter la demande'}
-                </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              {/* Détails de la demande */}
-              <div className="space-y-6">
-                {/* ID Firebase */}
-                <div className="bg-blue-900/20 border border-blue-500/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-400 mb-2">ID Firebase</h4>
-                  <p className="text-blue-300 text-sm font-mono">{selectedRequest.id}</p>
-                </div>
-
-                {/* Informations utilisateur */}
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-white mb-3">Informations utilisateur</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-400">Nom:</span>
-                      <span className="text-white ml-2">{selectedRequest.userName}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Email:</span>
-                      <span className="text-white ml-2">{selectedRequest.userEmail}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">XP actuels:</span>
-                      <span className="text-blue-400 ml-2 font-bold">{selectedRequest.userXP} XP</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Demandée le:</span>
-                      <span className="text-white ml-2">{formatDate(selectedRequest.requestedAt)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Détails de la récompense */}
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-white mb-3">Récompense demandée</h4>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-gray-400">Nom:</span>
-                      <span className="text-white ml-2">{selectedRequest.rewardDetails.name}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Coût:</span>
-                      <span className="text-yellow-400 ml-2 font-bold">{selectedRequest.rewardDetails.xpCost} XP</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Catégorie:</span>
-                      <span className="text-white ml-2">{selectedRequest.rewardDetails.category}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Type:</span>
-                      <span className="text-white ml-2">{selectedRequest.rewardType === 'individual' ? 'Individuelle' : 'Équipe'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vérifications */}
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-white mb-3">Vérifications Firebase</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      {selectedRequest.userXP >= selectedRequest.rewardDetails.xpCost ? (
-                        <CheckCircle className="w-5 h-5 text-green-400" />
-                      ) : (
-                        <X className="w-5 h-5 text-red-400" />
-                      )}
-                      <span className="text-sm text-gray-300">XP suffisants</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      <span className="text-sm text-gray-300">Données Firebase synchronisées</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      <span className="text-sm text-gray-300">Demande valide</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Zone de rejet */}
-                {modalType === 'reject' && (
-                  <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
-                    <h4 className="font-semibold text-red-400 mb-3">Raison du rejet</h4>
-                    <textarea
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Expliquez pourquoi cette demande est rejetée..."
-                      className="w-full h-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                    />
-                  </div>
-                )}
-
-                {/* Boutons d'action */}
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  
-                  {modalType === 'approve' && (
-                    <button
-                      onClick={() => handleApprove(selectedRequest)}
-                      disabled={selectedRequest.userXP < selectedRequest.rewardDetails.xpCost}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Approuver dans Firebase</span>
-                    </button>
-                  )}
-                  
-                  {modalType === 'reject' && (
-                    <button
-                      onClick={() => handleReject(selectedRequest)}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center space-x-2"
-                    >
-                      <X className="w-4 h-4" />
-                      <span>Rejeter dans Firebase</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
+              <option value="all">Tous les types</option>
+              <option value="badge">Badges</option>
+              <option value="xp">XP Bonus</option>
+              <option value="virtual_item">Objets virtuels</option>
+              <option value="privilege">Privilèges</option>
+              <option value="physical">Récompenses physiques</option>
+            </select>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Grille des récompenses */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+            <Gift className="w-8 h-8 text-purple-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+        </div>
+      ) : filteredRewards.length === 0 ? (
+        <motion.div
+          className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <Star className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Aucune récompense trouvée</h3>
+          <p className="text-gray-400">Créez votre première récompense pour commencer !</p>
+        </motion.div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <AnimatePresence>
+            {filteredRewards.map((reward, index) => (
+              <motion.div
+                key={reward.id}
+                className={`bg-gray-800/50 backdrop-blur-sm border rounded-xl overflow-hidden hover:scale-[1.02] transition-all duration-300 ${
+                  reward.isActive 
+                    ? 'border-purple-500/50 hover:border-purple-500 hover:shadow-xl hover:shadow-purple-500/20' 
+                    : 'border-gray-700/50 opacity-60'
+                }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                {/* Barre de statut */}
+                <div className={`h-2 ${
+                  reward.isActive 
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+                    : 'bg-gradient-to-r from-gray-500 to-gray-600'
+                }`}></div>
+
+                <div className="p-6">
+                  {/* En-tête avec actions */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                        <Gift className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">{reward.name}</h3>
+                        <span className="text-xs text-gray-400">
+                          {reward.type === 'badge' ? '🏅 Badge' :
+                           reward.type === 'xp' ? '⚡ XP Bonus' :
+                           reward.type === 'virtual_item' ? '🎁 Virtuel' :
+                           reward.type === 'privilege' ? '👑 Privilège' :
+                           '📦 Physique'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Boutons d'action */}
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => toggleActive(reward.id, reward.isActive)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          reward.isActive 
+                            ? 'text-green-400 hover:bg-green-500/10' 
+                            : 'text-gray-500 hover:bg-gray-700/50'
+                        }`}
+                        title={reward.isActive ? 'Désactiver' : 'Activer'}
+                      >
+                        {reward.isActive ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                      </button>
+
+                      <button
+                        onClick={() => setEditingReward(reward)}
+                        className="p-2 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors"
+                        title="Modifier"
+                      >
+                        <Edit3 className="w-5 h-5" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(reward.id, reward.name)}
+                        className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+                    {reward.description || 'Aucune description'}
+                  </p>
+
+                  {/* Informations */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 text-sm">Coût</span>
+                      <span className="text-green-400 font-bold flex items-center">
+                        <Coins className="w-4 h-4 mr-1" />
+                        {reward.cost} pts
+                      </span>
+                    </div>
+
+                    {reward.timesRedeemed > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Échangé</span>
+                        <span className="text-blue-400 font-medium">
+                          {reward.timesRedeemed} fois
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Modal de création */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <CreateRewardModal
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => {
+              setShowCreateModal(false);
+              loadRewards();
+            }}
+            user={user}
+          />
         )}
-      </div>
+      </AnimatePresence>
+
+      {/* Modal d'édition */}
+      <AnimatePresence>
+        {editingReward && (
+          <EditRewardModal
+            reward={editingReward}
+            onClose={() => setEditingReward(null)}
+            onSuccess={() => {
+              setEditingReward(null);
+              loadRewards();
+            }}
+            user={user}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+};
+
+/**
+ * 🎨 MODAL DE CRÉATION DE RÉCOMPENSE
+ */
+const CreateRewardModal = ({ onClose, onSuccess, user }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    type: 'physical',
+    cost: 50,
+    icon: '🎁',
+    value: null
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.description) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await rewardsService.createReward(user.uid, formData);
+      alert('Récompense créée avec succès !');
+      onSuccess();
+    } catch (error) {
+      console.error('❌ Erreur création:', error);
+      alert(`Erreur: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="bg-gray-800/90 backdrop-blur-md border border-gray-700/50 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">Créer une récompense</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Nom */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Nom de la récompense *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+              placeholder="Ex: Pizza du midi"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Description *
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+              placeholder="Décrivez la récompense..."
+              rows="3"
+              required
+            />
+          </div>
+
+          {/* Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Type de récompense *
+            </label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+            >
+              <option value="physical">📦 Récompense physique</option>
+              <option value="badge">🏅 Badge</option>
+              <option value="xp">⚡ Bonus XP</option>
+              <option value="virtual_item">🎁 Objet virtuel</option>
+              <option value="privilege">👑 Privilège</option>
+            </select>
+          </div>
+
+          {/* Coût */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Coût en points *
+            </label>
+            <input
+              type="number"
+              value={formData.cost}
+              onChange={(e) => setFormData({ ...formData, cost: parseInt(e.target.value) })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+              min="1"
+              required
+            />
+          </div>
+
+          {/* Icône */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Icône (emoji)
+            </label>
+            <input
+              type="text"
+              value={formData.icon}
+              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+              placeholder="🎁"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white py-3 rounded-lg font-medium transition-all shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Création...' : (
+                <span className="flex items-center justify-center space-x-2">
+                  <Save className="w-5 h-5" />
+                  <span>Créer</span>
+                </span>
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+/**
+ * ✏️ MODAL D'ÉDITION DE RÉCOMPENSE
+ */
+const EditRewardModal = ({ reward, onClose, onSuccess, user }) => {
+  const [formData, setFormData] = useState({
+    name: reward.name,
+    description: reward.description || '',
+    type: reward.type,
+    cost: reward.cost,
+    icon: reward.icon || '🎁',
+    value: reward.value || null,
+    isActive: reward.isActive
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.description) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await rewardsService.updateReward(user.uid, reward.id, formData);
+      alert('Récompense modifiée avec succès !');
+      onSuccess();
+    } catch (error) {
+      console.error('❌ Erreur modification:', error);
+      alert(`Erreur: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="bg-gray-800/90 backdrop-blur-md border border-gray-700/50 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">Modifier la récompense</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Nom */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Nom de la récompense *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Description *
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+              rows="3"
+              required
+            />
+          </div>
+
+          {/* Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Type de récompense *
+            </label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+            >
+              <option value="physical">📦 Récompense physique</option>
+              <option value="badge">🏅 Badge</option>
+              <option value="xp">⚡ Bonus XP</option>
+              <option value="virtual_item">🎁 Objet virtuel</option>
+              <option value="privilege">👑 Privilège</option>
+            </select>
+          </div>
+
+          {/* Coût */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Coût en points *
+            </label>
+            <input
+              type="number"
+              value={formData.cost}
+              onChange={(e) => setFormData({ ...formData, cost: parseInt(e.target.value) })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+              min="1"
+              required
+            />
+          </div>
+
+          {/* Icône */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Icône (emoji)
+            </label>
+            <input
+              type="text"
+              value={formData.icon}
+              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+              className="w-full bg-gray-700/50 text-white px-4 py-3 rounded-lg border border-gray-600/50 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Statut actif */}
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              id="isActive"
+              checked={formData.isActive}
+              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              className="w-5 h-5 rounded border-gray-600 text-purple-500 focus:ring-purple-500"
+            />
+            <label htmlFor="isActive" className="text-gray-300 font-medium">
+              Récompense active
+            </label>
+          </div>
+
+          {/* Actions */}
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-medium transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 rounded-lg font-medium transition-all shadow-lg hover:shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Enregistrement...' : (
+                <span className="flex items-center justify-center space-x-2">
+                  <Save className="w-5 h-5" />
+                  <span>Enregistrer</span>
+                </span>
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
   );
 };
 
