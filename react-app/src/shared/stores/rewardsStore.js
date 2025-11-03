@@ -1,11 +1,12 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/rewardsStore.js
-// STORE ZUSTAND POUR LA GESTION DES RÉCOMPENSES
+// STORE ZUSTAND POUR LA GESTION DES RÉCOMPENSES - CORRECTION IMPORT
 // ==========================================
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { rewardsService } from '../../core/services/rewardsService.js';
+import rewardsService from '../../core/services/rewardsService.js';
+
 /**
  * 🎁 STORE ZUSTAND POUR LES RÉCOMPENSES
  */
@@ -158,19 +159,19 @@ const useRewardsStore = create(
       /**
        * ✅ APPROUVER UNE DEMANDE (ADMIN)
        */
-      approveRequest: async (requestId, adminId, userCurrentXP) => {
+      approveRequest: async (adminId, requestId, adminNotes = '') => {
         try {
           set({ loading: true, error: null });
           
-          const result = await rewardsService.approveRewardRequest(requestId, adminId, userCurrentXP);
+          await rewardsService.approveRedemption(adminId, requestId, adminNotes);
           
-          // Recharger les demandes en attente
+          // Recharger les demandes
           get().loadPendingRequests();
           
           set({ loading: false });
           
           console.log('✅ Demande approuvée');
-          return result;
+          return { success: true };
         } catch (error) {
           console.error('❌ Erreur approbation:', error);
           set({ 
@@ -184,19 +185,19 @@ const useRewardsStore = create(
       /**
        * ❌ REJETER UNE DEMANDE (ADMIN)
        */
-      rejectRequest: async (requestId, adminId, reason) => {
+      rejectRequest: async (adminId, requestId, adminNotes = '') => {
         try {
           set({ loading: true, error: null });
           
-          const result = await rewardsService.rejectRewardRequest(requestId, adminId, reason);
+          await rewardsService.rejectRedemption(adminId, requestId, adminNotes);
           
-          // Recharger les demandes en attente
+          // Recharger les demandes
           get().loadPendingRequests();
           
           set({ loading: false });
           
           console.log('✅ Demande rejetée');
-          return result;
+          return { success: true };
         } catch (error) {
           console.error('❌ Erreur rejet:', error);
           set({ 
@@ -205,78 +206,6 @@ const useRewardsStore = create(
           });
           throw error;
         }
-      },
-
-      /**
-       * 🔄 ÉCOUTER LES DEMANDES EN TEMPS RÉEL (ADMIN)
-       */
-      startListeningToPendingRequests: () => {
-        try {
-          const unsubscribe = rewardsService.listenToPendingRequests((requests) => {
-            set({ 
-              pendingRequests: requests,
-              lastUpdate: new Date().toISOString()
-            });
-          });
-          
-          // Stocker l'unsubscribe pour le cleanup
-          set({ pendingRequestsListener: unsubscribe });
-          
-          console.log('🔄 Écoute des demandes en temps réel activée');
-          return unsubscribe;
-        } catch (error) {
-          console.error('❌ Erreur écoute temps réel:', error);
-          set({ error: error.message });
-        }
-      },
-
-      /**
-       * 🛑 ARRÊTER L'ÉCOUTE EN TEMPS RÉEL
-       */
-      stopListeningToPendingRequests: () => {
-        const { pendingRequestsListener } = get();
-        if (pendingRequestsListener && typeof pendingRequestsListener === 'function') {
-          pendingRequestsListener();
-          set({ pendingRequestsListener: null });
-          console.log('🛑 Écoute des demandes arrêtée');
-        }
-      },
-
-      // 🎯 GETTERS UTILES
-
-      /**
-       * 🏆 OBTENIR LES RÉCOMPENSES PAR CATÉGORIE
-       */
-      getRewardsByCategory: (category) => {
-        const { availableRewards } = get();
-        return availableRewards.find(cat => cat.category === category) || null;
-      },
-
-      /**
-       * 💰 VÉRIFIER SI L'UTILISATEUR PEUT S'OFFRIR UNE RÉCOMPENSE
-       */
-      canAffordReward: (rewardCost) => {
-        const { userXP } = get();
-        return userXP >= rewardCost;
-      },
-
-      /**
-       * 📊 OBTENIR LES STATISTIQUES DES RÉCOMPENSES
-       */
-      getRewardStats: () => {
-        const { userRewardHistory, availableRewards } = get();
-        
-        const totalRedeemed = userRewardHistory.filter(r => r.status === 'approved').length;
-        const totalPending = userRewardHistory.filter(r => r.status === 'pending').length;
-        const totalRejected = userRewardHistory.filter(r => r.status === 'rejected').length;
-        const totalAvailable = availableRewards.reduce((sum, cat) => sum + cat.rewards.length, 0);
-        
-        return {
-          totalRedeemed,
-          totalPending,
-          totalRejected,
-          totalAvailable
-        };
       },
 
       /**
@@ -358,3 +287,5 @@ const useRewardsStore = create(
 
 export { useRewardsStore };
 export default useRewardsStore;
+
+console.log('✅ RewardsStore chargé avec import rewardsService corrigé');
