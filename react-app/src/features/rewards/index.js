@@ -1,23 +1,29 @@
 // ==========================================
 // 📁 react-app/src/features/rewards/index.js
-// INDEX DU SYSTÈME DE RÉCOMPENSES SYNERGIA - CORRECTION IMPORT
+// INDEX DU SYSTÈME DE RÉCOMPENSES SYNERGIA - CORRECTION FINALE
 // ==========================================
 
-// 🎁 Services - Import ET utilisation locale
+// 🎁 Services - Import local ET export
 import rewardsService from '../../core/services/rewardsService.js';
 export { default as rewardsService } from '../../core/services/rewardsService.js';
 
-// 🏪 Stores
+// 🏪 Stores - Import local ET export
+import { useRewardsStore } from '../../shared/stores/rewardsStore.js';
 export { useRewardsStore } from '../../shared/stores/rewardsStore.js';
 
-// 🎯 Hooks
+// 🎯 Hooks - Import local ET export
+import { useRewards } from '../../shared/hooks/useRewards.js';
 export { useRewards } from '../../shared/hooks/useRewards.js';
 
-// 📄 Pages
+// 📄 Pages - Import local ET export
+import RewardsPage from '../../pages/RewardsPage.jsx';
 export { default as RewardsPage } from '../../pages/RewardsPage.jsx';
+
+import AdminRewardsPage from '../../pages/AdminRewardsPage.jsx';
 export { default as AdminRewardsPage } from '../../pages/AdminRewardsPage.jsx';
 
-// 🧩 Composants
+// 🧩 Composants - Import local ET export
+import RewardsWidget from '../../components/widgets/RewardsWidget.jsx';
 export { default as RewardsWidget } from '../../components/widgets/RewardsWidget.jsx';
 
 // 📊 Types et constants
@@ -129,14 +135,14 @@ export const rewardsUtils = {
 
 // 🚀 Système de récompenses complet
 export const rewardsSystem = {
-  // Services - Maintenant disponible grâce à l'import local ligne 6
+  // Services - Maintenant tous disponibles grâce aux imports locaux
   service: rewardsService,
   
-  // Hooks et stores
+  // Hooks et stores - Maintenant tous disponibles
   useRewards,
   useRewardsStore,
   
-  // Composants
+  // Composants - Maintenant tous disponibles
   RewardsPage,
   AdminRewardsPage,
   RewardsWidget,
@@ -155,7 +161,6 @@ export const rewardsSystem = {
   init: async (userId) => {
     try {
       console.log('🎁 Initialisation système récompenses...');
-      const { useRewardsStore } = await import('../../shared/stores/rewardsStore.js');
       const store = useRewardsStore.getState();
       await store.initializeRewards(userId);
       console.log('✅ Système récompenses initialisé');
@@ -190,7 +195,7 @@ export const rewardsSystem = {
   }
 };
 
-console.log('🎁 Système de récompenses Synergia chargé avec import corrigé !');
+console.log('🎁 Système de récompenses Synergia chargé avec TOUS les imports corrigés !');
 console.log('📊 Disponible via: import { rewardsSystem } from "./features/rewards"');
 
 export default rewardsSystem;
