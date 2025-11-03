@@ -25,14 +25,14 @@ import {
   Users,
   Clock
 } from 'lucide-react';
-import { useAuth } from '../shared/stores/authStore.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 import rewardsService from '../core/services/rewardsService.js';
 
 /**
  * 🛡️ PAGE ADMIN GESTION DES RÉCOMPENSES
  */
 const AdminRewardsPage = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   
   // États principaux
   const [rewards, setRewards] = useState([]);
