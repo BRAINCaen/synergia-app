@@ -300,6 +300,112 @@ const RewardsPage = () => {
   };
 
   // ==========================================
+  // 🎁 GESTION DES RÉCOMPENSES ADMIN
+  // ==========================================
+
+  const handleCreateReward = async () => {
+    try {
+      await addDoc(collection(db, 'rewards'), {
+        ...rewardForm,
+        createdAt: serverTimestamp(),
+        createdBy: user.uid
+      });
+
+      showNotification('Récompense créée avec succès !', 'success');
+      setShowCreateRewardModal(false);
+      resetRewardForm();
+
+      // Recharger les récompenses
+      const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
+      setAllRewards(rewardsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })));
+
+    } catch (error) {
+      console.error('❌ Erreur création:', error);
+      showNotification('Erreur lors de la création', 'error');
+    }
+  };
+
+  const handleEditReward = async () => {
+    if (!selectedReward) return;
+
+    try {
+      await updateDoc(doc(db, 'rewards', selectedReward.id), rewardForm);
+
+      showNotification('Récompense modifiée avec succès !', 'success');
+      setShowEditRewardModal(false);
+      setSelectedReward(null);
+      resetRewardForm();
+
+      // Recharger les récompenses
+      const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
+      setAllRewards(rewardsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })));
+
+    } catch (error) {
+      console.error('❌ Erreur modification:', error);
+      showNotification('Erreur lors de la modification', 'error');
+    }
+  };
+
+  const handleDeleteReward = async (rewardId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette récompense ?')) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'rewards', rewardId));
+
+      showNotification('Récompense supprimée avec succès !', 'success');
+
+      // Recharger les récompenses
+      const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
+      setAllRewards(rewardsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })));
+
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error);
+      showNotification('Erreur lors de la suppression', 'error');
+    }
+  };
+
+  const resetRewardForm = () => {
+    setRewardForm({
+      name: '',
+      description: '',
+      type: 'individual',
+      category: 'Mini-plaisirs',
+      xpCost: 100,
+      icon: '🎁',
+      isAvailable: true,
+      stock: -1,
+      requirements: {}
+    });
+  };
+
+  const openEditModal = (reward) => {
+    setSelectedReward(reward);
+    setRewardForm({
+      name: reward.name || '',
+      description: reward.description || '',
+      type: reward.type || 'individual',
+      category: reward.category || 'Mini-plaisirs',
+      xpCost: reward.xpCost || 100,
+      icon: reward.icon || '🎁',
+      isAvailable: reward.isAvailable !== false,
+      stock: reward.stock || -1,
+      requirements: reward.requirements || {}
+    });
+    setShowEditRewardModal(true);
+  };
+
+  // ==========================================
   // 🎨 NOTIFICATION SYSTÈME
   // ==========================================
 
@@ -601,7 +707,7 @@ const RewardsPage = () => {
                     </div>
 
                     {/* Bouton d'action */}
-                    {!showAdminPanel && (
+                    {!showAdminPanel ? (
                       <button
                         onClick={() => handleRequestReward(reward)}
                         disabled={(userProfile?.xp || 0) < reward.xpCost}
@@ -623,6 +729,22 @@ const RewardsPage = () => {
                           </>
                         )}
                       </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openEditModal(reward)}
+                          className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => handleDeleteReward(reward.id)}
+                          className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-all duration-300"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -653,10 +775,20 @@ const RewardsPage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mt-8 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
           >
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <Shield className="w-6 h-6 text-purple-400" />
-              Panneau d'administration
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Shield className="w-6 h-6 text-purple-400" />
+                Panneau d'administration
+              </h2>
+
+              <button
+                onClick={() => setShowCreateRewardModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 transition-all duration-300 flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Créer une récompense
+              </button>
+            </div>
 
             {/* Demandes en attente */}
             <div className="space-y-4">
@@ -702,6 +834,284 @@ const RewardsPage = () => {
             </div>
           </motion.div>
         )}
+
+        {/* ========================================== */}
+        {/* 📝 MODALE CRÉATION DE RÉCOMPENSE */}
+        {/* ========================================== */}
+
+        <AnimatePresence>
+          {showCreateRewardModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowCreateRewardModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Plus className="w-6 h-6 text-green-400" />
+                  Créer une nouvelle récompense
+                </h2>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-gray-300 mb-2">Nom de la récompense</label>
+                    <input
+                      type="text"
+                      value={rewardForm.name}
+                      onChange={(e) => setRewardForm({...rewardForm, name: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      placeholder="Ex: Café premium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 mb-2">Description</label>
+                    <textarea
+                      value={rewardForm.description}
+                      onChange={(e) => setRewardForm({...rewardForm, description: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      placeholder="Décrivez la récompense..."
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-300 mb-2">Type</label>
+                      <select
+                        value={rewardForm.type}
+                        onChange={(e) => setRewardForm({...rewardForm, type: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="individual">Individuelle</option>
+                        <option value="team">Équipe</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2">Catégorie</label>
+                      <select
+                        value={rewardForm.category}
+                        onChange={(e) => setRewardForm({...rewardForm, category: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="Mini-plaisirs">Mini-plaisirs</option>
+                        <option value="Petits avantages">Petits avantages</option>
+                        <option value="Plaisirs utiles">Plaisirs utiles</option>
+                        <option value="Plaisirs food & cadeaux">Plaisirs food & cadeaux</option>
+                        <option value="Bien-être & confort">Bien-être & confort</option>
+                        <option value="Loisirs & sorties">Loisirs & sorties</option>
+                        <option value="Lifestyle & bonus">Lifestyle & bonus</option>
+                        <option value="Avantages temps offert">Avantages temps offert</option>
+                        <option value="Grands plaisirs">Grands plaisirs</option>
+                        <option value="Premium">Premium</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-300 mb-2">Coût en XP</label>
+                      <input
+                        type="number"
+                        value={rewardForm.xpCost}
+                        onChange={(e) => setRewardForm({...rewardForm, xpCost: parseInt(e.target.value)})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                        min="0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2">Icône (emoji)</label>
+                      <input
+                        type="text"
+                        value={rewardForm.icon}
+                        onChange={(e) => setRewardForm({...rewardForm, icon: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                        placeholder="🎁"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="isAvailable"
+                      checked={rewardForm.isAvailable}
+                      onChange={(e) => setRewardForm({...rewardForm, isAvailable: e.target.checked})}
+                      className="w-5 h-5 bg-gray-700 border border-gray-600 rounded text-purple-600 focus:ring-purple-500"
+                    />
+                    <label htmlFor="isAvailable" className="text-gray-300">Récompense disponible</label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleCreateReward}
+                    className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
+                  >
+                    Créer la récompense
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateRewardModal(false);
+                      resetRewardForm();
+                    }}
+                    className="px-6 py-3 bg-gray-700 text-gray-300 rounded-lg font-semibold hover:bg-gray-600 transition-all duration-300"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ========================================== */}
+        {/* ✏️ MODALE MODIFICATION DE RÉCOMPENSE */}
+        {/* ========================================== */}
+
+        <AnimatePresence>
+          {showEditRewardModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowEditRewardModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Edit2 className="w-6 h-6 text-blue-400" />
+                  Modifier la récompense
+                </h2>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-gray-300 mb-2">Nom de la récompense</label>
+                    <input
+                      type="text"
+                      value={rewardForm.name}
+                      onChange={(e) => setRewardForm({...rewardForm, name: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-300 mb-2">Description</label>
+                    <textarea
+                      value={rewardForm.description}
+                      onChange={(e) => setRewardForm({...rewardForm, description: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-300 mb-2">Type</label>
+                      <select
+                        value={rewardForm.type}
+                        onChange={(e) => setRewardForm({...rewardForm, type: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="individual">Individuelle</option>
+                        <option value="team">Équipe</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2">Catégorie</label>
+                      <select
+                        value={rewardForm.category}
+                        onChange={(e) => setRewardForm({...rewardForm, category: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="Mini-plaisirs">Mini-plaisirs</option>
+                        <option value="Petits avantages">Petits avantages</option>
+                        <option value="Plaisirs utiles">Plaisirs utiles</option>
+                        <option value="Plaisirs food & cadeaux">Plaisirs food & cadeaux</option>
+                        <option value="Bien-être & confort">Bien-être & confort</option>
+                        <option value="Loisirs & sorties">Loisirs & sorties</option>
+                        <option value="Lifestyle & bonus">Lifestyle & bonus</option>
+                        <option value="Avantages temps offert">Avantages temps offert</option>
+                        <option value="Grands plaisirs">Grands plaisirs</option>
+                        <option value="Premium">Premium</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-300 mb-2">Coût en XP</label>
+                      <input
+                        type="number"
+                        value={rewardForm.xpCost}
+                        onChange={(e) => setRewardForm({...rewardForm, xpCost: parseInt(e.target.value)})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                        min="0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-300 mb-2">Icône (emoji)</label>
+                      <input
+                        type="text"
+                        value={rewardForm.icon}
+                        onChange={(e) => setRewardForm({...rewardForm, icon: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="isAvailableEdit"
+                      checked={rewardForm.isAvailable}
+                      onChange={(e) => setRewardForm({...rewardForm, isAvailable: e.target.checked})}
+                      className="w-5 h-5 bg-gray-700 border border-gray-600 rounded text-purple-600 focus:ring-purple-500"
+                    />
+                    <label htmlFor="isAvailableEdit" className="text-gray-300">Récompense disponible</label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleEditReward}
+                    className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all duration-300"
+                  >
+                    Enregistrer les modifications
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditRewardModal(false);
+                      setSelectedReward(null);
+                      resetRewardForm();
+                    }}
+                    className="px-6 py-3 bg-gray-700 text-gray-300 rounded-lg font-semibold hover:bg-gray-600 transition-all duration-300"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
     </Layout>
