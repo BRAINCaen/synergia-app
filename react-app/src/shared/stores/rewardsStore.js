@@ -5,8 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import rewardsService from '../../core/services/rewardsService.js';
-
+import { rewardsService } from '../../core/services/rewardsService.js';
 /**
  * 🎁 STORE ZUSTAND POUR LES RÉCOMPENSES
  */
