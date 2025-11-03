@@ -1,29 +1,22 @@
 // ==========================================
 // 📁 react-app/src/features/rewards/index.js
-// INDEX DU SYSTÈME DE RÉCOMPENSES SYNERGIA - CORRECTION FINALE
+// INDEX DU SYSTÈME DE RÉCOMPENSES SYNERGIA - VERSION ORIGINALE QUI MARCHAIT
 // ==========================================
 
-// 🎁 Services - Import local ET export
-import rewardsService from '../../core/services/rewardsService.js';
+// 🎁 Services
 export { default as rewardsService } from '../../core/services/rewardsService.js';
 
-// 🏪 Stores - Import local ET export
-import { useRewardsStore } from '../../shared/stores/rewardsStore.js';
+// 🏪 Stores
 export { useRewardsStore } from '../../shared/stores/rewardsStore.js';
 
-// 🎯 Hooks - Import local ET export
-import { useRewards } from '../../shared/hooks/useRewards.js';
+// 🎯 Hooks
 export { useRewards } from '../../shared/hooks/useRewards.js';
 
-// 📄 Pages - Import local ET export
-import RewardsPage from '../../pages/RewardsPage.jsx';
+// 📄 Pages
 export { default as RewardsPage } from '../../pages/RewardsPage.jsx';
-
-import AdminRewardsPage from '../../pages/AdminRewardsPage.jsx';
 export { default as AdminRewardsPage } from '../../pages/AdminRewardsPage.jsx';
 
-// 🧩 Composants - Import local ET export
-import RewardsWidget from '../../components/widgets/RewardsWidget.jsx';
+// 🧩 Composants
 export { default as RewardsWidget } from '../../components/widgets/RewardsWidget.jsx';
 
 // 📊 Types et constants
@@ -133,69 +126,5 @@ export const rewardsUtils = {
   }
 };
 
-// 🚀 Système de récompenses complet
-export const rewardsSystem = {
-  // Services - Maintenant tous disponibles grâce aux imports locaux
-  service: rewardsService,
-  
-  // Hooks et stores - Maintenant tous disponibles
-  useRewards,
-  useRewardsStore,
-  
-  // Composants - Maintenant tous disponibles
-  RewardsPage,
-  AdminRewardsPage,
-  RewardsWidget,
-  
-  // Utilitaires
-  utils: rewardsUtils,
-  
-  // Types
-  types: {
-    REWARD_TYPES,
-    REWARD_STATUS,
-    XP_CATEGORIES
-  },
-
-  // Méthodes d'initialisation
-  init: async (userId) => {
-    try {
-      console.log('🎁 Initialisation système récompenses...');
-      const store = useRewardsStore.getState();
-      await store.initializeRewards(userId);
-      console.log('✅ Système récompenses initialisé');
-      return true;
-    } catch (error) {
-      console.error('❌ Erreur initialisation récompenses:', error);
-      return false;
-    }
-  },
-
-  // Méthodes de démonstration
-  demo: {
-    /**
-     * 🧪 Simuler des données de récompenses pour les tests
-     */
-    createMockRewards: () => {
-      return [
-        { id: 'snack_1', name: 'Goûter surprise', xpCost: 50, category: 'Mini-plaisirs' },
-        { id: 'pizza_1', name: 'Pizza du midi', xpCost: 380, category: 'Plaisirs utiles' },
-        { id: 'cinema_1', name: '2 places cinéma', xpCost: 1100, category: 'Loisirs & sorties' },
-        { id: 'spa_1', name: 'Journée spa', xpCost: 12500, category: 'Premium' }
-      ];
-    },
-
-    /**
-     * 🎯 Simuler une demande de récompense
-     */
-    simulateRequest: async (userId, rewardId) => {
-      console.log('🎮 [DEMO] Simulation demande récompense:', { userId, rewardId });
-      return { success: true, message: 'Demande simulée avec succès' };
-    }
-  }
-};
-
-console.log('🎁 Système de récompenses Synergia chargé avec TOUS les imports corrigés !');
-console.log('📊 Disponible via: import { rewardsSystem } from "./features/rewards"');
-
-export default rewardsSystem;
+console.log('🎁 Système de récompenses Synergia chargé !');
+console.log('📊 Exports disponibles: rewardsService, useRewards, useRewardsStore, RewardsPage, AdminRewardsPage');
