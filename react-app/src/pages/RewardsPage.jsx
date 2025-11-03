@@ -22,7 +22,7 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
-import { useAuth } from '../shared/stores/authStore.js';
+import { useAuthStore } from '../shared/stores/authStore.js';
 import { useRewards } from '../shared/hooks/useRewards.js';
 import { XP_CATEGORIES } from '../features/rewards/index.js';
 
@@ -31,7 +31,7 @@ import { XP_CATEGORIES } from '../features/rewards/index.js';
  */
 const RewardsPage = () => {
   // États et hooks
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const {
     currentUserXP,
     availableRewards,
