@@ -26,8 +26,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import rewardsService from '../core/services/rewardsService.js';
-
+import { rewardsService } from '../core/services/rewardsService.js';
 /**
  * 🛡️ PAGE ADMIN GESTION DES RÉCOMPENSES
  */
