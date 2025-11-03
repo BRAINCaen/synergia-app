@@ -1,9 +1,10 @@
 // ==========================================
 // 📁 react-app/src/features/rewards/index.js
-// INDEX DU SYSTÈME DE RÉCOMPENSES SYNERGIA
+// INDEX DU SYSTÈME DE RÉCOMPENSES SYNERGIA - CORRECTION IMPORT
 // ==========================================
 
-// 🎁 Services
+// 🎁 Services - Import ET utilisation locale
+import rewardsService from '../../core/services/rewardsService.js';
 export { default as rewardsService } from '../../core/services/rewardsService.js';
 
 // 🏪 Stores
@@ -101,7 +102,8 @@ export const rewardsUtils = {
       totalApproved: approved.length,
       totalPending: pending.length,
       totalRejected: rejected.length,
-      approvalRate: rewardHistory.length > 0 ? (approved.length / rewardHistory.length) * 100 : 0
+      approvalRate: rewardHistory.length > 0 ?
+        (approved.length / rewardHistory.length) * 100 : 0
     };
   },
 
@@ -127,7 +129,7 @@ export const rewardsUtils = {
 
 // 🚀 Système de récompenses complet
 export const rewardsSystem = {
-  // Services
+  // Services - Maintenant disponible grâce à l'import local ligne 6
   service: rewardsService,
   
   // Hooks et stores
@@ -153,6 +155,7 @@ export const rewardsSystem = {
   init: async (userId) => {
     try {
       console.log('🎁 Initialisation système récompenses...');
+      const { useRewardsStore } = await import('../../shared/stores/rewardsStore.js');
       const store = useRewardsStore.getState();
       await store.initializeRewards(userId);
       console.log('✅ Système récompenses initialisé');
@@ -187,7 +190,7 @@ export const rewardsSystem = {
   }
 };
 
-console.log('🎁 Système de récompenses Synergia chargé !');
+console.log('🎁 Système de récompenses Synergia chargé avec import corrigé !');
 console.log('📊 Disponible via: import { rewardsSystem } from "./features/rewards"');
 
 export default rewardsSystem;
