@@ -69,6 +69,8 @@ const TeamPage = () => {
   const [messageRecipient, setMessageRecipient] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showConversations, setShowConversations] = useState(false);
+  const [activeConversation, setActiveConversation] = useState(null);
 
   // Vérifier si l'utilisateur est admin
   const isAdmin = user?.role === 'admin';
@@ -78,7 +80,12 @@ const TeamPage = () => {
    */
   useEffect(() => {
     loadAllTeamMembers();
-    loadMessagingData();
+    const unsubscribe = loadMessagingData();
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [user?.uid]);
 
   const loadAllTeamMembers = async () => {
@@ -151,6 +158,9 @@ const TeamPage = () => {
     try {
       if (!user?.uid) return;
 
+      console.log('💬 Chargement messagerie temps réel...');
+
+      // Écouter les messages en temps réel où l'utilisateur est participant
       const messagesQuery = query(
         collection(db, 'messages'),
         where('participants', 'array-contains', user.uid),
@@ -161,18 +171,45 @@ const TeamPage = () => {
       const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
         const messagesData = [];
         let unread = 0;
+        const conversationsMap = new Map();
 
         snapshot.forEach((doc) => {
           const messageData = { id: doc.id, ...doc.data() };
           messagesData.push(messageData);
           
+          // Compter les non lus
           if (!messageData.read && messageData.recipientId === user.uid) {
             unread++;
+          }
+
+          // Construire les conversations
+          const otherUserId = messageData.senderId === user.uid 
+            ? messageData.recipientId 
+            : messageData.senderId;
+          
+          if (!conversationsMap.has(otherUserId)) {
+            conversationsMap.set(otherUserId, {
+              userId: otherUserId,
+              userName: messageData.senderId === user.uid 
+                ? messageData.recipientName 
+                : messageData.senderName,
+              lastMessage: messageData.content,
+              lastMessageDate: messageData.createdAt,
+              unreadCount: 0
+            });
+          }
+
+          if (!messageData.read && messageData.recipientId === user.uid) {
+            const conv = conversationsMap.get(otherUserId);
+            conv.unreadCount++;
           }
         });
 
         setMessages(messagesData);
         setUnreadCount(unread);
+        setConversations(Array.from(conversationsMap.values()));
+        
+        console.log(`✅ ${messagesData.length} messages chargés, ${unread} non lus`);
       });
 
       return unsubscribe;
@@ -520,6 +557,24 @@ const TeamPage = () => {
               {/* FILTRES ET RECHERCHE */}
               <div className="mb-8">
                 <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                  
+                  {/* Bouton conversations */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-white">Équipe</h3>
+                    <button
+                      onClick={() => setShowConversations(!showConversations)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors relative"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      <span>Conversations</span>
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     
                     <div className="relative">
@@ -591,6 +646,67 @@ const TeamPage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* PANNEAU CONVERSATIONS */}
+              <AnimatePresence>
+                {showConversations && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-8"
+                  >
+                    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                      <h3 className="text-xl font-bold text-white mb-4">Conversations récentes</h3>
+                      
+                      {conversations.length === 0 ? (
+                        <div className="text-center text-gray-400 py-8">
+                          <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                          <p>Aucune conversation pour le moment</p>
+                          <p className="text-sm mt-2">Cliquez sur "Message" sur une carte membre pour démarrer</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {conversations.map((conv) => (
+                            <div
+                              key={conv.userId}
+                              className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer"
+                              onClick={() => {
+                                const member = teamMembers.find(m => m.id === conv.userId);
+                                if (member) {
+                                  setMessageRecipient(member);
+                                  setActiveConversation(conv.userId);
+                                  setShowMessageModal(true);
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-3 flex-1">
+                                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white font-bold">
+                                    {conv.userName.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-white font-medium">{conv.userName}</span>
+                                    {conv.unreadCount > 0 && (
+                                      <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                        {conv.unreadCount}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-gray-400 text-sm truncate">{conv.lastMessage}</p>
+                                </div>
+                              </div>
+                              <MessageCircle className="w-5 h-5 text-blue-400" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* GRILLE DES MEMBRES */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -1042,10 +1158,16 @@ const TeamPage = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+                className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white">Message à {messageRecipient.name}</h3>
+                  <div className="flex items-center gap-3">
+                    <MessageCircle className="w-6 h-6 text-blue-400" />
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Conversation avec {messageRecipient.name}</h3>
+                      <p className="text-gray-400 text-sm">{messageRecipient.email}</p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setShowMessageModal(false)}
                     className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
@@ -1054,12 +1176,58 @@ const TeamPage = () => {
                   </button>
                 </div>
 
+                {/* Historique des messages */}
+                <div className="mb-6 max-h-96 overflow-y-auto space-y-3">
+                  {messages
+                    .filter(msg => 
+                      (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
+                      (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
+                    )
+                    .sort((a, b) => {
+                      const aTime = a.createdAt?.toDate?.() || new Date(a.createdAt);
+                      const bTime = b.createdAt?.toDate?.() || new Date(b.createdAt);
+                      return aTime - bTime;
+                    })
+                    .map((message) => {
+                      const isOwn = message.senderId === user.uid;
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[70%] rounded-lg p-3 ${
+                            isOwn 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-gray-700 text-gray-100'
+                          }`}>
+                            <p className="text-sm">{message.content}</p>
+                            <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
+                              {message.createdAt?.toDate?.().toLocaleString() || 'À l\'instant'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  
+                  {messages.filter(msg => 
+                    (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
+                    (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
+                  ).length === 0 && (
+                    <div className="text-center text-gray-400 py-8">
+                      <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Aucun message échangé</p>
+                      <p className="text-sm mt-2">Démarrez la conversation ci-dessous</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Formulaire nouveau message */}
                 <div className="space-y-4">
                   <textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Votre message..."
-                    rows={6}
+                    rows={4}
                     className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
 
