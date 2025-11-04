@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TeamPage.jsx
-// PAGE ÉQUIPE COMPLÈTE AVEC MESSAGERIE INTERNE ET MENU HAMBURGER
+// PAGE ÉQUIPE AVEC ONGLET ADMIN POUR PILOTAGE COMPLET
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -9,10 +9,11 @@ import {
   Users, Crown, Trophy, Star, Zap, Filter, Search, Mail, MessageCircle, 
   Phone, MapPin, Calendar, Award, Target, TrendingUp, Eye, UserPlus,
   Send, X, RefreshCw, Settings, MoreVertical, Heart, Shield, Flame,
-  Clock, CheckCircle, AlertCircle, MessageSquare, Video, Plus, Edit
+  Clock, CheckCircle, AlertCircle, MessageSquare, Video, Plus, Edit,
+  Trash2, Ban, UserX, UserCheck, Lock, Unlock, AlertTriangle
 } from 'lucide-react';
 
-// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
+// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
 import Layout from '../components/layout/Layout.jsx';
 
 // 🔥 HOOKS ET SERVICES FIREBASE
@@ -29,12 +30,13 @@ import {
   onSnapshot,
   updateDoc,
   doc,
-  getDoc
+  getDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 /**
- * 🏢 PAGE ÉQUIPE COMPLÈTE AVEC MESSAGERIE
+ * 🏢 PAGE ÉQUIPE AVEC PILOTAGE ADMIN
  */
 const TeamPage = () => {
   const { user } = useAuthStore();
@@ -43,6 +45,9 @@ const TeamPage = () => {
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // États onglets
+  const [activeTab, setActiveTab] = useState('members'); // 'members' | 'admin'
   
   // États filtres
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +60,8 @@ const TeamPage = () => {
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // États messagerie
   const [messages, setMessages] = useState([]);
@@ -62,6 +69,9 @@ const TeamPage = () => {
   const [messageRecipient, setMessageRecipient] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Vérifier si l'utilisateur est admin
+  const isAdmin = user?.role === 'admin';
 
   /**
    * 🚀 CHARGEMENT COMPLET DE L'ÉQUIPE DEPUIS FIREBASE
@@ -78,249 +88,111 @@ const TeamPage = () => {
     try {
       console.log('👥 Chargement COMPLET de l\'équipe depuis Firebase...');
       
-      // Récupérer TOUS les utilisateurs (pas de limite stricte)
       const usersQuery = query(
         collection(db, 'users'),
         orderBy('gamification.totalXp', 'desc'),
-        limit(100) // Augmenter la limite
+        limit(100)
       );
       
       const usersSnapshot = await getDocs(usersQuery);
-      const allUsers = [];
       
-      usersSnapshot.forEach(doc => {
+      if (usersSnapshot.empty) {
+        console.warn('⚠️ Aucun utilisateur trouvé dans Firebase !');
+        setTeamMembers([]);
+        setLoading(false);
+        return;
+      }
+
+      const membersData = [];
+      
+      usersSnapshot.forEach((doc) => {
         const userData = doc.data();
         
-        // Créer un membre d'équipe complet
         const member = {
           id: doc.id,
           uid: doc.id,
-          name: cleanDisplayName(userData),
-          displayName: cleanDisplayName(userData),
-          email: userData.email,
-          photoURL: userData.photoURL,
-          
-          // Données gamification
-          totalXp: userData.gamification?.totalXp || userData.totalXp || 0,
+          name: userData.displayName || userData.name || 'Utilisateur anonyme',
+          email: userData.email || '',
+          role: userData.role || 'Membre',
+          department: userData.department || 'Non spécifié',
+          photoURL: userData.photoURL || null,
+          status: userData.status || 'actif',
+          isOnline: userData.isOnline || false,
+          joinedAt: userData.createdAt?.toDate?.() || new Date(),
+          lastActivity: userData.lastActivity?.toDate?.() || new Date(),
+          totalXp: userData.gamification?.totalXp || userData.xp || 0,
           level: userData.gamification?.level || userData.level || 1,
-          tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
-          badges: userData.gamification?.badges || userData.badges || [],
-          
-          // Informations profil
-          role: userData.profile?.role || userData.role || 'Membre',
-          department: userData.profile?.department || userData.department || 'Général',
-          position: userData.profile?.position || userData.position || '',
-          bio: userData.profile?.bio || userData.bio || '',
-          skills: userData.profile?.skills || userData.skills || [],
-          
-          // Statut et activité
-          status: calculateUserStatus(userData),
-          lastActivity: userData.gamification?.lastActivityDate || userData.lastActivity,
-          joinedAt: userData.createdAt?.toDate?.() || new Date(userData.createdAt) || new Date(),
-          isOnline: calculateOnlineStatus(userData),
-          
-          // Données supplémentaires
-          completionRate: calculateCompletionRate(userData),
-          averageTaskTime: userData.stats?.averageTaskTime || 0,
-          projectsCount: userData.stats?.projectsCount || 0,
-          
-          // Rôles Synergia
-          synergiaRoles: userData.synergiaRoles || [],
-          
-          source: 'firebase'
+          tasksCompleted: userData.tasksCompleted || 0,
+          badgesCount: userData.gamification?.badges?.length || 0,
+          badges: userData.gamification?.badges || [],
+          completionRate: userData.completionRate || 0,
+          phone: userData.phone || null,
+          location: userData.location || null,
+          bio: userData.bio || null,
+          skills: userData.skills || [],
+          synergiaRoles: userData.synergiaRoles || []
         };
         
-        allUsers.push(member);
+        membersData.push(member);
       });
       
-      console.log(`✅ ${allUsers.length} utilisateurs chargés depuis Firebase`);
-      setTeamMembers(allUsers);
+      console.log(`✅ ${membersData.length} membres chargés avec succès`);
+      setTeamMembers(membersData);
       
     } catch (error) {
       console.error('❌ Erreur chargement équipe:', error);
-      setError('Erreur lors du chargement de l\'équipe');
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * 🧹 NETTOYER LES NOMS D'AFFICHAGE
-   */
-  const cleanDisplayName = (userData) => {
-    let name = userData.displayName || userData.profile?.displayName || userData.email || 'Utilisateur';
-    
-    // Nettoyer les URLs
-    if (name.includes('http') || name.includes('www.')) {
-      name = userData.email?.split('@')[0] || 'Utilisateur';
-    }
-    
-    // Cas spécifique pour votre email
-    if (userData.email === 'alan.boehme61@gmail.com') {
-      name = 'Alan Boehme (Admin)';
-    }
-    
-    return name.length > 30 ? name.substring(0, 30) + '...' : name;
-  };
-
-  /**
-   * 📊 CALCULER LE STATUT UTILISATEUR
-   */
-  const calculateUserStatus = (userData) => {
-    const lastActivity = userData.gamification?.lastActivityDate || userData.lastActivity;
-    if (!lastActivity) return 'inactif';
-    
-    const daysSinceActivity = (new Date() - new Date(lastActivity)) / (1000 * 60 * 60 * 24);
-    
-    if (daysSinceActivity < 1) return 'actif';
-    if (daysSinceActivity < 7) return 'récent';
-    return 'inactif';
-  };
-
-  /**
-   * 🟢 CALCULER STATUT EN LIGNE
-   */
-  const calculateOnlineStatus = (userData) => {
-    const lastActivity = userData.gamification?.lastActivityDate || userData.lastActivity;
-    if (!lastActivity) return false;
-    
-    const minutesSinceActivity = (new Date() - new Date(lastActivity)) / (1000 * 60);
-    return minutesSinceActivity < 15; // En ligne si activité < 15 min
-  };
-
-  /**
-   * 📈 CALCULER TAUX DE COMPLÉTION
-   */
-  const calculateCompletionRate = (userData) => {
-    const tasksCompleted = userData.gamification?.tasksCompleted || userData.tasksCompleted || 0;
-    const tasksCreated = userData.gamification?.tasksCreated || userData.tasksCreated || 0;
-    const totalTasks = tasksCompleted + tasksCreated;
-    
-    if (totalTasks === 0) return 0;
-    return Math.round((tasksCompleted / totalTasks) * 100);
-  };
-
-  /**
-   * 💬 CHARGER DONNÉES MESSAGERIE
-   */
   const loadMessagingData = async () => {
-    if (!user?.uid) return;
-    
     try {
-      console.log('💬 Chargement données messagerie...');
-      
-      // Écouter les messages reçus en temps réel
+      if (!user?.uid) return;
+
       const messagesQuery = query(
         collection(db, 'messages'),
-        where('toUserId', '==', user.uid),
-        orderBy('timestamp', 'desc'),
+        where('participants', 'array-contains', user.uid),
+        orderBy('createdAt', 'desc'),
         limit(50)
       );
-      
+
       const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-        const userMessages = [];
+        const messagesData = [];
         let unread = 0;
-        
-        snapshot.forEach(doc => {
+
+        snapshot.forEach((doc) => {
           const messageData = { id: doc.id, ...doc.data() };
-          userMessages.push(messageData);
-          if (!messageData.read) unread++;
+          messagesData.push(messageData);
+          
+          if (!messageData.read && messageData.recipientId === user.uid) {
+            unread++;
+          }
         });
-        
-        setMessages(userMessages);
+
+        setMessages(messagesData);
         setUnreadCount(unread);
-        console.log(`💬 ${userMessages.length} messages chargés, ${unread} non lus`);
       });
-      
+
       return unsubscribe;
-      
+
     } catch (error) {
       console.error('❌ Erreur chargement messagerie:', error);
     }
   };
 
   /**
-   * 📨 ENVOYER UN MESSAGE
-   */
-  const sendMessage = async (recipientId, messageText, subject = '') => {
-    if (!user?.uid || !recipientId || !messageText.trim()) return;
-    
-    try {
-      console.log('📨 Envoi message à:', recipientId);
-      
-      const messageData = {
-        fromUserId: user.uid,
-        fromUserName: user.displayName || user.email,
-        fromUserEmail: user.email,
-        toUserId: recipientId,
-        toUserName: teamMembers.find(m => m.id === recipientId)?.name || 'Utilisateur',
-        subject: subject.trim() || 'Message direct',
-        content: messageText.trim(),
-        timestamp: serverTimestamp(),
-        read: false,
-        starred: false,
-        archived: false,
-        messageType: 'direct',
-        conversationId: generateConversationId(user.uid, recipientId)
-      };
-      
-      await addDoc(collection(db, 'messages'), messageData);
-      
-      console.log('✅ Message envoyé avec succès');
-      setNewMessage('');
-      setShowMessageModal(false);
-      
-      // Notification de succès
-      showNotification('Message envoyé avec succès', 'success');
-      
-    } catch (error) {
-      console.error('❌ Erreur envoi message:', error);
-      showNotification('Erreur lors de l\'envoi', 'error');
-    }
-  };
-
-  /**
-   * 🆔 GÉNÉRER ID CONVERSATION
-   */
-  const generateConversationId = (userId1, userId2) => {
-    const sortedIds = [userId1, userId2].sort();
-    return `conv_${sortedIds[0]}_${sortedIds[1]}`;
-  };
-
-  /**
-   * 🔔 AFFICHER NOTIFICATION
-   */
-  const showNotification = (message, type = 'info') => {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white ${
-      type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-    }`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.style.opacity = '0';
-      setTimeout(() => document.body.removeChild(notification), 300);
-    }, 3000);
-  };
-
-  /**
    * 🔍 FILTRER LES MEMBRES
    */
   const filteredMembers = teamMembers.filter(member => {
-    // Filtre recherche
     const matchesSearch = !searchTerm || 
       member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.role.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Filtre département
     const matchesDepartment = departmentFilter === 'all' || member.department === departmentFilter;
-    
-    // Filtre rôle
     const matchesRole = roleFilter === 'all' || member.role.toLowerCase().includes(roleFilter.toLowerCase());
-    
-    // Filtre statut
     const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
     
     return matchesSearch && matchesDepartment && matchesRole && matchesStatus;
@@ -342,11 +214,9 @@ const TeamPage = () => {
       : 0
   };
 
-  // Départements uniques pour les filtres
   const departments = ['all', ...new Set(teamMembers.map(m => m.department).filter(Boolean))];
   const roles = ['all', ...new Set(teamMembers.map(m => m.role).filter(Boolean))];
 
-  // Statistiques header
   const headerStats = [
     { 
       label: "Membres Total", 
@@ -370,45 +240,176 @@ const TeamPage = () => {
       label: "Messages", 
       value: `${unreadCount}/${messages.length}`, 
       icon: MessageCircle, 
-      color: unreadCount > 0 ? "text-red-400" : "text-gray-400" 
+      color: unreadCount > 0 ? "text-red-400" : "text-gray-400"
     }
   ];
+
+  /**
+   * ✉️ ENVOYER UN MESSAGE
+   */
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !messageRecipient) return;
+
+    try {
+      await addDoc(collection(db, 'messages'), {
+        senderId: user.uid,
+        senderName: user.displayName || user.email,
+        recipientId: messageRecipient.id,
+        recipientName: messageRecipient.name,
+        content: newMessage,
+        participants: [user.uid, messageRecipient.id],
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      setNewMessage('');
+      showNotification('Message envoyé avec succès !', 'success');
+      setShowMessageModal(false);
+    } catch (error) {
+      console.error('❌ Erreur envoi message:', error);
+      showNotification('Erreur lors de l\'envoi du message', 'error');
+    }
+  };
+
+  /**
+   * 🔧 ACTIONS ADMIN - MODIFIER UN MEMBRE
+   */
+  const handleEditMember = (member) => {
+    setSelectedMember(member);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedMember) return;
+
+    try {
+      const memberRef = doc(db, 'users', selectedMember.id);
+      await updateDoc(memberRef, {
+        displayName: selectedMember.name,
+        role: selectedMember.role,
+        department: selectedMember.department,
+        status: selectedMember.status,
+        updatedAt: serverTimestamp()
+      });
+
+      showNotification('Membre modifié avec succès', 'success');
+      setShowEditModal(false);
+      await loadAllTeamMembers();
+    } catch (error) {
+      console.error('❌ Erreur modification membre:', error);
+      showNotification('Erreur lors de la modification', 'error');
+    }
+  };
+
+  /**
+   * ⛔ ACTIONS ADMIN - SUSPENDRE UN MEMBRE
+   */
+  const handleSuspendMember = async (memberId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir suspendre ce membre ?')) return;
+
+    try {
+      const memberRef = doc(db, 'users', memberId);
+      await updateDoc(memberRef, {
+        status: 'suspendu',
+        suspendedAt: serverTimestamp(),
+        suspendedBy: user.uid
+      });
+
+      showNotification('Membre suspendu', 'success');
+      await loadAllTeamMembers();
+    } catch (error) {
+      console.error('❌ Erreur suspension:', error);
+      showNotification('Erreur lors de la suspension', 'error');
+    }
+  };
+
+  /**
+   * 🔓 ACTIONS ADMIN - RÉACTIVER UN MEMBRE
+   */
+  const handleActivateMember = async (memberId) => {
+    try {
+      const memberRef = doc(db, 'users', memberId);
+      await updateDoc(memberRef, {
+        status: 'actif',
+        suspendedAt: null,
+        suspendedBy: null,
+        reactivatedAt: serverTimestamp(),
+        reactivatedBy: user.uid
+      });
+
+      showNotification('Membre réactivé', 'success');
+      await loadAllTeamMembers();
+    } catch (error) {
+      console.error('❌ Erreur réactivation:', error);
+      showNotification('Erreur lors de la réactivation', 'error');
+    }
+  };
+
+  /**
+   * 🚫 ACTIONS ADMIN - BLOQUER UN MEMBRE
+   */
+  const handleBlockMember = async (memberId) => {
+    if (!window.confirm('⚠️ ATTENTION: Le blocage est une action sérieuse. Confirmer ?')) return;
+
+    try {
+      const memberRef = doc(db, 'users', memberId);
+      await updateDoc(memberRef, {
+        status: 'bloqué',
+        blockedAt: serverTimestamp(),
+        blockedBy: user.uid
+      });
+
+      showNotification('Membre bloqué', 'success');
+      await loadAllTeamMembers();
+    } catch (error) {
+      console.error('❌ Erreur blocage:', error);
+      showNotification('Erreur lors du blocage', 'error');
+    }
+  };
+
+  /**
+   * 🗑️ ACTIONS ADMIN - SUPPRIMER UN MEMBRE
+   */
+  const handleDeleteMember = async () => {
+    if (!selectedMember) return;
+    if (!window.confirm('⚠️ SUPPRESSION DÉFINITIVE: Cette action est irréversible. Confirmer ?')) return;
+
+    try {
+      await deleteDoc(doc(db, 'users', selectedMember.id));
+
+      showNotification('Membre supprimé définitivement', 'success');
+      setShowDeleteModal(false);
+      await loadAllTeamMembers();
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error);
+      showNotification('Erreur lors de la suppression', 'error');
+    }
+  };
+
+  /**
+   * 📢 NOTIFICATIONS
+   */
+  const showNotification = (message, type = 'info') => {
+    const notification = document.createElement('div');
+    notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg text-white shadow-lg transition-opacity duration-300 z-50 ${
+      type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      setTimeout(() => document.body.removeChild(notification), 300);
+    }, 3000);
+  };
 
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <p className="text-white">Récupération de tous les utilisateurs Firebase...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50 text-center">
-              <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Erreur de chargement</h3>
-              <p className="text-gray-400 mb-4">{error}</p>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={loadAllTeamMembers}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
-              >
-                Réessayer
-              </motion.button>
-            </div>
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Chargement de l'équipe...</p>
           </div>
         </div>
       </Layout>
@@ -420,60 +421,42 @@ const TeamPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
         <div className="max-w-7xl mx-auto">
           
-          {/* 🏆 EN-TÊTE TEAM PAGE AVEC STATS */}
+          {/* 🎯 HEADER */}
           <div className="mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                  <Users className="w-8 h-8 text-purple-400" />
-                  Mon Équipe
+                <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text mb-2">
+                  👥 Gestion Équipe
                 </h1>
-                <p className="text-gray-300">
+                <p className="text-gray-400">
                   Collaborez et suivez les performances de votre équipe ({teamStats.totalMembers} membres)
                 </p>
               </div>
-              
-              {/* Actions Header */}
-              <div className="flex items-center gap-3 mt-4 lg:mt-0">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setShowMessageModal(true)}
-                  className="relative px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors flex items-center gap-2"
+
+              {/* Boutons actions rapides */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => loadAllTeamMembers()}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg text-white transition-colors"
                 >
-                  <MessageSquare className="w-4 h-4" />
-                  Messages
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
-                </motion.button>
-                
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={loadAllTeamMembers}
-                  disabled={loading}
-                  className="px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-                >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-5 h-5" />
                   Actualiser
-                </motion.button>
+                </button>
                 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Inviter
-                </motion.button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg text-white transition-colors"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                    Inviter
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* 📊 STATISTIQUES ÉQUIPE */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* STATISTIQUES HEADER */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
               {headerStats.map((stat, index) => (
                 <motion.div
                   key={stat.label}
@@ -484,7 +467,7 @@ const TeamPage = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className={`text-2xl font-bold ${stat.color}`}>
+                      <div className={`text-3xl font-bold ${stat.color}`}>
                         {stat.value}
                       </div>
                       <div className="text-gray-400 text-sm mt-1">
@@ -496,527 +479,612 @@ const TeamPage = () => {
                 </motion.div>
               ))}
             </div>
-          </div>
 
-          {/* 🔍 FILTRES ET RECHERCHE */}
-          <div className="mb-8">
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                
-                {/* Recherche */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un membre..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Filtre département */}
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
-                >
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>
-                      {dept === 'all' ? 'Tous les départements' : dept}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Filtre rôle */}
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
-                >
-                  {roles.slice(0, 6).map(role => (
-                    <option key={role} value={role}>
-                      {role === 'all' ? 'Tous les rôles' : role}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Filtre statut */}
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
-                >
-                  <option value="all">Tous les statuts</option>
-                  <option value="actif">Actifs</option>
-                  <option value="récent">Récents</option>
-                  <option value="inactif">Inactifs</option>
-                </select>
-
-                {/* Bouton reset */}
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setDepartmentFilter('all');
-                    setRoleFilter('all');
-                    setStatusFilter('all');
-                  }}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
-                >
-                  Réinitialiser
-                </button>
-              </div>
-
-              {/* Résultats filtres */}
-              <div className="mt-4 text-sm text-gray-400">
-                {filteredMembers.length} membre{filteredMembers.length !== 1 ? 's' : ''} trouvé{filteredMembers.length !== 1 ? 's' : ''}
-                {filteredMembers.length !== teamMembers.length && (
-                  <span> sur {teamMembers.length} au total</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 👥 GRILLE DES MEMBRES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredMembers.map((member, index) => {
-              const isCurrentUser = member.id === user?.uid;
-              
-              return (
-                <motion.div
-                  key={member.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`
-                    relative bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border transition-all duration-300 hover:scale-[1.02] hover:border-purple-500/50
-                    ${isCurrentUser ? 'border-blue-500 bg-blue-900/20' : 'border-gray-700/50'}
-                  `}
-                >
-                  {/* Badge utilisateur actuel */}
-                  {isCurrentUser && (
-                    <div className="absolute top-3 right-3 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                      Vous
-                    </div>
-                  )}
-
-                  {/* Statut en ligne */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1">
-                    <div className={`w-3 h-3 rounded-full ${
-                      member.isOnline ? 'bg-green-500' : 
-                      member.status === 'actif' ? 'bg-yellow-500' : 'bg-gray-500'
-                    }`} />
-                    <span className="text-xs text-gray-400 capitalize">{member.status}</span>
-                  </div>
-
-                  {/* Avatar et infos */}
-                  <div className="mt-6 text-center">
-                    <div className="relative inline-block mb-4">
-                      {member.photoURL ? (
-                        <img 
-                          src={member.photoURL} 
-                          alt={member.name}
-                          className="w-16 h-16 rounded-full object-cover mx-auto"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto">
-                          <span className="text-white font-bold text-xl">
-                            {member.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <h3 className="text-lg font-semibold text-white mb-1">{member.name}</h3>
-                    <p className="text-gray-400 text-sm mb-2">{member.role}</p>
-                    <p className="text-gray-500 text-xs mb-3">{member.department}</p>
-
-                    {/* Statistiques */}
-                    <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                      <div>
-                        <div className="text-lg font-bold text-yellow-400">{member.totalXp.toLocaleString()}</div>
-                        <div className="text-xs text-gray-400">XP</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-blue-400">{member.level}</div>
-                        <div className="text-xs text-gray-400">Niveau</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-green-400">{member.tasksCompleted}</div>
-                        <div className="text-xs text-gray-400">Tâches</div>
-                      </div>
-                    </div>
-
-                    {/* Barre de progression XP */}
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>Progression</span>
-                        <span>{Math.min(100, ((member.totalXp || 0) % 1000) / 10).toFixed(0)}%</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, ((member.totalXp || 0) % 1000) / 10)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between gap-2">
-                      <button 
-                        onClick={() => {
-                          setSelectedMember(member);
-                          setShowMemberModal(true);
-                        }}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm rounded-lg transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Profil
-                      </button>
-                      
-                      {!isCurrentUser && (
-                        <button 
-                          onClick={() => {
-                            setMessageRecipient(member);
-                            setShowMessageModal(true);
-                          }}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 text-sm rounded-lg transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-                      )}
-                      
-                      {member.email && (
-                        <a 
-                          href={`mailto:${member.email}`}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 text-sm rounded-lg transition-colors"
-                        >
-                          <Mail className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Message si aucun membre trouvé */}
-          {filteredMembers.length === 0 && teamMembers.length > 0 && (
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50 text-center">
-              <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Aucun membre trouvé</h3>
-              <p className="text-gray-400 mb-4">Essayez de modifier vos critères de recherche</p>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setSearchTerm('');
-                  setDepartmentFilter('all');
-                  setRoleFilter('all');
-                  setStatusFilter('all');
-                }}
-                className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors"
+            {/* ONGLETS */}
+            <div className="flex gap-2 bg-gray-800/50 p-2 rounded-lg">
+              <button
+                onClick={() => setActiveTab('members')}
+                className={`flex-1 px-4 py-3 rounded-lg transition-colors ${
+                  activeTab === 'members'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
               >
-                Réinitialiser les filtres
-              </motion.button>
-            </div>
-          )}
-
-          {/* Résultats */}
-          <div className="text-center text-gray-400 mt-8">
-            Affichage de {filteredMembers.length} membre(s) sur {teamMembers.length}
-          </div>
-        </div>
-      </div>
-
-      {/* MODAL MESSAGERIE */}
-      <AnimatePresence>
-        {showMessageModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowMessageModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-gray-700"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="w-6 h-6 text-blue-400" />
-                  <div>
-                    <h3 className="text-xl font-bold text-white">
-                      {messageRecipient ? `Message à ${messageRecipient.name}` : 'Messagerie Interne'}
-                    </h3>
-                    <p className="text-gray-400 text-sm">
-                      {messages.length} message{messages.length !== 1 ? 's' : ''}, {unreadCount} non lu{unreadCount !== 1 ? 's' : ''}
-                    </p>
-                  </div>
+                <div className="flex items-center justify-center gap-2">
+                  <Users className="w-5 h-5" />
+                  <span className="font-medium">Membres</span>
                 </div>
+              </button>
+
+              {isAdmin && (
                 <button
-                  onClick={() => setShowMessageModal(false)}
-                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                  onClick={() => setActiveTab('admin')}
+                  className={`flex-1 px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === 'admin'
+                      ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                  }`}
                 >
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-
-              {/* Messages existants */}
-              {messages.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-lg font-semibold text-white mb-4">Messages récents</h4>
-                  <div className="space-y-3 max-h-60 overflow-y-auto">
-                    {messages.slice(0, 5).map(message => (
-                      <div key={message.id} className={`p-4 rounded-lg ${message.read ? 'bg-gray-700' : 'bg-blue-900/30'}`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-white">{message.fromUserName}</span>
-                            {!message.read && <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">Nouveau</span>}
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            {message.timestamp?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
-                          </span>
-                        </div>
-                        <p className="text-gray-300 text-sm mb-1 font-medium">{message.subject}</p>
-                        <p className="text-gray-400 text-sm">{message.content}</p>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    <span className="font-medium">Administration</span>
                   </div>
-                </div>
+                </button>
               )}
+            </div>
+          </div>
 
-              {/* Nouveau message */}
-              <div className="space-y-4">
-                <h4 className="text-lg font-semibold text-white">
-                  {messageRecipient ? `Nouveau message` : 'Envoyer un message'}
-                </h4>
-                
-                {/* Sélection destinataire */}
-                {!messageRecipient && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Destinataire</label>
+          {/* ONGLET MEMBRES */}
+          {activeTab === 'members' && (
+            <>
+              {/* FILTRES ET RECHERCHE */}
+              <div className="mb-8">
+                <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="text"
+                        placeholder="Rechercher un membre..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
                     <select
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      onChange={(e) => {
-                        const selected = teamMembers.find(m => m.id === e.target.value);
-                        setMessageRecipient(selected);
-                      }}
+                      value={departmentFilter}
+                      onChange={(e) => setDepartmentFilter(e.target.value)}
+                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
                     >
-                      <option value="">Choisir un destinataire...</option>
-                      {teamMembers.filter(m => m.id !== user?.uid).map(member => (
-                        <option key={member.id} value={member.id}>
-                          {member.name} ({member.role})
+                      {departments.map(dept => (
+                        <option key={dept} value={dept}>
+                          {dept === 'all' ? 'Tous les départements' : dept}
                         </option>
                       ))}
                     </select>
-                  </div>
-                )}
 
-                {/* Message */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
-                  <textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Tapez votre message..."
-                    rows={6}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 resize-none"
-                  />
+                    <select
+                      value={roleFilter}
+                      onChange={(e) => setRoleFilter(e.target.value)}
+                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
+                    >
+                      {roles.slice(0, 6).map(role => (
+                        <option key={role} value={role}>
+                          {role === 'all' ? 'Tous les rôles' : role}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
+                    >
+                      <option value="all">Tous les statuts</option>
+                      <option value="actif">Actifs</option>
+                      <option value="récent">Récents</option>
+                      <option value="inactif">Inactifs</option>
+                      <option value="suspendu">Suspendus</option>
+                      <option value="bloqué">Bloqués</option>
+                    </select>
+
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setDepartmentFilter('all');
+                        setRoleFilter('all');
+                        setStatusFilter('all');
+                      }}
+                      className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                    >
+                      Réinitialiser
+                    </button>
+                  </div>
+
+                  <div className="mt-4 text-sm text-gray-400">
+                    {filteredMembers.length} membre{filteredMembers.length !== 1 ? 's' : ''} trouvé{filteredMembers.length !== 1 ? 's' : ''}
+                    {filteredMembers.length !== teamMembers.length && (
+                      <span> sur {teamMembers.length} au total</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* GRILLE DES MEMBRES */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredMembers.map((member, index) => {
+                  const isCurrentUser = member.id === user?.uid;
+                  
+                  return (
+                    <motion.div
+                      key={member.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className={`
+                        relative bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border transition-all duration-300 hover:scale-[1.02] hover:border-purple-500/50
+                        ${isCurrentUser ? 'border-blue-500 bg-blue-900/20' : 'border-gray-700/50'}
+                      `}
+                    >
+                      {isCurrentUser && (
+                        <div className="absolute top-3 right-3 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                          Vous
+                        </div>
+                      )}
+
+                      <div className="absolute top-3 left-3 flex items-center gap-1">
+                        <div className={`w-3 h-3 rounded-full ${
+                          member.isOnline ? 'bg-green-500' : 
+                          member.status === 'actif' ? 'bg-yellow-500' : 
+                          member.status === 'suspendu' ? 'bg-orange-500' :
+                          member.status === 'bloqué' ? 'bg-red-500' : 'bg-gray-500'
+                        }`} />
+                        <span className="text-xs text-gray-400 capitalize">{member.status}</span>
+                      </div>
+
+                      <div className="mt-6 text-center">
+                        <div className="relative inline-block mb-4">
+                          {member.photoURL ? (
+                            <img 
+                              src={member.photoURL} 
+                              alt={member.name}
+                              className="w-16 h-16 rounded-full object-cover mx-auto"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto">
+                              <span className="text-white font-bold text-xl">
+                                {member.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <h3 className="text-lg font-semibold text-white mb-1">{member.name}</h3>
+                        <p className="text-gray-400 text-sm mb-2">{member.role}</p>
+                        <p className="text-gray-500 text-xs mb-3">{member.department}</p>
+
+                        <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                          <div>
+                            <div className="text-lg font-bold text-yellow-400">{member.totalXp.toLocaleString()}</div>
+                            <div className="text-xs text-gray-400">XP</div>
+                          </div>
+                          <div>
+                            <div className="text-lg font-bold text-blue-400">{member.level}</div>
+                            <div className="text-xs text-gray-400">Niveau</div>
+                          </div>
+                          <div>
+                            <div className="text-lg font-bold text-green-400">{member.tasksCompleted}</div>
+                            <div className="text-xs text-gray-400">Tâches</div>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedMember(member);
+                              setShowMemberModal(true);
+                            }}
+                            className="flex-1 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Profil
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMessageRecipient(member);
+                              setShowMessageModal(true);
+                            }}
+                            className="flex-1 px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Mail className="w-4 h-4" />
+                            Message
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* ONGLET ADMINISTRATION */}
+          {activeTab === 'admin' && isAdmin && (
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+              <div className="flex items-center gap-3 mb-6">
+                <Shield className="w-6 h-6 text-red-400" />
+                <h2 className="text-2xl font-bold text-white">Panneau d'Administration</h2>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-700/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Membre</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Rôle</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Département</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">XP</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700/50">
+                    {filteredMembers.map((member) => (
+                      <tr key={member.id} className="hover:bg-gray-700/30 transition-colors">
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                              <span className="text-white font-bold">
+                                {member.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">{member.name}</div>
+                              <div className="text-gray-400 text-sm">{member.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-gray-300">{member.role}</td>
+                        <td className="px-4 py-4 text-gray-300">{member.department}</td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            member.status === 'actif' ? 'bg-green-500/20 text-green-400' :
+                            member.status === 'suspendu' ? 'bg-orange-500/20 text-orange-400' :
+                            member.status === 'bloqué' ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {member.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-yellow-400 font-bold">{member.totalXp.toLocaleString()}</td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleEditMember(member)}
+                              className="p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
+                              title="Modifier"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+
+                            {member.status === 'actif' ? (
+                              <button
+                                onClick={() => handleSuspendMember(member.id)}
+                                className="p-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors"
+                                title="Suspendre"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            ) : member.status === 'suspendu' ? (
+                              <button
+                                onClick={() => handleActivateMember(member.id)}
+                                className="p-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors"
+                                title="Réactiver"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </button>
+                            ) : null}
+
+                            <button
+                              onClick={() => handleBlockMember(member.id)}
+                              className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                              title="Bloquer"
+                            >
+                              <Lock className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedMember(member);
+                                setShowDeleteModal(true);
+                              }}
+                              className="p-2 bg-red-600/20 hover:bg-red-600/30 text-red-500 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* MODAL PROFIL MEMBRE */}
+        <AnimatePresence>
+          {showMemberModal && selectedMember && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowMemberModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-bold text-white">Profil de {selectedMember.name}</h3>
+                  <button
+                    onClick={() => setShowMemberModal(false)}
+                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
                 </div>
 
-                {/* Actions */}
-                <div className="flex justify-end gap-3">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4">
+                    {selectedMember.photoURL ? (
+                      <img 
+                        src={selectedMember.photoURL} 
+                        alt={selectedMember.name}
+                        className="w-20 h-20 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-2xl">
+                          {selectedMember.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h4 className="text-xl font-bold text-white">{selectedMember.name}</h4>
+                      <p className="text-gray-400">{selectedMember.email}</p>
+                      <p className="text-gray-500 text-sm">{selectedMember.role} • {selectedMember.department}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-yellow-400">{selectedMember.totalXp.toLocaleString()}</div>
+                      <div className="text-xs text-gray-400">XP Total</div>
+                    </div>
+                    <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-blue-400">{selectedMember.level}</div>
+                      <div className="text-xs text-gray-400">Niveau</div>
+                    </div>
+                    <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-green-400">{selectedMember.tasksCompleted}</div>
+                      <div className="text-xs text-gray-400">Tâches</div>
+                    </div>
+                    <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-purple-400">{selectedMember.badgesCount}</div>
+                      <div className="text-xs text-gray-400">Badges</div>
+                    </div>
+                  </div>
+
+                  {selectedMember.bio && (
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-400 mb-2">Bio</h5>
+                      <p className="text-gray-300">{selectedMember.bio}</p>
+                    </div>
+                  )}
+
+                  {selectedMember.skills && selectedMember.skills.length > 0 && (
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-400 mb-2">Compétences</h5>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedMember.skills.map((skill, idx) => (
+                          <span key={idx} className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL ÉDITION */}
+        <AnimatePresence>
+          {showEditModal && selectedMember && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowEditModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white">Modifier le membre</h3>
                   <button
-                    onClick={() => setShowMessageModal(false)}
-                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                    onClick={() => setShowEditModal(false)}
+                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={selectedMember.name}
+                      onChange={(e) => setSelectedMember({...selectedMember, name: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Rôle</label>
+                    <input
+                      type="text"
+                      value={selectedMember.role}
+                      onChange={(e) => setSelectedMember({...selectedMember, role: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Département</label>
+                    <input
+                      type="text"
+                      value={selectedMember.department}
+                      onChange={(e) => setSelectedMember({...selectedMember, department: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Statut</label>
+                    <select
+                      value={selectedMember.status}
+                      onChange={(e) => setSelectedMember({...selectedMember, status: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    >
+                      <option value="actif">Actif</option>
+                      <option value="inactif">Inactif</option>
+                      <option value="suspendu">Suspendu</option>
+                      <option value="bloqué">Bloqué</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => setShowEditModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL SUPPRESSION */}
+        <AnimatePresence>
+          {showDeleteModal && selectedMember && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+              >
+                <div className="flex items-center gap-3 mb-6 text-red-500">
+                  <AlertTriangle className="w-6 h-6" />
+                  <h3 className="text-xl font-bold">Suppression définitive</h3>
+                </div>
+
+                <p className="text-gray-300 mb-6">
+                  Êtes-vous absolument certain de vouloir supprimer <strong>{selectedMember.name}</strong> ?
+                  Cette action est irréversible et toutes les données seront perdues.
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
                   >
                     Annuler
                   </button>
                   <button
-                    onClick={() => {
-                      if (messageRecipient && newMessage.trim()) {
-                        sendMessage(messageRecipient.id, newMessage, 'Message direct');
-                      }
-                    }}
-                    disabled={!messageRecipient || !newMessage.trim()}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                    onClick={handleDeleteMember}
+                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
                   >
-                    <Send className="w-4 h-4" />
-                    Envoyer
+                    Supprimer
                   </button>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
 
-      {/* MODAL PROFIL MEMBRE */}
-      <AnimatePresence>
-        {showMemberModal && selectedMember && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowMemberModal(false)}
-          >
+        {/* MODAL MESSAGE */}
+        <AnimatePresence>
+          {showMessageModal && messageRecipient && (
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-gray-700"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowMessageModal(false)}
             >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  {selectedMember.photoURL ? (
-                    <img 
-                      src={selectedMember.photoURL} 
-                      alt={selectedMember.name}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-2xl">
-                        {selectedMember.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">{selectedMember.name}</h3>
-                    <p className="text-gray-400">{selectedMember.role} • {selectedMember.department}</p>
-                    <p className="text-gray-500 text-sm">{selectedMember.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowMemberModal(false)}
-                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-
-              {/* Statistiques détaillées */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="text-center p-4 bg-gray-700 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-400">{selectedMember.totalXp.toLocaleString()}</div>
-                  <div className="text-gray-400">XP Total</div>
-                </div>
-                <div className="text-center p-4 bg-gray-700 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-400">{selectedMember.level}</div>
-                  <div className="text-gray-400">Niveau</div>
-                </div>
-                <div className="text-center p-4 bg-gray-700 rounded-lg">
-                  <div className="text-2xl font-bold text-green-400">{selectedMember.tasksCompleted}</div>
-                  <div className="text-gray-400">Tâches</div>
-                </div>
-                <div className="text-center p-4 bg-gray-700 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-400">{selectedMember.badges?.length || 0}</div>
-                  <div className="text-gray-400">Badges</div>
-                </div>
-              </div>
-
-              {/* Informations supplémentaires */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">Informations</h4>
-                  <div className="bg-gray-700 rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Statut :</span>
-                      <span className={`capitalize ${
-                        selectedMember.status === 'actif' ? 'text-green-400' :
-                        selectedMember.status === 'récent' ? 'text-yellow-400' : 'text-gray-400'
-                      }`}>
-                        {selectedMember.status}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Taux de complétion :</span>
-                      <span className="text-white">{selectedMember.completionRate}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Membre depuis :</span>
-                      <span className="text-white">{selectedMember.joinedAt.toLocaleDateString()}</span>
-                    </div>
-                    {selectedMember.lastActivity && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Dernière activité :</span>
-                        <span className="text-white">
-                          {new Date(selectedMember.lastActivity).toLocaleDateString()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white">Message à {messageRecipient.name}</h3>
+                  <button
+                    onClick={() => setShowMessageModal(false)}
+                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
                 </div>
 
-                {/* Rôles Synergia */}
-                {selectedMember.synergiaRoles?.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-2">Rôles Synergia</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedMember.synergiaRoles.map((role, index) => (
-                        <span key={index} className="px-3 py-1 bg-blue-600/20 text-blue-400 rounded-full text-sm">
-                          {role.roleName || role.roleId}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="space-y-4">
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Votre message..."
+                    rows={6}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                  {selectedMember.id !== user?.uid && (
+                  <div className="flex gap-3">
                     <button
-                      onClick={() => {
-                        setMessageRecipient(selectedMember);
-                        setShowMemberModal(false);
-                        setShowMessageModal(true);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                      onClick={() => setShowMessageModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
                     >
-                      <MessageCircle className="w-4 h-4" />
-                      Envoyer un message
+                      Annuler
                     </button>
-                  )}
-                  {selectedMember.email && (
-                    <a
-                      href={`mailto:${selectedMember.email}`}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors"
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!newMessage.trim()}
+                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      <Mail className="w-4 h-4" />
-                      Email
-                    </a>
-                  )}
+                      <Send className="w-4 h-4" />
+                      Envoyer
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Debug Info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-8 p-4 bg-gray-900 rounded-lg border border-gray-700">
-          <h4 className="text-gray-400 font-mono text-sm mb-2">Debug Info:</h4>
-          <pre className="text-xs text-gray-500">
-            {JSON.stringify({ 
-              totalUsers: teamMembers.length,
-              filteredUsers: filteredMembers.length,
-              messagesCount: messages.length,
-              unreadCount,
-              departments: departments.length - 1, // -1 pour "all"
-              roles: roles.length - 1
-            }, null, 2)}
-          </pre>
-        </div>
-      )}
+          )}
+        </AnimatePresence>
+      </div>
     </Layout>
   );
 };
