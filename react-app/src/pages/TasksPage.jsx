@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE QUÊTES COMPLÈTE AVEC VUES CARTES, LISTE ET KANBAN
+// PAGE QUÊTES - CORRECTION onViewDetails
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -72,9 +72,7 @@ const QUEST_STATUS = {
   in_progress: { label: 'En cours', color: 'blue', icon: '⚡' },
   review: { label: 'En révision', color: 'yellow', icon: '👀' },
   completed: { label: 'Terminée', color: 'green', icon: '✅' },
-  validated: { label: 'Validée', color: 'purple', icon: '🏆' },
-  cancelled: { label: 'Annulée', color: 'red', icon: '❌' },
-  validation_pending: { label: 'En attente validation', color: 'orange', icon: '⏰' }
+  validated: { label: 'Validée', color: 'purple', icon: '🏆' }
 };
 
 const QUEST_PRIORITY = {
@@ -84,233 +82,129 @@ const QUEST_PRIORITY = {
   urgent: { label: 'Urgente', color: 'red', icon: '🔴' }
 };
 
-// 🆕 ONGLETS DE TRI DES QUÊTES
-const QUEST_TABS = {
-  my_tasks: { label: 'Mes quêtes', icon: User, color: 'blue' },
-  available: { label: 'Disponibles', icon: Users, color: 'green' },
-  others: { label: 'Autres', icon: Eye, color: 'purple' },
-  history: { label: 'Historique', icon: Archive, color: 'gray' }
-};
-
-// 🔧 KANBAN COLUMNS CONFIGURATION
 const KANBAN_COLUMNS = {
-  todo: { 
-    title: 'À faire', 
-    color: 'bg-gray-600', 
-    textColor: 'text-gray-100',
-    statuses: ['todo', 'pending'] 
+  todo: {
+    title: 'À faire',
+    statuses: ['todo'],
+    color: 'bg-gray-600',
+    textColor: 'text-white'
   },
-  in_progress: { 
-    title: 'En cours', 
-    color: 'bg-blue-600', 
-    textColor: 'text-blue-100',
-    statuses: ['in_progress'] 
+  in_progress: {
+    title: 'En cours',
+    statuses: ['in_progress'],
+    color: 'bg-blue-600',
+    textColor: 'text-white'
   },
-  review: { 
-    title: 'En révision', 
-    color: 'bg-yellow-600', 
-    textColor: 'text-yellow-100',
-    statuses: ['review', 'validation_pending'] 
+  review: {
+    title: 'En révision',
+    statuses: ['review', 'validation_pending'],
+    color: 'bg-yellow-600',
+    textColor: 'text-white'
   },
-  completed: { 
-    title: 'Terminé', 
-    color: 'bg-green-600', 
-    textColor: 'text-green-100',
-    statuses: ['completed', 'validated'] 
+  done: {
+    title: 'Terminée',
+    statuses: ['completed', 'validated'],
+    color: 'bg-green-600',
+    textColor: 'text-white'
   }
 };
 
-// 🔧 FONCTION HELPER POUR CONVERTIR LES TIMESTAMPS
-const convertFirebaseTimestamp = (timestamp) => {
-  if (!timestamp) return new Date();
-  if (timestamp.toDate) return timestamp.toDate();
-  if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
-  return new Date(timestamp);
-};
-
-// 🔧 COMPOSANT DE RECHERCHE
-const SearchInput = ({ value, onChange, placeholder = "Rechercher..." }) => (
-  <div className="relative">
-    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-    />
-  </div>
-);
-
-/**
- * 🏠 PAGE PRINCIPALE DES QUÊTES AVEC LAYOUT STANDARD
- */
 const TasksPage = () => {
   const { user } = useAuthStore();
-
-  // États pour les données et UI
+  
+  // 🎯 ÉTATS
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
+  const [viewMode, setViewMode] = useState('cards'); // cards, list, kanban
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [selectedRole, setSelectedRole] = useState('all');
-  const [activeTab, setActiveTab] = useState('my_tasks');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
+  
+  // Modals
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [viewMode, setViewMode] = useState('cards');
-
-  // États pour les modals et actions
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
-  // 📊 Statistiques calculées
-  const taskStats = useMemo(() => {
-    const myTasks = tasks.filter(t => {
-      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-      return assignedTo.includes(user?.uid);
-    });
-    
-    const available = tasks.filter(t => {
-      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-      const isAssignedToMe = assignedTo.includes(user?.uid);
-      const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-      const isOpenToVolunteers = t.openToVolunteers === true;
-      
-      return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && t.status === 'todo';
-    });
-    
-    const others = tasks.filter(t => {
-      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-      const isAssignedToMe = assignedTo.includes(user?.uid);
-      const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-      const isOpenToVolunteers = t.openToVolunteers === true;
-      
-      return !isAssignedToMe && !(isOpenToVolunteers || hasNoAssignment);
-    });
-
-    return {
-      total: tasks.length,
-      myTasks: myTasks.length,
-      available: available.length,
-      others: others.length,
-      completed: tasks.filter(t => ['completed', 'validated'].includes(t.status)).length,
-      inProgress: tasks.filter(t => t.status === 'in_progress').length
-    };
-  }, [tasks, user?.uid]);
-
-  // 📡 CHARGEMENT DES QUÊTES EN TEMPS RÉEL
+  // 🔥 CHARGEMENT DES QUÊTES
   useEffect(() => {
-    if (!user?.uid) {
-      setIsLoading(false);
-      return;
-    }
+    if (!user?.uid) return;
 
-    console.log('🔄 [QUÊTES] Démarrage listener Firebase pour:', user.uid);
-    setIsLoading(true);
-
-    const tasksRef = collection(db, 'tasks');
-    const q = query(tasksRef, orderBy('createdAt', 'desc'));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        console.log('📦 [QUÊTES] Snapshot reçu:', snapshot.size, 'quêtes');
-        
-        const tasksData = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt ? convertFirebaseTimestamp(data.createdAt) : new Date(),
-            dueDate: data.dueDate ? convertFirebaseTimestamp(data.dueDate) : null
-          };
-        });
-
-        console.log('✅ [QUÊTES] Quêtes chargées:', tasksData.length);
-        setTasks(tasksData);
-        setIsLoading(false);
-      },
-      (error) => {
-        console.error('❌ [QUÊTES] Erreur listener:', error);
-        setIsLoading(false);
-      }
+    console.log('🔍 [QUÊTES] Chargement des quêtes...');
+    
+    const tasksQuery = query(
+      collection(db, 'tasks'),
+      orderBy('createdAt', 'desc')
     );
 
-    return () => {
-      console.log('🔌 [QUÊTES] Déconnexion listener');
-      unsubscribe();
-    };
+    const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+      const loadedTasks = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log(`✅ [QUÊTES] ${loadedTasks.length} quêtes chargées`);
+      setTasks(loadedTasks);
+      setIsLoading(false);
+    }, (error) => {
+      console.error('❌ [QUÊTES] Erreur chargement:', error);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user?.uid]);
 
-  // 🔍 FILTRAGE DES QUÊTES
+  // 🔍 FILTRAGE ET TRI
   useEffect(() => {
     let filtered = [...tasks];
 
-    // Filtre par onglet actif
-    if (activeTab === 'my_tasks') {
+    // Onglets
+    if (activeTab === 'my') {
       filtered = filtered.filter(task => {
-        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-        return assignedTo.includes(user?.uid);
+        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : 
+                          task.assignedTo ? [task.assignedTo] : [];
+        return task.createdBy === user?.uid || assignedTo.includes(user?.uid);
       });
     } else if (activeTab === 'available') {
       filtered = filtered.filter(task => {
-        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-        const isAssignedToMe = assignedTo.includes(user?.uid);
-        const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-        const isOpenToVolunteers = task.openToVolunteers === true;
-        
-        return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && task.status === 'todo';
+        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : 
+                          task.assignedTo ? [task.assignedTo] : [];
+        return assignedTo.length === 0 && task.status !== 'completed' && task.status !== 'validated';
       });
-    } else if (activeTab === 'others') {
-      filtered = filtered.filter(task => {
-        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-        const isAssignedToMe = assignedTo.includes(user?.uid);
-        const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
-        const isOpenToVolunteers = task.openToVolunteers === true;
-        
-        return !isAssignedToMe && !(isOpenToVolunteers || hasNoAssignment);
-      });
-    } else if (activeTab === 'history') {
-      filtered = filtered.filter(task => ['completed', 'validated', 'cancelled'].includes(task.status));
     }
 
-    // Filtre par recherche
+    // Recherche
     if (searchTerm) {
-      filtered = filtered.filter(task => 
+      filtered = filtered.filter(task =>
         task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filtre par statut
+    // Statut
     if (selectedStatus !== 'all') {
       filtered = filtered.filter(task => task.status === selectedStatus);
     }
 
-    // Filtre par priorité
+    // Priorité
     if (selectedPriority !== 'all') {
       filtered = filtered.filter(task => task.priority === selectedPriority);
     }
 
-    // Filtre par rôle
+    // Rôle
     if (selectedRole !== 'all') {
-      filtered = filtered.filter(task => task.roleId === selectedRole);
+      filtered = filtered.filter(task => task.synergia_role === selectedRole);
     }
 
     // Tri
     filtered.sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-
-      if (sortBy === 'createdAt' || sortBy === 'dueDate') {
-        aValue = aValue ? new Date(aValue).getTime() : 0;
-        bValue = bValue ? new Date(bValue).getTime() : 0;
-      }
-
+      const aValue = a[sortBy] || '';
+      const bValue = b[sortBy] || '';
+      
       if (sortOrder === 'asc') {
         return aValue > bValue ? 1 : -1;
       } else {
@@ -323,6 +217,7 @@ const TasksPage = () => {
 
   // 🎯 HANDLERS
   const handleViewDetails = (task) => {
+    console.log('🔍 [TASKS PAGE] handleViewDetails appelé avec:', task);
     setSelectedTaskForDetails(task);
   };
 
@@ -387,69 +282,81 @@ const TasksPage = () => {
               {priorityInfo.icon} {priorityInfo.label}
             </span>
           </div>
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              // Menu d'actions
-            }}
-            className="p-1 hover:bg-gray-700/50 rounded"
-          >
-            <MoreVertical className="w-4 h-4 text-gray-400" />
-          </button>
+          <div className="flex items-center text-yellow-400">
+            <Star className="w-4 h-4 mr-1" />
+            <span className="text-sm font-medium">{task.xpReward || 0}</span>
+          </div>
         </div>
 
-        {/* Titre et description */}
-        <h4 className="text-white font-semibold mb-2 line-clamp-2">{task.title}</h4>
-        <p className="text-gray-400 text-sm mb-3 line-clamp-2">{task.description}</p>
+        {/* Titre */}
+        <h4 className="font-semibold text-white mb-2 line-clamp-2">{task.title}</h4>
 
-        {/* Métadonnées */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        {/* Description */}
+        {task.description && (
+          <p className="text-sm text-gray-400 line-clamp-2 mb-3">{task.description}</p>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-700/50 pt-2">
           <div className="flex items-center space-x-2">
-            {task.xpReward && (
-              <span className="flex items-center">
-                <Star className="w-3 h-3 mr-1 text-yellow-400" />
-                {task.xpReward} XP
-              </span>
+            {task.assignedTo && task.assignedTo.length > 0 && (
+              <div className="flex items-center">
+                <Users className="w-3 h-3 mr-1" />
+                <span>{Array.isArray(task.assignedTo) ? task.assignedTo.length : 1}</span>
+              </div>
+            )}
+            {task.dueDate && (
+              <div className="flex items-center">
+                <Calendar className="w-3 h-3 mr-1" />
+                <span>{new Date(task.dueDate).toLocaleDateString('fr-FR')}</span>
+              </div>
             )}
           </div>
-          
-          <div className="flex items-center space-x-1">
-            {isAssignedToMe && (
-              <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded">
-                <User className="w-3 h-3 inline mr-1" />
-                Moi
-              </span>
-            )}
-          </div>
+          {isAssignedToMe && (
+            <span className="text-green-400 font-medium">✓ Assigné</span>
+          )}
         </div>
       </motion.div>
     );
   };
 
+  // 📊 STATISTIQUES
+  const stats = useMemo(() => {
+    return {
+      total: tasks.length,
+      myTasks: tasks.filter(t => {
+        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : 
+                          t.assignedTo ? [t.assignedTo] : [];
+        return t.createdBy === user?.uid || assignedTo.includes(user?.uid);
+      }).length,
+      available: tasks.filter(t => {
+        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : 
+                          t.assignedTo ? [t.assignedTo] : [];
+        return assignedTo.length === 0 && t.status !== 'completed' && t.status !== 'validated';
+      }).length,
+      inProgress: tasks.filter(t => t.status === 'in_progress').length,
+      completed: tasks.filter(t => t.status === 'completed' || t.status === 'validated').length,
+      totalXP: tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)
+    };
+  }, [tasks, user?.uid]);
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-900">
-        {/* HEADER DE LA PAGE */}
-        <div className="bg-gray-900/50 backdrop-blur-sm border-b border-gray-700/30">
-          <div className="max-w-7xl mx-auto px-6 py-8">
-            
-            {/* Titre Principal */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-blue-600/20 rounded-xl border border-blue-500/30">
-                  <Target className="w-8 h-8 text-blue-400" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-white">Gestion des Quêtes</h1>
-                  <p className="text-gray-400 mt-1">Organisez et suivez vos quêtes avec efficacité</p>
-                </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {/* En-tête */}
+        <div className="bg-gradient-to-r from-gray-800/50 to-gray-900/50 backdrop-blur-sm border-b border-gray-700/50">
+          <div className="max-w-7xl mx-auto px-6 py-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  ⚔️ Gestion des Quêtes
+                </h1>
+                <p className="text-gray-400 mt-1">Gérez vos missions et progressez dans Synergia</p>
               </div>
-              
-              {/* Actions du header */}
-              <div className="flex items-center space-x-3">
-                {/* Modes d'affichage */}
-                <div className="flex items-center space-x-1 bg-gray-800 rounded-lg p-1">
+
+              <div className="flex items-center space-x-4">
+                {/* Sélecteurs de vue */}
+                <div className="flex items-center space-x-2 bg-gray-800/50 rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('cards')}
                     className={`p-2 rounded transition-colors ${
@@ -494,100 +401,118 @@ const TasksPage = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
                 <div className="text-gray-400 text-sm mb-1">Total</div>
-                <div className="text-2xl font-bold text-white">{taskStats.total}</div>
+                <div className="text-2xl font-bold text-white">{stats.total}</div>
               </div>
-              
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
                 <div className="text-gray-400 text-sm mb-1">Mes quêtes</div>
-                <div className="text-2xl font-bold text-blue-400">{taskStats.myTasks}</div>
+                <div className="text-2xl font-bold text-blue-400">{stats.myTasks}</div>
               </div>
-              
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
                 <div className="text-gray-400 text-sm mb-1">Disponibles</div>
-                <div className="text-2xl font-bold text-green-400">{taskStats.available}</div>
+                <div className="text-2xl font-bold text-green-400">{stats.available}</div>
               </div>
-              
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
                 <div className="text-gray-400 text-sm mb-1">En cours</div>
-                <div className="text-2xl font-bold text-yellow-400">{taskStats.inProgress}</div>
+                <div className="text-2xl font-bold text-yellow-400">{stats.inProgress}</div>
               </div>
-              
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
                 <div className="text-gray-400 text-sm mb-1">Terminées</div>
-                <div className="text-2xl font-bold text-purple-400">{taskStats.completed}</div>
+                <div className="text-2xl font-bold text-purple-400">{stats.completed}</div>
               </div>
-              
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
-                <div className="text-gray-400 text-sm mb-1">Autres</div>
-                <div className="text-2xl font-bold text-gray-400">{taskStats.others}</div>
+                <div className="text-gray-400 text-sm mb-1">XP Total</div>
+                <div className="text-2xl font-bold text-yellow-400">{stats.totalXP}</div>
               </div>
             </div>
 
             {/* Onglets */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {Object.entries(QUEST_TABS).map(([key, tab]) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={`
-                      flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
-                      ${activeTab === key 
-                        ? 'bg-blue-600 text-white shadow-lg' 
-                        : 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50 hover:text-white'
-                      }
-                    `}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center space-x-4 mb-6">
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                Toutes
+              </button>
+              <button
+                onClick={() => setActiveTab('my')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'my'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                Mes quêtes
+              </button>
+              <button
+                onClick={() => setActiveTab('available')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'available'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                Disponibles
+              </button>
             </div>
 
-            {/* Filtres et recherche */}
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Barre de recherche */}
-              <div className="flex-1">
-                <SearchInput
-                  value={searchTerm}
-                  onChange={setSearchTerm}
+            {/* Barre de recherche et filtres */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
                   placeholder="Rechercher une quête..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              {/* Filtres */}
-              <div className="flex flex-wrap gap-2">
-                {/* Filtre statut */}
+              <div className="flex items-center space-x-3">
+                {/* Filtre Statut */}
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">Tous les statuts</option>
-                  {Object.entries(QUEST_STATUS).map(([key, status]) => (
-                    <option key={key} value={key}>
-                      {status.icon} {status.label}
-                    </option>
-                  ))}
+                  <option value="todo">À faire</option>
+                  <option value="in_progress">En cours</option>
+                  <option value="review">En révision</option>
+                  <option value="completed">Terminée</option>
+                  <option value="validated">Validée</option>
                 </select>
 
-                {/* Filtre priorité */}
+                {/* Filtre Priorité */}
                 <select
                   value={selectedPriority}
                   onChange={(e) => setSelectedPriority(e.target.value)}
-                  className="px-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">Toutes les priorités</option>
-                  {Object.entries(QUEST_PRIORITY).map(([key, priority]) => (
-                    <option key={key} value={key}>
-                      {priority.icon} {priority.label}
-                    </option>
+                  <option value="low">Basse</option>
+                  <option value="medium">Moyenne</option>
+                  <option value="high">Haute</option>
+                  <option value="urgent">Urgente</option>
+                </select>
+
+                {/* Filtre Rôle */}
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Tous les rôles</option>
+                  {Object.values(SYNERGIA_ROLES).map(role => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
                   ))}
                 </select>
 
-                {/* Bouton tri */}
+                {/* Tri */}
                 <button
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                   className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white hover:bg-gray-700 transition-colors"
@@ -629,7 +554,7 @@ const TasksPage = () => {
                     <TaskCard
                       key={task.id}
                       task={task}
-                      onView={handleViewDetails}
+                      onViewDetails={handleViewDetails}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
                       onStatusChange={handleStatusChange}
