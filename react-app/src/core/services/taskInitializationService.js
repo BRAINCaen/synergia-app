@@ -1,13 +1,13 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskInitializationService.js
-// SERVICE D'INITIALISATION DES TÂCHES D'EXEMPLE
+// SERVICE D'INITIALISATION DES QUÊTES D'EXEMPLE - VERSION QUÊTES
 // ==========================================
 
 import { taskService } from './taskService.js';
 
 /**
- * 🎯 SERVICE D'INITIALISATION DES TÂCHES
- * Crée des tâches d'exemple pour les nouveaux utilisateurs
+ * 🎯 SERVICE D'INITIALISATION DES QUÊTES
+ * Crée des quêtes d'exemple pour les nouveaux utilisateurs
  */
 class TaskInitializationService {
   constructor() {
@@ -15,17 +15,17 @@ class TaskInitializationService {
   }
 
   /**
-   * 🌱 CRÉER DES TÂCHES D'EXEMPLE POUR UN NOUVEL UTILISATEUR
+   * 🌱 CRÉER DES QUÊTES D'EXEMPLE POUR UN NOUVEL UTILISATEUR
    */
   async createSampleTasks(userId) {
     try {
-      console.log('🌱 [INIT] Création tâches d\'exemple pour:', userId);
+      console.log('🌱 [INIT] Création quêtes d\'exemple pour:', userId);
 
       const sampleTasks = [
-        // Tâches assignées à l'utilisateur
+        // Quêtes assignées à l'utilisateur
         {
-          title: '🎯 Découvrir l\'interface de gestion des tâches',
-          description: 'Explorez toutes les fonctionnalités de la page des tâches : filtres, recherche, création...',
+          title: '🎯 Découvrir l\'interface de gestion des quêtes',
+          description: 'Explorez toutes les fonctionnalités de la page des quêtes : filtres, recherche, création...',
           status: 'assigned',
           priority: 'high',
           assignedTo: [userId],
@@ -36,8 +36,8 @@ class TaskInitializationService {
           dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // +7 jours
         },
         {
-          title: '📋 Compléter votre première tâche',
-          description: 'Changez le statut d\'une tâche et découvrez le système de progression',
+          title: '📋 Compléter votre première quête',
+          description: 'Changez le statut d\'une quête et découvrez le système de progression',
           status: 'pending',
           priority: 'medium',
           assignedTo: [userId],
@@ -48,20 +48,42 @@ class TaskInitializationService {
         },
         {
           title: '🎮 Explorer le système de gamification',
-          description: 'Découvrez comment gagner de l\'XP et débloquer des badges en terminant des tâches',
+          description: 'Découvrez comment gagner de l\'XP et débloquer des badges en terminant des quêtes',
           status: 'pending',
-          priority: 'low',
+          priority: 'medium',
           assignedTo: [userId],
-          tags: ['gamification', 'exploration'],
-          estimatedHours: 1,
-          xpReward: 75,
+          tags: ['gamification', 'XP', 'badges'],
+          estimatedHours: 0.5,
+          xpReward: 30,
           isAvailable: false
         },
 
-        // Tâches disponibles pour le volontariat
+        // Quêtes disponibles (non assignées)
         {
-          title: '🌟 Améliorer la documentation utilisateur',
-          description: 'Contribuez à améliorer notre documentation en identifiant les sections qui manquent de clarté',
+          title: '🚀 Proposer une amélioration du système',
+          description: 'Suggérez une nouvelle fonctionnalité ou amélioration pour Synergia',
+          status: 'open',
+          priority: 'low',
+          assignedTo: [],
+          tags: ['innovation', 'feedback'],
+          estimatedHours: 1,
+          xpReward: 60,
+          isAvailable: true
+        },
+        {
+          title: '📝 Rédiger un retour d\'expérience',
+          description: 'Partagez votre expérience sur une quête récemment accomplie',
+          status: 'open',
+          priority: 'low',
+          assignedTo: [],
+          tags: ['documentation', 'partage'],
+          estimatedHours: 1.5,
+          xpReward: 75,
+          isAvailable: true
+        },
+        {
+          title: '🎨 Contribuer à la documentation',
+          description: 'Améliorez la documentation en ajoutant des exemples ou des captures d\'écran',
           status: 'open',
           priority: 'medium',
           assignedTo: [],
@@ -70,31 +92,35 @@ class TaskInitializationService {
           xpReward: 100,
           isAvailable: true
         },
+
+        // Quêtes de défi
         {
-          title: '🎨 Proposer des améliorations UI/UX',
-          description: 'Analysez l\'interface et proposez des améliorations pour l\'expérience utilisateur',
-          status: 'open',
-          priority: 'low',
-          assignedTo: [],
-          tags: ['design', 'ux', 'contribution'],
-          estimatedHours: 3,
-          xpReward: 150,
-          isAvailable: true
-        },
-        {
-          title: '🔧 Tester les nouvelles fonctionnalités',
-          description: 'Aidez-nous à tester les dernières fonctionnalités avant leur mise en production',
+          title: '🏆 Terminer 5 quêtes en une semaine',
+          description: 'Relevez le défi de compléter 5 quêtes différentes en moins de 7 jours',
           status: 'open',
           priority: 'high',
           assignedTo: [],
-          tags: ['test', 'qa', 'contribution'],
-          estimatedHours: 1.5,
-          xpReward: 80,
+          tags: ['défi', 'productivité'],
+          estimatedHours: 10,
+          xpReward: 250,
           isAvailable: true
         },
         {
-          title: '📊 Analyser les métriques de performance',
-          description: 'Examinez les données de performance de l\'application et identifiez les axes d\'amélioration',
+          title: '⚡ Devenir expert d\'un rôle Synergia',
+          description: 'Complétez toutes les quêtes d\'un rôle spécifique pour devenir expert',
+          status: 'open',
+          priority: 'high',
+          assignedTo: [],
+          tags: ['expertise', 'spécialisation'],
+          estimatedHours: 15,
+          xpReward: 500,
+          isAvailable: true
+        },
+
+        // Quêtes analytiques
+        {
+          title: '📊 Analyser les performances de l\'équipe',
+          description: 'Générez un rapport d\'analyse des performances et identifiez les points d\'amélioration',
           status: 'open',
           priority: 'medium',
           assignedTo: [],
@@ -104,7 +130,7 @@ class TaskInitializationService {
           isAvailable: true
         },
 
-        // Tâches d'équipe ouvertes
+        // Quêtes d'équipe ouvertes
         {
           title: '🤝 Organiser un atelier de brainstorming',
           description: 'Animez un atelier créatif pour générer de nouvelles idées de fonctionnalités',
@@ -129,36 +155,36 @@ class TaskInitializationService {
         }
       ];
 
-      // Créer les tâches une par une
+      // Créer les quêtes une par une
       const createdTasks = [];
       for (const taskData of sampleTasks) {
         try {
           const createdTask = await taskService.createTask(taskData, userId);
           createdTasks.push(createdTask);
-          console.log('✅ Tâche créée:', createdTask.title);
+          console.log('✅ Quête créée:', createdTask.title);
           
           // Petite pause pour éviter la surcharge
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
-          console.error('❌ Erreur création tâche:', taskData.title, error);
+          console.error('❌ Erreur création quête:', taskData.title, error);
         }
       }
 
-      console.log('🎉 [INIT] Tâches d\'exemple créées:', createdTasks.length);
+      console.log('🎉 [INIT] Quêtes d\'exemple créées:', createdTasks.length);
       return createdTasks;
 
     } catch (error) {
-      console.error('❌ [INIT] Erreur création tâches d\'exemple:', error);
+      console.error('❌ [INIT] Erreur création quêtes d\'exemple:', error);
       throw error;
     }
   }
 
   /**
-   * 🏢 CRÉER DES TÂCHES D'ÉQUIPE GÉNÉRIQUES
+   * 🏢 CRÉER DES QUÊTES D'ÉQUIPE GÉNÉRIQUES
    */
   async createTeamTasks(creatorUserId) {
     try {
-      console.log('🏢 [TEAM] Création tâches d\'équipe...');
+      console.log('🏢 [TEAM] Création quêtes d\'équipe...');
 
       const teamTasks = [
         {
@@ -204,21 +230,21 @@ class TaskInitializationService {
           
           await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
-          console.error('❌ Erreur création tâche équipe:', taskData.title, error);
+          console.error('❌ Erreur création quête équipe:', taskData.title, error);
         }
       }
 
-      console.log('🎉 [TEAM] Tâches d\'équipe créées:', createdTasks.length);
+      console.log('🎉 [TEAM] Quêtes d\'équipe créées:', createdTasks.length);
       return createdTasks;
 
     } catch (error) {
-      console.error('❌ [TEAM] Erreur création tâches équipe:', error);
+      console.error('❌ [TEAM] Erreur création quêtes équipe:', error);
       throw error;
     }
   }
 
   /**
-   * 🔍 VÉRIFIER SI L'UTILISATEUR A DÉJÀ DES TÂCHES
+   * 🔍 VÉRIFIER SI L'UTILISATEUR A DÉJÀ DES QUÊTES
    */
   async userHasTasks(userId) {
     try {
@@ -227,7 +253,7 @@ class TaskInitializationService {
       
       return (userTasks.length + createdTasks.length) > 0;
     } catch (error) {
-      console.error('❌ Erreur vérification tâches utilisateur:', error);
+      console.error('❌ Erreur vérification quêtes utilisateur:', error);
       return false;
     }
   }
@@ -239,15 +265,15 @@ class TaskInitializationService {
     try {
       console.log('🚀 [AUTO_INIT] Initialisation automatique pour:', userId);
 
-      // Vérifier si l'utilisateur a déjà des tâches
+      // Vérifier si l'utilisateur a déjà des quêtes
       const hasTasks = await this.userHasTasks(userId);
       
       if (hasTasks) {
-        console.log('ℹ️ [AUTO_INIT] Utilisateur a déjà des tâches, pas d\'initialisation');
+        console.log('ℹ️ [AUTO_INIT] Utilisateur a déjà des quêtes, pas d\'initialisation');
         return { initialized: false, reason: 'already_has_tasks' };
       }
 
-      // Créer les tâches d'exemple
+      // Créer les quêtes d'exemple
       const sampleTasks = await this.createSampleTasks(userId);
       
       console.log('🎉 [AUTO_INIT] Initialisation terminée pour nouvel utilisateur');
@@ -260,6 +286,69 @@ class TaskInitializationService {
     } catch (error) {
       console.error('❌ [AUTO_INIT] Erreur initialisation automatique:', error);
       return { initialized: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🎮 CRÉER DES QUÊTES DE GAMIFICATION AVANCÉES
+   */
+  async createGamificationQuests(userId) {
+    try {
+      console.log('🎮 [GAMIF] Création quêtes de gamification pour:', userId);
+
+      const gamificationQuests = [
+        {
+          title: '🌟 Atteindre le niveau 10',
+          description: 'Gagnez suffisamment d\'XP pour atteindre le niveau 10',
+          status: 'open',
+          priority: 'medium',
+          assignedTo: [],
+          tags: ['progression', 'niveau', 'gamification'],
+          estimatedHours: 20,
+          xpReward: 1000,
+          isAvailable: true
+        },
+        {
+          title: '🏅 Débloquer 10 badges',
+          description: 'Collectionnez 10 badges différents en accomplissant diverses quêtes',
+          status: 'open',
+          priority: 'high',
+          assignedTo: [],
+          tags: ['badges', 'collection', 'gamification'],
+          estimatedHours: 30,
+          xpReward: 1500,
+          isAvailable: true
+        },
+        {
+          title: '⚡ Maintenir un streak de 7 jours',
+          description: 'Accomplissez au moins une quête par jour pendant 7 jours consécutifs',
+          status: 'open',
+          priority: 'medium',
+          assignedTo: [],
+          tags: ['streak', 'régularité', 'gamification'],
+          estimatedHours: 14,
+          xpReward: 700,
+          isAvailable: true
+        }
+      ];
+
+      const createdQuests = [];
+      for (const questData of gamificationQuests) {
+        try {
+          const createdQuest = await taskService.createTask(questData, userId);
+          createdQuests.push(createdQuest);
+          console.log('✅ Quête gamification créée:', createdQuest.title);
+        } catch (error) {
+          console.error('❌ Erreur création quête gamification:', questData.title, error);
+        }
+      }
+
+      console.log('🎉 [GAMIF] Quêtes de gamification créées:', createdQuests.length);
+      return createdQuests;
+
+    } catch (error) {
+      console.error('❌ [GAMIF] Erreur création quêtes gamification:', error);
+      throw error;
     }
   }
 }
