@@ -12,7 +12,7 @@ import {
   Award,
   CheckCircle,
   Lock,
-  Grid3x3,
+  Grid,
   List,
   Search,
   Filter,
@@ -287,7 +287,7 @@ const BadgesPage = () => {
                       : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
                   }`}
                 >
-                  <Grid3x3 className="w-5 h-5" />
+                  <Grid className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
