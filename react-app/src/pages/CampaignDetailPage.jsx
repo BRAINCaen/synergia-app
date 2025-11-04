@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/pages/ProjectDetailPage.jsx
-// PAGE DÉTAILS DE PROJET - DESIGN SYNERGIA + TERMINOLOGIE QUÊTES
+// 📁 react-app/src/pages/CampaignDetailPage.jsx
+// PAGE DÉTAILS CAMPAGNE - DESIGN SYNERGIA + TERMINOLOGIE GAMING
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -30,7 +30,8 @@ import {
   Search,
   Sword,
   Trophy,
-  Flag
+  Flag,
+  Shield
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT SYNERGIA
@@ -56,7 +57,7 @@ import {
 import { db } from '../core/firebase.js';
 
 // 📊 CONSTANTES
-const PROJECT_STATUS = {
+const CAMPAIGN_STATUS = {
   planning: { 
     label: 'Planification', 
     color: 'yellow', 
@@ -68,15 +69,15 @@ const PROJECT_STATUS = {
   active: { 
     label: 'En cours', 
     color: 'blue', 
-    icon: '🚀', 
+    icon: '⚔️', 
     bgColor: 'bg-blue-900/20', 
     textColor: 'text-blue-400', 
     borderColor: 'border-blue-500/30'
   },
   completed: { 
-    label: 'Terminé', 
+    label: 'Terminée', 
     color: 'green', 
-    icon: '✅', 
+    icon: '🏆', 
     bgColor: 'bg-green-900/20', 
     textColor: 'text-green-400', 
     borderColor: 'border-green-500/30'
@@ -90,7 +91,7 @@ const PROJECT_STATUS = {
     borderColor: 'border-orange-500/30'
   },
   cancelled: { 
-    label: 'Annulé', 
+    label: 'Annulée', 
     color: 'red', 
     icon: '❌', 
     bgColor: 'bg-red-900/20', 
@@ -100,16 +101,16 @@ const PROJECT_STATUS = {
 };
 
 /**
- * 📁 PAGE DÉTAILS DE PROJET
+ * 📁 PAGE DÉTAILS CAMPAGNE
  */
-const ProjectDetailPage = () => {
-  const { id: projectId } = useParams();
+const CampaignDetailPage = () => {
+  const { id: campaignId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   
   // États
-  const [project, setProject] = useState(null);
-  const [projectQuests, setProjectQuests] = useState([]);
+  const [campaign, setCampaign] = useState(null);
+  const [campaignQuests, setCampaignQuests] = useState([]);
   const [allQuests, setAllQuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -119,40 +120,40 @@ const ProjectDetailPage = () => {
 
   // 🔥 CHARGEMENT DES DONNÉES
   useEffect(() => {
-    if (!projectId || !user?.uid) return;
+    if (!campaignId || !user?.uid) return;
 
-    console.log('🔄 [PROJECT-DETAIL] Chargement projet:', projectId);
+    console.log('🔄 [CAMPAIGN-DETAIL] Chargement campagne:', campaignId);
 
-    let unsubProject;
+    let unsubCampaign;
     let unsubQuests;
 
     const loadData = async () => {
       try {
         setLoading(true);
 
-        // 1. Écouter le projet
-        const projectRef = doc(db, 'projects', projectId);
-        unsubProject = onSnapshot(projectRef, (snapshot) => {
+        // 1. Écouter la campagne
+        const campaignRef = doc(db, 'projects', campaignId);
+        unsubCampaign = onSnapshot(campaignRef, (snapshot) => {
           if (snapshot.exists()) {
-            const projectData = {
+            const campaignData = {
               id: snapshot.id,
               ...snapshot.data(),
               createdAt: snapshot.data().createdAt?.toDate(),
               updatedAt: snapshot.data().updatedAt?.toDate()
             };
-            console.log('✅ [PROJECT-DETAIL] Projet chargé:', projectData.title);
-            setProject(projectData);
+            console.log('✅ [CAMPAIGN-DETAIL] Campagne chargée:', campaignData.title);
+            setCampaign(campaignData);
           } else {
-            console.error('❌ [PROJECT-DETAIL] Projet non trouvé');
-            setError('Projet introuvable');
+            console.error('❌ [CAMPAIGN-DETAIL] Campagne non trouvée');
+            setError('Campagne introuvable');
           }
           setLoading(false);
         });
 
-        // 2. Écouter les quêtes du projet
+        // 2. Écouter les quêtes de la campagne
         const questsQuery = query(
           collection(db, 'tasks'),
-          where('projectId', '==', projectId),
+          where('projectId', '==', campaignId),
           orderBy('createdAt', 'desc')
         );
 
@@ -163,8 +164,8 @@ const ProjectDetailPage = () => {
             createdAt: doc.data().createdAt?.toDate(),
             updatedAt: doc.data().updatedAt?.toDate()
           }));
-          console.log('✅ [PROJECT-DETAIL] Quêtes chargées:', questsData.length);
-          setProjectQuests(questsData);
+          console.log('✅ [CAMPAIGN-DETAIL] Quêtes chargées:', questsData.length);
+          setCampaignQuests(questsData);
         });
 
         // 3. Charger toutes les quêtes pour la liaison
@@ -181,7 +182,7 @@ const ProjectDetailPage = () => {
         setAllQuests(allQuestsData);
 
       } catch (error) {
-        console.error('❌ [PROJECT-DETAIL] Erreur chargement:', error);
+        console.error('❌ [CAMPAIGN-DETAIL] Erreur chargement:', error);
         setError(error.message);
         setLoading(false);
       }
@@ -190,30 +191,30 @@ const ProjectDetailPage = () => {
     loadData();
 
     return () => {
-      if (unsubProject) unsubProject();
+      if (unsubCampaign) unsubCampaign();
       if (unsubQuests) unsubQuests();
     };
-  }, [projectId, user?.uid]);
+  }, [campaignId, user?.uid]);
 
   // 📊 CALCUL DES STATISTIQUES
   const stats = {
-    totalQuests: projectQuests.length,
-    completedQuests: projectQuests.filter(q => q.status === 'completed').length,
-    inProgressQuests: projectQuests.filter(q => q.status === 'in_progress').length,
-    todoQuests: projectQuests.filter(q => q.status === 'todo').length,
-    progress: projectQuests.length > 0 
-      ? Math.round((projectQuests.filter(q => q.status === 'completed').length / projectQuests.length) * 100) 
+    totalQuests: campaignQuests.length,
+    completedQuests: campaignQuests.filter(q => q.status === 'completed').length,
+    inProgressQuests: campaignQuests.filter(q => q.status === 'in_progress').length,
+    todoQuests: campaignQuests.filter(q => q.status === 'todo').length,
+    progress: campaignQuests.length > 0 
+      ? Math.round((campaignQuests.filter(q => q.status === 'completed').length / campaignQuests.length) * 100) 
       : 0
   };
 
-  // 🔗 LIER UNE QUÊTE AU PROJET
+  // 🔗 LIER UNE QUÊTE À LA CAMPAGNE
   const handleLinkQuest = async (questId) => {
     try {
-      console.log('🔗 [LINK] Liaison quête au projet:', questId, '→', projectId);
+      console.log('🔗 [LINK] Liaison quête à la campagne:', questId, '→', campaignId);
       
       const questRef = doc(db, 'tasks', questId);
       await updateDoc(questRef, {
-        projectId: projectId,
+        projectId: campaignId,
         updatedAt: serverTimestamp()
       });
 
@@ -227,12 +228,12 @@ const ProjectDetailPage = () => {
     }
   };
 
-  // 🔓 DÉLIER UNE QUÊTE DU PROJET
+  // 🔓 DÉLIER UNE QUÊTE DE LA CAMPAGNE
   const handleUnlinkQuest = async (questId) => {
-    if (!confirm('Êtes-vous sûr de vouloir délier cette quête du projet ?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir délier cette quête de la campagne ?')) return;
 
     try {
-      console.log('🔓 [UNLINK] Déliaison quête du projet:', questId);
+      console.log('🔓 [UNLINK] Déliaison quête de la campagne:', questId);
       
       const questRef = doc(db, 'tasks', questId);
       await updateDoc(questRef, {
@@ -248,30 +249,30 @@ const ProjectDetailPage = () => {
     }
   };
 
-  // 🗑️ SUPPRIMER LE PROJET
-  const handleDeleteProject = async () => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ? Les quêtes liées seront déliées mais pas supprimées.')) return;
+  // 🗑️ SUPPRIMER LA CAMPAGNE
+  const handleDeleteCampaign = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette campagne ? Les quêtes liées seront déliées mais pas supprimées.')) return;
 
     try {
-      console.log('🗑️ [DELETE] Suppression projet:', projectId);
+      console.log('🗑️ [DELETE] Suppression campagne:', campaignId);
       
       // Délier toutes les quêtes
       const batch = [];
-      for (const quest of projectQuests) {
+      for (const quest of campaignQuests) {
         const questRef = doc(db, 'tasks', quest.id);
         batch.push(updateDoc(questRef, { projectId: null }));
       }
       await Promise.all(batch);
 
-      // Supprimer le projet
-      await deleteDoc(doc(db, 'projects', projectId));
+      // Supprimer la campagne
+      await deleteDoc(doc(db, 'projects', campaignId));
       
-      console.log('✅ [DELETE] Projet supprimé avec succès');
-      navigate('/projects');
+      console.log('✅ [DELETE] Campagne supprimée avec succès');
+      navigate('/campaigns');
       
     } catch (error) {
-      console.error('❌ [DELETE] Erreur suppression projet:', error);
-      alert('Erreur lors de la suppression du projet');
+      console.error('❌ [DELETE] Erreur suppression campagne:', error);
+      alert('Erreur lors de la suppression de la campagne');
     }
   };
 
@@ -288,28 +289,28 @@ const ProjectDetailPage = () => {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-400 text-lg">Chargement du projet...</p>
+            <p className="text-gray-400 text-lg">Chargement de la campagne...</p>
           </div>
         </div>
       </Layout>
     );
   }
 
-  if (error || !project) {
+  if (error || !campaign) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-white mb-4">
-              {error || 'Projet introuvable'}
+              {error || 'Campagne introuvable'}
             </h2>
             <button
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate('/campaigns')}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
             >
               <ArrowLeft className="h-4 w-4" />
-              Retour aux projets
+              Retour aux campagnes
             </button>
           </div>
         </div>
@@ -317,51 +318,52 @@ const ProjectDetailPage = () => {
     );
   }
 
-  const statusConfig = PROJECT_STATUS[project.status] || PROJECT_STATUS.active;
+  const statusConfig = CAMPAIGN_STATUS[campaign.status] || CAMPAIGN_STATUS.active;
 
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         
-        {/* 📊 HEADER DU PROJET */}
+        {/* 📊 HEADER DE LA CAMPAGNE */}
         <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
           <div className="max-w-7xl mx-auto px-6 py-8">
             
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
               <button 
-                onClick={() => navigate('/projects')}
-                className="hover:text-white transition-colors"
+                onClick={() => navigate('/campaigns')}
+                className="hover:text-white transition-colors flex items-center gap-2"
               >
-                Projets
+                <Flag className="h-4 w-4" />
+                Campagnes
               </button>
               <span>/</span>
-              <span className="text-white">{project.title}</span>
+              <span className="text-white">{campaign.title}</span>
             </div>
 
             {/* Titre et actions */}
             <div className="flex items-start justify-between mb-8">
               <div className="flex items-start gap-4">
                 <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl ${statusConfig.bgColor}`}>
-                  {project.icon || '📁'}
+                  {campaign.icon || '⚔️'}
                 </div>
                 <div>
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                    {project.title}
+                    {campaign.title}
                   </h1>
                   <div className="flex items-center gap-3">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border`}>
                       {statusConfig.icon} {statusConfig.label}
                     </span>
-                    {project.priority && (
+                    {campaign.priority && (
                       <span className="text-sm text-gray-400">
-                        Priorité: {project.priority}
+                        Priorité: {campaign.priority}
                       </span>
                     )}
                   </div>
-                  {project.description && (
+                  {campaign.description && (
                     <p className="text-gray-400 mt-3 max-w-2xl">
-                      {project.description}
+                      {campaign.description}
                     </p>
                   )}
                 </div>
@@ -370,7 +372,7 @@ const ProjectDetailPage = () => {
               {/* Actions */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => navigate('/projects')}
+                  onClick={() => navigate('/campaigns')}
                   className="px-4 py-2 bg-gray-700/50 text-white rounded-lg hover:bg-gray-600/50 transition-all duration-200 flex items-center gap-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -384,7 +386,7 @@ const ProjectDetailPage = () => {
                   Modifier
                 </button>
                 <button
-                  onClick={handleDeleteProject}
+                  onClick={handleDeleteCampaign}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 flex items-center gap-2"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -486,7 +488,7 @@ const ProjectDetailPage = () => {
                   : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
-              <Users className="h-4 w-4 inline mr-2" />
+              <Shield className="h-4 w-4 inline mr-2" />
               Équipe
             </button>
           </div>
@@ -503,7 +505,7 @@ const ProjectDetailPage = () => {
                 >
                   <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                     <Trophy className="h-6 w-6 text-yellow-400" />
-                    Progression du projet
+                    Progression de la campagne
                   </h3>
                   
                   <div className="mb-8">
@@ -542,13 +544,13 @@ const ProjectDetailPage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <h3 className="text-xl font-bold text-white mb-6">📋 Informations du projet</h3>
+                  <h3 className="text-xl font-bold text-white mb-6">📋 Informations de la campagne</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <div className="text-sm text-gray-400 mb-1">Date de création</div>
                       <div className="text-white">
-                        {project.createdAt 
-                          ? project.createdAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
+                        {campaign.createdAt 
+                          ? campaign.createdAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
                           : 'Non définie'
                         }
                       </div>
@@ -556,19 +558,19 @@ const ProjectDetailPage = () => {
                     <div>
                       <div className="text-sm text-gray-400 mb-1">Dernière mise à jour</div>
                       <div className="text-white">
-                        {project.updatedAt 
-                          ? project.updatedAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
+                        {campaign.updatedAt 
+                          ? campaign.updatedAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
                           : 'Non définie'
                         }
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400 mb-1">Créé par</div>
-                      <div className="text-white font-mono text-sm">{project.createdBy}</div>
+                      <div className="text-sm text-gray-400 mb-1">Créée par</div>
+                      <div className="text-white font-mono text-sm">{campaign.createdBy}</div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-400 mb-1">Membres de l'équipe</div>
-                      <div className="text-white">{project.members?.length || 0} membre(s)</div>
+                      <div className="text-white">{campaign.members?.length || 0} membre(s)</div>
                     </div>
                   </div>
                 </motion.div>
@@ -582,7 +584,7 @@ const ProjectDetailPage = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-2xl font-bold text-white flex items-center gap-3">
                     <Sword className="h-6 w-6 text-blue-400" />
-                    Quêtes du projet
+                    Quêtes de la campagne
                   </h3>
                   <button
                     onClick={() => setShowLinkQuestModal(true)}
@@ -594,7 +596,7 @@ const ProjectDetailPage = () => {
                 </div>
 
                 {/* Liste des quêtes */}
-                {projectQuests.length === 0 ? (
+                {campaignQuests.length === 0 ? (
                   <motion.div 
                     className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center"
                     initial={{ opacity: 0, y: 20 }}
@@ -603,7 +605,7 @@ const ProjectDetailPage = () => {
                     <Sword className="h-16 w-16 text-gray-600 mx-auto mb-4" />
                     <h4 className="text-xl font-bold text-white mb-2">Aucune quête liée</h4>
                     <p className="text-gray-400 mb-6">
-                      Liez des quêtes existantes à ce projet pour organiser votre travail
+                      Liez des quêtes existantes à cette campagne pour organiser vos batailles
                     </p>
                     <button
                       onClick={() => setShowLinkQuestModal(true)}
@@ -614,7 +616,7 @@ const ProjectDetailPage = () => {
                   </motion.div>
                 ) : (
                   <div className="space-y-4">
-                    {projectQuests.map((quest, index) => (
+                    {campaignQuests.map((quest, index) => (
                       <motion.div
                         key={quest.id}
                         className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-700/50 transition-all duration-200"
@@ -631,7 +633,7 @@ const ProjectDetailPage = () => {
                                 quest.status === 'in_progress' ? 'bg-blue-900/20 text-blue-400 border border-blue-500/30' :
                                 'bg-yellow-900/20 text-yellow-400 border border-yellow-500/30'
                               }`}>
-                                {quest.status === 'completed' ? '✅ Accomplie' :
+                                {quest.status === 'completed' ? '🏆 Accomplie' :
                                  quest.status === 'in_progress' ? '⚔️ En cours' :
                                  '📋 À faire'}
                               </span>
@@ -655,7 +657,7 @@ const ProjectDetailPage = () => {
                           <button
                             onClick={() => handleUnlinkQuest(quest.id)}
                             className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-all duration-200"
-                            title="Délier du projet"
+                            title="Délier de la campagne"
                           >
                             <Unlink className="h-4 w-4" />
                           </button>
@@ -675,11 +677,11 @@ const ProjectDetailPage = () => {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                  <Users className="h-6 w-6 text-purple-400" />
-                  Membres de l'équipe
+                  <Shield className="h-6 w-6 text-purple-400" />
+                  Équipe de la campagne
                 </h3>
                 <div className="text-center py-12">
-                  <Users className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                  <Shield className="h-16 w-16 text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-400">Fonctionnalité de gestion d'équipe à venir</p>
                 </div>
               </motion.div>
@@ -739,7 +741,7 @@ const ProjectDetailPage = () => {
                       <p className="text-gray-400">
                         {searchQuestTerm 
                           ? 'Aucune quête trouvée'
-                          : 'Aucune quête disponible (toutes sont déjà liées à des projets)'
+                          : 'Aucune quête disponible (toutes sont déjà liées à des campagnes)'
                         }
                       </p>
                     </div>
@@ -780,4 +782,4 @@ const ProjectDetailPage = () => {
   );
 };
 
-export default ProjectDetailPage;
+export default CampaignDetailPage;
