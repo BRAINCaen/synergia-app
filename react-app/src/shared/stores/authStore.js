@@ -330,10 +330,16 @@ export const useAuthStore = create(
   )
 );
 
+// ✅ FONCTION D'INITIALISATION EXPORTÉE (pour App.jsx)
+export const initializeAuthStore = () => {
+  console.log('🚀 initializeAuthStore appelé');
+  useAuthStore.getState().initializeAuth();
+};
+
 // ✅ INITIALISATION AUTOMATIQUE AU CHARGEMENT
 if (typeof window !== 'undefined') {
   console.log('🚀 Initialisation automatique auth store...');
-  useAuthStore.getState().initializeAuth();
+  initializeAuthStore();
 }
 
 // ✅ EXPORTS
