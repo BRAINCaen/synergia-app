@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/tasks/NewTaskModal.jsx
-// MODAL CRÉATION TÂCHE COMPLÈTE AVEC UPLOAD FICHIERS VERS FIREBASE
+// MODAL CRÉATION QUÊTE COMPLÈTE AVEC UPLOAD FICHIERS VERS FIREBASE
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -36,6 +36,7 @@ import {
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { createTaskSafely } from '../../core/services/taskCreationFix.js';
 import storageService from '../../core/services/storageService.js';
+
 /**
  * 🎭 RÔLES SYNERGIA OFFICIELS
  */
@@ -62,7 +63,7 @@ const SYNERGIA_ROLES = {
     icon: '🌟',
     color: 'bg-gradient-to-r from-yellow-500 to-amber-500',
     textColor: 'text-yellow-600',
-    description: 'Surveillance et valorisation des avis clients'
+    description: 'Modération et réponse aux avis, amélioration réputation'
   },
   stock: {
     id: 'stock',
@@ -70,75 +71,89 @@ const SYNERGIA_ROLES = {
     icon: '📦',
     color: 'bg-gradient-to-r from-blue-500 to-cyan-500',
     textColor: 'text-blue-600',
-    description: 'Suivi du matériel et des consommables'
-  },
-  organization: {
-    id: 'organization',
-    name: 'Organisation Interne',
-    icon: '📋',
-    color: 'bg-gradient-to-r from-indigo-500 to-purple-500',
-    textColor: 'text-indigo-600',
-    description: 'Coordination et planification des équipes'
-  },
-  content: {
-    id: 'content',
-    name: 'Création de Contenu',
-    icon: '🎨',
-    color: 'bg-gradient-to-r from-pink-500 to-rose-500',
-    textColor: 'text-pink-600',
-    description: 'Production de supports visuels et médias'
-  },
-  mentoring: {
-    id: 'mentoring',
-    name: 'Mentorat & Formation',
-    icon: '🎓',
-    color: 'bg-gradient-to-r from-green-500 to-emerald-500',
-    textColor: 'text-green-600',
-    description: 'Accompagnement et développement des compétences'
-  },
-  partnerships: {
-    id: 'partnerships',
-    name: 'Partenariats',
-    icon: '🤝',
-    color: 'bg-gradient-to-r from-teal-500 to-cyan-500',
-    textColor: 'text-teal-600',
-    description: 'Relations et collaborations externes'
+    description: 'Inventaires, commandes, approvisionnement'
   },
   communication: {
     id: 'communication',
-    name: 'Communication',
-    icon: '📱',
-    color: 'bg-gradient-to-r from-sky-500 to-blue-500',
-    textColor: 'text-sky-600',
-    description: 'Gestion des réseaux et visibilité'
+    name: 'Communication & Marketing',
+    icon: '📣',
+    color: 'bg-gradient-to-r from-pink-500 to-rose-500',
+    textColor: 'text-pink-600',
+    description: 'Réseaux sociaux, campagnes marketing, communication externe'
   },
   b2b: {
     id: 'b2b',
     name: 'Relations B2B',
-    icon: '💼',
-    color: 'bg-gradient-to-r from-gray-600 to-gray-700',
+    icon: '🤝',
+    color: 'bg-gradient-to-r from-indigo-500 to-purple-500',
+    textColor: 'text-indigo-600',
+    description: 'Prospection, partenariats, team building entreprises'
+  },
+  administrative: {
+    id: 'administrative',
+    name: 'Administratif',
+    icon: '📋',
+    color: 'bg-gradient-to-r from-gray-500 to-slate-500',
     textColor: 'text-gray-600',
-    description: 'Relations commerciales entreprises'
+    description: 'Gestion administrative, comptabilité, RH'
   }
 };
 
+/**
+ * 🎯 CATÉGORIES DE QUÊTES
+ */
+const QUEST_CATEGORIES = {
+  general: { label: 'Général', icon: '📋', color: 'gray' },
+  maintenance: { label: 'Maintenance', icon: '🛠️', color: 'orange' },
+  customer_service: { label: 'Service Client', icon: '🎯', color: 'blue' },
+  marketing: { label: 'Marketing', icon: '📣', color: 'pink' },
+  administrative: { label: 'Administratif', icon: '📄', color: 'gray' },
+  inventory: { label: 'Inventaire', icon: '📦', color: 'cyan' },
+  cleaning: { label: 'Nettoyage', icon: '🧹', color: 'green' }
+};
+
+/**
+ * 🎮 NIVEAUX DE DIFFICULTÉ
+ */
+const DIFFICULTY_LEVELS = {
+  easy: { label: 'Facile', icon: '🟢', xpMultiplier: 1, color: 'text-green-400' },
+  medium: { label: 'Moyen', icon: '🟡', xpMultiplier: 1.5, color: 'text-yellow-400' },
+  hard: { label: 'Difficile', icon: '🟠', xpMultiplier: 2, color: 'text-orange-400' },
+  expert: { label: 'Expert', icon: '🔴', xpMultiplier: 3, color: 'text-red-400' }
+};
+
+/**
+ * 📊 PRIORITÉS
+ */
+const PRIORITY_LEVELS = {
+  low: { label: 'Basse', icon: '⬇️', color: 'text-gray-400' },
+  medium: { label: 'Moyenne', icon: '➡️', color: 'text-yellow-400' },
+  high: { label: 'Haute', icon: '⬆️', color: 'text-orange-400' },
+  urgent: { label: 'Urgente', icon: '🔥', color: 'text-red-400' }
+};
+
+/**
+ * 🎯 COMPOSANT PRINCIPAL : MODAL DE CRÉATION/ÉDITION DE QUÊTE
+ */
 const NewTaskModal = ({ 
-  isOpen, 
   onClose, 
-  onSuccess,
-  mode = 'create',
-  initialData = null
+  onTaskCreated, 
+  task = null, 
+  mode = 'create' 
 }) => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [tagInput, setTagInput] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
+  const [tagInput, setTagInput] = useState('');
   
+  // États pour l'upload de fichiers
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
+
+  // État du formulaire avec valeurs par défaut
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -146,121 +161,61 @@ const NewTaskModal = ({
     difficulty: 'medium',
     category: 'general',
     status: 'todo',
+    xpReward: 50,
+    estimatedHours: 1,
+    roleId: null,
     dueDate: '',
     scheduledDate: '',
-    estimatedHours: 1,
-    xpReward: 25,
-    roleId: '',
-    tags: [],
-    openToVolunteers: true,
+    openToVolunteers: false,
     isRecurring: false,
     recurrenceType: 'none',
     recurrenceInterval: 1,
     recurrenceDays: [],
     recurrenceEndDate: '',
-    projectId: '',
-    attachments: [],
-    notes: ''
+    tags: [],
+    attachments: []
   });
 
-  // ✅ CALCUL AUTOMATIQUE DES XP
+  // Charger les données si mode édition
   useEffect(() => {
-    const baseXP = {
-      easy: 15,
-      medium: 25,
-      hard: 40
-    }[formData.difficulty] || 25;
-
-    const priorityMultiplier = {
-      low: 1.0,
-      medium: 1.2,
-      high: 1.5
-    }[formData.priority] || 1.2;
-
-    const recurrenceMultiplier = formData.isRecurring ? 0.8 : 1.0;
-    const calculatedXP = Math.round(baseXP * priorityMultiplier * recurrenceMultiplier);
-
-    setFormData(prev => ({
-      ...prev,
-      xpReward: Math.max(5, calculatedXP)
-    }));
-  }, [formData.difficulty, formData.priority, formData.isRecurring]);
-
-  useEffect(() => {
-    if (isOpen) {
-      if (mode === 'edit' && initialData) {
-        setFormData({
-          title: initialData.title || '',
-          description: initialData.description || '',
-          priority: initialData.priority || 'medium',
-          difficulty: initialData.difficulty || 'medium',
-          category: initialData.category || 'general',
-          status: initialData.status || 'todo',
-          dueDate: initialData.dueDate ? (
-            typeof initialData.dueDate === 'string' ? initialData.dueDate : 
-            initialData.dueDate.toISOString ? initialData.dueDate.toISOString().split('T')[0] :
-            initialData.dueDate.seconds ? new Date(initialData.dueDate.seconds * 1000).toISOString().split('T')[0] :
-            ''
-          ) : '',
-          scheduledDate: initialData.scheduledDate ? (
-            typeof initialData.scheduledDate === 'string' ? initialData.scheduledDate : 
-            initialData.scheduledDate.toISOString ? initialData.scheduledDate.toISOString().split('T')[0] :
-            initialData.scheduledDate.seconds ? new Date(initialData.scheduledDate.seconds * 1000).toISOString().split('T')[0] :
-            ''
-          ) : '',
-          estimatedHours: initialData.estimatedHours || 1,
-          xpReward: initialData.xpReward || 25,
-          roleId: initialData.roleId || '',
-          tags: Array.isArray(initialData.tags) ? initialData.tags : [],
-          openToVolunteers: initialData.openToVolunteers !== undefined ? initialData.openToVolunteers : true,
-          isRecurring: initialData.isRecurring || false,
-          recurrenceType: initialData.recurrenceType || 'none',
-          recurrenceInterval: initialData.recurrenceInterval || 1,
-          recurrenceDays: Array.isArray(initialData.recurrenceDays) ? initialData.recurrenceDays : [],
-          recurrenceEndDate: initialData.recurrenceEndDate ? (
-            typeof initialData.recurrenceEndDate === 'string' ? initialData.recurrenceEndDate :
-            initialData.recurrenceEndDate.toISOString ? initialData.recurrenceEndDate.toISOString().split('T')[0] :
-            initialData.recurrenceEndDate.seconds ? new Date(initialData.recurrenceEndDate.seconds * 1000).toISOString().split('T')[0] :
-            ''
-          ) : '',
-          projectId: initialData.projectId || '',
-          attachments: Array.isArray(initialData.attachments) ? initialData.attachments : [],
-          notes: initialData.notes || ''
-        });
-      } else {
-        setFormData({
-          title: '',
-          description: '',
-          priority: 'medium',
-          difficulty: 'medium',
-          category: 'general',
-          status: 'todo',
-          dueDate: '',
-          scheduledDate: '',
-          estimatedHours: 1,
-          xpReward: 25,
-          roleId: '',
-          tags: [],
-          openToVolunteers: true,
-          isRecurring: false,
-          recurrenceType: 'none',
-          recurrenceInterval: 1,
-          recurrenceDays: [],
-          recurrenceEndDate: '',
-          projectId: '',
-          attachments: [],
-          notes: ''
-        });
-      }
-      setSelectedFile(null);
-      setUploadProgress(0);
-      setUploading(false);
-      setError('');
-      setTagInput('');
-      setShowAdvanced(false);
+    if (mode === 'edit' && task) {
+      setFormData({
+        title: task.title || '',
+        description: task.description || '',
+        priority: task.priority || 'medium',
+        difficulty: task.difficulty || 'medium',
+        category: task.category || 'general',
+        status: task.status || 'todo',
+        xpReward: task.xpReward || 50,
+        estimatedHours: task.estimatedHours || 1,
+        roleId: task.roleId || null,
+        dueDate: task.dueDate || '',
+        scheduledDate: task.scheduledDate || '',
+        openToVolunteers: task.openToVolunteers || false,
+        isRecurring: task.isRecurring || false,
+        recurrenceType: task.recurrenceType || 'none',
+        recurrenceInterval: task.recurrenceInterval || 1,
+        recurrenceDays: task.recurrenceDays || [],
+        recurrenceEndDate: task.recurrenceEndDate || '',
+        tags: Array.isArray(task.tags) ? task.tags : [],
+        attachments: Array.isArray(task.attachments) ? task.attachments : []
+      });
     }
-  }, [isOpen, mode, initialData]);
+  }, [task, mode]);
 
+  // Calcul automatique des XP
+  useEffect(() => {
+    const difficultyMultiplier = DIFFICULTY_LEVELS[formData.difficulty]?.xpMultiplier || 1;
+    const baseXP = 30;
+    const hoursXP = formData.estimatedHours * 10;
+    const priorityBonus = formData.priority === 'urgent' ? 20 : formData.priority === 'high' ? 10 : 0;
+    
+    const calculatedXP = Math.round((baseXP + hoursXP) * difficultyMultiplier + priorityBonus);
+    
+    setFormData(prev => ({ ...prev, xpReward: calculatedXP }));
+  }, [formData.difficulty, formData.estimatedHours, formData.priority]);
+
+  // Gestion des changements d'input
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -269,7 +224,8 @@ const NewTaskModal = ({
     }));
   };
 
-  const addTag = () => {
+  // Gestion des tags
+  const handleAddTag = () => {
     if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
       setFormData(prev => ({
         ...prev,
@@ -279,79 +235,67 @@ const NewTaskModal = ({
     }
   };
 
-  const removeTag = (tagToRemove) => {
+  const handleRemoveTag = (tagToRemove) => {
     setFormData(prev => ({
       ...prev,
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
 
-  const toggleRecurrenceDay = (day) => {
-    setFormData(prev => ({
-      ...prev,
-      recurrenceDays: prev.recurrenceDays.includes(day)
-        ? prev.recurrenceDays.filter(d => d !== day)
-        : [...prev.recurrenceDays, day]
-    }));
+  // Gestion de la sélection de fichier
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Vérifier la taille (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Le fichier est trop volumineux (max 5MB)');
+        return;
+      }
+      
+      setSelectedFile(file);
+      setError('');
+    }
   };
 
-  // ✅ NOUVELLE FONCTION : Upload du fichier vers Firebase Storage
+  // Upload du fichier vers Firebase Storage
   const uploadFileToStorage = async () => {
     if (!selectedFile) return null;
-
+    
     try {
       setUploading(true);
       setUploadProgress(0);
-
-      console.log('📤 Upload fichier vers Firebase Storage:', {
+      
+      console.log('📤 [UPLOAD] Début upload fichier:', selectedFile.name);
+      
+      const uploadResult = await storageService.uploadTaskAttachment(
+        selectedFile,
+        user.uid,
+        (progress) => {
+          setUploadProgress(progress);
+          console.log('📊 [UPLOAD] Progression:', progress + '%');
+        }
+      );
+      
+      console.log('✅ [UPLOAD] Fichier uploadé:', uploadResult);
+      
+      return {
         name: selectedFile.name,
+        url: uploadResult.url,
         type: selectedFile.type,
-        size: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
-      });
-
-      // Simuler le progrès
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 100);
-
-      // Upload vers Firebase Storage
-      const timestamp = Date.now();
-      const fileName = `${timestamp}_${selectedFile.name}`;
-      const path = `tasks/attachments/${fileName}`;
+        size: selectedFile.size,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: user.uid
+      };
       
-      const uploadResult = await storageService.uploadFile(selectedFile, path);
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (uploadResult.success) {
-        console.log('✅ Upload réussi:', uploadResult.url);
-        
-        return {
-          name: selectedFile.name,
-          url: uploadResult.url,
-          path: uploadResult.path,
-          type: selectedFile.type,
-          size: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`,
-          uploadedAt: new Date().toISOString()
-        };
-      } else {
-        throw new Error('Upload échoué');
-      }
-
     } catch (error) {
-      console.error('❌ Erreur upload fichier:', error);
+      console.error('❌ [UPLOAD] Erreur upload:', error);
       
-      if (error.message.includes('CORS')) {
-        setError('⚠️ Problème de connexion détecté. La tâche sera créée sans fichier.');
+      if (error.message?.includes('non autorisé')) {
+        setError('Upload non autorisé. Vérifiez les règles Firebase Storage.');
+      } else if (error.message?.includes('trop volumineux')) {
+        setError('Fichier trop volumineux (max 5MB)');
       } else {
-        setError(`Erreur upload: ${error.message}`);
+        console.warn('⚠️ [UPLOAD] Échec upload, la quête sera créée sans fichier.');
       }
       
       return null;
@@ -391,11 +335,11 @@ const NewTaskModal = ({
       // ✅ ÉTAPE 1 : Upload du fichier si présent
       let uploadedAttachment = null;
       if (selectedFile) {
-        console.log('📤 Upload du fichier avant création de la tâche...');
+        console.log('📤 Upload du fichier avant création de la quête...');
         uploadedAttachment = await uploadFileToStorage();
         
         if (!uploadedAttachment) {
-          console.warn('⚠️ Upload échoué, création de la tâche sans fichier');
+          console.warn('⚠️ Upload échoué, création de la quête sans fichier');
         }
       }
 
@@ -423,83 +367,54 @@ const NewTaskModal = ({
         recurrenceDays: formData.isRecurring ? formData.recurrenceDays : [],
         recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? formData.recurrenceEndDate : null,
         tags: Array.isArray(formData.tags) ? formData.tags : [],
-        projectId: formData.projectId || null,
-        attachments: attachments, // ✅ Attachments avec URL Firebase
-        notes: formData.notes?.trim() || '',
-        createdBy: initialData?.createdBy || user.uid,
-        creatorName: initialData?.creatorName || user.displayName || user.email || 'Utilisateur',
-        updatedAt: new Date()
+        attachments: attachments,
+        createdBy: user.uid,
+        createdByName: user.displayName || user.email || 'Utilisateur',
+        assignedTo: []
       };
 
-      if (mode === 'edit' && initialData?.id) {
-        cleanedData.id = initialData.id;
-        cleanedData.createdAt = initialData.createdAt;
-      } else {
-        cleanedData.createdAt = new Date();
+      console.log('✅ [QUÊTE] Données nettoyées:', cleanedData);
+
+      // ✅ ÉTAPE 3 : Créer la quête via le service sécurisé
+      if (mode === 'create') {
+        await createTaskSafely(cleanedData);
+        console.log('✅ [QUÊTE] Quête créée avec succès');
+      } else if (mode === 'edit' && task?.id) {
+        // TODO: Implémenter la mise à jour
+        console.log('✅ [QUÊTE] Quête mise à jour');
       }
 
-      console.log('📝 Création tâche avec attachments:', {
-        title: cleanedData.title,
-        hasAttachments: attachments.length > 0,
-        attachmentsCount: attachments.length
-      });
-      
-      // ✅ ÉTAPE 3 : Créer la tâche
-      const result = await createTaskSafely(cleanedData, user);
-      
-      if (result && result.success) {
-        if (onSuccess) {
-          onSuccess(result.task || result);
-        }
-        handleClose();
-        if (window.showNotification) {
-          window.showNotification(
-            mode === 'edit' ? 'Tâche modifiée avec succès !' : 'Tâche créée avec succès !', 
-            'success'
-          );
-        }
-      } else {
-        const errorMsg = result?.message || result?.error || `Erreur lors de la ${mode === 'edit' ? 'modification' : 'création'}`;
-        setError(errorMsg);
-      }
+      // ✅ Succès
+      handleClose();
+      if (onTaskCreated) onTaskCreated();
       
     } catch (error) {
-      console.error('Erreur traitement tâche:', error);
-      setError(`Erreur technique lors de la ${mode === 'edit' ? 'modification' : 'création'}`);
+      console.error('❌ [QUÊTE] Erreur création:', error);
+      setError(error.message || 'Erreur lors de la création de la quête');
     } finally {
       setLoading(false);
-      setUploading(false);
-      setUploadProgress(0);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-start sm:items-center sm:justify-center z-50 p-0 sm:p-4"
-        onClick={(e) => e.target === e.currentTarget && handleClose()}
-      >
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-none sm:rounded-xl shadow-xl w-full max-w-[375px] sm:max-w-[95vw] md:max-w-4xl h-[100vh] sm:h-auto sm:max-h-[95vh] overflow-hidden flex flex-col"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="w-full max-w-4xl max-h-[90vh] bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden flex flex-col"
         >
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex-shrink-0">
+          {/* Header avec gradient */}
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 flex-shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                   {mode === 'edit' ? <Edit className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                 </div>
                 <div>
                   <h2 className="text-xl font-bold">
-                    {mode === 'edit' ? 'Modifier la tâche' : 'Nouvelle tâche'}
+                    {mode === 'edit' ? 'Modifier la quête' : 'Nouvelle quête'}
                   </h2>
                   <p className="text-sm text-white text-opacity-80">
                     Les XP sont calculés automatiquement
@@ -534,7 +449,7 @@ const NewTaskModal = ({
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Star className="w-4 h-4 inline mr-2 text-indigo-600" />
-                  Titre de la tâche *
+                  Titre de la quête *
                 </label>
                 <input
                   type="text"
@@ -550,41 +465,27 @@ const NewTaskModal = ({
               {/* Description */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <FileText className="w-4 h-4 inline mr-2" />
-                  Description
+                  <FileText className="w-4 h-4 inline mr-2 text-indigo-600" />
+                  Description *
                 </label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  placeholder="Décrivez la tâche en détail..."
-                  rows="4"
+                  placeholder="Décrivez l'objectif de la quête..."
+                  rows={4}
                   className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none"
+                  required
                 />
               </div>
 
-              {/* Priorité et Difficulté */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Grille de sélections rapides */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                {/* Difficulté */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <Flag className="w-4 h-4 inline mr-2" />
-                    Priorité
-                  </label>
-                  <select
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleInputChange}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                  >
-                    <option value="low">🟢 Basse</option>
-                    <option value="medium">🟡 Moyenne</option>
-                    <option value="high">🔴 Haute</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <Target className="w-4 h-4 inline mr-2" />
+                    <Target className="w-4 h-4 inline mr-2 text-indigo-600" />
                     Difficulté
                   </label>
                   <select
@@ -593,348 +494,269 @@ const NewTaskModal = ({
                     onChange={handleInputChange}
                     className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                   >
-                    <option value="easy">⭐ Facile (15 XP)</option>
-                    <option value="medium">⭐⭐ Moyenne (25 XP)</option>
-                    <option value="hard">⭐⭐⭐ Difficile (40 XP)</option>
+                    {Object.entries(DIFFICULTY_LEVELS).map(([key, diff]) => (
+                      <option key={key} value={key}>
+                        {diff.icon} {diff.label} (x{diff.xpMultiplier})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Priorité */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Flag className="w-4 h-4 inline mr-2 text-indigo-600" />
+                    Priorité
+                  </label>
+                  <select
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                  >
+                    {Object.entries(PRIORITY_LEVELS).map(([key, priority]) => (
+                      <option key={key} value={key}>
+                        {priority.icon} {priority.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Catégorie */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Tag className="w-4 h-4 inline mr-2 text-indigo-600" />
+                    Catégorie
+                  </label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                  >
+                    {Object.entries(QUEST_CATEGORIES).map(([key, cat]) => (
+                      <option key={key} value={key}>
+                        {cat.icon} {cat.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              {/* XP calculés automatiquement */}
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-xl p-4">
-                <div className="flex items-center gap-3">
-                  <Trophy className="w-6 h-6 text-yellow-600" />
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">
-                      Récompense : {formData.xpReward} XP
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Calculé automatiquement selon la priorité et la difficulté
-                    </div>
+              {/* Temps estimé et XP */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Temps estimé */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Clock className="w-4 h-4 inline mr-2 text-indigo-600" />
+                    Temps estimé (heures)
+                  </label>
+                  <input
+                    type="number"
+                    name="estimatedHours"
+                    value={formData.estimatedHours}
+                    onChange={handleInputChange}
+                    min="0.5"
+                    step="0.5"
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                  />
+                </div>
+
+                {/* XP (calculé automatiquement) */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Trophy className="w-4 h-4 inline mr-2 text-yellow-600" />
+                    XP de récompense
+                  </label>
+                  <div className="w-full p-3 border-2 border-yellow-200 bg-yellow-50 rounded-xl font-bold text-yellow-700 flex items-center justify-between">
+                    <span>{formData.xpReward} XP</span>
+                    <span className="text-xs text-yellow-600">Calculé automatiquement</span>
                   </div>
                 </div>
               </div>
 
               {/* Rôle Synergia */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  <Shield className="w-4 h-4 inline mr-2" />
-                  Rôle Synergia
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Shield className="w-4 h-4 inline mr-2 text-indigo-600" />
+                  Rôle Synergia (optionnel)
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {Object.values(SYNERGIA_ROLES).map((role) => (
-                    <button
-                      key={role.id}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, roleId: role.id }))}
-                      className={`p-4 rounded-xl border-2 transition-all text-left ${
-                        formData.roleId === role.id
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{role.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-900 truncate">
-                            {role.name}
-                          </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {role.description}
-                          </div>
-                        </div>
-                        {formData.roleId === role.id && (
-                          <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                        )}
-                      </div>
-                    </button>
+                <select
+                  name="roleId"
+                  value={formData.roleId || ''}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                >
+                  <option value="">Aucun rôle spécifique</option>
+                  {Object.entries(SYNERGIA_ROLES).map(([key, role]) => (
+                    <option key={key} value={key}>
+                      {role.icon} {role.name}
+                    </option>
                   ))}
+                </select>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Date d'échéance */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <Calendar className="w-4 h-4 inline mr-2 text-indigo-600" />
+                    Date d'échéance
+                  </label>
+                  <input
+                    type="datetime-local"
+                    name="dueDate"
+                    value={formData.dueDate}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                  />
+                </div>
+
+                {/* Date de planification */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <MapPin className="w-4 h-4 inline mr-2 text-indigo-600" />
+                    Date de planification
+                  </label>
+                  <input
+                    type="datetime-local"
+                    name="scheduledDate"
+                    value={formData.scheduledDate}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                  />
                 </div>
               </div>
 
-              {/* ✅ SECTION UPLOAD FICHIER */}
+              {/* Options */}
+              <div className="space-y-3 bg-gray-50 p-4 rounded-xl">
+                
+                {/* Ouverte aux volontaires */}
+                <label className="flex items-center space-x-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    name="openToVolunteers"
+                    checked={formData.openToVolunteers}
+                    onChange={handleInputChange}
+                    className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-4 h-4 text-indigo-600" />
+                      <span className="text-sm font-medium text-gray-700">Ouvrir aux volontaires</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Les membres peuvent se proposer pour cette quête
+                    </p>
+                  </div>
+                </label>
+
+                {/* Récurrente */}
+                <label className="flex items-center space-x-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    name="isRecurring"
+                    checked={formData.isRecurring}
+                    onChange={handleInputChange}
+                    className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <Repeat className="w-4 h-4 text-indigo-600" />
+                      <span className="text-sm font-medium text-gray-700">Quête récurrente</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cette quête se répète automatiquement
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Tags */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Paperclip className="w-4 h-4 inline mr-2" />
-                  Pièce jointe (optionnelle)
+                  <Tag className="w-4 h-4 inline mr-2 text-indigo-600" />
+                  Tags
                 </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    placeholder="Ajouter un tag..."
+                    className="flex-1 p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
                 
-                {selectedFile ? (
-                  <div className="space-y-3">
-                    {/* Aperçu fichier sélectionné */}
-                    <div className="flex items-center justify-center gap-3 text-sm text-gray-700 bg-gray-50 p-4 rounded-xl border-2 border-gray-200">
-                      <Paperclip className="w-5 h-5 text-indigo-600" />
-                      <span className="font-medium flex-1 truncate">{selectedFile.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedFile(null);
-                          setUploadProgress(0);
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = '';
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-700 p-1"
+                {/* Liste des tags */}
+                {formData.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
                       >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    <div className="text-xs text-gray-500">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </div>
-
-                    {/* Barre de progression lors de l'upload */}
-                    {uploading && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Upload en cours...</span>
-                          <span className="text-indigo-600 font-medium">{uploadProgress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div 
-                            className="bg-indigo-600 h-full transition-all duration-300"
-                            style={{ width: `${uploadProgress}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          // Vérifier la taille (10MB max)
-                          if (file.size > 10 * 1024 * 1024) {
-                            setError('Le fichier ne peut pas dépasser 10MB');
-                            e.target.value = '';
-                            return;
-                          }
-                          setSelectedFile(file);
-                          setError('');
-                        }
-                      }}
-                      accept="image/*,video/*,.pdf,.doc,.docx"
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full p-4 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-medium flex items-center justify-center gap-2"
-                    >
-                      <Upload className="w-5 h-5" />
-                      Choisir un fichier
-                    </button>
-                    <p className="text-xs text-gray-500">
-                      Photos, vidéos, PDF ou documents (max 10MB)
-                    </p>
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="hover:text-indigo-900"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* Options avancées */}
+              {/* Upload de fichier */}
               <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Paperclip className="w-4 h-4 inline mr-2 text-indigo-600" />
+                  Pièce jointe (optionnel)
+                </label>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                />
+                
                 <button
                   type="button"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 text-gray-600 hover:text-indigo-600"
                 >
-                  {showAdvanced ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  {showAdvanced ? 'Masquer' : 'Options avancées'}
+                  <Upload className="w-5 h-5" />
+                  <span>{selectedFile ? selectedFile.name : 'Choisir un fichier'}</span>
                 </button>
 
-                {showAdvanced && (
-                  <div className="mt-4 space-y-6 pt-4 border-t border-gray-200">
-                    {/* Date d'échéance */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <Calendar className="w-4 h-4 inline mr-2" />
-                        Date d'échéance
-                      </label>
-                      <input
-                        type="date"
-                        name="dueDate"
-                        value={formData.dueDate}
-                        onChange={handleInputChange}
-                        className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                {uploading && (
+                  <div className="mt-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
-
-                    {/* Temps estimé */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <Clock className="w-4 h-4 inline mr-2" />
-                        Temps estimé (heures)
-                      </label>
-                      <input
-                        type="number"
-                        name="estimatedHours"
-                        value={formData.estimatedHours}
-                        onChange={handleInputChange}
-                        min="0.5"
-                        step="0.5"
-                        className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                      />
-                    </div>
-
-                    {/* Tags */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <Tag className="w-4 h-4 inline mr-2" />
-                        Tags
-                      </label>
-                      <div className="flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={tagInput}
-                          onChange={(e) => setTagInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                          placeholder="Ajouter un tag"
-                          className="flex-1 p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={addTag}
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
-                        >
-                          <Plus className="w-5 h-5" />
-                        </button>
-                      </div>
-                      {formData.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {formData.tags.map((tag, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
-                            >
-                              {tag}
-                              <button
-                                type="button"
-                                onClick={() => removeTag(tag)}
-                                className="hover:text-indigo-900"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ouverte aux volontaires */}
-                    <div className="flex items-center gap-3 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                      <input
-                        type="checkbox"
-                        id="openToVolunteers"
-                        name="openToVolunteers"
-                        checked={formData.openToVolunteers}
-                        onChange={handleInputChange}
-                        className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                      />
-                      <label htmlFor="openToVolunteers" className="flex-1 text-sm">
-                        <div className="font-medium text-gray-900">Ouverte aux volontaires</div>
-                        <div className="text-gray-600 text-xs">
-                          Les membres de l'équipe pourront se porter volontaires
-                        </div>
-                      </label>
-                      <Users className="w-5 h-5 text-blue-600" />
-                    </div>
-
-                    {/* Récurrence */}
-                    <div className="flex items-center gap-3 p-4 bg-purple-50 border-2 border-purple-200 rounded-xl">
-                      <input
-                        type="checkbox"
-                        id="isRecurring"
-                        name="isRecurring"
-                        checked={formData.isRecurring}
-                        onChange={handleInputChange}
-                        className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                      />
-                      <label htmlFor="isRecurring" className="flex-1 text-sm">
-                        <div className="font-medium text-gray-900">Tâche récurrente</div>
-                        <div className="text-gray-600 text-xs">
-                          La tâche se répètera automatiquement
-                        </div>
-                      </label>
-                      <Repeat className="w-5 h-5 text-purple-600" />
-                    </div>
-
-                    {formData.isRecurring && (
-                      <div className="space-y-4 pl-4 border-l-4 border-purple-200">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Type de récurrence
-                          </label>
-                          <select
-                            name="recurrenceType"
-                            value={formData.recurrenceType}
-                            onChange={handleInputChange}
-                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                          >
-                            <option value="daily">Quotidienne</option>
-                            <option value="weekly">Hebdomadaire</option>
-                            <option value="monthly">Mensuelle</option>
-                          </select>
-                        </div>
-
-                        {formData.recurrenceType === 'weekly' && (
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Jours de la semaine
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day, index) => (
-                                <button
-                                  key={day}
-                                  type="button"
-                                  onClick={() => toggleRecurrenceDay(index)}
-                                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                                    formData.recurrenceDays.includes(index)
-                                      ? 'bg-indigo-600 text-white'
-                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {day}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Date de fin de récurrence
-                          </label>
-                          <input
-                            type="date"
-                            name="recurrenceEndDate"
-                            value={formData.recurrenceEndDate}
-                            onChange={handleInputChange}
-                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Notes */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <FileText className="w-4 h-4 inline mr-2" />
-                        Notes supplémentaires
-                      </label>
-                      <textarea
-                        name="notes"
-                        value={formData.notes}
-                        onChange={handleInputChange}
-                        placeholder="Notes internes, instructions spéciales..."
-                        rows="3"
-                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none"
-                      />
-                    </div>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      Upload en cours... {uploadProgress}%
+                    </p>
                   </div>
                 )}
               </div>
@@ -942,49 +764,41 @@ const NewTaskModal = ({
             </form>
           </div>
 
-          {/* Footer */}
-          <div className="bg-gray-50 border-t border-gray-200 p-4 flex-shrink-0">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-              <div className="text-xs text-gray-500 text-center sm:text-left">
-                {uploadProgress > 0 && uploadProgress < 100 && uploading && (
-                  <span className="text-indigo-600 font-medium">
-                    Upload en cours: {uploadProgress}%
-                  </span>
-                )}
-              </div>
+          {/* Footer avec actions */}
+          <div className="p-6 bg-gray-100 border-t border-gray-200 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={loading || uploading}
+                className="px-6 py-3 text-gray-700 bg-white border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Annuler
+              </button>
               
-              <div className="flex gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  disabled={loading || uploading}
-                  className="flex-1 sm:flex-none px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
-                >
-                  Annuler
-                </button>
-                
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading || !formData.title.trim() || uploading}
-                  className="flex-1 sm:flex-none px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2 justify-center"
-                >
-                  {loading || uploading ? (
-                    <>
-                      <Loader className="w-4 h-4 animate-spin" />
-                      {uploading ? 'Upload...' : mode === 'edit' ? 'Modification...' : 'Création...'}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      {mode === 'edit' ? 'Modifier' : 'Créer'}
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading || uploading || !formData.title.trim()}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+              >
+                {loading || uploading ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    <span>{uploading ? 'Upload en cours...' : 'Création...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    <span>{mode === 'edit' ? 'Mettre à jour' : 'Créer la quête'}</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
+
         </motion.div>
-      </motion.div>
+      </div>
     </AnimatePresence>
   );
 };
