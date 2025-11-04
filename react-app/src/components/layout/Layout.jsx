@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT FINAL AVEC MENU PREMIUM - DESIGN HARMONISÉ
+// LAYOUT FINAL AVEC MENU PREMIUM - VERSION "QUÊTES"
 // ==========================================
 
 import React, { useState, memo, useRef, useCallback } from 'react';
@@ -16,7 +16,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-      { path: '/tasks', label: 'Tâches', icon: '✅' },
+      { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
       { path: '/projects', label: 'Projets', icon: '📁' },
       { path: '/analytics', label: 'Analytics', icon: '📊' }
     ]},
@@ -38,7 +38,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
     ]},
     { section: 'ADMIN', items: [
       { path: '/admin', label: 'Dashboard Admin', icon: '👑' },
-      { path: '/admin/task-validation', label: 'Validation Tâches', icon: '🛡️' },
+      { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
       { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
       { path: '/admin/users', label: 'Gestion Utilisateurs', icon: '👥' },
       { path: '/admin/analytics', label: 'Analytics Admin', icon: '📊' },
@@ -116,53 +116,55 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
               fontSize: '16px',
               fontWeight: '400'
             }}>
-              Explorez toutes les fonctionnalités de Synergia
+              Explorez toutes les sections de Synergia
             </p>
           </div>
+          
+          {/* BOUTON FERMETURE */}
           <button
             onClick={onClose}
             style={{
-              padding: '12px',
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)',
+              background: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               borderRadius: '12px',
-              cursor: 'pointer',
+              width: '48px',
+              height: '48px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              cursor: 'pointer',
               transition: 'all 0.2s ease',
-              backdropFilter: 'blur(10px)'
+              color: '#ef4444'
             }}
             onMouseEnter={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(220, 38, 38, 0.3) 100%)';
-              e.target.style.transform = 'scale(1.05)';
+              e.target.style.background = 'rgba(239, 68, 68, 0.2)';
+              e.target.style.borderColor = 'rgba(239, 68, 68, 0.5)';
             }}
             onMouseLeave={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)';
-              e.target.style.transform = 'scale(1)';
+              e.target.style.background = 'rgba(239, 68, 68, 0.1)';
+              e.target.style.borderColor = 'rgba(239, 68, 68, 0.3)';
             }}
           >
-            <X style={{ width: '20px', height: '20px', color: '#ef4444' }} />
+            <X style={{ width: '24px', height: '24px' }} />
           </button>
         </div>
 
-        {/* SECTIONS PREMIUM */}
-        <div style={{ display: 'grid', gap: '28px' }}>
-          {menuItems.map((section, index) => (
-            <div key={index}>
-              <h3 style={{ 
-                fontSize: '12px', 
-                fontWeight: '700', 
-                color: '#6b7280', 
-                marginBottom: '16px',
+        {/* SECTIONS MENU */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {menuItems.map((section, sectionIndex) => (
+            <div key={sectionIndex}>
+              <h3 style={{
+                fontSize: '14px',
+                fontWeight: '700',
+                color: '#9ca3af',
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                borderLeft: '3px solid #8b5cf6',
-                paddingLeft: '12px'
+                letterSpacing: '0.05em',
+                marginBottom: '12px'
               }}>
                 {section.section}
               </h3>
-              <div style={{ display: 'grid', gap: '6px' }}>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {section.items.map((item, itemIndex) => (
                   <button
                     key={itemIndex}
@@ -170,146 +172,65 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '16px',
-                      padding: '14px 18px',
-                      background: 'linear-gradient(135deg, rgba(55, 65, 81, 0.3) 0%, rgba(75, 85, 99, 0.3) 100%)',
-                      border: '1px solid rgba(156, 163, 175, 0.1)',
+                      gap: '12px',
+                      padding: '12px 16px',
+                      background: 'rgba(55, 65, 81, 0.5)',
+                      border: '1px solid rgba(156, 163, 175, 0.2)',
                       borderRadius: '12px',
-                      cursor: 'pointer',
-                      fontSize: '15px',
+                      color: 'white',
+                      fontSize: '16px',
                       fontWeight: '500',
-                      color: '#f3f4f6',
-                      textAlign: 'left',
+                      cursor: 'pointer',
                       transition: 'all 0.2s ease',
-                      backdropFilter: 'blur(5px)'
+                      textAlign: 'left',
+                      width: '100%'
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.2) 100%)';
-                      e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                      e.target.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)';
+                      e.target.style.borderColor = 'rgba(139, 92, 246, 0.5)';
                       e.target.style.transform = 'translateX(8px)';
-                      e.target.style.boxShadow = '0 10px 25px -5px rgba(59, 130, 246, 0.2)';
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.background = 'linear-gradient(135deg, rgba(55, 65, 81, 0.3) 0%, rgba(75, 85, 99, 0.3) 100%)';
-                      e.target.style.borderColor = 'rgba(156, 163, 175, 0.1)';
+                      e.target.style.background = 'rgba(55, 65, 81, 0.5)';
+                      e.target.style.borderColor = 'rgba(156, 163, 175, 0.2)';
                       e.target.style.transform = 'translateX(0)';
-                      e.target.style.boxShadow = 'none';
                     }}
                   >
-                    <span style={{ 
-                      fontSize: '20px',
-                      width: '24px',
-                      textAlign: 'center'
-                    }}>
-                      {item.icon}
-                    </span>
-                    <span style={{ flex: 1 }}>{item.label}</span>
-                    <div style={{
-                      width: '4px',
-                      height: '4px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #60a5fa 0%, #a855f7 100%)',
-                      opacity: 0.6
-                    }} />
+                    <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                    <span>{item.label}</span>
                   </button>
                 ))}
               </div>
             </div>
           ))}
         </div>
-
-        {/* FOOTER PREMIUM */}
-        <div style={{
-          marginTop: '32px',
-          padding: '20px',
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.2)',
-          borderRadius: '16px',
-          textAlign: 'center'
-        }}>
-          <p style={{
-            color: '#10b981',
-            fontSize: '14px',
-            fontWeight: '600',
-            marginBottom: '4px'
-          }}>
-            🚀 Synergia v3.5
-          </p>
-          <p style={{
-            color: '#6b7280',
-            fontSize: '12px'
-          }}>
-            Plateforme de gestion d'équipe nouvelle génération
-          </p>
-        </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-          from { 
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-          }
-          to { 
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        
-        /* Scrollbar styling */
-        div::-webkit-scrollbar {
-          width: 6px;
-        }
-        
-        div::-webkit-scrollbar-track {
-          background: rgba(55, 65, 81, 0.3);
-          border-radius: 3px;
-        }
-        
-        div::-webkit-scrollbar-thumb {
-          background: linear-gradient(135deg, #60a5fa 0%, #a855f7 100%);
-          border-radius: 3px;
-        }
-        
-        div::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(135deg, #3b82f6 0%, #9333ea 100%);
-        }
-      `}</style>
     </div>
   );
 });
 
-// 🔒 LAYOUT PRINCIPAL AVEC BOUTON PREMIUM
+// 🔒 COMPOSANT LAYOUT PRINCIPAL
 const Layout = memo(({ children }) => {
-  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuOpenRef = useRef(false);
+  const navigate = useNavigate();
 
-  // Navigation function stable
+  const openMenu = useCallback(() => {
+    console.log('🔓 [LAYOUT] Ouverture menu demandée');
+    setMenuOpen(true);
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    console.log('🔒 [LAYOUT] Fermeture menu demandée');
+    setMenuOpen(false);
+  }, []);
+
   const navigateFunction = useCallback((path) => {
+    console.log('🧭 [LAYOUT] Navigation vers:', path);
     navigate(path);
   }, [navigate]);
 
-  // 🔒 FONCTION OUVERTURE STABLE
-  const openMenu = useCallback(() => {
-    console.log('🟢 MENU OUVERTURE');
-    setMenuOpen(true);
-    menuOpenRef.current = true;
-  }, []);
-
-  // 🔒 FONCTION FERMETURE STABLE  
-  const closeMenu = useCallback(() => {
-    console.log('🔴 MENU FERMETURE');
-    setMenuOpen(false);
-    menuOpenRef.current = false;
-  }, []);
-
-  // Debug: traquer les changements d'état
+  // Debug logging
   if (menuOpenRef.current !== menuOpen) {
     console.log('🔄 [LAYOUT] État menu changé:', {
       ancien: menuOpenRef.current,
