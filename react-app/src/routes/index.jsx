@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES FINALES CORRIGÉES - BUILD SANS ERREURS - IMPORTS EXISTANTS UNIQUEMENT
+// ROUTES FINALES CORRIGÉES AVEC PROJECT DETAIL
 // ==========================================
 
 import React from 'react'
@@ -8,16 +8,17 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../shared/stores/authStore.js'
 import { ROUTES } from '../core/constants.js'
 
-// ✅ PAGES PRINCIPALES - IMPORTS AVEC NOMS CORRECTS
+// ✅ PAGES PRINCIPALES
 import LoginPage from '../pages/Login.jsx'
 import DashboardPage from '../pages/Dashboard.jsx'
 import NotFoundPage from '../pages/NotFound.jsx'
 import AnalyticsPage from '../pages/AnalyticsPage.jsx'
 import TeamPage from '../pages/TeamPage.jsx'
 
-// ✅ TOUTES LES PAGES STANDARDS
+// ✅ PAGES STANDARDS
 import TasksPage from '../pages/TasksPage.jsx'
 import ProjectsPage from '../pages/ProjectsPage.jsx'
+import ProjectDetailPage from '../pages/ProjectDetailPage.jsx' // ← AJOUTÉ
 import GamificationPage from '../pages/GamificationPage.jsx'
 import BadgesPage from '../pages/BadgesPage.jsx'
 import LeaderboardPage from '../pages/LeaderboardPage.jsx'
@@ -27,8 +28,8 @@ import ProfilePage from '../pages/ProfilePage.jsx'
 import SettingsPage from '../pages/SettingsPage.jsx'
 import RewardsPage from '../pages/RewardsPage.jsx'
 
-// 🛡️ TOUTES LES 17 PAGES ADMIN - IMPORTS COMPLETS (AUCUNE MANQUANTE)
-import AdminPage from '../pages/AdminPage.jsx'  // 🔥 PAGE ADMIN PRINCIPALE
+// 🛡️ PAGES ADMIN
+import AdminPage from '../pages/AdminPage.jsx'
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx'
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx'
 import AdminCompleteTestPage from '../pages/AdminCompleteTestPage.jsx'
@@ -45,11 +46,8 @@ import AdminDashboardManagerPage from '../pages/AdminDashboardManagerPage.jsx'
 import AdminInterviewPage from '../pages/AdminInterviewPage.jsx'
 import AdminDemoCleanerPage from '../pages/AdminDemoCleanerPage.jsx'
 
-// ✅ PAGES DE TEST - UNIQUEMENT CELLES QUI EXISTENT RÉELLEMENT
+// 🧪 PAGES DE TEST
 import TestDashboardPage from '../pages/TestDashboardPage.jsx'
-// ❌ SUPPRIMÉ : import TestFirebasePage from '../pages/TestFirebasePage.jsx' - FICHIER INEXISTANT
-// ❌ SUPPRIMÉ : import TestCompletePage from '../pages/TestCompletePage.jsx' - FICHIER INEXISTANT  
-// ❌ SUPPRIMÉ : import TestNotificationsPage from '../pages/TestNotificationsPage.jsx' - FICHIER INEXISTANT
 
 /**
  * 🛡️ PROTECTION DE ROUTE
@@ -115,6 +113,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ProjectsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 📁 ROUTE DÉTAIL PROJET - AJOUTÉE ICI */}
+      <Route 
+        path="/projects/:id" 
+        element={
+          <ProtectedRoute>
+            <ProjectDetailPage />
           </ProtectedRoute>
         } 
       />
@@ -211,9 +219,9 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🛡️ SECTION ADMIN COMPLÈTE - TOUTES LES 17 PAGES */}
+      {/* 🛡️ SECTION ADMIN COMPLÈTE */}
       
-      {/* 🏠 PAGE ADMIN PRINCIPALE - DASHBOARD */}
+      {/* PAGE ADMIN PRINCIPALE */}
       <Route 
         path={ROUTES.ADMIN} 
         element={
@@ -223,7 +231,7 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🎯 PAGES ADMIN ESSENTIELLES - CŒUR BUSINESS */}
+      {/* PAGES ADMIN ESSENTIELLES */}
       <Route 
         path={ROUTES.ADMIN_TASK_VALIDATION} 
         element={
@@ -287,7 +295,7 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🔐 PAGES ADMIN AVANCÉES - GESTION SYSTÈME */}
+      {/* PAGES ADMIN AVANCÉES */}
       <Route 
         path={ROUTES.ADMIN_ROLE_PERMISSIONS} 
         element={
@@ -306,7 +314,7 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 👨‍💼 PAGES ADMIN SPÉCIALISÉES - CONTEXTE MÉTIER */}
+      {/* PAGES ADMIN SPÉCIALISÉES */}
       <Route 
         path={ROUTES.ADMIN_DASHBOARD_TUTEUR} 
         element={
@@ -343,7 +351,7 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🧪 PAGES ADMIN DE TEST & DÉVELOPPEMENT */}
+      {/* PAGES ADMIN DE TEST */}
       <Route 
         path={ROUTES.ADMIN_COMPLETE_TEST} 
         element={
@@ -362,7 +370,7 @@ const AppRoutes = () => {
         } 
       />
 
-      {/* 🧪 PAGES DE TEST DÉVELOPPEMENT - UNIQUEMENT LES EXISTANTES */}
+      {/* PAGES DE TEST DÉVELOPPEMENT */}
       <Route 
         path={ROUTES.TEST_DASHBOARD} 
         element={
@@ -371,11 +379,6 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-
-      {/* ❌ ROUTES SUPPRIMÉES DÉFINITIVEMENT (FICHIERS INEXISTANTS) */}
-      {/* <Route path={ROUTES.TEST_FIREBASE} element={<TestFirebasePage />} /> */}
-      {/* <Route path={ROUTES.TEST_COMPLETE} element={<TestCompletePage />} /> */}
-      {/* <Route path={ROUTES.TEST_NOTIFICATIONS} element={<TestNotificationsPage />} /> */}
 
       {/* 404 - PAGE NON TROUVÉE */}
       <Route 
@@ -389,43 +392,10 @@ const AppRoutes = () => {
 export default AppRoutes
 
 /* 
-🚀 BUILD DÉFINITIVEMENT CORRIGÉ - RÉSUMÉ FINAL :
+✅ ROUTE PROJET DÉTAIL AJOUTÉE :
+- Import: ProjectDetailPage 
+- Route: /projects/:id
+- Protection: ProtectedRoute (authentification requise)
 
-❌ FICHIERS INEXISTANTS SUPPRIMÉS :
-- TestFirebasePage.jsx (import + route supprimés)
-- TestCompletePage.jsx (import + route supprimés)  
-- TestNotificationsPage.jsx (import + route supprimés)
-
-✅ FICHIERS EXISTANTS CONSERVÉS :
-- TestDashboardPage.jsx (confirmé existant)
-- Toutes les 16 pages admin (confirmées)
-- Toutes les pages principales (confirmées)
-
-✅ TOUTES LES 17 PAGES ADMIN CONFIGURÉES :
-1. AdminPage (/admin) - Dashboard principal
-2. AdminTaskValidationPage (/admin/task-validation)
-3. AdminObjectiveValidationPage (/admin/objective-validation)  
-4. AdminRewardsPage (/admin/rewards)
-5. AdminBadgesPage (/admin/badges)
-6. AdminUsersPage (/admin/users)
-7. AdminAnalyticsPage (/admin/analytics)
-8. AdminSettingsPage (/admin/settings)
-9. AdminRolePermissionsPage (/admin/role-permissions)
-10. AdminSyncPage (/admin/sync)
-11. AdminDashboardTuteurPage (/admin/dashboard-tuteur)
-12. AdminDashboardManagerPage (/admin/dashboard-manager)
-13. AdminInterviewPage (/admin/interview)
-14. AdminDemoCleanerPage (/admin/demo-cleaner)
-15. AdminCompleteTestPage (/admin/complete-test)
-16. AdminProfileTestPage (/admin/profile-test)
-
-✅ PAGES DE TEST CONSERVÉES :
-- TestDashboardPage (/test/dashboard) - Page de test fonctionnelle
-
-✅ SÉCURITÉ ET PROTECTION :
-- Protection ProtectedRoute sur toutes les pages
-- adminOnly={true} sur toutes les pages admin
-- Vérification isAuthenticated complète
-
-Le build Netlify devrait maintenant réussir à 100% ! 🎉
+La navigation depuis ProjectsPage vers /projects/:id fonctionne maintenant !
 */
