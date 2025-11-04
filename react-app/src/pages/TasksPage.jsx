@@ -116,7 +116,7 @@ const TasksPage = () => {
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('my_tasks');
   const [viewMode, setViewMode] = useState('cards'); // cards, list, kanban
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -162,19 +162,32 @@ const TasksPage = () => {
   useEffect(() => {
     let filtered = [...tasks];
 
-    // Onglets
-    if (activeTab === 'my') {
+    // Filtre par onglet actif
+    if (activeTab === 'my_tasks') {
       filtered = filtered.filter(task => {
-        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : 
-                          task.assignedTo ? [task.assignedTo] : [];
-        return task.createdBy === user?.uid || assignedTo.includes(user?.uid);
+        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        return assignedTo.includes(user?.uid);
       });
     } else if (activeTab === 'available') {
       filtered = filtered.filter(task => {
-        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : 
-                          task.assignedTo ? [task.assignedTo] : [];
-        return assignedTo.length === 0 && task.status !== 'completed' && task.status !== 'validated';
+        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        const isAssignedToMe = assignedTo.includes(user?.uid);
+        const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+        const isOpenToVolunteers = task.openToVolunteers === true;
+        
+        return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && task.status === 'todo';
       });
+    } else if (activeTab === 'others') {
+      filtered = filtered.filter(task => {
+        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
+        const isAssignedToMe = assignedTo.includes(user?.uid);
+        const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+        const isOpenToVolunteers = task.openToVolunteers === true;
+        
+        return !isAssignedToMe && !(isOpenToVolunteers || hasNoAssignment);
+      });
+    } else if (activeTab === 'history') {
+      filtered = filtered.filter(task => ['completed', 'validated', 'cancelled'].includes(task.status));
     }
 
     // Recherche
@@ -322,20 +335,36 @@ const TasksPage = () => {
 
   // 📊 STATISTIQUES
   const stats = useMemo(() => {
+    const myTasks = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      return assignedTo.includes(user?.uid);
+    });
+    
+    const available = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const isAssignedToMe = assignedTo.includes(user?.uid);
+      const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+      const isOpenToVolunteers = t.openToVolunteers === true;
+      
+      return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && t.status === 'todo';
+    });
+    
+    const others = tasks.filter(t => {
+      const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
+      const isAssignedToMe = assignedTo.includes(user?.uid);
+      const hasNoAssignment = assignedTo.length === 0 || !assignedTo.some(id => id && id !== '');
+      const isOpenToVolunteers = t.openToVolunteers === true;
+      
+      return !isAssignedToMe && !(isOpenToVolunteers || hasNoAssignment);
+    });
+
     return {
       total: tasks.length,
-      myTasks: tasks.filter(t => {
-        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : 
-                          t.assignedTo ? [t.assignedTo] : [];
-        return t.createdBy === user?.uid || assignedTo.includes(user?.uid);
-      }).length,
-      available: tasks.filter(t => {
-        const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : 
-                          t.assignedTo ? [t.assignedTo] : [];
-        return assignedTo.length === 0 && t.status !== 'completed' && t.status !== 'validated';
-      }).length,
+      myTasks: myTasks.length,
+      available: available.length,
+      others: others.length,
+      completed: tasks.filter(t => ['completed', 'validated'].includes(t.status)).length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
-      completed: tasks.filter(t => t.status === 'completed' || t.status === 'validated').length,
       totalXP: tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)
     };
   }, [tasks, user?.uid]);
@@ -412,6 +441,10 @@ const TasksPage = () => {
                 <div className="text-2xl font-bold text-green-400">{stats.available}</div>
               </div>
               <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
+                <div className="text-gray-400 text-sm mb-1">Autres</div>
+                <div className="text-2xl font-bold text-gray-400">{stats.others}</div>
+              </div>
+              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
                 <div className="text-gray-400 text-sm mb-1">En cours</div>
                 <div className="text-2xl font-bold text-yellow-400">{stats.inProgress}</div>
               </div>
@@ -419,32 +452,19 @@ const TasksPage = () => {
                 <div className="text-gray-400 text-sm mb-1">Terminées</div>
                 <div className="text-2xl font-bold text-purple-400">{stats.completed}</div>
               </div>
-              <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4">
-                <div className="text-gray-400 text-sm mb-1">XP Total</div>
-                <div className="text-2xl font-bold text-yellow-400">{stats.totalXP}</div>
-              </div>
             </div>
 
             {/* Onglets */}
             <div className="flex items-center space-x-4 mb-6">
               <button
-                onClick={() => setActiveTab('all')}
+                onClick={() => setActiveTab('my_tasks')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === 'all'
+                  activeTab === 'my_tasks'
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-gray-800'
                 }`}
               >
-                Toutes
-              </button>
-              <button
-                onClick={() => setActiveTab('my')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === 'my'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`}
-              >
+                <User className="w-4 h-4 inline mr-2" />
                 Mes quêtes
               </button>
               <button
@@ -455,7 +475,30 @@ const TasksPage = () => {
                     : 'text-gray-400 hover:text-white hover:bg-gray-800'
                 }`}
               >
+                <Users className="w-4 h-4 inline mr-2" />
                 Disponibles
+              </button>
+              <button
+                onClick={() => setActiveTab('others')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'others'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <Eye className="w-4 h-4 inline mr-2" />
+                Autres
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'history'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                <Archive className="w-4 h-4 inline mr-2" />
+                Historique
               </button>
             </div>
 
