@@ -4,6 +4,7 @@
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Folder,
@@ -118,6 +119,9 @@ const VIEW_MODES = {
 };
 
 const ProjectsPage = () => {
+  // 🧭 NAVIGATION
+  const navigate = useNavigate();
+  
   // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
   
@@ -597,6 +601,7 @@ const ProjectsPage = () => {
                   key={project.id}
                   project={project}
                   viewMode={viewMode}
+                  navigate={navigate}
                   onEdit={(proj) => {
                     setEditingProject(proj);
                     setShowProjectForm(true);
@@ -630,7 +635,7 @@ const ProjectsPage = () => {
 };
 
 // 📄 COMPOSANT CARTE PROJET
-const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, tasks, index }) => {
+const ProjectCard = ({ project, viewMode, navigate, onEdit, onDelete, onStatusChange, tasks, index }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   
   const statusConfig = PROJECT_STATUS[project.status] || PROJECT_STATUS.active;
@@ -671,7 +676,10 @@ const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, task
         {/* Actions dropdown */}
         <div className="relative">
           <button
-            onClick={() => setShowDropdown(!showDropdown)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDropdown(!showDropdown);
+            }}
             className="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-all duration-200"
           >
             <MoreVertical className="h-4 w-4" />
@@ -685,7 +693,8 @@ const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, task
               exit={{ opacity: 0, y: -10 }}
             >
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onEdit(project);
                   setShowDropdown(false);
                 }}
@@ -697,7 +706,8 @@ const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, task
               
               {project.status !== 'active' && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onStatusChange(project.id, 'active');
                     setShowDropdown(false);
                   }}
@@ -710,7 +720,8 @@ const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, task
               
               {project.status === 'active' && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onStatusChange(project.id, 'on_hold');
                     setShowDropdown(false);
                   }}
@@ -723,7 +734,8 @@ const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, task
               
               {project.status !== 'completed' && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onStatusChange(project.id, 'completed');
                     setShowDropdown(false);
                   }}
@@ -735,7 +747,8 @@ const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, task
               )}
               
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onDelete(project.id);
                   setShowDropdown(false);
                 }}
@@ -823,8 +836,11 @@ const ProjectCard = ({ project, viewMode, onEdit, onDelete, onStatusChange, task
         </div>
       )}
 
-      {/* Action button */}
-      <button className="w-full py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2">
+      {/* Action button - NAVIGATION AJOUTÉE ICI */}
+      <button 
+        onClick={() => navigate(`/projects/${project.id}`)}
+        className="w-full py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2"
+      >
         <Eye className="h-4 w-4" />
         Voir les détails
       </button>
