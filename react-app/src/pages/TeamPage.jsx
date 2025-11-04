@@ -48,6 +48,7 @@ const TeamPage = () => {
   
   // États onglets
   const [activeTab, setActiveTab] = useState('members'); // 'members' | 'admin'
+  const [forceAdminMode, setForceAdminMode] = useState(false); // Pour test
   
   // États filtres
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,17 +74,45 @@ const TeamPage = () => {
   const [activeConversation, setActiveConversation] = useState(null);
 
   // Vérifier si l'utilisateur est admin
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = forceAdminMode || user?.role === 'admin' || user?.email?.includes('@admin') || user?.isAdmin === true;
+  
+  // Debug pour vérifier le rôle
+  useEffect(() => {
+    if (user) {
+      console.log('👤 User role:', user.role);
+      console.log('🔐 Is Admin:', isAdmin);
+      console.log('📧 User email:', user.email);
+    }
+  }, [user, isAdmin]);
 
   /**
-   * 🚀 CHARGEMENT COMPLET DE L'ÉQUIPE DEPUIS FIREBASE
+   * 🚀 CHARGEMENT ET SYNCHRONISATION AUTOMATIQUE
    */
   useEffect(() => {
-    loadAllTeamMembers();
-    const unsubscribe = loadMessagingData();
+    let unsubscribeTeam = null;
+    let unsubscribeMessages = null;
+    
+    const initializeData = async () => {
+      // Charger les membres avec synchronisation temps réel
+      unsubscribeTeam = await loadAllTeamMembers();
+      
+      // Charger la messagerie avec synchronisation temps réel
+      unsubscribeMessages = await loadMessagingData();
+    };
+    
+    if (user?.uid) {
+      initializeData();
+    }
+    
+    // Nettoyage lors du démontage
     return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
+      if (unsubscribeTeam && typeof unsubscribeTeam === 'function') {
+        console.log('🧹 Nettoyage listener équipe');
+        unsubscribeTeam();
+      }
+      if (unsubscribeMessages && typeof unsubscribeMessages === 'function') {
+        console.log('🧹 Nettoyage listener messagerie');
+        unsubscribeMessages();
       }
     };
   }, [user?.uid]);
@@ -93,63 +122,114 @@ const TeamPage = () => {
     setError(null);
     
     try {
-      console.log('👥 Chargement COMPLET de l\'équipe depuis Firebase...');
+      console.log('👥 Chargement COMPLET de l\'équipe depuis Firebase avec synchronisation temps réel...');
       
+      // RÉCUPÉRER TOUS LES UTILISATEURS AVEC TOUTES LEURS DONNÉES
       const usersQuery = query(
         collection(db, 'users'),
-        orderBy('gamification.totalXp', 'desc'),
-        limit(100)
+        orderBy('gamification.totalXp', 'desc')
       );
       
-      const usersSnapshot = await getDocs(usersQuery);
-      
-      if (usersSnapshot.empty) {
-        console.warn('⚠️ Aucun utilisateur trouvé dans Firebase !');
-        setTeamMembers([]);
-        setLoading(false);
-        return;
-      }
+      // ÉCOUTE TEMPS RÉEL - Synchronisation automatique
+      const unsubscribe = onSnapshot(usersQuery, async (usersSnapshot) => {
+        
+        if (usersSnapshot.empty) {
+          console.warn('⚠️ Aucun utilisateur trouvé dans Firebase !');
+          setTeamMembers([]);
+          setLoading(false);
+          return;
+        }
 
-      const membersData = [];
-      
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data();
+        const membersData = [];
         
-        const member = {
-          id: doc.id,
-          uid: doc.id,
-          name: userData.displayName || userData.name || 'Utilisateur anonyme',
-          email: userData.email || '',
-          role: userData.role || 'Membre',
-          department: userData.department || 'Non spécifié',
-          photoURL: userData.photoURL || null,
-          status: userData.status || 'actif',
-          isOnline: userData.isOnline || false,
-          joinedAt: userData.createdAt?.toDate?.() || new Date(),
-          lastActivity: userData.lastActivity?.toDate?.() || new Date(),
-          totalXp: userData.gamification?.totalXp || userData.xp || 0,
-          level: userData.gamification?.level || userData.level || 1,
-          tasksCompleted: userData.tasksCompleted || 0,
-          badgesCount: userData.gamification?.badges?.length || 0,
-          badges: userData.gamification?.badges || [],
-          completionRate: userData.completionRate || 0,
-          phone: userData.phone || null,
-          location: userData.location || null,
-          bio: userData.bio || null,
-          skills: userData.skills || [],
-          synergiaRoles: userData.synergiaRoles || []
-        };
+        // Pour chaque utilisateur, récupérer TOUTES ses données
+        for (const userDoc of usersSnapshot.docs) {
+          const userData = userDoc.data();
+          const userId = userDoc.id;
+          
+          // RÉCUPÉRER LES TÂCHES COMPLÉTÉES
+          const tasksQuery = query(
+            collection(db, 'tasks'),
+            where('assignedTo', 'array-contains', userId),
+            where('status', '==', 'completed')
+          );
+          const tasksSnapshot = await getDocs(tasksQuery);
+          const tasksCompleted = tasksSnapshot.size;
+          
+          // RÉCUPÉRER LE TOTAL XP DEPUIS GAMIFICATION
+          const gamification = userData.gamification || {};
+          const totalXp = gamification.totalXp || 0;
+          const level = gamification.level || Math.floor(totalXp / 100) + 1;
+          const weeklyXp = gamification.weeklyXp || 0;
+          const monthlyXp = gamification.monthlyXp || 0;
+          const badges = gamification.badges || [];
+          
+          // CRÉER L'OBJET MEMBRE COMPLET
+          const member = {
+            id: userId,
+            uid: userId,
+            name: userData.displayName || userData.name || 'Utilisateur anonyme',
+            email: userData.email || '',
+            role: userData.role || 'Membre',
+            department: userData.department || 'Non spécifié',
+            photoURL: userData.photoURL || null,
+            status: userData.status || 'actif',
+            isOnline: userData.isOnline || false,
+            joinedAt: userData.createdAt?.toDate?.() || new Date(),
+            lastActivity: userData.lastActivity?.toDate?.() || new Date(),
+            
+            // DONNÉES GAMIFICATION SYNCHRONISÉES
+            totalXp: totalXp,
+            level: level,
+            weeklyXp: weeklyXp,
+            monthlyXp: monthlyXp,
+            tasksCompleted: tasksCompleted,
+            badgesCount: badges.length,
+            badges: badges,
+            
+            // DONNÉES CALCULÉES
+            completionRate: userData.completionRate || 0,
+            currentLevelXp: totalXp % 100,
+            nextLevelXpRequired: 100,
+            xpProgress: ((totalXp % 100) / 100) * 100,
+            
+            // DONNÉES PROFIL
+            phone: userData.phone || null,
+            location: userData.location || null,
+            bio: userData.bio || null,
+            skills: userData.skills || [],
+            synergiaRoles: userData.synergiaRoles || [],
+            
+            // MÉTADONNÉES
+            lastSync: new Date(),
+            syncSource: 'firebase_realtime'
+          };
+          
+          membersData.push(member);
+        }
         
-        membersData.push(member);
+        console.log(`✅ ${membersData.length} membres chargés avec synchronisation temps réel`);
+        console.log('📊 Données synchronisées:', {
+          totalMembers: membersData.length,
+          totalXP: membersData.reduce((sum, m) => sum + m.totalXp, 0),
+          averageLevel: Math.round(membersData.reduce((sum, m) => sum + m.level, 0) / membersData.length),
+          totalTasks: membersData.reduce((sum, m) => sum + m.tasksCompleted, 0)
+        });
+        
+        setTeamMembers(membersData);
+        setLoading(false);
+      }, (error) => {
+        console.error('❌ Erreur synchronisation temps réel:', error);
+        setError(error.message);
+        setLoading(false);
       });
       
-      console.log(`✅ ${membersData.length} membres chargés avec succès`);
-      setTeamMembers(membersData);
+      // Retourner la fonction de désabonnement
+      return unsubscribe;
       
     } catch (error) {
       console.error('❌ Erreur chargement équipe:', error);
       setError(error.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -472,6 +552,24 @@ const TeamPage = () => {
 
               {/* Boutons actions rapides */}
               <div className="flex gap-3">
+                
+                {/* BOUTON TEST ADMIN - À RETIRER EN PRODUCTION */}
+                <button
+                  onClick={() => {
+                    setForceAdminMode(!forceAdminMode);
+                    console.log('🔧 Mode Admin forcé:', !forceAdminMode);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    forceAdminMode 
+                      ? 'bg-red-500 hover:bg-red-600 text-white' 
+                      : 'bg-gray-700/50 hover:bg-gray-600/50 text-white'
+                  }`}
+                  title="Activer/désactiver le mode admin (TEST)"
+                >
+                  <Shield className="w-5 h-5" />
+                  {forceAdminMode ? 'Admin ON' : 'Test Admin'}
+                </button>
+                
                 <button
                   onClick={() => loadAllTeamMembers()}
                   className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg text-white transition-colors"
@@ -520,7 +618,10 @@ const TeamPage = () => {
             {/* ONGLETS */}
             <div className="flex gap-2 bg-gray-800/50 p-2 rounded-lg">
               <button
-                onClick={() => setActiveTab('members')}
+                onClick={() => {
+                  console.log('🖱️ Clic sur onglet Membres');
+                  setActiveTab('members');
+                }}
                 className={`flex-1 px-4 py-3 rounded-lg transition-colors ${
                   activeTab === 'members'
                     ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
@@ -533,9 +634,12 @@ const TeamPage = () => {
                 </div>
               </button>
 
-              {isAdmin && (
+              {isAdmin ? (
                 <button
-                  onClick={() => setActiveTab('admin')}
+                  onClick={() => {
+                    console.log('🖱️ Clic sur onglet Admin');
+                    setActiveTab('admin');
+                  }}
                   className={`flex-1 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === 'admin'
                       ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white'
@@ -547,7 +651,36 @@ const TeamPage = () => {
                     <span className="font-medium">Administration</span>
                   </div>
                 </button>
+              ) : (
+                <div className="flex-1 px-4 py-3 rounded-lg bg-gray-700/30 text-gray-500 cursor-not-allowed">
+                  <div className="flex items-center justify-center gap-2">
+                    <Lock className="w-5 h-5" />
+                    <span className="font-medium text-sm">Admin (rôle requis)</span>
+                  </div>
+                </div>
               )}
+            </div>
+            
+            {/* Debug info - À RETIRER EN PRODUCTION */}
+            <div className="mt-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg text-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-300">
+                    <strong>DEBUG:</strong> Onglet actif: <span className="font-mono">{activeTab}</span> | 
+                    Is Admin: <span className="font-mono">{isAdmin ? 'OUI' : 'NON'}</span> | 
+                    Role: <span className="font-mono">{user?.role || 'non défini'}</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-green-400 text-xs font-medium">Synchronisation temps réel active</span>
+                </div>
+              </div>
+              <div className="mt-2 text-blue-200 text-xs">
+                Dernière MAJ: {new Date().toLocaleTimeString()} | 
+                Membres chargés: {teamMembers.length} | 
+                XP total équipe: {teamMembers.reduce((sum, m) => sum + (m.totalXp || 0), 0).toLocaleString()}
+              </div>
             </div>
           </div>
 
@@ -763,16 +896,33 @@ const TeamPage = () => {
 
                         <div className="grid grid-cols-3 gap-2 mb-4 text-center">
                           <div>
-                            <div className="text-lg font-bold text-yellow-400">{member.totalXp.toLocaleString()}</div>
+                            <div className="text-lg font-bold text-yellow-400" title={`XP Total: ${member.totalXp}`}>
+                              {member.totalXp.toLocaleString()}
+                            </div>
                             <div className="text-xs text-gray-400">XP</div>
+                            {member.weeklyXp > 0 && (
+                              <div className="text-xs text-green-400">+{member.weeklyXp} cette semaine</div>
+                            )}
                           </div>
                           <div>
                             <div className="text-lg font-bold text-blue-400">{member.level}</div>
                             <div className="text-xs text-gray-400">Niveau</div>
+                            <div className="w-full bg-gray-700 rounded-full h-1 mt-1">
+                              <div 
+                                className="bg-blue-400 h-1 rounded-full transition-all duration-500"
+                                style={{ width: `${member.xpProgress}%` }}
+                                title={`${member.currentLevelXp}/${member.nextLevelXpRequired} XP`}
+                              />
+                            </div>
                           </div>
                           <div>
                             <div className="text-lg font-bold text-green-400">{member.tasksCompleted}</div>
                             <div className="text-xs text-gray-400">Tâches</div>
+                            {member.lastSync && (
+                              <div className="text-xs text-gray-500">
+                                MAJ: {member.lastSync.toLocaleTimeString().slice(0, 5)}
+                              </div>
+                            )}
                           </div>
                         </div>
 
