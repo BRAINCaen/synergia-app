@@ -33,7 +33,7 @@ import { collection, query, onSnapshot, where, getDocs } from 'firebase/firestor
 import { db } from '../core/firebase.js';
 
 // Badges par défaut
-import { SYNERGIA_BADGES } from '../shared/config/badges.js';
+import { BADGE_DEFINITIONS } from '../core/services/badgeDefinitions.js';
 
 /**
  * 🏆 PAGE BADGES - DESIGN SYNERGIA PREMIUM
@@ -66,7 +66,7 @@ const BadgesPage = () => {
           setUserBadges(earnedBadgeIds);
           
           // Combiner avec badges par défaut
-          const combinedBadges = SYNERGIA_BADGES.map(badge => ({
+          const combinedBadges = Object.values(BADGE_DEFINITIONS).map(badge => ({
             ...badge,
             earned: earnedBadgeIds.includes(badge.id)
           }));
