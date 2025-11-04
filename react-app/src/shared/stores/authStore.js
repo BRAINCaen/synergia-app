@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// AUTH STORE AVEC PERSISTENCE COMPLÈTE - SOLUTION DÉFINITIVE
+// AUTH STORE AVEC PERSISTENCE LOCALE UNIQUEMENT (NO SESSIONSTORAGE)
 // ==========================================
 
 import { create } from 'zustand';
@@ -13,12 +13,11 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   setPersistence,
-  browserLocalPersistence,
-  getAuth
+  browserLocalPersistence
 } from 'firebase/auth';
 import { auth } from '../../core/firebase.js';
 
-// Provider Google avec configuration persistence
+// Provider Google avec configuration
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
   prompt: 'select_account'
@@ -28,15 +27,16 @@ googleProvider.setCustomParameters({
 let authStateInitialized = false;
 let unsubscribeAuth = null;
 
-// 🔐 CONFIGURATION PERSISTENCE FIREBASE
+// 🔐 CONFIGURATION PERSISTENCE FIREBASE (LOCAL STORAGE UNIQUEMENT)
 const setupFirebaseAuth = async () => {
   try {
-    console.log('🔐 Configuration persistence Firebase...');
+    console.log('🔐 Configuration persistence Firebase (localStorage)...');
     
-    // Configurer la persistence pour garder l'utilisateur connecté
+    // ⚠️ IMPORTANT: Utiliser UNIQUEMENT browserLocalPersistence
+    // JAMAIS browserSessionPersistence pour éviter l'erreur sessionStorage
     await setPersistence(auth, browserLocalPersistence);
     
-    console.log('✅ Firebase Auth persistence configurée');
+    console.log('✅ Firebase Auth persistence configurée (localStorage)');
     return true;
   } catch (error) {
     console.error('❌ Erreur configuration Firebase persistence:', error);
@@ -44,34 +44,7 @@ const setupFirebaseAuth = async () => {
   }
 };
 
-// 💾 FONCTIONS DE STOCKAGE LOCAL PERSONNALISÉES
-const customStorage = {
-  getItem: (name) => {
-    try {
-      const item = localStorage.getItem(name);
-      return item ? JSON.parse(item) : null;
-    } catch (error) {
-      console.warn('Erreur lecture localStorage:', error);
-      return null;
-    }
-  },
-  setItem: (name, value) => {
-    try {
-      localStorage.setItem(name, JSON.stringify(value));
-    } catch (error) {
-      console.warn('Erreur écriture localStorage:', error);
-    }
-  },
-  removeItem: (name) => {
-    try {
-      localStorage.removeItem(name);
-    } catch (error) {
-      console.warn('Erreur suppression localStorage:', error);
-    }
-  },
-};
-
-// Store avec persistence Zustand + Firebase
+// Store avec persistence Zustand (localStorage uniquement)
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -89,9 +62,10 @@ export const useAuthStore = create(
           set({ loading: true, error: null });
           console.log('🔍 Tentative connexion Google...');
           
-          // Assurer la persistence avant connexion
+          // Assurer la persistence locale avant connexion
           await setupFirebaseAuth();
           
+          // ✅ Utiliser signInWithPopup (PAS signInWithRedirect)
           const result = await signInWithPopup(auth, googleProvider);
           const user = result.user;
           
@@ -136,7 +110,7 @@ export const useAuthStore = create(
           set({ loading: true, error: null });
           console.log('📧 Tentative connexion email...');
           
-          // Assurer la persistence avant connexion
+          // Assurer la persistence locale avant connexion
           await setupFirebaseAuth();
           
           const result = await signInWithEmailAndPassword(auth, email, password);
@@ -178,12 +152,12 @@ export const useAuthStore = create(
       },
 
       // 📝 INSCRIPTION
-      signUpWithEmail: async (email, password) => {
+      signUpWithEmail: async (email, password, displayName) => {
         try {
           set({ loading: true, error: null });
           console.log('📝 Tentative inscription...');
           
-          // Assurer la persistence avant inscription
+          // Assurer la persistence locale
           await setupFirebaseAuth();
           
           const result = await createUserWithEmailAndPassword(auth, email, password);
@@ -199,7 +173,7 @@ export const useAuthStore = create(
             user: {
               uid: user.uid,
               email: user.email,
-              displayName: user.displayName,
+              displayName: displayName || user.displayName,
               photoURL: user.photoURL,
               emailVerified: user.emailVerified
             }, 
@@ -227,21 +201,21 @@ export const useAuthStore = create(
       // 🚪 DÉCONNEXION
       signOut: async () => {
         try {
-          console.log('👋 Déconnexion...');
+          console.log('🔄 Déconnexion...');
           
           await firebaseSignOut(auth);
           
           set({ 
             user: null, 
-            loading: false, 
-            error: null,
-            isAuthenticated: false,
+            isAuthenticated: false, 
+            error: null, 
+            loading: false,
             lastLoginTime: null,
             sessionExpiry: null
           });
           
-          // Nettoyer le localStorage
-          customStorage.removeItem('auth-storage');
+          // Nettoyer localStorage
+          localStorage.removeItem('auth-storage');
           
           console.log('✅ Déconnexion réussie');
           
@@ -284,7 +258,7 @@ export const useAuthStore = create(
         return true;
       },
 
-      // ✅ INITIALISATION UNIQUE ET STABLE
+      // ✅ INITIALISATION AUTH STATE (UNE SEULE FOIS)
       initializeAuth: () => {
         // Éviter les initialisations multiples
         if (authStateInitialized) {
@@ -292,182 +266,77 @@ export const useAuthStore = create(
           return;
         }
 
-        console.log('🔍 Initialisation unique auth state...');
+        console.log('🔍 Initialisation auth state...');
         authStateInitialized = true;
         
-        // Configurer Firebase Auth
+        // Configurer Firebase Auth (localStorage uniquement)
         setupFirebaseAuth();
         
         // Observer les changements d'état UNE SEULE FOIS
         unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-          console.log('🔔 Auth state changed:', user ? `Connecté: ${user.email}` : 'Déconnecté');
+          console.log('🔔 Auth state changed:', user ? user.email : 'déconnecté');
           
           if (user) {
-            // Vérifier expiration avant de connecter
-            const { checkSessionExpiry } = get();
-            if (checkSessionExpiry()) {
-              const now = Date.now();
-              const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 heures
-              
-              set({ 
-                user: {
-                  uid: user.uid,
-                  email: user.email,
-                  displayName: user.displayName,
-                  photoURL: user.photoURL,
-                  emailVerified: user.emailVerified
-                }, 
-                loading: false, 
-                error: null,
-                isAuthenticated: true,
-                sessionExpiry: sessionExpiry
-              });
-            }
-          } else {
-            set({ 
-              user: null, 
-              loading: false, 
+            const now = Date.now();
+            const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 heures
+            
+            set({
+              user: {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                emailVerified: user.emailVerified
+              },
+              isAuthenticated: true,
+              loading: false,
               error: null,
+              lastLoginTime: now,
+              sessionExpiry: sessionExpiry
+            });
+          } else {
+            set({
+              user: null,
               isAuthenticated: false,
+              loading: false,
+              error: null,
               lastLoginTime: null,
               sessionExpiry: null
             });
           }
-        }, (error) => {
-          console.error('❌ Erreur observer auth:', error);
-          set({ 
-            error: error.message, 
-            loading: false,
-            user: null,
-            isAuthenticated: false 
-          });
         });
-
-        return unsubscribeAuth;
       },
 
-      // 🧹 NETTOYER L'ERREUR
-      clearError: () => {
-        set({ error: null });
-      },
-
-      // 🧹 NETTOYER LES LISTENERS
+      // 🧹 NETTOYER L'OBSERVER
       cleanup: () => {
         if (unsubscribeAuth) {
+          console.log('🧹 Nettoyage observer auth');
           unsubscribeAuth();
           unsubscribeAuth = null;
+          authStateInitialized = false;
         }
-        authStateInitialized = false;
       }
     }),
     {
-      name: 'auth-storage', // nom unique pour le localStorage
-      storage: createJSONStorage(() => customStorage),
+      name: 'auth-storage', // Clé localStorage
+      storage: createJSONStorage(() => localStorage), // ⚠️ UNIQUEMENT localStorage
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         lastLoginTime: state.lastLoginTime,
         sessionExpiry: state.sessionExpiry
       }),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          console.log('💾 State réhydraté depuis localStorage');
-          
-          // Vérifier si la session n'a pas expiré
-          if (state.sessionExpiry && Date.now() > state.sessionExpiry) {
-            console.log('⏰ Session expirée au démarrage, reset');
-            return {
-              ...state,
-              user: null,
-              isAuthenticated: false,
-              lastLoginTime: null,
-              sessionExpiry: null
-            };
-          }
-          
-          // Si utilisateur présent, vérifier avec Firebase
-          if (state.user && state.isAuthenticated) {
-            setTimeout(() => {
-              const currentUser = auth.currentUser;
-              if (!currentUser) {
-                console.log('⚠️ Utilisateur localStorage mais pas Firebase, déconnexion');
-                state.signOut && state.signOut();
-              }
-            }, 1000);
-          }
-        }
-      },
     }
   )
 );
 
-// ==========================================
-// 🚀 INITIALISATION UNIQUE ET SÉCURISÉE
-// ==========================================
+// ✅ INITIALISATION AUTOMATIQUE AU CHARGEMENT
+if (typeof window !== 'undefined') {
+  console.log('🚀 Initialisation automatique auth store...');
+  useAuthStore.getState().initializeAuth();
+}
 
-// Fonction d'initialisation à appeler manuellement depuis App.jsx
-export const initializeAuthStore = () => {
-  if (!authStateInitialized) {
-    console.log('🚀 Initialisation unique AuthStore avec persistence');
-    const store = useAuthStore.getState();
-    
-    // S'assurer qu'on ne lance qu'une seule fois
-    if (store && typeof store.initializeAuth === 'function') {
-      store.initializeAuth();
-    }
-    
-    // Vérification périodique de l'expiration (toutes les 5 minutes)
-    setInterval(() => {
-      const store = useAuthStore.getState();
-      if (store.isAuthenticated) {
-        store.checkSessionExpiry();
-      }
-    }, 5 * 60 * 1000); // 5 minutes
-    
-  } else {
-    console.log('🔒 AuthStore déjà initialisé, ignorer');
-  }
-};
-
-// ==========================================
-// 🔧 HOOK PERSONNALISÉ POUR VÉRIFICATION AUTO
-// ==========================================
-
-export const useAuthPersistence = () => {
-  const store = useAuthStore();
-  
-  React.useEffect(() => {
-    // Vérification au montage
-    if (store.isAuthenticated && !store.checkSessionExpiry()) {
-      console.log('Session expirée détectée dans useAuthPersistence');
-    }
-    
-    // Actualiser le token périodiquement si connecté
-    if (store.isAuthenticated) {
-      const tokenRefreshInterval = setInterval(async () => {
-        try {
-          await store.refreshAuthToken();
-        } catch (error) {
-          console.log('Erreur actualisation token, déconnexion');
-          store.signOut();
-        }
-      }, 50 * 60 * 1000); // 50 minutes
-      
-      return () => clearInterval(tokenRefreshInterval);
-    }
-  }, [store.isAuthenticated]);
-  
-  return store;
-};
-
-// ==========================================
-// 📋 LOGS DE CONFIRMATION
-// ==========================================
-console.log('✅ AuthStore avec persistence complète chargé');
-console.log('🔧 Session persistence: 24h');
-console.log('🔄 Token refresh: automatique');
-console.log('💾 localStorage: activé');
-console.log('🛡️ Appel initializeAuthStore() requis');
-
-// Export par défaut pour compatibilité
+// ✅ EXPORTS
 export default useAuthStore;
+
+console.log('✅ Auth Store chargé avec persistence localStorage uniquement');
