@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// CORRECTION DU BOUTON "VOIR DÉTAILS" - VERSION QUÊTES
+// CARTE DE QUÊTE - AVEC BADGE COMMENTAIRES TEMPS RÉEL
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -15,7 +15,8 @@ import {
   Trash2, 
   CheckCircle,
   Send,
-  Eye
+  Eye,
+  MessageCircle
 } from 'lucide-react';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
@@ -90,11 +91,12 @@ const SubmitButton = ({ task, onSubmit, disabled }) => {
 };
 
 /**
- * 🎯 COMPOSANT PRINCIPAL TASKCARD - VERSION CORRIGÉE
+ * 🎯 COMPOSANT PRINCIPAL TASKCARD - VERSION AVEC BADGE COMMENTAIRES
  */
 const TaskCard = ({ 
   task, 
   currentUser,
+  commentCount = 0, // 💬 NOUVEAU PROP POUR LES COMMENTAIRES
   onViewDetails,  // ⚡ FONCTION CRITIQUE
   onEdit, 
   onDelete, 
@@ -216,8 +218,20 @@ const TaskCard = ({
   };
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-all">
+    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-all relative">
       
+      {/* 💬 BADGE COMMENTAIRES - EN HAUT À DROITE */}
+      {commentCount > 0 && (
+        <div className="absolute -top-2 -right-2 z-10">
+          <div className="relative">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold shadow-lg animate-pulse">
+              {commentCount}
+            </div>
+            <MessageCircle className="absolute top-0 right-0 w-3 h-3 text-white transform translate-x-1 -translate-y-1" />
+          </div>
+        </div>
+      )}
+
       {/* Header avec badges */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -258,6 +272,16 @@ const TaskCard = ({
           </div>
         )}
 
+        {/* 💬 INDICATEUR COMMENTAIRES DANS LES MÉTADONNÉES */}
+        {commentCount > 0 && (
+          <div className="flex items-center gap-2 text-blue-400">
+            <MessageCircle className="w-4 h-4" />
+            <span className="font-medium">
+              {commentCount} commentaire{commentCount > 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
         {/* Date limite */}
         {task.dueDate && (
           <div className="flex items-center gap-2 text-gray-400">
@@ -294,6 +318,11 @@ const TaskCard = ({
         >
           <Eye className="w-4 h-4" />
           Voir détails
+          {commentCount > 0 && (
+            <span className="ml-1 bg-blue-800 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+              {commentCount}
+            </span>
+          )}
         </button>
 
         {/* Soumettre */}
@@ -379,6 +408,9 @@ const TaskCard = ({
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>ID: {task.id?.slice(-8)}</span>
           <span>Status: {task.status}</span>
+          {commentCount > 0 && (
+            <span className="text-blue-400">💬 {commentCount}</span>
+          )}
         </div>
       </div>
     </div>
