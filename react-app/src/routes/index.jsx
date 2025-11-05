@@ -37,7 +37,6 @@ import AdminProfileTestPage from '../pages/AdminProfileTestPage.jsx'
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx'
 import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'
 import AdminBadgesPage from '../pages/AdminBadgesPage.jsx'
-import AdminUsersPage from '../pages/AdminUsersPage.jsx'
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx'
 import AdminSyncPage from '../pages/AdminSyncPage.jsx'
@@ -109,7 +108,6 @@ const AppRoutes = () => {
       <Route path={ROUTES.ADMIN_OBJECTIVE_VALIDATION} element={<ProtectedRoute adminOnly={true}><AdminObjectiveValidationPage /></ProtectedRoute>} />
       <Route path={ROUTES.ADMIN_REWARDS} element={<ProtectedRoute adminOnly={true}><AdminRewardsPage /></ProtectedRoute>} />
       <Route path={ROUTES.ADMIN_BADGES} element={<ProtectedRoute adminOnly={true}><AdminBadgesPage /></ProtectedRoute>} />
-      <Route path={ROUTES.ADMIN_USERS} element={<ProtectedRoute adminOnly={true}><AdminUsersPage /></ProtectedRoute>} />
       <Route path={ROUTES.ADMIN_ANALYTICS} element={<ProtectedRoute adminOnly={true}><AdminAnalyticsPage /></ProtectedRoute>} />
       <Route path={ROUTES.ADMIN_SETTINGS} element={<ProtectedRoute adminOnly={true}><AdminSettingsPage /></ProtectedRoute>} />
       <Route path={ROUTES.ADMIN_ROLE_PERMISSIONS} element={<ProtectedRoute adminOnly={true}><AdminRolePermissionsPage /></ProtectedRoute>} />
@@ -144,6 +142,11 @@ export default AppRoutes
 - /projects/:id redirige vers /campaigns/:id
 
 ✅ CORRECTION BUILD :
-- Import corrigé pour AdminUsersPage.jsx
-- Chemin d'import vérifié : '../pages/AdminUsersPage.jsx'
+- SUPPRESSION de AdminUsersPage (inutile, fonctionnalité déjà dans TeamPage avec onglet admin)
+- Route /admin/users SUPPRIMÉE (redondante avec /team)
+- Build corrigé et fonctionnel
+
+📝 NOTE :
+La gestion des utilisateurs est accessible via TeamPage avec un onglet réservé aux admins.
+Pas besoin de page séparée AdminUsersPage.
 */
