@@ -162,19 +162,8 @@ const TeamPage = () => {
       console.log('🧹 [MODAL] Nettoyage listener quêtes');
       unsubscribe();
     };
-}, [showMemberModal, selectedMember]);  // ✅ PAS [showMemberModal, selectedMember?.id]    
-    // Nettoyage lors du démontage
-    return () => {
-      if (unsubscribeTeam && typeof unsubscribeTeam === 'function') {
-        console.log('🧹 Nettoyage listener équipe');
-        unsubscribeTeam();
-      }
-      if (unsubscribeMessages && typeof unsubscribeMessages === 'function') {
-        console.log('🧹 Nettoyage listener messagerie');
-        unsubscribeMessages();
-      }
-    };
-}, [user]);
+    }, [showMemberModal, selectedMember]);
+
   const loadAllTeamMembers = async () => {
     setLoading(true);
     setError(null);
