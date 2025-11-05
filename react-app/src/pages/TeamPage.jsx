@@ -1160,6 +1160,56 @@ const TeamPage = () => {
         {/* MODAL PROFIL MEMBRE AVEC QUÊTES DÉTAILLÉES */}
         <AnimatePresence>
           {showMemberModal && selectedMember && (
+      // 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL
+useEffect(() => {
+  if (!showMemberModal || !selectedMember) return;
+
+  console.log('🔄 [MODAL] Synchronisation quêtes pour:', selectedMember.name);
+
+  // Listener temps réel sur les quêtes de cet utilisateur
+  const questsQuery = query(collection(db, 'quests'));
+  
+  const unsubscribe = onSnapshot(questsQuery, async (snapshot) => {
+    const userQuests = [];
+    let questsInProgress = 0;
+    let questsCompleted = 0;
+
+    snapshot.forEach((doc) => {
+      const questData = doc.data();
+      const assigned = questData.assignedTo || [];
+      
+      // Vérifier si l'utilisateur sélectionné est assigné
+      if (Array.isArray(assigned) && assigned.includes(selectedMember.id)) {
+        userQuests.push({
+          id: doc.id,
+          ...questData
+        });
+        
+        if (questData.status === 'in_progress' || questData.status === 'assigned' || questData.status === 'pending') {
+          questsInProgress++;
+        } else if (questData.status === 'completed' || questData.status === 'validated') {
+          questsCompleted++;
+        }
+      }
+    });
+
+    console.log(`✅ [MODAL] ${userQuests.length} quêtes synchronisées pour ${selectedMember.name}`);
+
+    // Mettre à jour selectedMember avec les nouvelles quêtes
+    setSelectedMember(prev => ({
+      ...prev,
+      quests: userQuests,
+      questsTotal: userQuests.length,
+      questsInProgress: questsInProgress,
+      questsCompleted: questsCompleted
+    }));
+  });
+
+  return () => {
+    console.log('🧹 [MODAL] Nettoyage listener quêtes');
+    unsubscribe();
+  };
+}, [showMemberModal, selectedMember?.id]);
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
