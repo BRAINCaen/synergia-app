@@ -46,7 +46,8 @@ import {
   Save,
   X,
   Filter,
-  Search
+  Search,
+  Trophy  // ✅ AJOUT DE L'IMPORT MANQUANT
 } from 'lucide-react';
 
 // Firebase imports
@@ -62,7 +63,8 @@ import {
   where, 
   orderBy, 
   serverTimestamp,
-  onSnapshot 
+  onSnapshot,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -466,6 +468,8 @@ const OnboardingPage = () => {
     currentPhase: null,
     badges: []
   });
+
+  // ... LE RESTE DU CODE RESTE IDENTIQUE ...
 
   // ==========================================
   // 📊 CHARGEMENT DES DONNÉES
