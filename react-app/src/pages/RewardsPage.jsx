@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
-// PAGE RÉCOMPENSES 100% FIREBASE - ZÉRO DONNÉES MOCK
+// PAGE RÉCOMPENSES 100% FIREBASE - IMPORTS CORRIGÉS
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -20,11 +20,11 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 import { useRewards } from '../shared/hooks/useRewards.js';
 
-// 📊 FIREBASE IMPORTS
+// 📊 FIREBASE IMPORTS - CORRECTION ICI !
 import { 
   collection, query, orderBy, onSnapshot, where, getDocs, doc, getDoc,
   addDoc, updateDoc, deleteDoc, serverTimestamp
-} from 'firestore';
+} from 'firebase/firestore'; // ✅ CORRIGÉ: firebase/firestore au lieu de 'firestore'
 import { db } from '../core/firebase.js';
 
 /**
