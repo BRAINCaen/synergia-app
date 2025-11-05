@@ -146,9 +146,11 @@ const TeamPage = () => {
           const userData = userDoc.data();
           const userId = userDoc.id;
           
-          console.log(`🔍 Recherche quêtes pour: ${userData.displayName || userId}`);
+          const userName = userData.displayName || userData.name || 'Inconnu';
+          const userEmail = userData.email || '';
+          console.log(`🔍 Recherche quêtes pour: ${userName} (ID: ${userId}, Email: ${userEmail})`);
           
-          // RÉCUPÉRER TOUTES LES QUÊTES (assignedTo peut être string OU array)
+          // RÉCUPÉRER TOUTES LES QUÊTES
           const allQuestsQuery = query(collection(db, 'quests'));
           const allQuestsSnap = await getDocs(allQuestsQuery);
           
@@ -160,12 +162,24 @@ const TeamPage = () => {
             const questData = doc.data();
             const assignedTo = questData.assignedTo;
             
-            // Vérifier si l'utilisateur est assigné (array OU string)
+            // VÉRIFICATION MULTIPLE : UID, EMAIL, NOM
             let isAssigned = false;
+            
             if (Array.isArray(assignedTo)) {
-              isAssigned = assignedTo.includes(userId);
-            } else if (typeof assignedTo === 'string') {
-              isAssigned = assignedTo === userId;
+              // Vérifier si array contient UID, email ou nom
+              isAssigned = assignedTo.some(item => {
+                if (!item) return false;
+                const itemStr = String(item).toLowerCase();
+                return itemStr === userId.toLowerCase() || 
+                       itemStr === userEmail.toLowerCase() ||
+                       itemStr === userName.toLowerCase();
+              });
+            } else if (assignedTo) {
+              // Vérifier si string correspond à UID, email ou nom
+              const assignedStr = String(assignedTo).toLowerCase();
+              isAssigned = assignedStr === userId.toLowerCase() || 
+                          assignedStr === userEmail.toLowerCase() ||
+                          assignedStr === userName.toLowerCase();
             }
             
             if (isAssigned) {
@@ -174,6 +188,8 @@ const TeamPage = () => {
                 ...questData
               };
               userQuests.push(quest);
+              
+              console.log(`   ✅ Quête trouvée: "${questData.title}" (${questData.status})`);
               
               // Compter par statut
               if (questData.status === 'in_progress' || questData.status === 'todo') {
@@ -184,7 +200,11 @@ const TeamPage = () => {
             }
           });
           
-          console.log(`📊 ${userData.displayName || userId}: ${userQuests.length} quêtes (${questsInProgress} en cours, ${questsCompleted} accomplies)`);
+          console.log(`📊 ${userName}: ${userQuests.length} quêtes trouvées`);
+          console.log(`   📍 ${questsInProgress} en cours, ${questsCompleted} accomplies`);
+          if (userQuests.length > 0) {
+            console.log(`   📋 Liste:`, userQuests.map(q => `"${q.title}" (${q.status})`).join(', '));
+          }
           
           // DONNÉES GAMIFICATION
           const gamification = userData.gamification || {};
