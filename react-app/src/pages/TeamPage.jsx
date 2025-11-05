@@ -158,6 +158,18 @@ const TeamPage = () => {
           let questsInProgress = 0;
           let questsCompleted = 0;
           
+          // 🔍 DEBUG : Afficher TOUTES les quêtes pour cet utilisateur
+          if (userName === 'Laurena Gey' || userEmail.includes('laurena')) {
+            console.log('🐛 DEBUG LAURENA - Analyse de TOUTES les quêtes:');
+            allQuestsSnap.forEach(doc => {
+              const q = doc.data();
+              console.log(`   📋 "${q.title}"`);
+              console.log(`      assignedTo:`, q.assignedTo);
+              console.log(`      type:`, Array.isArray(q.assignedTo) ? 'array' : typeof q.assignedTo);
+              console.log(`      status:`, q.status);
+            });
+          }
+          
           allQuestsSnap.forEach(doc => {
             const questData = doc.data();
             const assignedTo = questData.assignedTo;
@@ -165,21 +177,44 @@ const TeamPage = () => {
             // VÉRIFICATION MULTIPLE : UID, EMAIL, NOM
             let isAssigned = false;
             
+            // 🔍 DEBUG pour Laurena
+            const isLaurena = userName === 'Laurena Gey' || userEmail.includes('laurena');
+            
             if (Array.isArray(assignedTo)) {
               // Vérifier si array contient UID, email ou nom
               isAssigned = assignedTo.some(item => {
                 if (!item) return false;
                 const itemStr = String(item).toLowerCase();
-                return itemStr === userId.toLowerCase() || 
-                       itemStr === userEmail.toLowerCase() ||
-                       itemStr === userName.toLowerCase();
+                const matchUID = itemStr === userId.toLowerCase();
+                const matchEmail = itemStr === userEmail.toLowerCase();
+                const matchName = itemStr === userName.toLowerCase();
+                
+                if (isLaurena && (matchUID || matchEmail || matchName)) {
+                  console.log(`      ✅ MATCH trouvé pour "${questData.title}":`, { itemStr, matchUID, matchEmail, matchName });
+                }
+                
+                return matchUID || matchEmail || matchName;
               });
             } else if (assignedTo) {
               // Vérifier si string correspond à UID, email ou nom
               const assignedStr = String(assignedTo).toLowerCase();
-              isAssigned = assignedStr === userId.toLowerCase() || 
-                          assignedStr === userEmail.toLowerCase() ||
-                          assignedStr === userName.toLowerCase();
+              const matchUID = assignedStr === userId.toLowerCase();
+              const matchEmail = assignedStr === userEmail.toLowerCase();
+              const matchName = assignedStr === userName.toLowerCase();
+              
+              if (isLaurena) {
+                console.log(`   🔍 Comparaison pour "${questData.title}":`, {
+                  assignedStr,
+                  userId: userId.toLowerCase(),
+                  userEmail: userEmail.toLowerCase(),
+                  userName: userName.toLowerCase(),
+                  matchUID,
+                  matchEmail,
+                  matchName
+                });
+              }
+              
+              isAssigned = matchUID || matchEmail || matchName;
             }
             
             if (isAssigned) {
