@@ -115,8 +115,7 @@ const TeamPage = () => {
         unsubscribeMessages();
       }
     };
-  }, [user?.uid]);
-
+}, [user]);  // ✅ PAS [user?.uid]
   // 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL
   useEffect(() => {
     if (!showMemberModal || !selectedMember) return;
@@ -163,8 +162,7 @@ const TeamPage = () => {
       console.log('🧹 [MODAL] Nettoyage listener quêtes');
       unsubscribe();
     };
-  }, [showMemberModal, selectedMember?.id]);
-    
+}, [showMemberModal, selectedMember]);  // ✅ PAS [showMemberModal, selectedMember?.id]    
     // Nettoyage lors du démontage
     return () => {
       if (unsubscribeTeam && typeof unsubscribeTeam === 'function') {
