@@ -208,7 +208,16 @@ const TasksPage = () => {
   // 🎯 HANDLERS
   const handleViewDetails = useCallback((task) => {
     console.log('🔍 [TASKS PAGE] handleViewDetails appelé avec:', task);
+    console.log('🔍 [TASKS PAGE] task.id:', task?.id);
+    console.log('🔍 [TASKS PAGE] task.title:', task?.title);
+    
+    if (!task) {
+      console.error('❌ [TASKS PAGE] Tâche invalide!');
+      return;
+    }
+    
     setSelectedTaskForDetails(task);
+    console.log('✅ [TASKS PAGE] selectedTaskForDetails mis à jour');
   }, []);
 
   const handleEdit = useCallback((task) => {
@@ -637,6 +646,10 @@ const TasksPage = () => {
       </div>
 
       {/* Modals */}
+      {console.log('🎭 [RENDER] showNewTaskModal:', showNewTaskModal)}
+      {console.log('🎭 [RENDER] selectedTaskForDetails:', selectedTaskForDetails)}
+      {console.log('🎭 [RENDER] selectedTaskForEdit:', selectedTaskForEdit)}
+      
       {showNewTaskModal && (
         <NewTaskModal
           onClose={() => setShowNewTaskModal(false)}
@@ -646,7 +659,10 @@ const TasksPage = () => {
       {selectedTaskForDetails && (
         <TaskDetailModal
           task={selectedTaskForDetails}
-          onClose={() => setSelectedTaskForDetails(null)}
+          onClose={() => {
+            console.log('🔒 [MODAL] Fermeture du modal');
+            setSelectedTaskForDetails(null);
+          }}
         />
       )}
 
