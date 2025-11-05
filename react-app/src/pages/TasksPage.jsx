@@ -206,16 +206,16 @@ const TasksPage = () => {
   }, [tasks, activeTab, searchTerm, selectedStatus, selectedPriority, selectedRole, sortBy, sortOrder, user?.uid]);
 
   // 🎯 HANDLERS
-  const handleViewDetails = (task) => {
+  const handleViewDetails = useCallback((task) => {
     console.log('🔍 [TASKS PAGE] handleViewDetails appelé avec:', task);
     setSelectedTaskForDetails(task);
-  };
+  }, []);
 
-  const handleEdit = (task) => {
+  const handleEdit = useCallback((task) => {
     setSelectedTaskForEdit(task);
-  };
+  }, []);
 
-  const handleDelete = async (task) => {
+  const handleDelete = useCallback(async (task) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette quête ?')) return;
 
     try {
@@ -225,9 +225,9 @@ const TasksPage = () => {
       console.error('❌ Erreur suppression:', error);
       alert('Erreur lors de la suppression de la quête');
     }
-  };
+  }, []);
 
-  const handleStatusChange = async (task, newStatus) => {
+  const handleStatusChange = useCallback(async (task, newStatus) => {
     try {
       const taskRef = doc(db, 'tasks', task.id);
       await updateDoc(taskRef, {
@@ -239,7 +239,7 @@ const TasksPage = () => {
       console.error('❌ Erreur changement statut:', error);
       alert('Erreur lors du changement de statut');
     }
-  };
+  }, []);
 
   // 🔧 Rendu d'une quête pour la vue Kanban
   const renderKanbanTask = (task) => {
