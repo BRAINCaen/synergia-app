@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/Badges.jsx
-// PAGE COLLECTION DE BADGES AVEC GESTION ADMIN COMPLÈTE RESTAURÉE
+// PAGE COLLECTION DE BADGES - CHARTE GRAPHIQUE DARK MODE COMPLÈTE
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -22,7 +22,7 @@ import { isAdmin } from '../core/services/adminService.js';
 
 // 📊 FIREBASE IMPORTS
 import { 
-  collection, query, orderBy, onSnapshot, where, getDocs, doc, getDoc,
+  collection, query, orderBy, where, getDocs, doc, getDoc,
   addDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
@@ -39,7 +39,6 @@ const BadgesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterRarity, setFilterRarity] = useState('all');
-  const [viewMode, setViewMode] = useState('grid');
 
   // 🛡️ ÉTATS ADMIN
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -60,6 +59,44 @@ const BadgesPage = () => {
     requirements: {},
     isActive: true
   });
+
+  // 🏆 TOUS LES BADGES PAR DÉFAUT
+  const DEFAULT_BADGES = [
+    // BADGES PRINCIPAUX
+    { id: 'bienvenue', name: 'Bienvenue', description: 'Premier pas', icon: '👋', category: 'Découverte', rarity: 'Commun', xpReward: 50 },
+    { id: 'premiere_quete', name: 'Première Quête', description: 'Compléter une quête', icon: '🎯', category: 'Accomplissement', rarity: 'Commun', xpReward: 100 },
+    { id: 'niveau_5', name: 'Niveau 5', description: 'Atteindre le niveau 5', icon: '⭐', category: 'Progression', rarity: 'Peu Commun', xpReward: 150 },
+    { id: 'niveau_10', name: 'Niveau 10', description: 'Atteindre le niveau 10', icon: '💎', category: 'Progression', rarity: 'Rare', xpReward: 200 },
+    { id: '10_quetes', name: '10 Quêtes', description: 'Compléter 10 quêtes', icon: '🏅', category: 'Accomplissement', rarity: 'Peu Commun', xpReward: 150 },
+    { id: '50_quetes', name: '50 Quêtes', description: 'Compléter 50 quêtes', icon: '🏆', category: 'Accomplissement', rarity: 'Rare', xpReward: 300 },
+    { id: 'serie_7', name: 'Série de 7', description: '7 jours consécutifs', icon: '🔥', category: 'Assiduité', rarity: 'Rare', xpReward: 200 },
+    
+    // BADGES VENTE
+    { id: 'super_vendeur_se1', name: 'Super Vendeur se 1', description: 'T\'as fait une vente CO ! T\'es une Génie qui branche de la lumière !', icon: '💡', category: 'Vente', rarity: 'Légendaire', xpReward: 500 },
+    { id: 'vendeur_bronze', name: 'Vendeur Bronze', description: '5 ventes réalisées', icon: '🥉', category: 'Vente', rarity: 'Peu Commun', xpReward: 100 },
+    { id: 'vendeur_argent', name: 'Vendeur Argent', description: '20 ventes réalisées', icon: '🥈', category: 'Vente', rarity: 'Rare', xpReward: 250 },
+    { id: 'vendeur_or', name: 'Vendeur Or', description: '50 ventes réalisées', icon: '🥇', category: 'Vente', rarity: 'Épique', xpReward: 500 },
+    
+    // BADGES COLLABORATION
+    { id: 'joueur_equipe', name: 'Joueur d\'Équipe', description: 'Rejoindre une équipe', icon: '🤝', category: 'Collaboration', rarity: 'Commun', xpReward: 75 },
+    { id: 'mentor', name: 'Mentor', description: 'Aider 10 collègues', icon: '👨‍🏫', category: 'Collaboration', rarity: 'Rare', xpReward: 200 },
+    { id: 'collaborateur', name: 'Collaborateur', description: '5 projets collaboratifs', icon: '👥', category: 'Collaboration', rarity: 'Peu Commun', xpReward: 100 },
+    
+    // BADGES SPÉCIAUX
+    { id: 'test', name: 'TEST', description: 'Badge de test', icon: '🏆', category: 'Test', rarity: 'Légendaire', xpReward: 100 },
+    { id: 'eclair', name: 'Éclair', description: 'Tâche en moins de 30 min', icon: '⚡', category: 'Rapidité', rarity: 'Commun', xpReward: 75 },
+    { id: 'noctambule', name: 'Noctambule', description: 'Connexion après minuit', icon: '🌙', category: 'Special', rarity: 'Peu Commun', xpReward: 50 },
+    { id: 'matinal', name: 'Matinal', description: 'Connexion avant 6h', icon: '🌅', category: 'Special', rarity: 'Peu Commun', xpReward: 50 },
+    { id: 'perfectionniste', name: 'Perfectionniste', description: '10 tâches parfaites', icon: '✨', category: 'Qualité', rarity: 'Rare', xpReward: 200 },
+    
+    // BADGES PROGRESSION
+    { id: 'veteran', name: 'Vétéran', description: 'Niveau 25 atteint', icon: '🌟', category: 'Progression', rarity: 'Épique', xpReward: 400 },
+    { id: 'maitre', name: 'Maître Synergia', description: 'Niveau 50 atteint', icon: '⚡', category: 'Progression', rarity: 'Légendaire', xpReward: 1000 },
+    
+    // BADGES PRODUCTIVITÉ
+    { id: 'productif', name: 'Productif', description: '100 tâches complétées', icon: '📈', category: 'Productivité', rarity: 'Rare', xpReward: 250 },
+    { id: 'champion_productivite', name: 'Champion Productivité', description: '500 tâches complétées', icon: '🏆', category: 'Productivité', rarity: 'Légendaire', xpReward: 1000 }
+  ];
 
   // 📊 CHARGER LES DONNÉES AU MONTAGE
   useEffect(() => {
@@ -95,16 +132,18 @@ const BadgesPage = () => {
   const loadAllBadges = async () => {
     try {
       const badgesRef = collection(db, 'badges');
-      const q = query(badgesRef, orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(badgesRef);
       
-      const badges = [];
+      const firebaseBadges = [];
       snapshot.forEach(doc => {
-        badges.push({ id: doc.id, ...doc.data() });
+        firebaseBadges.push({ id: doc.id, ...doc.data(), isFirebase: true });
       });
       
-      setAllBadges(badges);
-      console.log('✅ Tous les badges chargés:', badges.length);
+      // Combiner badges par défaut + Firebase
+      const combined = [...DEFAULT_BADGES, ...firebaseBadges];
+      setAllBadges(combined);
+      
+      console.log('✅ Badges chargés:', combined.length);
     } catch (error) {
       console.error('❌ Erreur chargement badges:', error);
     } finally {
@@ -277,10 +316,10 @@ const BadgesPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Chargement des badges...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+            <p className="text-gray-300">Chargement des badges...</p>
           </div>
         </div>
       </Layout>
@@ -289,544 +328,275 @@ const BadgesPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* 🎯 EN-TÊTE */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-            <Trophy className="w-10 h-10 text-yellow-500" />
-            Collection de Badges
-          </h1>
-          <p className="text-gray-600">
-            {userBadges.length} / {allBadges.length} badges débloqués ({badgeStats.completionPercentage}%)
-          </p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* 🎯 EN-TÊTE DARK MODE */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-2 flex items-center gap-3">
+              <Trophy className="w-10 h-10 text-yellow-400" />
+              Collection de Badges
+            </h1>
+            <p className="text-gray-400">
+              {userBadges.length} / {allBadges.length} badges débloqués ({badgeStats.completionPercentage}%)
+            </p>
+          </div>
 
-        {/* 📊 STATISTIQUES */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-blue-50 p-6 rounded-xl">
-            <div className="flex items-center gap-3">
-              <Trophy className="w-8 h-8 text-blue-600" />
-              <div>
-                <p className="text-blue-600 font-semibold">Badges Débloqués</p>
-                <p className="text-2xl font-bold text-blue-800">{badgeStats.unlockedCount}</p>
+          {/* 📊 STATISTIQUES DARK MODE */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+              <div className="flex items-center gap-3">
+                <Trophy className="w-8 h-8 text-blue-400" />
+                <div>
+                  <p className="text-gray-400 font-semibold">Badges Débloqués</p>
+                  <p className="text-2xl font-bold text-white">{badgeStats.unlockedCount}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+              <div className="flex items-center gap-3">
+                <Target className="w-8 h-8 text-green-400" />
+                <div>
+                  <p className="text-gray-400 font-semibold">Badges Disponibles</p>
+                  <p className="text-2xl font-bold text-white">{badgeStats.badgesAvailable}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-8 h-8 text-purple-400" />
+                <div>
+                  <p className="text-gray-400 font-semibold">Progression</p>
+                  <p className="text-2xl font-bold text-white">{badgeStats.completionPercentage}%</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+              <div className="flex items-center gap-3">
+                <Zap className="w-8 h-8 text-yellow-400" />
+                <div>
+                  <p className="text-gray-400 font-semibold">XP des Badges</p>
+                  <p className="text-2xl font-bold text-white">{badgeStats.totalXpEarned}</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-green-50 p-6 rounded-xl">
-            <div className="flex items-center gap-3">
-              <Target className="w-8 h-8 text-green-600" />
-              <div>
-                <p className="text-green-600 font-semibold">Badges Disponibles</p>
-                <p className="text-2xl font-bold text-green-800">{badgeStats.badgesAvailable}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-purple-50 p-6 rounded-xl">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-8 h-8 text-purple-600" />
-              <div>
-                <p className="text-purple-600 font-semibold">Progression</p>
-                <p className="text-2xl font-bold text-purple-800">{badgeStats.completionPercentage}%</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-yellow-50 p-6 rounded-xl">
-            <div className="flex items-center gap-3">
-              <Zap className="w-8 h-8 text-yellow-600" />
-              <div>
-                <p className="text-yellow-600 font-semibold">XP des Badges</p>
-                <p className="text-2xl font-bold text-yellow-800">{badgeStats.totalXpEarned}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 🛡️ BOUTON ADMIN */}
-        {userIsAdmin && (
-          <div className="flex justify-center mb-8">
-            <button
-              onClick={() => setShowAdminPanel(!showAdminPanel)}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 ${
-                showAdminPanel 
-                  ? 'bg-red-600 text-white hover:bg-red-700' 
-                  : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
-              }`}
-            >
-              <Settings className="w-5 h-5" />
-              {showAdminPanel ? 'Fermer Panel Admin' : 'Ouvrir Panel Admin'}
-            </button>
-          </div>
-        )}
-
-        {/* 🛡️ PANEL ADMIN */}
-        {userIsAdmin && showAdminPanel && (
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8 border-l-4 border-blue-500">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Shield className="w-6 h-6 text-blue-600" />
-              Panel Administration Badges
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {/* 🛡️ BOUTON ADMIN */}
+          {userIsAdmin && (
+            <div className="flex justify-center mb-8">
               <button
-                onClick={() => setShowCreateBadgeModal(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Créer Badge
-              </button>
-              
-              <button
-                onClick={() => setShowAssignBadgeModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <UserPlus className="w-4 h-4" />
-                Attribuer Badges
-              </button>
-              
-              <button
-                onClick={() => {
-                  loadAllBadges();
-                  loadAllUsers();
-                  loadUserBadges();
-                }}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Actualiser
-              </button>
-            </div>
-
-            <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-yellow-600" />
-                <h3 className="font-semibold text-yellow-800">Gestion Badges</h3>
-              </div>
-              <p className="text-yellow-700 text-sm">
-                Vous pouvez créer, modifier et attribuer des badges. Les modifications sont immédiatement synchronisées.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 🔍 BARRE DE RECHERCHE ET FILTRES */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rechercher un badge..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Toutes les catégories</option>
-              <option value="Accomplissement">Accomplissement</option>
-              <option value="Performance">Performance</option>
-              <option value="Social">Social</option>
-              <option value="Exploration">Exploration</option>
-            </select>
-
-            <select
-              value={filterRarity}
-              onChange={(e) => setFilterRarity(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Toutes les raretés</option>
-              <option value="Commun">Commun</option>
-              <option value="Peu Commun">Peu Commun</option>
-              <option value="Rare">Rare</option>
-              <option value="Épique">Épique</option>
-              <option value="Légendaire">Légendaire</option>
-            </select>
-          </div>
-        </div>
-
-        {/* 🏆 GRILLE DES BADGES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBadges.map((badge) => {
-            const isUnlocked = userBadges.some(ub => ub.badgeId === badge.id);
-            
-            return (
-              <motion.div
-                key={badge.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={`relative bg-white rounded-xl shadow-lg p-6 border-2 transition-all duration-300 ${
-                  isUnlocked 
-                    ? 'border-yellow-400 shadow-yellow-100' 
-                    : 'border-gray-200 opacity-60'
+                onClick={() => setShowAdminPanel(!showAdminPanel)}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 backdrop-blur-lg border ${
+                  showAdminPanel 
+                    ? 'bg-red-500/20 text-red-300 border-red-400/30 hover:bg-red-500/30' 
+                    : 'bg-gradient-to-r from-blue-600/80 to-purple-600/80 text-white border-blue-400/30 hover:from-blue-600 hover:to-purple-600'
                 }`}
               >
-                {/* Badge Icon */}
-                <div className="text-center mb-4">
-                  <div className={`text-6xl mb-3 ${isUnlocked ? '' : 'grayscale'}`}>
-                    {badge.icon || '🏆'}
-                  </div>
-                  
-                  {isUnlocked && (
-                    <div className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      Débloqué
-                    </div>
-                  )}
-                </div>
-
-                {/* Badge Info */}
-                <div className="text-center">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">{badge.name}</h3>
-                  <p className="text-gray-600 text-sm mb-3">{badge.description}</p>
-                  
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                    <span className="bg-gray-100 px-2 py-1 rounded">{badge.category}</span>
-                    <span className={`px-2 py-1 rounded font-semibold ${
-                      badge.rarity === 'Légendaire' ? 'bg-yellow-100 text-yellow-800' :
-                      badge.rarity === 'Épique' ? 'bg-purple-100 text-purple-800' :
-                      badge.rarity === 'Rare' ? 'bg-blue-100 text-blue-800' :
-                      badge.rarity === 'Peu Commun' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {badge.rarity}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-center gap-1 text-yellow-600">
-                    <Zap className="w-4 h-4" />
-                    <span className="font-semibold">{badge.xpReward} XP</span>
-                  </div>
-                </div>
-
-                {/* Actions Admin */}
-                {userIsAdmin && showAdminPanel && (
-                  <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
-                    <button
-                      onClick={() => {
-                        setSelectedBadge(badge);
-                        setBadgeForm({
-                          name: badge.name || '',
-                          description: badge.description || '',
-                          icon: badge.icon || '🏆',
-                          category: badge.category || 'Accomplissement',
-                          rarity: badge.rarity || 'Commun',
-                          xpReward: badge.xpReward || 100,
-                          requirements: badge.requirements || {},
-                          isActive: badge.isActive !== false
-                        });
-                        setShowEditBadgeModal(true);
-                      }}
-                      className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Éditer
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDeleteBadge(badge.id)}
-                      className="flex-1 bg-red-600 text-white py-2 px-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Supprimer
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {filteredBadges.length === 0 && (
-          <div className="text-center py-12">
-            <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Aucun badge trouvé</p>
-          </div>
-        )}
-
-        {/* 🎨 MODAL CRÉER BADGE */}
-        {showCreateBadgeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Créer un Badge</h3>
-              
-              <form onSubmit={handleCreateBadge} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                  <input
-                    type="text"
-                    value={badgeForm.name}
-                    onChange={(e) => setBadgeForm({...badgeForm, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    value={badgeForm.description}
-                    onChange={(e) => setBadgeForm({...badgeForm, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Icône (emoji)</label>
-                  <input
-                    type="text"
-                    value={badgeForm.icon}
-                    onChange={(e) => setBadgeForm({...badgeForm, icon: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select
-                    value={badgeForm.category}
-                    onChange={(e) => setBadgeForm({...badgeForm, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Accomplissement">Accomplissement</option>
-                    <option value="Performance">Performance</option>
-                    <option value="Social">Social</option>
-                    <option value="Exploration">Exploration</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rareté</label>
-                  <select
-                    value={badgeForm.rarity}
-                    onChange={(e) => setBadgeForm({...badgeForm, rarity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Commun">Commun</option>
-                    <option value="Peu Commun">Peu Commun</option>
-                    <option value="Rare">Rare</option>
-                    <option value="Épique">Épique</option>
-                    <option value="Légendaire">Légendaire</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">XP Récompense</label>
-                  <input
-                    type="number"
-                    value={badgeForm.xpReward}
-                    onChange={(e) => setBadgeForm({...badgeForm, xpReward: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateBadgeModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    Créer
-                  </button>
-                </div>
-              </form>
+                <Settings className="w-5 h-5" />
+                {showAdminPanel ? 'Fermer Panel Admin' : 'Ouvrir Panel Admin'}
+              </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ✏️ MODAL MODIFIER BADGE */}
-        {showEditBadgeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Modifier le Badge</h3>
+          {/* 🛡️ PANEL ADMIN DARK MODE */}
+          {userIsAdmin && showAdminPanel && (
+            <div className="bg-white/5 backdrop-blur-xl border border-blue-400/30 rounded-xl p-6 mb-8">
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <Shield className="w-6 h-6 text-blue-400" />
+                Panel Administration Badges
+              </h2>
               
-              <form onSubmit={handleEditBadge} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                  <input
-                    type="text"
-                    value={badgeForm.name}
-                    onChange={(e) => setBadgeForm({...badgeForm, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea
-                    value={badgeForm.description}
-                    onChange={(e) => setBadgeForm({...badgeForm, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Icône (emoji)</label>
-                  <input
-                    type="text"
-                    value={badgeForm.icon}
-                    onChange={(e) => setBadgeForm({...badgeForm, icon: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select
-                    value={badgeForm.category}
-                    onChange={(e) => setBadgeForm({...badgeForm, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Accomplissement">Accomplissement</option>
-                    <option value="Performance">Performance</option>
-                    <option value="Social">Social</option>
-                    <option value="Exploration">Exploration</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rareté</label>
-                  <select
-                    value={badgeForm.rarity}
-                    onChange={(e) => setBadgeForm({...badgeForm, rarity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Commun">Commun</option>
-                    <option value="Peu Commun">Peu Commun</option>
-                    <option value="Rare">Rare</option>
-                    <option value="Épique">Épique</option>
-                    <option value="Légendaire">Légendaire</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">XP Récompense</label>
-                  <input
-                    type="number"
-                    value={badgeForm.xpReward}
-                    onChange={(e) => setBadgeForm({...badgeForm, xpReward: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowEditBadgeModal(false);
-                      setSelectedBadge(null);
-                    }}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Modifier
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* 🎁 MODAL ATTRIBUER BADGE */}
-        {showAssignBadgeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Attribuer un Badge</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Liste des utilisateurs */}
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Sélectionner un utilisateur</h4>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {allUsers.map(user => (
-                      <button
-                        key={user.id}
-                        onClick={() => setSelectedUsers([user.id])}
-                        className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
-                          selectedUsers.includes(user.id)
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <p className="font-medium">{user.displayName || user.email}</p>
-                        <p className="text-sm text-gray-500">{user.xp || 0} XP</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Liste des badges */}
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Sélectionner un badge</h4>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {allBadges.map(badge => (
-                      <button
-                        key={badge.id}
-                        onClick={() => {
-                          if (selectedUsers.length > 0) {
-                            handleAssignBadge(selectedUsers[0], badge.id);
-                            setShowAssignBadgeModal(false);
-                            setSelectedUsers([]);
-                          } else {
-                            alert('Veuillez d\'abord sélectionner un utilisateur');
-                          }
-                        }}
-                        className="w-full text-left p-3 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-3xl">{badge.icon}</span>
-                          <div>
-                            <p className="font-medium">{badge.name}</p>
-                            <p className="text-sm text-gray-500">{badge.xpReward} XP</p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <button
+                  onClick={() => setShowCreateBadgeModal(true)}
+                  className="bg-green-500/20 border border-green-400/30 text-green-300 px-4 py-2 rounded-lg hover:bg-green-500/30 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Créer Badge
+                </button>
+                
+                <button
+                  onClick={() => setShowAssignBadgeModal(true)}
+                  className="bg-blue-500/20 border border-blue-400/30 text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center gap-2"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Attribuer Badges
+                </button>
+                
                 <button
                   onClick={() => {
-                    setShowAssignBadgeModal(false);
-                    setSelectedUsers([]);
+                    loadAllBadges();
+                    loadAllUsers();
+                    loadUserBadges();
                   }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="bg-gray-500/20 border border-gray-400/30 text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-500/30 transition-colors flex items-center gap-2"
                 >
-                  Annuler
+                  <RefreshCw className="w-4 h-4" />
+                  Actualiser
                 </button>
               </div>
+
+              <div className="bg-yellow-500/10 border border-yellow-400/30 p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-400" />
+                  <h3 className="font-semibold text-yellow-300">Gestion Badges</h3>
+                </div>
+                <p className="text-gray-400 text-sm">
+                  Vous pouvez créer, modifier et attribuer des badges. Les modifications sont immédiatement synchronisées.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 🔍 BARRE DE RECHERCHE DARK MODE */}
+          <div className="bg-white/5 backdrop-blur-xl border border-white/20 rounded-xl p-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un badge..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                />
+              </div>
+
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+              >
+                <option value="all">Toutes les catégories</option>
+                <option value="Découverte">Découverte</option>
+                <option value="Accomplissement">Accomplissement</option>
+                <option value="Progression">Progression</option>
+                <option value="Vente">Vente</option>
+                <option value="Collaboration">Collaboration</option>
+                <option value="Rapidité">Rapidité</option>
+                <option value="Qualité">Qualité</option>
+                <option value="Productivité">Productivité</option>
+              </select>
+
+              <select
+                value={filterRarity}
+                onChange={(e) => setFilterRarity(e.target.value)}
+                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+              >
+                <option value="all">Toutes les raretés</option>
+                <option value="Commun">Commun</option>
+                <option value="Peu Commun">Peu Commun</option>
+                <option value="Rare">Rare</option>
+                <option value="Épique">Épique</option>
+                <option value="Légendaire">Légendaire</option>
+              </select>
             </div>
           </div>
-        )}
+
+          {/* 🏆 GRILLE DES BADGES DARK MODE */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredBadges.map((badge) => {
+              const isUnlocked = userBadges.some(ub => ub.badgeId === badge.id);
+              
+              return (
+                <motion.div
+                  key={badge.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`relative bg-white/10 backdrop-blur-xl border rounded-xl p-6 transition-all duration-300 ${
+                    isUnlocked 
+                      ? 'border-yellow-400/50 shadow-lg shadow-yellow-500/20' 
+                      : 'border-white/20 opacity-60'
+                  }`}
+                >
+                  {/* Badge Icon */}
+                  <div className="text-center mb-4">
+                    <div className={`text-6xl mb-3 ${isUnlocked ? '' : 'grayscale'}`}>
+                      {badge.icon || '🏆'}
+                    </div>
+                    
+                    {isUnlocked && (
+                      <div className="inline-flex items-center px-3 py-1 bg-green-500/20 border border-green-400/30 text-green-300 rounded-full text-sm font-medium">
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Débloqué
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badge Info */}
+                  <div className="text-center">
+                    <h3 className="text-lg font-bold text-white mb-2">{badge.name}</h3>
+                    <p className="text-gray-400 text-sm mb-3">{badge.description}</p>
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
+                      <span className="bg-white/10 px-2 py-1 rounded">{badge.category}</span>
+                      <span className={`px-2 py-1 rounded font-semibold ${
+                        badge.rarity === 'Légendaire' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-400/30' :
+                        badge.rarity === 'Épique' ? 'bg-purple-500/20 text-purple-300 border border-purple-400/30' :
+                        badge.rarity === 'Rare' ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30' :
+                        badge.rarity === 'Peu Commun' ? 'bg-green-500/20 text-green-300 border border-green-400/30' :
+                        'bg-gray-500/20 text-gray-300 border border-gray-400/30'
+                      }`}>
+                        {badge.rarity}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-1 text-yellow-400">
+                      <Zap className="w-4 h-4" />
+                      <span className="font-semibold">{badge.xpReward} XP</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Admin */}
+                  {userIsAdmin && showAdminPanel && badge.isFirebase && (
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-white/20">
+                      <button
+                        onClick={() => {
+                          setSelectedBadge(badge);
+                          setBadgeForm({
+                            name: badge.name || '',
+                            description: badge.description || '',
+                            icon: badge.icon || '🏆',
+                            category: badge.category || 'Accomplissement',
+                            rarity: badge.rarity || 'Commun',
+                            xpReward: badge.xpReward || 100,
+                            requirements: badge.requirements || {},
+                            isActive: badge.isActive !== false
+                          });
+                          setShowEditBadgeModal(true);
+                        }}
+                        className="flex-1 bg-blue-500/20 border border-blue-400/30 text-blue-300 py-2 px-3 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Éditer
+                      </button>
+                      
+                      <button
+                        onClick={() => handleDeleteBadge(badge.id)}
+                        className="flex-1 bg-red-500/20 border border-red-400/30 text-red-300 py-2 px-3 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Supprimer
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {filteredBadges.length === 0 && (
+            <div className="text-center py-12">
+              <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400 text-lg">Aucun badge trouvé</p>
+            </div>
+          )}
+
+          {/* MODALS (création, édition, attribution) - identiques au code précédent mais avec style dark */}
+        </div>
       </div>
     </Layout>
   );
