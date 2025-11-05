@@ -1,19 +1,19 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// CONFIGURATION DES ROUTES - SANS SETTINGSPAGE
+// ROUTES AVEC CHEMINS CORRECTS
 // ==========================================
 
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
-// Pages principales
-import DashboardPage from '../pages/DashboardPage.jsx';
+// Pages principales - CHEMINS CORRECTS
+import DashboardPage from '../pages/Dashboard.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
 import BadgesPage from '../pages/BadgesPage.jsx';
 import AdminPage from '../pages/AdminPage.jsx';
-import LoginPage from '../pages/LoginPage.jsx';
+import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
 import ProtectedRoute from './ProtectedRoute.jsx';
