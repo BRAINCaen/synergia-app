@@ -124,7 +124,7 @@ const TeamPage = () => {
     try {
       console.log('👥 Chargement COMPLET avec synchronisation QUÊTES...');
       
-      // ÉCOUTE TEMPS RÉEL sur users ET quests
+      // ÉCOUTE TEMPS RÉEL sur users
       const usersQuery = query(
         collection(db, 'users'),
         orderBy('gamification.totalXp', 'desc')
@@ -146,37 +146,45 @@ const TeamPage = () => {
           const userData = userDoc.data();
           const userId = userDoc.id;
           
-          // RÉCUPÉRER LES QUÊTES EN COURS (in_progress)
-          const questsInProgressQuery = query(
-            collection(db, 'quests'),
-            where('assignedTo', 'array-contains', userId),
-            where('status', '==', 'in_progress')
-          );
-          const questsInProgressSnap = await getDocs(questsInProgressQuery);
-          const questsInProgress = questsInProgressSnap.size;
+          console.log(`🔍 Recherche quêtes pour: ${userData.displayName || userId}`);
           
-          // RÉCUPÉRER LES QUÊTES ACCOMPLIES (completed, validated)
-          const questsCompletedQuery = query(
-            collection(db, 'quests'),
-            where('assignedTo', 'array-contains', userId),
-            where('status', 'in', ['completed', 'validated'])
-          );
-          const questsCompletedSnap = await getDocs(questsCompletedQuery);
-          const questsCompleted = questsCompletedSnap.size;
-          
-          // RÉCUPÉRER TOUTES LES QUÊTES pour les détails
-          const allQuestsQuery = query(
-            collection(db, 'quests'),
-            where('assignedTo', 'array-contains', userId)
-          );
+          // RÉCUPÉRER TOUTES LES QUÊTES (assignedTo peut être string OU array)
+          const allQuestsQuery = query(collection(db, 'quests'));
           const allQuestsSnap = await getDocs(allQuestsQuery);
-          const allQuests = [];
+          
+          const userQuests = [];
+          let questsInProgress = 0;
+          let questsCompleted = 0;
+          
           allQuestsSnap.forEach(doc => {
-            allQuests.push({
-              id: doc.id,
-              ...doc.data()
-            });
+            const questData = doc.data();
+            const assignedTo = questData.assignedTo;
+            
+            // Vérifier si l'utilisateur est assigné (array OU string)
+            let isAssigned = false;
+            if (Array.isArray(assignedTo)) {
+              isAssigned = assignedTo.includes(userId);
+            } else if (typeof assignedTo === 'string') {
+              isAssigned = assignedTo === userId;
+            }
+            
+            if (isAssigned) {
+              const quest = {
+                id: doc.id,
+                ...questData
+              };
+              userQuests.push(quest);
+              
+              // Compter par statut
+              if (questData.status === 'in_progress' || questData.status === 'todo') {
+                questsInProgress++;
+              } else if (questData.status === 'completed' || questData.status === 'validated') {
+                questsCompleted++;
+              }
+            }
           });
+          
+          console.log(`📊 ${userData.displayName || userId}: ${userQuests.length} quêtes (${questsInProgress} en cours, ${questsCompleted} accomplies)`);
           
           // DONNÉES GAMIFICATION
           const gamification = userData.gamification || {};
@@ -209,11 +217,11 @@ const TeamPage = () => {
             // DONNÉES QUÊTES SYNCHRONISÉES
             questsInProgress: questsInProgress,
             questsCompleted: questsCompleted,
-            questsTotal: allQuests.length,
-            quests: allQuests, // Toutes les quêtes détaillées
+            questsTotal: userQuests.length,
+            quests: userQuests, // Toutes les quêtes détaillées
             
             // DONNÉES CALCULÉES
-            completionRate: allQuests.length > 0 ? Math.round((questsCompleted / allQuests.length) * 100) : 0,
+            completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
             currentLevelXp: totalXp % 100,
             nextLevelXpRequired: 100,
             xpProgress: ((totalXp % 100) / 100) * 100,
@@ -233,14 +241,12 @@ const TeamPage = () => {
           membersData.push(member);
         }
         
-        console.log(`✅ ${membersData.length} membres chargés avec quêtes synchronisées`);
-        console.log('📊 Statistiques quêtes:', {
-          totalMembers: membersData.length,
-          totalQuests: membersData.reduce((sum, m) => sum + m.questsTotal, 0),
-          questsInProgress: membersData.reduce((sum, m) => sum + m.questsInProgress, 0),
-          questsCompleted: membersData.reduce((sum, m) => sum + m.questsCompleted, 0),
-          totalXP: membersData.reduce((sum, m) => sum + m.totalXp, 0)
-        });
+        const totalQuests = membersData.reduce((sum, m) => sum + m.questsTotal, 0);
+        const totalInProgress = membersData.reduce((sum, m) => sum + m.questsInProgress, 0);
+        const totalCompleted = membersData.reduce((sum, m) => sum + m.questsCompleted, 0);
+        
+        console.log(`✅ ${membersData.length} membres chargés`);
+        console.log(`📊 Total: ${totalQuests} quêtes (${totalInProgress} en cours, ${totalCompleted} accomplies)`);
         
         setTeamMembers(membersData);
         setLoading(false);
