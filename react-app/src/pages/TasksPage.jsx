@@ -670,6 +670,7 @@ const TasksPage = () => {
       {selectedTaskForEdit && (
         <NewTaskModal
           task={selectedTaskForEdit}
+          mode="edit"
           onClose={() => setSelectedTaskForEdit(null)}
         />
       )}
