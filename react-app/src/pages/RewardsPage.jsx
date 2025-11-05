@@ -1,290 +1,148 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
-// PAGE RÉCOMPENSES 100% FIREBASE - IMPORTS CORRIGÉS
+// PAGE RÉCOMPENSES UNIFIÉE - HOOK CENTRAL
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Trophy, Search, Filter, Star, Gift, Coins, Users, Target, 
-  Plus, Edit2, Trash2, Settings, AlertCircle, Check, X, 
-  ShoppingCart, Clock, User, Calendar, TrendingUp, Crown,
-  Shield, Eye, EyeOff, Package, Zap, Heart
+  Trophy, Search, Gift, Coins, Users, Clock,
+  Plus, Trash2, Settings, AlertCircle, Check, X, Shield
 } from 'lucide-react';
 
-// 🎯 IMPORT DU LAYOUT
 import Layout from '../components/layout/Layout.jsx';
-
-// 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
-import { useRewards } from '../shared/hooks/useRewards.js';
-
-// 📊 FIREBASE IMPORTS - CORRECTION ICI !
-import { 
-  collection, query, orderBy, onSnapshot, where, getDocs, doc, getDoc,
-  addDoc, updateDoc, deleteDoc, serverTimestamp
-} from 'firebase/firestore'; // ✅ CORRIGÉ: firebase/firestore au lieu de 'firestore'
+import { useGamificationSync } from '../shared/hooks/useGamificationSync.js';
+import { addDoc, updateDoc, deleteDoc, doc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-/**
- * 🎁 PAGE RÉCOMPENSES - 100% FIREBASE
- */
 const RewardsPage = () => {
   const { user } = useAuthStore();
   const userIsAdmin = isAdmin(user);
-
-  // 🎯 UTILISER LE HOOK REWARDS (FIREBASE PUR)
+  
   const {
-    availableRewards,
-    teamRewards,
+    gamification,
+    rewards,
+    rewardRequests,
     userRewardHistory,
-    pendingRequests,
-    currentUserXP,
-    teamTotalXP,
+    stats,
     loading,
-    requestReward,
-    approveRequest,
-    rejectRequest,
     canAffordReward,
-    getRewardDetails,
-    getCompleteStats,
-    initializeRewards,
-    initializeAdmin
-  } = useRewards();
+    getAffordableRewards,
+    refresh
+  } = useGamificationSync();
 
-  // 📊 ÉTATS LOCAUX UI
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all'); // 'all', 'individual', 'team'
-  const [filterCategory, setFilterCategory] = useState('all');
   const [selectedReward, setSelectedReward] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-
-  // États admin
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [notification, setNotification] = useState(null);
+  
   const [rewardForm, setRewardForm] = useState({
     name: '',
     description: '',
-    type: 'individual',
-    category: 'Mini-plaisirs',
     xpCost: 100,
     icon: '🎁',
-    isAvailable: true,
-    stock: -1,
-    requirements: {}
+    category: 'Mini-plaisirs',
+    type: 'individual'
   });
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [notification, setNotification] = useState(null);
 
-  // 🚀 INITIALISATION
-  useEffect(() => {
-    if (user?.uid) {
-      initializeRewards();
-      
-      if (userIsAdmin) {
-        initializeAdmin();
-      }
-    }
-  }, [user?.uid, userIsAdmin]);
+  // 🎁 DEMANDER UNE RÉCOMPENSE
+  const handleRequestReward = async () => {
+    if (!selectedReward) return;
 
-  // ==========================================
-  // 🎯 FILTRAGE DES RÉCOMPENSES
-  // ==========================================
-
-  const filteredRewards = React.useMemo(() => {
-    let rewards = [];
-
-    // Combiner récompenses individuelles et d'équipe selon le filtre
-    if (filterType === 'all' || filterType === 'individual') {
-      rewards = [...availableRewards];
-    }
-    if (filterType === 'all' || filterType === 'team') {
-      rewards = [...rewards, ...teamRewards];
-    }
-
-    // Filtrer par catégorie
-    if (filterCategory !== 'all') {
-      rewards = rewards.filter(cat => cat.category === filterCategory);
-    }
-
-    // Filtrer par recherche
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase();
-      rewards = rewards.map(category => ({
-        ...category,
-        rewards: category.rewards.filter(reward =>
-          reward.name.toLowerCase().includes(search) ||
-          reward.description.toLowerCase().includes(search)
-        )
-      })).filter(category => category.rewards.length > 0);
-    }
-
-    return rewards;
-  }, [availableRewards, teamRewards, filterType, filterCategory, searchTerm]);
-
-  // ==========================================
-  // 🎁 GESTION DES DEMANDES
-  // ==========================================
-
-  const handleRequestReward = async (rewardId, type) => {
     try {
-      const result = await requestReward(user.uid, rewardId, type);
-      
-      if (result.success) {
-        showNotification('Demande envoyée avec succès ! En attente de validation admin.', 'success');
-        setShowRequestModal(false);
-        setSelectedReward(null);
-      } else {
-        showNotification(result.error || 'Erreur lors de la demande', 'error');
-      }
+      await addDoc(collection(db, 'rewardRequests'), {
+        userId: user.uid,
+        userName: user.displayName || user.email,
+        userEmail: user.email,
+        rewardId: selectedReward.id,
+        rewardName: selectedReward.name,
+        xpCost: selectedReward.xpCost,
+        status: 'pending',
+        requestedAt: serverTimestamp()
+      });
+
+      showNotification('Demande envoyée !', 'success');
+      setShowRequestModal(false);
+      setSelectedReward(null);
     } catch (error) {
-      console.error('❌ Erreur demande:', error);
+      console.error('❌ Erreur:', error);
       showNotification('Erreur lors de la demande', 'error');
     }
   };
 
-  // ==========================================
-  // 🛡️ GESTION ADMIN
-  // ==========================================
-
+  // 🛡️ CRÉER RÉCOMPENSE (ADMIN)
   const handleCreateReward = async () => {
-    if (!rewardForm.name || !rewardForm.description || !rewardForm.xpCost) {
-      showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+    if (!rewardForm.name || !rewardForm.xpCost) {
+      showNotification('Remplissez tous les champs', 'error');
       return;
     }
 
     try {
       await addDoc(collection(db, 'rewards'), {
         ...rewardForm,
-        createdAt: serverTimestamp(),
-        createdBy: user.uid,
         isActive: true,
-        timesRedeemed: 0
+        createdAt: serverTimestamp(),
+        createdBy: user.uid
       });
 
-      showNotification('Récompense créée avec succès !', 'success');
+      showNotification('Récompense créée !', 'success');
       setShowCreateModal(false);
-      resetRewardForm();
+      setRewardForm({ name: '', description: '', xpCost: 100, icon: '🎁', category: 'Mini-plaisirs', type: 'individual' });
     } catch (error) {
-      console.error('❌ Erreur création:', error);
-      showNotification('Erreur lors de la création', 'error');
+      console.error('❌ Erreur:', error);
+      showNotification('Erreur création', 'error');
     }
   };
 
-  const handleEditReward = async () => {
-    if (!selectedReward?.id) return;
-
-    try {
-      await updateDoc(doc(db, 'rewards', selectedReward.id), rewardForm);
-
-      showNotification('Récompense modifiée avec succès !', 'success');
-      setShowEditModal(false);
-      setSelectedReward(null);
-      resetRewardForm();
-    } catch (error) {
-      console.error('❌ Erreur modification:', error);
-      showNotification('Erreur lors de la modification', 'error');
-    }
-  };
-
+  // 🛡️ SUPPRIMER RÉCOMPENSE (ADMIN)
   const handleDeleteReward = async (rewardId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette récompense ?')) {
-      return;
-    }
+    if (!window.confirm('Supprimer cette récompense ?')) return;
 
     try {
       await deleteDoc(doc(db, 'rewards', rewardId));
-      showNotification('Récompense supprimée avec succès !', 'success');
+      showNotification('Récompense supprimée', 'success');
     } catch (error) {
-      console.error('❌ Erreur suppression:', error);
-      showNotification('Erreur lors de la suppression', 'error');
+      console.error('❌ Erreur:', error);
+      showNotification('Erreur suppression', 'error');
     }
   };
 
+  // 🛡️ VALIDER DEMANDE (ADMIN)
   const handleValidateRequest = async (requestId, action) => {
     try {
-      if (action === 'approve') {
-        const result = await approveRequest(requestId);
-        if (result.success) {
-          showNotification('Demande approuvée !', 'success');
-        } else {
-          showNotification(result.error || 'Erreur lors de l\'approbation', 'error');
-        }
-      } else {
-        const reason = window.prompt('Raison du rejet (optionnel):');
-        const result = await rejectRequest(requestId, reason || 'Non spécifiée');
-        
-        if (result.success) {
-          showNotification('Demande rejetée', 'success');
-        } else {
-          showNotification(result.error || 'Erreur lors du rejet', 'error');
-        }
-      }
+      await updateDoc(doc(db, 'rewardRequests', requestId), {
+        status: action === 'approve' ? 'approved' : 'rejected',
+        processedAt: serverTimestamp(),
+        processedBy: user.uid
+      });
+
+      showNotification(action === 'approve' ? 'Approuvé !' : 'Rejeté', 'success');
     } catch (error) {
-      console.error('❌ Erreur validation:', error);
-      showNotification('Erreur lors de la validation', 'error');
+      console.error('❌ Erreur:', error);
+      showNotification('Erreur validation', 'error');
     }
   };
 
-  const resetRewardForm = () => {
-    setRewardForm({
-      name: '',
-      description: '',
-      type: 'individual',
-      category: 'Mini-plaisirs',
-      xpCost: 100,
-      icon: '🎁',
-      isAvailable: true,
-      stock: -1,
-      requirements: {}
-    });
-  };
-
-  const openEditModal = (reward) => {
-    setSelectedReward(reward);
-    setRewardForm({
-      name: reward.name || '',
-      description: reward.description || '',
-      type: reward.type || 'individual',
-      category: reward.category || 'Mini-plaisirs',
-      xpCost: reward.xpCost || 100,
-      icon: reward.icon || '🎁',
-      isAvailable: reward.isAvailable !== false,
-      stock: reward.stock || -1,
-      requirements: reward.requirements || {}
-    });
-    setShowEditModal(true);
-  };
-
-  // ==========================================
-  // 🎨 NOTIFICATIONS
-  // ==========================================
-
-  const showNotification = (message, type = 'info') => {
+  const showNotification = (message, type) => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // ==========================================
-  // 🎨 INTERFACE UTILISATEUR
-  // ==========================================
+  const filteredRewards = rewards.filter(r =>
+    !searchTerm || 
+    r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // Obtenir les catégories uniques pour le filtre
-  const categories = React.useMemo(() => {
-    const cats = new Set();
-    [...availableRewards, ...teamRewards].forEach(cat => cats.add(cat.category));
-    return ['all', ...Array.from(cats)];
-  }, [availableRewards, teamRewards]);
-
-  // Statistiques complètes
-  const stats = getCompleteStats();
-
-  if (loading) {
+  if (loading || !gamification) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-yellow-500"></div>
         </div>
       </Layout>
     );
@@ -294,7 +152,7 @@ const RewardsPage = () => {
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
         
-        {/* 🎨 NOTIFICATION */}
+        {/* NOTIFICATION */}
         <AnimatePresence>
           {notification && (
             <motion.div
@@ -302,17 +160,15 @@ const RewardsPage = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -50 }}
               className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
-                notification.type === 'success' 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-red-500 text-white'
-              }`}
+                notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+              } text-white`}
             >
               {notification.message}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* 📊 EN-TÊTE */}
+        {/* EN-TÊTE */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -328,51 +184,53 @@ const RewardsPage = () => {
             {userIsAdmin && (
               <button
                 onClick={() => setShowAdminPanel(!showAdminPanel)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2"
               >
                 <Settings className="w-5 h-5" />
-                {showAdminPanel ? 'Masquer Admin' : 'Panneau Admin'}
+                {showAdminPanel ? 'Masquer' : 'Admin'}
               </button>
             )}
           </div>
 
-          {/* 💰 STATISTIQUES XP */}
+          {/* STATS */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+              <div className="flex justify-between">
                 <div>
                   <p className="text-gray-400 text-sm">Mes XP</p>
-                  <p className="text-2xl font-bold text-white">{currentUserXP?.toLocaleString() || 0}</p>
+                  <p className="text-2xl font-bold text-white">{gamification.totalXp}</p>
                 </div>
                 <Coins className="w-8 h-8 text-yellow-400" />
               </div>
             </div>
 
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+              <div className="flex justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">XP Équipe</p>
-                  <p className="text-2xl font-bold text-white">{teamTotalXP?.toLocaleString() || 0}</p>
-                </div>
-                <Users className="w-8 h-8 text-blue-400" />
-              </div>
-            </div>
-
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Récompenses obtenues</p>
-                  <p className="text-2xl font-bold text-white">{userRewardHistory?.length || 0}</p>
+                  <p className="text-gray-400 text-sm">Disponibles</p>
+                  <p className="text-2xl font-bold text-white">{rewards.length}</p>
                 </div>
                 <Gift className="w-8 h-8 text-green-400" />
               </div>
             </div>
 
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Accessibles</p>
+                  <p className="text-2xl font-bold text-white">{getAffordableRewards().length}</p>
+                </div>
+                <Check className="w-8 h-8 text-blue-400" />
+              </div>
+            </div>
+
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
+              <div className="flex justify-between">
                 <div>
                   <p className="text-gray-400 text-sm">En attente</p>
-                  <p className="text-2xl font-bold text-white">{pendingRequests?.length || 0}</p>
+                  <p className="text-2xl font-bold text-white">
+                    {userRewardHistory.filter(r => r.status === 'pending').length}
+                  </p>
                 </div>
                 <Clock className="w-8 h-8 text-orange-400" />
               </div>
@@ -380,164 +238,96 @@ const RewardsPage = () => {
           </div>
         </div>
 
-        {/* 🔍 FILTRES */}
-        <div className="mb-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Recherche */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rechercher une récompense..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            {/* Type */}
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">Tous les types</option>
-              <option value="individual">Individuelles</option>
-              <option value="team">Équipe</option>
-            </select>
-
-            {/* Catégorie */}
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>
-                  {cat === 'all' ? 'Toutes les catégories' : cat}
-                </option>
-              ))}
-            </select>
+        {/* RECHERCHE */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl text-white"
+            />
           </div>
         </div>
 
-        {/* 🎁 LISTE DES RÉCOMPENSES */}
+        {/* RÉCOMPENSES */}
         {filteredRewards.length === 0 ? (
           <div className="text-center py-12">
             <AlertCircle className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg">Aucune récompense disponible</p>
+            <p className="text-gray-400">Aucune récompense</p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {filteredRewards.map((category) => (
-              <div key={category.category}>
-                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="text-3xl">{category.icon}</span>
-                  {category.category}
-                  <span className="text-sm text-gray-400 ml-2">
-                    ({category.rewards.length} récompense{category.rewards.length > 1 ? 's' : ''})
-                  </span>
-                </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredRewards.map((reward) => {
+              const affordable = canAffordReward(reward.xpCost);
+              
+              return (
+                <motion.div
+                  key={reward.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`bg-gray-800/50 border rounded-xl p-6 cursor-pointer hover:scale-105 transition-transform ${
+                    affordable ? 'border-green-500/50' : 'border-gray-700/50'
+                  }`}
+                  onClick={() => {
+                    setSelectedReward(reward);
+                    setShowRequestModal(true);
+                  }}
+                >
+                  <div className="text-center mb-4">
+                    <div className="text-6xl mb-2">{reward.icon}</div>
+                    <h3 className="text-lg font-bold text-white">{reward.name}</h3>
+                  </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {category.rewards.map((reward) => {
-                    const canAfford = canAffordReward(reward.xpCost);
-                    
-                    return (
-                      <motion.div
-                        key={reward.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className={`bg-gray-800/50 backdrop-blur-sm border rounded-xl p-6 ${
-                          canAfford 
-                            ? 'border-green-500/50 hover:border-green-500' 
-                            : 'border-gray-700/50 hover:border-gray-600'
-                        } transition-all cursor-pointer`}
-                        onClick={() => {
-                          setSelectedReward(reward);
-                          setShowRequestModal(true);
-                        }}
-                      >
-                        {/* Icône récompense */}
-                        <div className="text-center mb-4">
-                          <div className="text-6xl mb-2">{reward.icon}</div>
-                          <h3 className="text-lg font-bold text-white">{reward.name}</h3>
-                        </div>
+                  <p className="text-gray-400 text-sm mb-4 min-h-[60px]">
+                    {reward.description}
+                  </p>
 
-                        {/* Description */}
-                        <p className="text-gray-400 text-sm mb-4 min-h-[60px]">
-                          {reward.description}
-                        </p>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                      <Coins className="w-5 h-5 text-yellow-400" />
+                      <span className={`font-bold ${affordable ? 'text-green-400' : 'text-red-400'}`}>
+                        {reward.xpCost} XP
+                      </span>
+                    </div>
+                    {affordable ? <Check className="w-5 h-5 text-green-400" /> : <X className="w-5 h-5 text-red-400" />}
+                  </div>
 
-                        {/* Coût */}
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <Coins className="w-5 h-5 text-yellow-400" />
-                            <span className={`text-lg font-bold ${canAfford ? 'text-green-400' : 'text-red-400'}`}>
-                              {reward.xpCost} XP
-                            </span>
-                          </div>
-                          
-                          {canAfford ? (
-                            <Check className="w-5 h-5 text-green-400" />
-                          ) : (
-                            <X className="w-5 h-5 text-red-400" />
-                          )}
-                        </div>
+                  <button
+                    className={`w-full py-2 rounded-lg font-semibold ${
+                      affordable ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-400'
+                    }`}
+                    disabled={!affordable}
+                  >
+                    {affordable ? 'Demander' : 'XP insuffisants'}
+                  </button>
 
-                        {/* Bouton */}
-                        <button
-                          className={`w-full py-2 rounded-lg font-semibold transition-colors ${
-                            canAfford
-                              ? 'bg-green-600 hover:bg-green-700 text-white'
-                              : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                          }`}
-                          disabled={!canAfford}
-                        >
-                          {canAfford ? 'Demander' : 'XP insuffisants'}
-                        </button>
-
-                        {/* Actions admin */}
-                        {userIsAdmin && (
-                          <div className="mt-4 flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditModal(reward);
-                              }}
-                              className="flex-1 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm flex items-center justify-center gap-1"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                              Modifier
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteReward(reward.id);
-                              }}
-                              className="flex-1 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm flex items-center justify-center gap-1"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Supprimer
-                            </button>
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                  {userIsAdmin && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteReward(reward.id);
+                      }}
+                      className="w-full mt-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                    >
+                      <Trash2 className="w-4 h-4 mx-auto" />
+                    </button>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         )}
 
-        {/* 🛡️ PANNEAU ADMIN */}
+        {/* PANEL ADMIN */}
         {userIsAdmin && showAdminPanel && (
-          <div className="mt-8 bg-gray-800/50 backdrop-blur-sm border border-purple-500/50 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="mt-8 bg-gray-800/50 border border-purple-500/50 rounded-xl p-6">
+            <div className="flex justify-between mb-6">
               <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 <Shield className="w-6 h-6 text-purple-400" />
-                Panneau Administration
+                Administration
               </h2>
 
               <button
@@ -545,47 +335,36 @@ const RewardsPage = () => {
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
               >
                 <Plus className="w-5 h-5" />
-                Créer une récompense
+                Créer
               </button>
             </div>
 
-            {/* Demandes en attente */}
             <h3 className="text-xl font-bold text-white mb-4">
-              Demandes en attente ({pendingRequests?.length || 0})
+              Demandes ({rewardRequests.length})
             </h3>
 
-            {pendingRequests && pendingRequests.length > 0 ? (
+            {rewardRequests.length > 0 ? (
               <div className="space-y-3">
-                {pendingRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="bg-gray-700/50 border border-gray-600 rounded-lg p-4"
-                  >
-                    <div className="flex items-center justify-between">
+                {rewardRequests.map((request) => (
+                  <div key={request.id} className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
+                    <div className="flex justify-between">
                       <div>
                         <p className="text-white font-semibold">{request.rewardName}</p>
-                        <p className="text-gray-400 text-sm">
-                          Demandé par: {request.userName || 'Utilisateur inconnu'}
-                        </p>
-                        <p className="text-gray-400 text-sm">
-                          Coût: {request.xpCost} XP
-                        </p>
+                        <p className="text-gray-400 text-sm">Par: {request.userName}</p>
+                        <p className="text-gray-400 text-sm">Coût: {request.xpCost} XP</p>
                       </div>
-
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleValidateRequest(request.id, 'approve')}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
                         >
                           <Check className="w-5 h-5" />
-                          Approuver
                         </button>
                         <button
                           onClick={() => handleValidateRequest(request.id, 'reject')}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2"
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
                         >
                           <X className="w-5 h-5" />
-                          Rejeter
                         </button>
                       </div>
                     </div>
@@ -593,42 +372,35 @@ const RewardsPage = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-400 text-center py-8">Aucune demande en attente</p>
+              <p className="text-gray-400 text-center py-8">Aucune demande</p>
             )}
           </div>
         )}
 
-        {/* 🎁 MODAL DEMANDE DE RÉCOMPENSE */}
+        {/* MODALS */}
         <AnimatePresence>
           {showRequestModal && selectedReward && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
               >
-                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="text-4xl">{selectedReward.icon}</span>
-                  {selectedReward.name}
+                <h3 className="text-2xl font-bold text-white mb-4">
+                  {selectedReward.icon} {selectedReward.name}
                 </h3>
-
                 <p className="text-gray-300 mb-4">{selectedReward.description}</p>
-
                 <div className="bg-gray-700/50 rounded-lg p-4 mb-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex justify-between mb-2">
                     <span className="text-gray-400">Coût:</span>
-                    <span className="text-yellow-400 font-bold flex items-center gap-1">
-                      <Coins className="w-5 h-5" />
-                      {selectedReward.xpCost} XP
-                    </span>
+                    <span className="text-yellow-400 font-bold">{selectedReward.xpCost} XP</span>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex justify-between">
                     <span className="text-gray-400">Votre solde:</span>
-                    <span className="text-white font-bold">{currentUserXP} XP</span>
+                    <span className="text-white font-bold">{gamification.totalXp} XP</span>
                   </div>
                 </div>
-
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
@@ -640,104 +412,59 @@ const RewardsPage = () => {
                     Annuler
                   </button>
                   <button
-                    onClick={() => handleRequestReward(selectedReward.id, selectedReward.type)}
+                    onClick={handleRequestReward}
                     className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
                     disabled={!canAffordReward(selectedReward.xpCost)}
                   >
-                    Confirmer la demande
+                    Confirmer
                   </button>
                 </div>
               </motion.div>
             </div>
           )}
-        </AnimatePresence>
 
-        {/* 📝 MODAL CRÉATION RÉCOMPENSE */}
-        <AnimatePresence>
           {showCreateModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
               >
-                <h3 className="text-2xl font-bold text-white mb-6">Créer une nouvelle récompense</h3>
-
+                <h3 className="text-2xl font-bold text-white mb-6">Créer une récompense</h3>
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-gray-300 mb-2">Nom *</label>
-                    <input
-                      type="text"
-                      value={rewardForm.name}
-                      onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 mb-2">Description *</label>
-                    <textarea
-                      value={rewardForm.description}
-                      onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      rows="3"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-300 mb-2">Type</label>
-                      <select
-                        value={rewardForm.type}
-                        onChange={(e) => setRewardForm({ ...rewardForm, type: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      >
-                        <option value="individual">Individuelle</option>
-                        <option value="team">Équipe</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-300 mb-2">Catégorie</label>
-                      <input
-                        type="text"
-                        value={rewardForm.category}
-                        onChange={(e) => setRewardForm({ ...rewardForm, category: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-300 mb-2">Coût XP *</label>
-                      <input
-                        type="number"
-                        value={rewardForm.xpCost}
-                        onChange={(e) => setRewardForm({ ...rewardForm, xpCost: parseInt(e.target.value) || 0 })}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-300 mb-2">Icône</label>
-                      <input
-                        type="text"
-                        value={rewardForm.icon}
-                        onChange={(e) => setRewardForm({ ...rewardForm, icon: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      />
-                    </div>
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="Nom"
+                    value={rewardForm.name}
+                    onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                  <textarea
+                    placeholder="Description"
+                    value={rewardForm.description}
+                    onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    rows="3"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Coût XP"
+                    value={rewardForm.xpCost}
+                    onChange={(e) => setRewardForm({ ...rewardForm, xpCost: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Icône"
+                    value={rewardForm.icon}
+                    onChange={(e) => setRewardForm({ ...rewardForm, icon: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
                 </div>
-
                 <div className="flex gap-3 mt-6">
                   <button
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      resetRewardForm();
-                    }}
+                    onClick={() => setShowCreateModal(false)}
                     className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
                   >
                     Annuler
@@ -747,85 +474,6 @@ const RewardsPage = () => {
                     className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
                   >
                     Créer
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        {/* 📝 MODAL ÉDITION RÉCOMPENSE */}
-        <AnimatePresence>
-          {showEditModal && selectedReward && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              >
-                <h3 className="text-2xl font-bold text-white mb-6">Modifier la récompense</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-gray-300 mb-2">Nom</label>
-                    <input
-                      type="text"
-                      value={rewardForm.name}
-                      onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 mb-2">Description</label>
-                    <textarea
-                      value={rewardForm.description}
-                      onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      rows="3"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-300 mb-2">Coût XP</label>
-                      <input
-                        type="number"
-                        value={rewardForm.xpCost}
-                        onChange={(e) => setRewardForm({ ...rewardForm, xpCost: parseInt(e.target.value) || 0 })}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-300 mb-2">Icône</label>
-                      <input
-                        type="text"
-                        value={rewardForm.icon}
-                        onChange={(e) => setRewardForm({ ...rewardForm, icon: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowEditModal(false);
-                      setSelectedReward(null);
-                      resetRewardForm();
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleEditReward}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                  >
-                    Enregistrer
                   </button>
                 </div>
               </motion.div>
