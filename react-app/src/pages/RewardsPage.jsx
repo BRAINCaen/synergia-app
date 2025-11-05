@@ -147,18 +147,37 @@ const RewardsPage = () => {
       // Charger les récompenses custom de Firebase
       const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
       const firebaseRewards = [];
+      const hiddenRewardIds = []; // IDs des récompenses par défaut masquées
+      
       rewardsSnapshot.forEach(doc => {
-        firebaseRewards.push({
-          id: doc.id,
-          ...doc.data(),
-          isFirebase: true
-        });
+        const data = doc.data();
+        
+        // Si c'est une version masquée d'une récompense par défaut
+        if (data.isHidden && data.originalId) {
+          hiddenRewardIds.push(data.originalId);
+        } else if (!data.isHidden) {
+          // Ajouter uniquement les récompenses non masquées
+          firebaseRewards.push({
+            id: doc.id,
+            ...data,
+            isFirebase: true
+          });
+        }
       });
       console.log('✅ Récompenses Firebase chargées:', firebaseRewards.length);
+      console.log('🔒 Récompenses masquées:', hiddenRewardIds);
 
-      // Combiner récompenses par défaut + Firebase
-      const allIndividual = [...DEFAULT_INDIVIDUAL_REWARDS, ...firebaseRewards.filter(r => r.type === 'individual')];
-      const allTeam = [...DEFAULT_TEAM_REWARDS, ...firebaseRewards.filter(r => r.type === 'team')];
+      // Filtrer les récompenses par défaut pour exclure les masquées
+      const visibleDefaultIndividual = DEFAULT_INDIVIDUAL_REWARDS.filter(
+        r => !hiddenRewardIds.includes(r.id)
+      );
+      const visibleDefaultTeam = DEFAULT_TEAM_REWARDS.filter(
+        r => !hiddenRewardIds.includes(r.id)
+      );
+
+      // Combiner récompenses par défaut visibles + Firebase
+      const allIndividual = [...visibleDefaultIndividual, ...firebaseRewards.filter(r => r.type === 'individual')];
+      const allTeam = [...visibleDefaultTeam, ...firebaseRewards.filter(r => r.type === 'team')];
       const combined = [...allIndividual, ...allTeam];
       setAllRewards(combined);
       console.log('✅ Total récompenses:', combined.length);
@@ -869,6 +888,59 @@ const RewardsPage = () => {
                     >
                       Annuler
                     </button>
+                    
+                    {selectedReward && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const isDefault = !selectedReward.isFirebase;
+                          const confirmMsg = isDefault 
+                            ? `Masquer "${selectedReward.name}" de la boutique ?` 
+                            : `Supprimer définitivement "${selectedReward.name}" ?`;
+                          
+                          if (confirm(confirmMsg)) {
+                            try {
+                              if (selectedReward.isFirebase) {
+                                // Supprimer la récompense Firebase
+                                await deleteDoc(doc(db, 'rewards', selectedReward.id));
+                                console.log('✅ Récompense Firebase supprimée');
+                              } else {
+                                // Masquer la récompense par défaut en créant une version désactivée
+                                await addDoc(collection(db, 'rewards'), {
+                                  name: selectedReward.name,
+                                  description: selectedReward.description,
+                                  type: selectedReward.type,
+                                  category: selectedReward.category,
+                                  xpCost: selectedReward.xpCost,
+                                  icon: selectedReward.icon,
+                                  isAvailable: false, // DÉSACTIVÉE
+                                  originalId: selectedReward.id,
+                                  isDefault: false,
+                                  isFirebase: true,
+                                  isHidden: true, // Flag pour savoir que c'est une version masquée
+                                  createdAt: serverTimestamp(),
+                                  createdBy: user.uid
+                                });
+                                console.log('✅ Récompense par défaut masquée');
+                              }
+                              
+                              alert('✅ Récompense supprimée !');
+                              setShowEditModal(false);
+                              setSelectedReward(null);
+                              await loadAllData();
+                            } catch (error) {
+                              console.error('❌ Erreur suppression:', error);
+                              alert('Erreur: ' + error.message);
+                            }
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {selectedReward.isFirebase ? 'Supprimer' : 'Masquer'}
+                      </button>
+                    )}
+                    
                     <button
                       type="submit"
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
