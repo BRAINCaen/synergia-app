@@ -24,7 +24,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../shared/config/firebase.js';
+import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 import Layout from '../shared/components/Layout';
