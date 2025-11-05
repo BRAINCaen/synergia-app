@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT FINAL AVEC MENU CORRIGÉ - TOUS LES LIENS FONCTIONNELS
+// LAYOUT FINAL AVEC MENU CORRIGÉ - AVEC CAMPAGNES
 // ==========================================
 
 import React, { useState, memo, useRef, useCallback } from 'react';
@@ -17,6 +17,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
       { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
+      { path: '/campaigns', label: 'Campagnes', icon: '🎯' },
       { path: '/analytics', label: 'Analytics', icon: '📊' }
     ]},
     { section: 'GAMIFICATION', items: [
