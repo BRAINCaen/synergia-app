@@ -176,8 +176,7 @@ const TeamPage = () => {
         unsubscribeMessages();
       }
     };
-  }, [user?.uid]);
-
+}, [user]);
   const loadAllTeamMembers = async () => {
     setLoading(true);
     setError(null);
