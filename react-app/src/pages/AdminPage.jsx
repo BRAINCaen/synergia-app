@@ -27,7 +27,7 @@ import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestor
 import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
-import Layout from '../shared/components/Layout';
+import Layout from '../components/layout/Layout';
 
 /**
  * 🛡️ PAGE ADMIN PRINCIPALE - DASHBOARD ADMINISTRATEUR
