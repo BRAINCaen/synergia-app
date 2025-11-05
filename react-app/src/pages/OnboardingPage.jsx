@@ -46,7 +46,8 @@ import {
   Save,
   X,
   Filter,
-  Search
+  Search,
+  Trophy
 } from 'lucide-react';
 
 // Firebase imports
@@ -62,7 +63,8 @@ import {
   where, 
   orderBy, 
   serverTimestamp,
-  onSnapshot 
+  onSnapshot,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
