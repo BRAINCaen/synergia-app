@@ -555,6 +555,8 @@ const BadgesPage = () => {
                     <div className="flex gap-2 mt-4 pt-4 border-t border-white/20">
                       <button
                         onClick={() => {
+                          console.log('🔵 Bouton Modifier cliqué pour badge:', badge.name);
+                          console.log('Badge complet:', badge);
                           setSelectedBadge(badge);
                           setBadgeForm({
                             name: badge.name || '',
@@ -566,6 +568,7 @@ const BadgesPage = () => {
                             requirements: badge.requirements || {},
                             isActive: badge.isActive !== false
                           });
+                          console.log('✅ État modal set à true');
                           setShowEditBadgeModal(true);
                         }}
                         className="flex-1 bg-blue-500/20 border border-blue-400/30 text-blue-300 py-2 px-3 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center justify-center gap-1"
@@ -597,7 +600,282 @@ const BadgesPage = () => {
             </div>
           )}
 
-          {/* MODALS (création, édition, attribution) - identiques au code précédent mais avec style dark */}
+          {/* 🎨 MODAL CRÉER BADGE */}
+          {showCreateBadgeModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-800 border border-white/20 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold text-white mb-4">Créer un Badge</h3>
+                
+                <form onSubmit={handleCreateBadge} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
+                    <input
+                      type="text"
+                      value={badgeForm.name}
+                      onChange={(e) => setBadgeForm({...badgeForm, name: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <textarea
+                      value={badgeForm.description}
+                      onChange={(e) => setBadgeForm({...badgeForm, description: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Icône (emoji)</label>
+                    <input
+                      type="text"
+                      value={badgeForm.icon}
+                      onChange={(e) => setBadgeForm({...badgeForm, icon: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Catégorie</label>
+                    <select
+                      value={badgeForm.category}
+                      onChange={(e) => setBadgeForm({...badgeForm, category: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="Accomplissement" className="bg-slate-800">Accomplissement</option>
+                      <option value="Performance" className="bg-slate-800">Performance</option>
+                      <option value="Social" className="bg-slate-800">Social</option>
+                      <option value="Exploration" className="bg-slate-800">Exploration</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Rareté</label>
+                    <select
+                      value={badgeForm.rarity}
+                      onChange={(e) => setBadgeForm({...badgeForm, rarity: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="Commun" className="bg-slate-800">Commun</option>
+                      <option value="Peu Commun" className="bg-slate-800">Peu Commun</option>
+                      <option value="Rare" className="bg-slate-800">Rare</option>
+                      <option value="Épique" className="bg-slate-800">Épique</option>
+                      <option value="Légendaire" className="bg-slate-800">Légendaire</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">XP Récompense</label>
+                    <input
+                      type="number"
+                      value={badgeForm.xpReward}
+                      onChange={(e) => setBadgeForm({...badgeForm, xpReward: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateBadgeModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Créer
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ✏️ MODAL MODIFIER BADGE */}
+          {showEditBadgeModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-800 border border-white/20 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold text-white mb-4">Modifier le Badge</h3>
+                
+                <form onSubmit={handleEditBadge} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
+                    <input
+                      type="text"
+                      value={badgeForm.name}
+                      onChange={(e) => setBadgeForm({...badgeForm, name: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <textarea
+                      value={badgeForm.description}
+                      onChange={(e) => setBadgeForm({...badgeForm, description: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      rows={3}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Icône (emoji)</label>
+                    <input
+                      type="text"
+                      value={badgeForm.icon}
+                      onChange={(e) => setBadgeForm({...badgeForm, icon: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Catégorie</label>
+                    <select
+                      value={badgeForm.category}
+                      onChange={(e) => setBadgeForm({...badgeForm, category: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="Accomplissement" className="bg-slate-800">Accomplissement</option>
+                      <option value="Performance" className="bg-slate-800">Performance</option>
+                      <option value="Social" className="bg-slate-800">Social</option>
+                      <option value="Exploration" className="bg-slate-800">Exploration</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Rareté</label>
+                    <select
+                      value={badgeForm.rarity}
+                      onChange={(e) => setBadgeForm({...badgeForm, rarity: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="Commun" className="bg-slate-800">Commun</option>
+                      <option value="Peu Commun" className="bg-slate-800">Peu Commun</option>
+                      <option value="Rare" className="bg-slate-800">Rare</option>
+                      <option value="Épique" className="bg-slate-800">Épique</option>
+                      <option value="Légendaire" className="bg-slate-800">Légendaire</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">XP Récompense</label>
+                    <input
+                      type="number"
+                      value={badgeForm.xpReward}
+                      onChange={(e) => setBadgeForm({...badgeForm, xpReward: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEditBadgeModal(false);
+                        setSelectedBadge(null);
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Modifier
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* 🎁 MODAL ATTRIBUER BADGE */}
+          {showAssignBadgeModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-800 border border-white/20 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold text-white mb-4">Attribuer un Badge</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Liste des utilisateurs */}
+                  <div>
+                    <h4 className="font-semibold text-white mb-3">Sélectionner un utilisateur</h4>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {allUsers.map(u => (
+                        <button
+                          key={u.id}
+                          onClick={() => setSelectedUsers([u.id])}
+                          className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                            selectedUsers.includes(u.id)
+                              ? 'border-blue-500 bg-blue-500/20'
+                              : 'border-white/20 bg-white/5 hover:border-white/40'
+                          }`}
+                        >
+                          <p className="font-medium text-white">{u.displayName || u.email}</p>
+                          <p className="text-sm text-gray-400">{u.xp || 0} XP</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Liste des badges */}
+                  <div>
+                    <h4 className="font-semibold text-white mb-3">Sélectionner un badge</h4>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {allBadges.map(badge => (
+                        <button
+                          key={badge.id}
+                          onClick={() => {
+                            if (selectedUsers.length > 0) {
+                              handleAssignBadge(selectedUsers[0], badge.id);
+                              setShowAssignBadgeModal(false);
+                              setSelectedUsers([]);
+                            } else {
+                              alert('Veuillez d\'abord sélectionner un utilisateur');
+                            }
+                          }}
+                          className="w-full text-left p-3 rounded-lg border-2 border-white/20 bg-white/5 hover:border-blue-400/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">{badge.icon}</span>
+                            <div>
+                              <p className="font-medium text-white">{badge.name}</p>
+                              <p className="text-sm text-gray-400">{badge.xpReward} XP</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/20">
+                  <button
+                    onClick={() => {
+                      setShowAssignBadgeModal(false);
+                      setSelectedUsers([]);
+                    }}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Layout>
