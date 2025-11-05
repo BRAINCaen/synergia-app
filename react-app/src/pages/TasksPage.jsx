@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/TasksPage.jsx
-// PAGE QUÊTES - CORRECTION FILTRE "AUTRES"
+// PAGE QUÊTES - AVEC NOTIFICATIONS COMMENTAIRES
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -93,6 +93,9 @@ const TasksPage = () => {
   const [activeTab, setActiveTab] = useState('my_tasks');
   const [viewMode, setViewMode] = useState('cards');
   
+  // 💬 ÉTAT POUR LES COMMENTAIRES
+  const [taskComments, setTaskComments] = useState({});
+  
   // Filtres
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -133,6 +136,44 @@ const TasksPage = () => {
 
     return () => unsubscribe();
   }, [user?.uid]);
+
+  // 💬 CHARGEMENT DES COMMENTAIRES EN TEMPS RÉEL
+  useEffect(() => {
+    if (!user?.uid || tasks.length === 0) return;
+
+    console.log('💬 [COMMENTAIRES] Configuration des listeners...');
+    
+    const unsubscribes = [];
+
+    tasks.forEach(task => {
+      const commentsQuery = query(
+        collection(db, 'tasks', task.id, 'comments'),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+        const comments = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        setTaskComments(prev => ({
+          ...prev,
+          [task.id]: comments
+        }));
+
+        console.log(`💬 [COMMENTAIRES] ${comments.length} commentaires pour quête ${task.id}`);
+      }, (error) => {
+        console.error(`❌ [COMMENTAIRES] Erreur quête ${task.id}:`, error);
+      });
+
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, [tasks, user?.uid]);
 
   // 🔍 FILTRAGE ET TRI
   useEffect(() => {
@@ -302,6 +343,9 @@ const TasksPage = () => {
     const isAssignedToMe = Array.isArray(task.assignedTo) 
       ? task.assignedTo.includes(user?.uid)
       : task.assignedTo === user?.uid;
+    
+    // 💬 COMPTEUR DE COMMENTAIRES
+    const commentCount = taskComments[task.id]?.length || 0;
 
     return (
       <motion.div
@@ -310,9 +354,16 @@ const TasksPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 hover:border-blue-500/50 transition-all cursor-pointer"
+        className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 hover:border-blue-500/50 transition-all cursor-pointer relative"
         onClick={() => handleViewDetails(task)}
       >
+        {/* 💬 BADGE COMMENTAIRES */}
+        {commentCount > 0 && (
+          <div className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold shadow-lg z-10 animate-pulse">
+            {commentCount}
+          </div>
+        )}
+
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <h3 className="font-semibold text-white mb-1">{task.title}</h3>
@@ -334,6 +385,12 @@ const TasksPage = () => {
             {isAssignedToMe && (
               <span className="text-blue-400">
                 <User className="w-4 h-4" />
+              </span>
+            )}
+            {commentCount > 0 && (
+              <span className="flex items-center text-blue-400">
+                <MessageCircle className="w-4 h-4 mr-1" />
+                {commentCount}
               </span>
             )}
           </div>
@@ -630,6 +687,7 @@ const TasksPage = () => {
                       <TaskCard
                         key={task.id}
                         task={task}
+                        commentCount={taskComments[task.id]?.length || 0}
                         onViewDetails={handleViewDetails}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
@@ -651,6 +709,7 @@ const TasksPage = () => {
                         key={task.id}
                         task={task}
                         viewMode="list"
+                        commentCount={taskComments[task.id]?.length || 0}
                         onViewDetails={handleViewDetails}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
