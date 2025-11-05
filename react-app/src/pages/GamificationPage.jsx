@@ -25,6 +25,8 @@ import {
   Sparkles,
   Activity
 } from 'lucide-react';
+import { validateAndFixXPData, calculateXPStats, checkDataIntegrity } from '../core/utils/xpValidation.js';
+
 
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
 import Layout from '../components/layout/Layout.jsx';
