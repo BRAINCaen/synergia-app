@@ -103,7 +103,21 @@ const TeamPage = () => {
     if (user?.uid) {
       initializeData();
     }
-    // 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL
+    
+    // Nettoyage lors du démontage
+    return () => {
+      if (unsubscribeTeam && typeof unsubscribeTeam === 'function') {
+        console.log('🧹 Nettoyage listener équipe');
+        unsubscribeTeam();
+      }
+      if (unsubscribeMessages && typeof unsubscribeMessages === 'function') {
+        console.log('🧹 Nettoyage listener messagerie');
+        unsubscribeMessages();
+      }
+    };
+  }, [user?.uid]);
+
+  // 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL
   useEffect(() => {
     if (!showMemberModal || !selectedMember) return;
 
