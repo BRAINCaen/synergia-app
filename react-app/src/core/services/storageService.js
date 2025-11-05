@@ -1,349 +1,160 @@
 // ==========================================
 // 📁 react-app/src/core/services/storageService.js
-// SERVICE D'UPLOAD FIREBASE STORAGE AVEC URLS PUBLIQUES ET AVATAR
+// SERVICE FIREBASE STORAGE POUR UPLOAD D'IMAGES
 // ==========================================
 
-import { getAuth } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { storage } from '../firebase.js';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase.js';
 
 /**
- * 📁 SERVICE D'UPLOAD FIREBASE STORAGE AVEC URLs PUBLIQUES
+ * 📷 UPLOAD AVATAR UTILISATEUR
+ * @param {string} userId - ID de l'utilisateur
+ * @param {File} file - Fichier image à uploader
+ * @returns {Promise<string>} URL de l'image uploadée
  */
-class StorageService {
-  constructor() {
-    this.bucketName = 'synergia-app-f27e7.firebasestorage.app';
-    this.baseUrl = `https://firebasestorage.googleapis.com/v0/b/${this.bucketName}/o`;
-  }
-
-  /**
-   * 🔑 Obtenir le token d'authentification Firebase
-   */
-  async getAuthToken() {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      
-      if (!user) {
-        throw new Error('Utilisateur non connecté');
-      }
-      
-      const token = await user.getIdToken();
-      return token;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération token:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📸 Upload d'un fichier avec l'API REST Firebase Storage
-   */
-  async uploadFile(file, path, metadata = {}) {
-    try {
-      console.log('📸 Upload API REST vers:', path, {
-        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        type: file.type,
-        bucket: this.bucketName
-      });
-
-      // ✅ Obtenir le token d'authentification
-      const token = await this.getAuthToken();
-      
-      // ✅ Encoder le chemin pour l'URL
-      const encodedPath = encodeURIComponent(path);
-      
-      // ✅ URL d'upload avec paramètres
-      const uploadUrl = `${this.baseUrl}/${encodedPath}?uploadType=media`;
-      
-      // ✅ Headers minimalistes pour éviter CORS
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': file.type
-      };
-      
-      console.log('🔄 Démarrage upload API REST...');
-      
-      // ✅ Upload avec fetch
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: headers,
-        body: file
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erreur réponse API REST:', response.status, errorText);
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log('✅ Upload API REST réussi:', result);
-      
-      // ✅ Obtenir l'URL de téléchargement publique
-      const downloadURL = await this.getPublicDownloadURL(path);
-      
-      return {
-        success: true,
-        path: path,
-        url: downloadURL,
-        type: file.type.startsWith('video/') ? 'video' : 'image',
-        size: file.size,
-        metadata: result
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur upload API REST:', error);
-      
-      // ✅ Détecter les erreurs CORS
-      if (error.message.includes('CORS') || 
-          error.message.includes('TypeError: Failed to fetch') ||
-          error.message.includes('ERR_FAILED')) {
-        throw new Error('CORS_ERROR');
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * 🔗 Obtenir une URL de téléchargement publique
-   */
-  async getPublicDownloadURL(path) {
-    try {
-      const token = await this.getAuthToken();
-      const encodedPath = encodeURIComponent(path);
-      
-      // ✅ URL publique avec token d'authentification
-      const publicUrl = `${this.baseUrl}/${encodedPath}?alt=media&token=${token}`;
-      
-      console.log('🔗 URL publique générée:', publicUrl.substring(0, 100) + '...');
-      
-      return publicUrl;
-      
-    } catch (error) {
-      console.error('❌ Erreur génération URL publique:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📸 Upload d'une image avec gestion d'erreur
-   */
-  async uploadImage(imageFile, folder = 'uploads') {
-    try {
-      const timestamp = Date.now();
-      const extension = imageFile.name.split('.').pop() || 'jpg';
-      const filename = `image-${timestamp}.${extension}`;
-      const path = `${folder}/${filename}`;
-      
-      return await this.uploadFile(imageFile, path);
-      
-    } catch (error) {
-      console.error('❌ Erreur upload image:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🎬 Upload d'une vidéo avec gestion d'erreur
-   */
-  async uploadVideo(videoFile, folder = 'uploads') {
-    try {
-      const timestamp = Date.now();
-      const extension = videoFile.name.split('.').pop() || 'mp4';
-      const filename = `video-${timestamp}.${extension}`;
-      const path = `${folder}/${filename}`;
-      
-      return await this.uploadFile(videoFile, path);
-      
-    } catch (error) {
-      console.error('❌ Erreur upload vidéo:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 👤 Upload d'un avatar utilisateur
-   */
-  async uploadUserAvatar(userId, avatarFile) {
-    try {
-      console.log('👤 Upload avatar pour utilisateur:', userId);
-      
-      // Validation du fichier
-      if (!avatarFile) {
-        throw new Error('Aucun fichier avatar fourni');
-      }
-      
-      // Vérifier que c'est une image
-      if (!avatarFile.type.startsWith('image/')) {
-        throw new Error('Le fichier doit être une image');
-      }
-      
-      // Limiter la taille (5MB max)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (avatarFile.size > maxSize) {
-        throw new Error('L\'avatar ne peut pas dépasser 5MB');
-      }
-      
-      // Générer le chemin pour l'avatar
-      const timestamp = Date.now();
-      const extension = avatarFile.name.split('.').pop() || 'jpg';
-      const filename = `avatar-${userId}-${timestamp}.${extension}`;
-      const path = `avatars/${filename}`;
-      
-      // Upload du fichier
-      const result = await this.uploadFile(avatarFile, path);
-      
-      console.log('✅ Avatar uploadé avec succès:', result.url);
-      
-      return result.url;
-      
-    } catch (error) {
-      console.error('❌ Erreur upload avatar:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📱 Upload pour validation de tâche
-   */
-  async uploadTaskValidation(file, taskId, userId) {
-    try {
-      const timestamp = Date.now();
-      const extension = file.name.split('.').pop();
-      const fileType = file.type.startsWith('video/') ? 'video' : 'image';
-      const filename = `task-${taskId}-${userId}-${timestamp}.${extension}`;
-      const path = `task-validations/${filename}`;
-      
-      return await this.uploadFile(file, path);
-      
-    } catch (error) {
-      console.error('❌ Erreur upload validation tâche:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🎨 Upload pour contenu créatif
-   */
-  async uploadCreativeContent(file, contentType, userId) {
-    try {
-      const timestamp = Date.now();
-      const extension = file.name.split('.').pop();
-      const filename = `creative-${contentType}-${userId}-${timestamp}.${extension}`;
-      const path = `creative-content/${filename}`;
-      
-      return await this.uploadFile(file, path);
-      
-    } catch (error) {
-      console.error('❌ Erreur upload contenu créatif:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 🗑️ Supprimer un fichier
-   */
-  async deleteFile(path) {
-    try {
-      const token = await this.getAuthToken();
-      const encodedPath = encodeURIComponent(path);
-      const deleteUrl = `${this.baseUrl}/${encodedPath}`;
-      
-      const response = await fetch(deleteUrl, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Delete failed: ${response.status}`);
-      }
-      
-      console.log('🗑️ Fichier supprimé:', path);
-      return { success: true, path };
-      
-    } catch (error) {
-      console.error('❌ Erreur suppression fichier:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 📊 Obtenir les métadonnées d'un fichier
-   */
-  async getFileMetadata(path) {
-    try {
-      const token = await this.getAuthToken();
-      const encodedPath = encodeURIComponent(path);
-      const metadataUrl = `${this.baseUrl}/${encodedPath}`;
-      
-      const response = await fetch(metadataUrl, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Get metadata failed: ${response.status}`);
-      }
-      
-      const metadata = await response.json();
-      return metadata;
-      
-    } catch (error) {
-      console.error('❌ Erreur récupération métadonnées:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * ✅ Valider un fichier avant upload
-   */
-  validateFile(file, options = {}) {
-    const errors = [];
+export const uploadUserAvatar = async (userId, file) => {
+  try {
+    console.log('📷 [STORAGE] Upload avatar pour user:', userId);
     
+    // Validation du fichier
     if (!file) {
-      errors.push('Aucun fichier fourni');
-      return { valid: false, errors };
+      throw new Error('Aucun fichier fourni');
     }
-    
-    // Vérifier la taille
-    const maxSize = options.maxSize || 50 * 1024 * 1024; // 50MB par défaut
+
+    // Vérifier que c'est bien une image
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Le fichier doit être une image');
+    }
+
+    // Vérifier la taille (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      errors.push(`Fichier trop volumineux: ${(file.size / 1024 / 1024).toFixed(2)}MB (max: ${(maxSize / 1024 / 1024).toFixed(0)}MB)`);
+      throw new Error('L\'image ne doit pas dépasser 5MB');
     }
-    
-    // Vérifier le type si spécifié
-    if (options.allowedTypes && !options.allowedTypes.includes(file.type)) {
-      errors.push(`Type de fichier non autorisé: ${file.type}`);
-    }
-    
-    return {
-      valid: errors.length === 0,
-      errors,
-      size: file.size,
-      type: file.type
-    };
+
+    // Créer une référence unique pour l'avatar
+    const timestamp = Date.now();
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `avatar_${userId}_${timestamp}.${fileExtension}`;
+    const storageRef = ref(storage, `avatars/${userId}/${fileName}`);
+
+    console.log('📤 [STORAGE] Upload vers:', storageRef.fullPath);
+
+    // Upload du fichier
+    const snapshot = await uploadBytes(storageRef, file, {
+      contentType: file.type,
+      customMetadata: {
+        uploadedBy: userId,
+        uploadedAt: new Date().toISOString()
+      }
+    });
+
+    console.log('✅ [STORAGE] Upload réussi');
+
+    // Récupérer l'URL de téléchargement
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    console.log('🔗 [STORAGE] URL générée:', downloadURL);
+
+    // Mettre à jour le profil utilisateur dans Firestore
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      photoURL: downloadURL,
+      updatedAt: new Date()
+    });
+
+    console.log('✅ [STORAGE] Profil mis à jour dans Firestore');
+
+    return downloadURL;
+
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur upload avatar:', error);
+    throw error;
   }
-}
+};
 
-// Instance singleton
-const storageService = new StorageService();
+/**
+ * 🗑️ SUPPRIMER UN AVATAR UTILISATEUR
+ * @param {string} photoURL - URL de l'image à supprimer
+ */
+export const deleteUserAvatar = async (photoURL) => {
+  try {
+    if (!photoURL || !photoURL.includes('firebase')) {
+      console.log('⚠️ [STORAGE] Pas d\'avatar Firebase à supprimer');
+      return;
+    }
 
-// Export des méthodes principales
-export const {
-  uploadFile,
-  uploadImage,
-  uploadVideo,
+    // Extraire le chemin depuis l'URL
+    const path = decodeURIComponent(photoURL.split('/o/')[1]?.split('?')[0]);
+    if (!path) {
+      throw new Error('Impossible d\'extraire le chemin du fichier');
+    }
+
+    const storageRef = ref(storage, path);
+    await deleteObject(storageRef);
+    
+    console.log('✅ [STORAGE] Avatar supprimé');
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur suppression avatar:', error);
+    throw error;
+  }
+};
+
+/**
+ * 📁 UPLOAD FICHIER GÉNÉRIQUE
+ * @param {string} path - Chemin de destination dans Storage
+ * @param {File} file - Fichier à uploader
+ * @returns {Promise<string>} URL du fichier uploadé
+ */
+export const uploadFile = async (path, file) => {
+  try {
+    console.log('📁 [STORAGE] Upload fichier vers:', path);
+
+    const storageRef = ref(storage, path);
+    const snapshot = await uploadBytes(storageRef, file, {
+      contentType: file.type
+    });
+
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    console.log('✅ [STORAGE] Fichier uploadé:', downloadURL);
+
+    return downloadURL;
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur upload fichier:', error);
+    throw error;
+  }
+};
+
+/**
+ * 🗑️ SUPPRIMER UN FICHIER
+ * @param {string} fileURL - URL du fichier à supprimer
+ */
+export const deleteFile = async (fileURL) => {
+  try {
+    if (!fileURL || !fileURL.includes('firebase')) {
+      console.log('⚠️ [STORAGE] Pas de fichier Firebase à supprimer');
+      return;
+    }
+
+    const path = decodeURIComponent(fileURL.split('/o/')[1]?.split('?')[0]);
+    if (!path) {
+      throw new Error('Impossible d\'extraire le chemin du fichier');
+    }
+
+    const storageRef = ref(storage, path);
+    await deleteObject(storageRef);
+    
+    console.log('✅ [STORAGE] Fichier supprimé');
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur suppression fichier:', error);
+    throw error;
+  }
+};
+
+export default {
   uploadUserAvatar,
-  uploadTaskValidation,
-  uploadCreativeContent,
-  getPublicDownloadURL,
-  deleteFile,
-  getFileMetadata,
-  validateFile
-} = storageService;
-
-export default storageService;
+  deleteUserAvatar,
+  uploadFile,
+  deleteFile
+};
