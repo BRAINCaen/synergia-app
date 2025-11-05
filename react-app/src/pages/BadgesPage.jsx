@@ -550,8 +550,8 @@ const BadgesPage = () => {
                     </div>
                   </div>
 
-                  {/* Actions Admin */}
-                  {userIsAdmin && showAdminPanel && badge.isFirebase && (
+                  {/* Actions Admin - TOUS LES BADGES PEUVENT ÊTRE MODIFIÉS */}
+                  {userIsAdmin && showAdminPanel && (
                     <div className="flex gap-2 mt-4 pt-4 border-t border-white/20">
                       <button
                         onClick={() => {
@@ -571,16 +571,18 @@ const BadgesPage = () => {
                         className="flex-1 bg-blue-500/20 border border-blue-400/30 text-blue-300 py-2 px-3 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center justify-center gap-1"
                       >
                         <Edit className="w-4 h-4" />
-                        Éditer
+                        Modifier
                       </button>
                       
-                      <button
-                        onClick={() => handleDeleteBadge(badge.id)}
-                        className="flex-1 bg-red-500/20 border border-red-400/30 text-red-300 py-2 px-3 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Supprimer
-                      </button>
+                      {badge.isFirebase && (
+                        <button
+                          onClick={() => handleDeleteBadge(badge.id)}
+                          className="flex-1 bg-red-500/20 border border-red-400/30 text-red-300 py-2 px-3 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Supprimer
+                        </button>
+                      )}
                     </div>
                   )}
                 </motion.div>
