@@ -250,6 +250,51 @@ const TasksPage = () => {
     }
   }, []);
 
+  // 🙋 HANDLER VOLONTARIAT
+  const handleVolunteer = useCallback(async (task) => {
+    try {
+      console.log('🙋 [VOLUNTEER] Se porter volontaire pour:', task.id);
+      const taskRef = doc(db, 'tasks', task.id);
+      const currentAssignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+      
+      await updateDoc(taskRef, {
+        assignedTo: [...currentAssignedTo, user.uid],
+        status: task.status === 'todo' ? 'in_progress' : task.status,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Volontariat enregistré');
+      alert('Vous vous êtes porté volontaire pour cette quête !');
+    } catch (error) {
+      console.error('❌ Erreur volontariat:', error);
+      alert('Erreur lors du volontariat');
+    }
+  }, [user?.uid]);
+
+  // 🚪 HANDLER SE DÉSASSIGNER
+  const handleUnvolunteer = useCallback(async (task) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir vous retirer de cette quête ?')) return;
+
+    try {
+      console.log('🚪 [UNVOLUNTEER] Se désassigner de:', task.id);
+      const taskRef = doc(db, 'tasks', task.id);
+      const currentAssignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+      const newAssignedTo = currentAssignedTo.filter(id => id !== user.uid);
+      
+      await updateDoc(taskRef, {
+        assignedTo: newAssignedTo,
+        status: newAssignedTo.length === 0 ? 'todo' : task.status,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('✅ Désassignation réussie');
+      alert('Vous vous êtes retiré de cette quête');
+    } catch (error) {
+      console.error('❌ Erreur désassignation:', error);
+      alert('Erreur lors de la désassignation');
+    }
+  }, [user?.uid]);
+
   // 🔧 Rendu d'une quête pour la vue Kanban
   const renderKanbanTask = (task) => {
     const statusInfo = QUEST_STATUS[task.status] || QUEST_STATUS.todo;
@@ -589,6 +634,8 @@ const TasksPage = () => {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onStatusChange={handleStatusChange}
+                        onVolunteer={handleVolunteer}
+                        onUnvolunteer={handleUnvolunteer}
                       />
                     ))}
                   </AnimatePresence>
@@ -608,6 +655,8 @@ const TasksPage = () => {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onStatusChange={handleStatusChange}
+                        onVolunteer={handleVolunteer}
+                        onUnvolunteer={handleUnvolunteer}
                       />
                     ))}
                   </AnimatePresence>
