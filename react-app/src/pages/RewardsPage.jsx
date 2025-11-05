@@ -125,11 +125,13 @@ const RewardsPage = () => {
   const loadAllData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Chargement des données...');
       
       // Charger le profil utilisateur
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         setUserProfile(userDoc.data());
+        console.log('✅ Profil utilisateur chargé');
       }
 
       // Calculer le XP total d'équipe
@@ -140,35 +142,44 @@ const RewardsPage = () => {
         totalXP += userData.xp || 0;
       });
       setTeamTotalXP(totalXP);
+      console.log('✅ XP équipe calculé:', totalXP);
 
       // Charger les récompenses custom de Firebase
       const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
-      const firebaseRewards = rewardsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        isFirebase: true
-      }));
+      const firebaseRewards = [];
+      rewardsSnapshot.forEach(doc => {
+        firebaseRewards.push({
+          id: doc.id,
+          ...doc.data(),
+          isFirebase: true
+        });
+      });
+      console.log('✅ Récompenses Firebase chargées:', firebaseRewards.length);
 
       // Combiner récompenses par défaut + Firebase
       const allIndividual = [...DEFAULT_INDIVIDUAL_REWARDS, ...firebaseRewards.filter(r => r.type === 'individual')];
       const allTeam = [...DEFAULT_TEAM_REWARDS, ...firebaseRewards.filter(r => r.type === 'team')];
-      setAllRewards([...allIndividual, ...allTeam]);
+      const combined = [...allIndividual, ...allTeam];
+      setAllRewards(combined);
+      console.log('✅ Total récompenses:', combined.length);
 
       // Charger les demandes de récompenses
       const requestsQuery = query(
         collection(db, 'rewardRequests'),
-        where('userId', '==', user.uid),
-        orderBy('requestedAt', 'desc')
+        where('userId', '==', user.uid)
       );
       const requestsSnapshot = await getDocs(requestsQuery);
-      setUserRewards(requestsSnapshot.docs.map(doc => ({
+      const requests = requestsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })));
+      }));
+      setUserRewards(requests);
+      console.log('✅ Demandes utilisateur chargées:', requests.length);
 
-      console.log('✅ Données chargées');
+      console.log('✅ Toutes les données chargées avec succès');
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
+      alert('Erreur de chargement: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -228,14 +239,26 @@ const RewardsPage = () => {
     }
 
     try {
-      await addDoc(collection(db, 'rewards'), {
-        ...rewardForm,
+      console.log('🔄 Création récompense:', rewardForm);
+      
+      const rewardData = {
+        name: rewardForm.name,
+        description: rewardForm.description,
+        type: rewardForm.type,
+        category: rewardForm.category,
+        xpCost: parseInt(rewardForm.xpCost),
+        icon: rewardForm.icon,
+        isAvailable: rewardForm.isAvailable,
+        isDefault: false,
+        isFirebase: true,
         createdAt: serverTimestamp(),
-        createdBy: user.uid,
-        isDefault: false
-      });
+        createdBy: user.uid
+      };
 
-      alert('✅ Récompense créée !');
+      const docRef = await addDoc(collection(db, 'rewards'), rewardData);
+      console.log('✅ Récompense créée avec ID:', docRef.id);
+
+      alert('✅ Récompense créée avec succès !');
       setShowCreateModal(false);
       setRewardForm({
         name: '',
@@ -246,10 +269,12 @@ const RewardsPage = () => {
         icon: '🎁',
         isAvailable: true
       });
-      loadAllData();
+      
+      // Recharger les données
+      await loadAllData();
     } catch (error) {
       console.error('❌ Erreur création:', error);
-      alert('Erreur lors de la création');
+      alert('Erreur: ' + error.message);
     }
   };
 
@@ -263,32 +288,49 @@ const RewardsPage = () => {
     if (!selectedReward) return;
 
     try {
-      // Si c'est une récompense Firebase
+      // Si c'est une récompense Firebase existante
       if (selectedReward.isFirebase) {
         const rewardRef = doc(db, 'rewards', selectedReward.id);
         await updateDoc(rewardRef, {
-          ...rewardForm,
+          name: rewardForm.name,
+          description: rewardForm.description,
+          type: rewardForm.type,
+          category: rewardForm.category,
+          xpCost: parseInt(rewardForm.xpCost),
+          icon: rewardForm.icon,
+          isAvailable: rewardForm.isAvailable,
           updatedAt: serverTimestamp(),
           updatedBy: user.uid
         });
+        console.log('✅ Récompense Firebase mise à jour:', selectedReward.id);
       } else {
-        // Si c'est une récompense par défaut, la convertir en récompense Firebase
-        await addDoc(collection(db, 'rewards'), {
-          ...rewardForm,
+        // Si c'est une récompense par défaut, créer une version modifiée dans Firebase
+        const newReward = await addDoc(collection(db, 'rewards'), {
+          name: rewardForm.name,
+          description: rewardForm.description,
+          type: rewardForm.type,
+          category: rewardForm.category,
+          xpCost: parseInt(rewardForm.xpCost),
+          icon: rewardForm.icon,
+          isAvailable: rewardForm.isAvailable,
           originalId: selectedReward.id,
+          isDefault: false,
+          isFirebase: true,
           createdAt: serverTimestamp(),
-          createdBy: user.uid,
-          isDefault: false
+          createdBy: user.uid
         });
+        console.log('✅ Version modifiée créée:', newReward.id);
       }
 
-      alert('✅ Récompense modifiée !');
+      alert('✅ Récompense modifiée avec succès !');
       setShowEditModal(false);
       setSelectedReward(null);
-      loadAllData();
+      
+      // Recharger les données
+      await loadAllData();
     } catch (error) {
       console.error('❌ Erreur modification:', error);
-      alert('Erreur lors de la modification');
+      alert('Erreur: ' + error.message);
     }
   };
 
