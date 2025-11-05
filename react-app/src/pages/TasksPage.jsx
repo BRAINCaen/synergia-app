@@ -659,6 +659,7 @@ const TasksPage = () => {
       {selectedTaskForDetails && (
         <TaskDetailModal
           task={selectedTaskForDetails}
+          isOpen={true}
           onClose={() => {
             console.log('🔒 [MODAL] Fermeture du modal');
             setSelectedTaskForDetails(null);
