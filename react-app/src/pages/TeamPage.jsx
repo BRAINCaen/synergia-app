@@ -47,7 +47,7 @@ const TeamPage = () => {
   const [error, setError] = useState(null);
   
   // États onglets
-  const [activeTab, setActiveTab] = useState('members'); // 'members' | 'admin'
+  const [activeTab, setActiveTab] = useState('members'); // 'members' | 'admin' | 'quests_in_progress' | 'quests_completed'
   const [forceAdminMode, setForceAdminMode] = useState(false); // Pour test
   
   // États filtres
@@ -122,19 +122,18 @@ const TeamPage = () => {
     setError(null);
     
     try {
-      console.log('👥 Chargement COMPLET de l\'équipe depuis Firebase avec synchronisation temps réel...');
+      console.log('👥 Chargement COMPLET avec synchronisation QUÊTES...');
       
-      // RÉCUPÉRER TOUS LES UTILISATEURS AVEC TOUTES LEURS DONNÉES
+      // ÉCOUTE TEMPS RÉEL sur users ET quests
       const usersQuery = query(
         collection(db, 'users'),
         orderBy('gamification.totalXp', 'desc')
       );
       
-      // ÉCOUTE TEMPS RÉEL - Synchronisation automatique
       const unsubscribe = onSnapshot(usersQuery, async (usersSnapshot) => {
         
         if (usersSnapshot.empty) {
-          console.warn('⚠️ Aucun utilisateur trouvé dans Firebase !');
+          console.warn('⚠️ Aucun utilisateur trouvé !');
           setTeamMembers([]);
           setLoading(false);
           return;
@@ -142,26 +141,47 @@ const TeamPage = () => {
 
         const membersData = [];
         
-        // Pour chaque utilisateur, récupérer TOUTES ses données
+        // Pour chaque utilisateur
         for (const userDoc of usersSnapshot.docs) {
           const userData = userDoc.data();
           const userId = userDoc.id;
           
-          // RÉCUPÉRER LES TÂCHES COMPLÉTÉES
-          const tasksQuery = query(
-            collection(db, 'tasks'),
+          // RÉCUPÉRER LES QUÊTES EN COURS (in_progress)
+          const questsInProgressQuery = query(
+            collection(db, 'quests'),
             where('assignedTo', 'array-contains', userId),
-            where('status', '==', 'completed')
+            where('status', '==', 'in_progress')
           );
-          const tasksSnapshot = await getDocs(tasksQuery);
-          const tasksCompleted = tasksSnapshot.size;
+          const questsInProgressSnap = await getDocs(questsInProgressQuery);
+          const questsInProgress = questsInProgressSnap.size;
           
-          // RÉCUPÉRER LE TOTAL XP DEPUIS GAMIFICATION
+          // RÉCUPÉRER LES QUÊTES ACCOMPLIES (completed, validated)
+          const questsCompletedQuery = query(
+            collection(db, 'quests'),
+            where('assignedTo', 'array-contains', userId),
+            where('status', 'in', ['completed', 'validated'])
+          );
+          const questsCompletedSnap = await getDocs(questsCompletedQuery);
+          const questsCompleted = questsCompletedSnap.size;
+          
+          // RÉCUPÉRER TOUTES LES QUÊTES pour les détails
+          const allQuestsQuery = query(
+            collection(db, 'quests'),
+            where('assignedTo', 'array-contains', userId)
+          );
+          const allQuestsSnap = await getDocs(allQuestsQuery);
+          const allQuests = [];
+          allQuestsSnap.forEach(doc => {
+            allQuests.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+          
+          // DONNÉES GAMIFICATION
           const gamification = userData.gamification || {};
           const totalXp = gamification.totalXp || 0;
           const level = gamification.level || Math.floor(totalXp / 100) + 1;
-          const weeklyXp = gamification.weeklyXp || 0;
-          const monthlyXp = gamification.monthlyXp || 0;
           const badges = gamification.badges || [];
           
           // CRÉER L'OBJET MEMBRE COMPLET
@@ -181,14 +201,19 @@ const TeamPage = () => {
             // DONNÉES GAMIFICATION SYNCHRONISÉES
             totalXp: totalXp,
             level: level,
-            weeklyXp: weeklyXp,
-            monthlyXp: monthlyXp,
-            tasksCompleted: tasksCompleted,
+            weeklyXp: gamification.weeklyXp || 0,
+            monthlyXp: gamification.monthlyXp || 0,
             badgesCount: badges.length,
             badges: badges,
             
+            // DONNÉES QUÊTES SYNCHRONISÉES
+            questsInProgress: questsInProgress,
+            questsCompleted: questsCompleted,
+            questsTotal: allQuests.length,
+            quests: allQuests, // Toutes les quêtes détaillées
+            
             // DONNÉES CALCULÉES
-            completionRate: userData.completionRate || 0,
+            completionRate: allQuests.length > 0 ? Math.round((questsCompleted / allQuests.length) * 100) : 0,
             currentLevelXp: totalXp % 100,
             nextLevelXpRequired: 100,
             xpProgress: ((totalXp % 100) / 100) * 100,
@@ -202,29 +227,29 @@ const TeamPage = () => {
             
             // MÉTADONNÉES
             lastSync: new Date(),
-            syncSource: 'firebase_realtime'
+            syncSource: 'firebase_realtime_quests'
           };
           
           membersData.push(member);
         }
         
-        console.log(`✅ ${membersData.length} membres chargés avec synchronisation temps réel`);
-        console.log('📊 Données synchronisées:', {
+        console.log(`✅ ${membersData.length} membres chargés avec quêtes synchronisées`);
+        console.log('📊 Statistiques quêtes:', {
           totalMembers: membersData.length,
-          totalXP: membersData.reduce((sum, m) => sum + m.totalXp, 0),
-          averageLevel: Math.round(membersData.reduce((sum, m) => sum + m.level, 0) / membersData.length),
-          totalTasks: membersData.reduce((sum, m) => sum + m.tasksCompleted, 0)
+          totalQuests: membersData.reduce((sum, m) => sum + m.questsTotal, 0),
+          questsInProgress: membersData.reduce((sum, m) => sum + m.questsInProgress, 0),
+          questsCompleted: membersData.reduce((sum, m) => sum + m.questsCompleted, 0),
+          totalXP: membersData.reduce((sum, m) => sum + m.totalXp, 0)
         });
         
         setTeamMembers(membersData);
         setLoading(false);
       }, (error) => {
-        console.error('❌ Erreur synchronisation temps réel:', error);
+        console.error('❌ Erreur synchronisation:', error);
         setError(error.message);
         setLoading(false);
       });
       
-      // Retourner la fonction de désabonnement
       return unsubscribe;
       
     } catch (error) {
@@ -916,15 +941,24 @@ const TeamPage = () => {
                             </div>
                           </div>
                           <div>
-                            <div className="text-lg font-bold text-green-400">{member.tasksCompleted}</div>
-                            <div className="text-xs text-gray-400">Tâches</div>
-                            {member.lastSync && (
-                              <div className="text-xs text-gray-500">
-                                MAJ: {member.lastSync.toLocaleTimeString().slice(0, 5)}
-                              </div>
-                            )}
+                            <div className="text-lg font-bold text-green-400">{member.questsCompleted || 0}</div>
+                            <div className="text-xs text-gray-400">Accomplies</div>
+                            <div className="text-xs text-orange-400">{member.questsInProgress || 0} en cours</div>
                           </div>
                         </div>
+                        
+                        {/* Bouton détails quêtes */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedMember(member);
+                            setShowMemberModal(true);
+                          }}
+                          className="w-full px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 mb-2"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Voir toutes les quêtes ({member.questsTotal || 0})
+                        </button>
 
                         <div className="flex gap-2">
                           <button
@@ -1062,7 +1096,7 @@ const TeamPage = () => {
           )}
         </div>
 
-        {/* MODAL PROFIL MEMBRE */}
+        {/* MODAL PROFIL MEMBRE AVEC QUÊTES DÉTAILLÉES */}
         <AnimatePresence>
           {showMemberModal && selectedMember && (
             <motion.div
@@ -1077,7 +1111,7 @@ const TeamPage = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-2xl font-bold text-white">Profil de {selectedMember.name}</h3>
@@ -1089,6 +1123,7 @@ const TeamPage = () => {
                   </button>
                 </div>
 
+                {/* Infos profil */}
                 <div className="space-y-6">
                   <div className="flex items-center gap-4">
                     {selectedMember.photoURL ? (
@@ -1111,6 +1146,7 @@ const TeamPage = () => {
                     </div>
                   </div>
 
+                  {/* Stats */}
                   <div className="grid grid-cols-4 gap-4">
                     <div className="bg-gray-700/50 rounded-lg p-4 text-center">
                       <div className="text-2xl font-bold text-yellow-400">{selectedMember.totalXp.toLocaleString()}</div>
@@ -1121,12 +1157,98 @@ const TeamPage = () => {
                       <div className="text-xs text-gray-400">Niveau</div>
                     </div>
                     <div className="bg-gray-700/50 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-green-400">{selectedMember.tasksCompleted}</div>
-                      <div className="text-xs text-gray-400">Tâches</div>
+                      <div className="text-2xl font-bold text-green-400">{selectedMember.questsCompleted || 0}</div>
+                      <div className="text-xs text-gray-400">Accomplies</div>
                     </div>
                     <div className="bg-gray-700/50 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-purple-400">{selectedMember.badgesCount}</div>
-                      <div className="text-xs text-gray-400">Badges</div>
+                      <div className="text-2xl font-bold text-orange-400">{selectedMember.questsInProgress || 0}</div>
+                      <div className="text-xs text-gray-400">En cours</div>
+                    </div>
+                  </div>
+
+                  {/* QUÊTES DÉTAILLÉES */}
+                  <div className="mt-6">
+                    <h5 className="text-xl font-bold text-white mb-4">🎯 Quêtes détaillées</h5>
+                    
+                    {/* Onglets Quêtes */}
+                    <div className="flex gap-2 mb-4">
+                      <button
+                        onClick={() => setActiveTab('quests_in_progress')}
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          activeTab === 'quests_in_progress'
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        En cours ({selectedMember.questsInProgress || 0})
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('quests_completed')}
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          activeTab === 'quests_completed'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        Accomplies ({selectedMember.questsCompleted || 0})
+                      </button>
+                    </div>
+
+                    {/* Liste des quêtes */}
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {selectedMember.quests && selectedMember.quests.length > 0 ? (
+                        selectedMember.quests
+                          .filter(quest => {
+                            if (activeTab === 'quests_in_progress') {
+                              return quest.status === 'in_progress' || quest.status === 'todo';
+                            } else if (activeTab === 'quests_completed') {
+                              return quest.status === 'completed' || quest.status === 'validated';
+                            }
+                            return true;
+                          })
+                          .map((quest) => (
+                            <div
+                              key={quest.id}
+                              className="bg-gray-700/50 rounded-lg p-4 hover:bg-gray-700 transition-colors"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h6 className="text-white font-medium mb-1">{quest.title}</h6>
+                                  <p className="text-gray-400 text-sm line-clamp-2">{quest.description}</p>
+                                  <div className="flex items-center gap-3 mt-2">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                      quest.status === 'completed' || quest.status === 'validated'
+                                        ? 'bg-green-500/20 text-green-400'
+                                        : quest.status === 'in_progress'
+                                        ? 'bg-orange-500/20 text-orange-400'
+                                        : 'bg-gray-500/20 text-gray-400'
+                                    }`}>
+                                      {quest.status === 'completed' ? 'Complétée' : 
+                                       quest.status === 'validated' ? 'Validée' :
+                                       quest.status === 'in_progress' ? 'En cours' : 'À faire'}
+                                    </span>
+                                    <span className="text-yellow-400 text-xs font-medium">
+                                      +{quest.xpReward || 0} XP
+                                    </span>
+                                    {quest.priority && (
+                                      <span className={`text-xs ${
+                                        quest.priority === 'high' ? 'text-red-400' :
+                                        quest.priority === 'medium' ? 'text-yellow-400' :
+                                        'text-green-400'
+                                      }`}>
+                                        Priorité: {quest.priority}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                      ) : (
+                        <div className="text-center text-gray-400 py-8">
+                          <p>Aucune quête pour le moment</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
