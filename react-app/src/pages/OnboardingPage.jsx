@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// SYSTÈME D'INTÉGRATION COMPLET - FORMATION + ENTRETIENS - MENU HAMBURGER PREMIUM
+// SYSTÈME D'INTÉGRATION COMPLET - FORMATION + ENTRETIENS
+// VERSION CORRIGÉE : Menu fonctionnel + Formation déverrouillée
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -46,8 +47,7 @@ import {
   Save,
   X,
   Filter,
-  Search,
-  Trophy
+  Search
 } from 'lucide-react';
 
 // Firebase imports
@@ -63,8 +63,7 @@ import {
   where, 
   orderBy, 
   serverTimestamp,
-  onSnapshot,
-  setDoc
+  onSnapshot 
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -245,166 +244,176 @@ const FORMATION_PHASES = {
         description: 'Maîtrise du système de réservation et planning',
         xp: 30,
         required: true,
-        estimatedTime: 120,
-        room: 'Accueil',
-        mentor: 'Manager'
-      },
-      {
-        id: 'relation_client',
-        name: 'Relation client',
-        description: 'Communication, gestion des attentes, satisfaction',
-        xp: 35,
-        required: true,
-        estimatedTime: 180,
-        room: 'Accueil',
-        mentor: 'Responsable client'
-      },
-      {
-        id: 'simulation_accueil',
-        name: 'Simulation accueil client',
-        description: 'Mise en pratique de l\'accueil de A à Z',
-        xp: 30,
-        required: false,
         estimatedTime: 60,
         room: 'Accueil',
-        mentor: 'Team Lead'
+        mentor: 'Responsable Booking'
+      },
+      {
+        id: 'accueil_clients',
+        name: 'Accueil et briefing clients',
+        description: 'Techniques d\'accueil et présentation des expériences',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Accueil',
+        mentor: 'Responsable Accueil'
+      },
+      {
+        id: 'gestion_feedback',
+        name: 'Gestion des feedbacks',
+        description: 'Collecte et traitement des retours clients',
+        xp: 35,
+        required: false,
+        estimatedTime: 60,
+        room: 'Bureau',
+        mentor: 'Customer Success'
       }
     ]
   },
   
   GAME_MASTER: {
     id: 'game_master',
-    name: '🎮 Formation Game Master',
-    description: 'Devenir Game Master certifié',
-    duration: 10,
-    color: 'from-pink-500 to-red-500',
+    name: '🎮 Game Master',
+    description: 'Formation complète Game Master',
+    duration: 14,
+    color: 'from-orange-500 to-red-500',
     icon: '🎮',
     order: 4,
-    xpTotal: 250,
+    xpTotal: 300,
     badge: 'Game Master Certifié',
-    room: 'Salle formation GM',
+    room: 'Salle jeu principale',
     tasks: [
       {
-        id: 'theatrical_performance',
-        name: 'Performance théâtrale',
-        description: 'Développer le jeu d\'acteur et la présence scénique',
+        id: 'scenarios_base',
+        name: 'Maîtrise des scénarios de base',
+        description: 'Apprentissage complet de tous les scénarios standards',
+        xp: 50,
+        required: true,
+        estimatedTime: 360,
+        room: 'Salle jeu',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'gestion_technique',
+        name: 'Gestion technique des salles',
+        description: 'Setup, troubleshooting, réinitialisation',
         xp: 40,
         required: true,
         estimatedTime: 240,
-        room: 'Salle formation',
-        mentor: 'Coach théâtre'
+        room: 'Salle technique',
+        mentor: 'Technicien Senior'
       },
       {
-        id: 'regles_jeux',
-        name: 'Maîtrise des règles',
-        description: 'Connaissance approfondie de tous les jeux',
-        xp: 50,
-        required: true,
-        estimatedTime: 480,
-        room: 'Salle formation',
-        mentor: 'GM Expert'
-      },
-      {
-        id: 'gestion_groupe',
-        name: 'Gestion de groupe',
-        description: 'Animation, dynamique de groupe, résolution conflits',
-        xp: 40,
+        id: 'animation_groupe',
+        name: 'Techniques d\'animation de groupe',
+        description: 'Communication, gestion des personnalités, dynamique',
+        xp: 45,
         required: true,
         estimatedTime: 180,
         room: 'Salle formation',
-        mentor: 'Psychologue'
+        mentor: 'Formateur Communication'
       },
       {
-        id: 'premiere_animation',
-        name: 'Première animation supervisée',
-        description: 'Animer une session complète avec supervision',
-        xp: 60,
+        id: 'gestion_incidents',
+        name: 'Gestion des incidents et imprevus',
+        description: 'Protocoles d\'urgence et résolution de problèmes',
+        xp: 40,
         required: true,
         estimatedTime: 120,
+        room: 'Salle briefing',
+        mentor: 'Responsable Ops'
+      },
+      {
+        id: 'scenarios_avances',
+        name: 'Scénarios avancés et personnalisation',
+        description: 'Maîtrise des variantes et adaptations',
+        xp: 60,
+        required: true,
+        estimatedTime: 300,
         room: 'Salle jeu',
-        mentor: 'GM Senior'
+        mentor: 'Game Master Legend'
       },
       {
         id: 'certification_gm',
         name: 'Certification Game Master',
-        description: 'Évaluation finale et validation des compétences',
-        xp: 60,
+        description: 'Évaluation finale en conditions réelles',
+        xp: 65,
         required: true,
-        estimatedTime: 180,
-        room: 'Salle jeu',
-        mentor: 'Directeur'
+        estimatedTime: 240,
+        room: 'Salle certification',
+        mentor: 'Panel d\'experts'
       }
     ]
   },
   
-  AUTONOMIE: {
-    id: 'autonomie',
-    name: '🚀 Vers l\'Autonomie',
-    description: 'Devenir autonome et excellent dans son rôle',
-    duration: 14,
-    color: 'from-green-500 to-emerald-500',
-    icon: '🚀',
+  SPECIALISATIONS: {
+    id: 'specialisations',
+    name: '⭐ Spécialisations',
+    description: 'Formations avancées optionnelles',
+    duration: 999,
+    color: 'from-yellow-500 to-orange-500',
+    icon: '⭐',
     order: 5,
-    xpTotal: 200,
-    badge: 'Brain Expert',
-    room: 'Terrain',
+    xpTotal: 500,
+    badge: 'Expert Spécialisé',
+    room: 'Salles diverses',
     tasks: [
       {
-        id: 'missions_autonomes',
-        name: 'Missions en autonomie',
-        description: 'Effectuer des missions sans supervision',
-        xp: 50,
-        required: true,
-        estimatedTime: 960,
-        room: 'Tous espaces',
-        mentor: 'Self'
+        id: 'evenements_speciaux',
+        name: 'Événements spéciaux et corporate',
+        description: 'Organisation et animation d\'événements sur mesure',
+        xp: 80,
+        required: false,
+        estimatedTime: 360,
+        room: 'Salle événements',
+        mentor: 'Event Manager'
       },
       {
-        id: 'feedback_continue',
-        name: 'Feedback continu',
-        description: 'Sessions de feedback régulières',
-        xp: 30,
-        required: true,
-        estimatedTime: 180,
-        room: 'Bureau',
-        mentor: 'Manager'
+        id: 'scenarios_vr',
+        name: 'Scénarios VR avancés',
+        description: 'Maîtrise des expériences en réalité virtuelle',
+        xp: 90,
+        required: false,
+        estimatedTime: 300,
+        room: 'Salle VR',
+        mentor: 'VR Specialist'
       },
       {
-        id: 'mentor_junior',
-        name: 'Mentorat d\'un junior',
-        description: 'Accompagner l\'intégration d\'un nouveau',
-        xp: 60,
+        id: 'creation_scenarios',
+        name: 'Création de nouveaux scénarios',
+        description: 'Concevoir et développer de nouvelles expériences',
+        xp: 100,
+        required: false,
+        estimatedTime: 600,
+        room: 'Salle créative',
+        mentor: 'Creative Director'
+      },
+      {
+        id: 'formation_formateurs',
+        name: 'Formation de formateurs',
+        description: 'Former les nouveaux Game Masters',
+        xp: 120,
         required: false,
         estimatedTime: 480,
-        room: 'Terrain',
-        mentor: 'Self'
+        room: 'Salle formation',
+        mentor: 'Lead Trainer'
       },
       {
-        id: 'amelioration_continue',
-        name: 'Amélioration continue',
-        description: 'Proposer des améliorations, innovations',
-        xp: 30,
+        id: 'master_brain',
+        name: 'Master Brain Certification',
+        description: 'Niveau expert ultime et reconnaissance',
+        xp: 110,
         required: false,
-        estimatedTime: 120,
-        room: 'Bureau',
-        mentor: 'Direction'
-      },
-      {
-        id: 'bilan_final',
-        name: 'Bilan final d\'intégration',
-        description: 'Évaluation complète de l\'onboarding',
-        xp: 30,
-        required: true,
-        estimatedTime: 90,
-        room: 'Bureau',
-        mentor: 'RH + Manager'
+        estimatedTime: 720,
+        room: 'Certification finale',
+        mentor: 'CEO & Founders'
       }
     ]
   }
 };
 
 // ==========================================
-// 🏆 BADGES DE GAMIFICATION
+// 🏆 BADGES D'ONBOARDING - GAMIFICATION
 // ==========================================
 
 const BADGES_ONBOARDING = [
@@ -566,16 +575,15 @@ const OnboardingPage = () => {
         completedTasks: 0
       };
 
-      // Initialiser chaque phase
+      // Initialiser chaque phase - TOUTES DÉVERROUILLÉES
       Object.values(FORMATION_PHASES).forEach(phase => {
         initialProgress.phases[phase.id] = {
-          started: phase.id === 'decouverte_brain',
+          started: true, // ✅ TOUTES LES PHASES DÉMARRÉES
           completed: false,
-          startedAt: phase.id === 'decouverte_brain' ? serverTimestamp() : null,
+          startedAt: serverTimestamp(),
           completedAt: null,
           tasks: phase.tasks.map(task => ({
             id: task.id,
-            name: task.name,
             completed: false,
             completedAt: null,
             xp: task.xp
@@ -583,58 +591,81 @@ const OnboardingPage = () => {
         };
       });
 
-      await setDoc(doc(db, 'userOnboarding', user.uid), initialProgress);
-      
+      await updateDoc(doc(db, 'userOnboarding', user.uid), initialProgress);
       setUserProgress(initialProgress);
+
       console.log('✅ Profil onboarding initialisé');
 
     } catch (error) {
-      console.error('❌ Erreur initialisation onboarding:', error);
+      console.error('❌ Erreur initialisation:', error);
     }
   };
 
-  // Marquer une tâche comme complétée
-  const markTaskCompleted = async (phaseId, taskId) => {
+  // Compléter une tâche
+  const completeTask = async (phaseId, taskId) => {
     if (!user?.uid) return;
 
     try {
-      console.log('✅ Marquage tâche complétée:', phaseId, taskId);
+      console.log('✅ Complétion tâche:', { phaseId, taskId });
 
       const progressRef = doc(db, 'userOnboarding', user.uid);
       const progressDoc = await getDoc(progressRef);
       
-      if (progressDoc.exists()) {
-        const currentProgress = progressDoc.data();
-        const phase = currentProgress.phases[phaseId];
-        
-        // Mettre à jour la tâche
-        const updatedTasks = phase.tasks.map(task => {
-          if (task.id === taskId) {
-            return {
-              ...task,
-              completed: true,
-              completedAt: serverTimestamp()
-            };
-          }
-          return task;
-        });
+      if (!progressDoc.exists()) return;
 
-        // Vérifier si toutes les tâches sont complétées
-        const allTasksCompleted = updatedTasks.every(task => task.completed);
-        
-        // Mettre à jour Firestore
-        await updateDoc(progressRef, {
-          [`phases.${phaseId}.tasks`]: updatedTasks,
-          [`phases.${phaseId}.completed`]: allTasksCompleted,
-          [`phases.${phaseId}.completedAt`]: allTasksCompleted ? serverTimestamp() : null
-        });
+      const currentProgress = progressDoc.data();
+      const phase = currentProgress.phases[phaseId];
+      const task = phase.tasks.find(t => t.id === taskId);
 
-        // Recharger les données
-        await loadUserProgress();
+      if (!task || task.completed) return;
+
+      // Marquer la tâche comme complétée
+      task.completed = true;
+      task.completedAt = serverTimestamp();
+
+      // Vérifier si la phase est complète
+      const allTasksCompleted = phase.tasks.every(t => t.completed);
+      if (allTasksCompleted) {
+        phase.completed = true;
+        phase.completedAt = serverTimestamp();
       }
 
+      // Mettre à jour Firebase
+      await updateDoc(progressRef, {
+        phases: currentProgress.phases
+      });
+
+      // Recharger les données
+      await loadUserProgress();
+
+      console.log('✅ Tâche complétée avec succès');
+
     } catch (error) {
-      console.error('❌ Erreur marquage tâche:', error);
+      console.error('❌ Erreur complétion tâche:', error);
+    }
+  };
+
+  // Planifier un entretien
+  const scheduleEntretien = async (entretienId) => {
+    if (!user?.uid) return;
+
+    try {
+      console.log('📅 Planification entretien:', entretienId);
+
+      await addDoc(collection(db, 'userInterviews'), {
+        userId: user.uid,
+        entretienId,
+        scheduledDate: serverTimestamp(),
+        status: 'scheduled'
+      });
+
+      // Recharger les données
+      await loadUserProgress();
+
+      console.log('✅ Entretien planifié');
+
+    } catch (error) {
+      console.error('❌ Erreur planification:', error);
     }
   };
 
@@ -731,268 +762,384 @@ const OnboardingPage = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-all ${
                 activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-blue-600 text-white shadow-lg'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
             >
-              <tab.icon className="w-5 h-5" />
+              <tab.icon className="w-4 h-4" />
               {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Contenu selon l'onglet */}
+      {/* Contenu des onglets */}
       <AnimatePresence mode="wait">
         {activeTab === 'formation' && (
-          <motion.div
-            key="formation"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            {Object.values(FORMATION_PHASES).map(phase => {
-              const phaseProgress = userProgress.phases?.[phase.id];
-              const isActive = stats.currentPhase === phase.id;
-              const isCompleted = phaseProgress?.completed;
-              const completedTasksCount = phaseProgress?.tasks?.filter(t => t.completed).length || 0;
-              const totalTasksCount = phase.tasks.length;
-              const progressPercentage = totalTasksCount > 0 ? (completedTasksCount / totalTasksCount) * 100 : 0;
-
-              return (
-                <PremiumCard key={phase.id} className="overflow-hidden">
-                  <div className="flex items-start gap-6">
-                    {/* Icône de phase */}
-                    <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${phase.color} flex items-center justify-center flex-shrink-0`}>
-                      <span className="text-4xl">{phase.icon}</span>
-                    </div>
-
-                    {/* Contenu */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-2xl font-bold text-white mb-2">
-                            {phase.name}
-                          </h3>
-                          <p className="text-gray-400">{phase.description}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isCompleted && (
-                            <span className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-medium flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4" />
-                              Complété
-                            </span>
-                          )}
-                          {isActive && !isCompleted && (
-                            <span className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium flex items-center gap-2">
-                              <Play className="w-4 h-4" />
-                              En cours
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Barre de progression */}
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between text-sm mb-2">
-                          <span className="text-gray-400">
-                            {completedTasksCount} / {totalTasksCount} tâches
-                          </span>
-                          <span className="text-blue-400 font-medium">
-                            {Math.round(progressPercentage)}%
-                          </span>
-                        </div>
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progressPercentage}%` }}
-                            transition={{ duration: 0.5 }}
-                            className={`h-full bg-gradient-to-r ${phase.color}`}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Tâches */}
-                      <div className="space-y-2">
-                        {phase.tasks.map(task => {
-                          const taskProgress = phaseProgress?.tasks?.find(t => t.id === task.id);
-                          const isTaskCompleted = taskProgress?.completed || false;
-
-                          return (
-                            <div
-                              key={task.id}
-                              className={`flex items-start gap-4 p-4 rounded-lg transition-all ${
-                                isTaskCompleted
-                                  ? 'bg-green-500/10 border border-green-500/30'
-                                  : 'bg-gray-800/50 border border-gray-700/50 hover:border-gray-600/50'
-                              }`}
-                            >
-                              <button
-                                onClick={() => !isTaskCompleted && markTaskCompleted(phase.id, task.id)}
-                                className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all ${
-                                  isTaskCompleted
-                                    ? 'bg-green-500 text-white'
-                                    : 'border-2 border-gray-600 hover:border-blue-500'
-                                }`}
-                              >
-                                {isTaskCompleted && <CheckCircle className="w-4 h-4" />}
-                              </button>
-
-                              <div className="flex-1">
-                                <h4 className={`font-semibold mb-1 ${
-                                  isTaskCompleted ? 'text-green-400 line-through' : 'text-white'
-                                }`}>
-                                  {task.name}
-                                </h4>
-                                <p className="text-sm text-gray-400 mb-2">{task.description}</p>
-                                <div className="flex items-center gap-4 text-xs">
-                                  <span className="flex items-center gap-1 text-gray-500">
-                                    <Clock className="w-3 h-3" />
-                                    {task.estimatedTime} min
-                                  </span>
-                                  <span className="flex items-center gap-1 text-gray-500">
-                                    <MapPin className="w-3 h-3" />
-                                    {task.room}
-                                  </span>
-                                  <span className="flex items-center gap-1 text-gray-500">
-                                    <User className="w-3 h-3" />
-                                    {task.mentor}
-                                  </span>
-                                  <span className="flex items-center gap-1 text-yellow-500">
-                                    <Star className="w-3 h-3" />
-                                    +{task.xp} XP
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Stats de phase */}
-                      <div className="mt-4 flex items-center gap-6 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-400">{phase.duration} jours</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Award className="w-4 h-4 text-yellow-400" />
-                          <span className="text-gray-400">{phase.xpTotal} XP total</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-purple-400" />
-                          <span className="text-gray-400">Badge: {phase.badge}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </PremiumCard>
-              );
-            })}
-          </motion.div>
+          <FormationTab
+            userProgress={userProgress}
+            onCompleteTask={completeTask}
+            currentUser={user}
+          />
         )}
-
+        
         {activeTab === 'entretiens' && (
-          <motion.div
-            key="entretiens"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            <PremiumCard>
-              <div className="text-center py-12">
-                <MessageSquare className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-2">
-                  Système d'Entretiens
-                </h3>
-                <p className="text-gray-400 mb-4">
-                  Fonctionnalité en cours de développement
-                </p>
-              </div>
-            </PremiumCard>
-          </motion.div>
+          <EntretiensTab
+            availableEntretiens={availableEntretiens}
+            scheduledEntretiens={scheduledEntretiens}
+            onScheduleEntretien={scheduleEntretien}
+            currentUser={user}
+          />
         )}
-
+        
         {activeTab === 'progress' && (
-          <motion.div
-            key="progress"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard
-                title="XP Total"
-                value={stats.totalXP}
-                icon={Zap}
-                color="yellow"
-              />
-              <StatCard
-                title="Tâches Complétées"
-                value={stats.completedTasks}
-                icon={CheckCircle}
-                color="green"
-              />
-              <StatCard
-                title="Phases Actives"
-                value={Object.values(userProgress.phases || {}).filter(p => p.started && !p.completed).length}
-                icon={Target}
-                color="blue"
-              />
-              <StatCard
-                title="Badges Obtenus"
-                value={stats.badges.length}
-                icon={Award}
-                color="purple"
-              />
-            </div>
-
-            {/* Badges disponibles */}
-            <PremiumCard>
-              <h3 className="text-xl font-bold text-white mb-6">🏆 Badges Disponibles</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {BADGES_ONBOARDING.map(badge => {
-                  const isEarned = stats.badges.includes(badge.id);
-                  return (
-                    <div
-                      key={badge.id}
-                      className={`p-6 rounded-xl border ${
-                        isEarned
-                          ? 'bg-yellow-500/10 border-yellow-500/50'
-                          : 'bg-gray-800/30 border-gray-700/50'
-                      }`}
-                    >
-                      <div className="text-center">
-                        <div className="text-5xl mb-3">{badge.icon}</div>
-                        <h4 className={`font-bold mb-2 ${isEarned ? 'text-yellow-400' : 'text-gray-400'}`}>
-                          {badge.name}
-                        </h4>
-                        <p className="text-sm text-gray-500 mb-3">{badge.description}</p>
-                        <div className="flex items-center justify-center gap-2">
-                          <Star className="w-4 h-4 text-yellow-500" />
-                          <span className="text-sm text-gray-400">+{badge.xp} XP</span>
-                        </div>
-                        {isEarned && (
-                          <div className="mt-3">
-                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium">
-                              <CheckCircle className="w-3 h-3" />
-                              Obtenu
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </PremiumCard>
-          </motion.div>
+          <ProgressTab
+            userProgress={userProgress}
+            stats={stats}
+            currentUser={user}
+          />
         )}
       </AnimatePresence>
     </PremiumLayout>
+  );
+};
+
+// ==========================================
+// 🎓 ONGLET FORMATION
+// ==========================================
+
+const FormationTab = ({ userProgress, onCompleteTask, currentUser }) => {
+  return (
+    <motion.div
+      key="formation"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      {Object.values(FORMATION_PHASES).map(phase => {
+        const phaseProgress = userProgress.phases?.[phase.id];
+        const isActive = userProgress.currentPhase === phase.id;
+        const isCompleted = phaseProgress?.completed;
+        const canStart = true; // ✅ TOUJOURS ACCESSIBLE
+
+        return (
+          <PremiumCard key={phase.id} className="relative overflow-hidden">
+            {/* Gradient de fond */}
+            <div className={`absolute inset-0 bg-gradient-to-r ${phase.color} opacity-5`} />
+            
+            {/* Badge de statut */}
+            <div className="absolute top-4 right-4">
+              {isCompleted ? (
+                <div className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" />
+                  Terminé
+                </div>
+              ) : isActive ? (
+                <div className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                  <Play className="w-4 h-4" />
+                  En cours
+                </div>
+              ) : (
+                <div className="bg-gray-500/20 text-gray-400 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  Disponible
+                </div>
+              )}
+            </div>
+
+            {/* En-tête de la phase */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="text-4xl">{phase.icon}</div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white">{phase.name}</h3>
+                  <p className="text-gray-400">{phase.description}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-sm text-gray-400 mt-4">
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {phase.duration} jours
+                </div>
+                <div className="flex items-center gap-1">
+                  <Zap className="w-4 h-4" />
+                  {phase.xpTotal} XP
+                </div>
+                <div className="flex items-center gap-1">
+                  <MapPin className="w-4 h-4" />
+                  {phase.room}
+                </div>
+              </div>
+            </div>
+
+            {/* Liste des tâches */}
+            <div className="space-y-3">
+              {phase.tasks.map(task => {
+                const taskProgress = phaseProgress?.tasks?.find(t => t.id === task.id);
+                const isTaskCompleted = taskProgress?.completed || false;
+
+                return (
+                  <div
+                    key={task.id}
+                    className={`p-4 rounded-lg border transition-all ${
+                      isTaskCompleted
+                        ? 'bg-green-500/10 border-green-500/30'
+                        : 'bg-gray-800/50 border-gray-700/50 hover:border-blue-500/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {isTaskCompleted ? (
+                            <CheckSquare className="w-5 h-5 text-green-400" />
+                          ) : (
+                            <Square className="w-5 h-5 text-gray-400" />
+                          )}
+                          <h4 className={`font-semibold ${isTaskCompleted ? 'text-green-400' : 'text-white'}`}>
+                            {task.name}
+                          </h4>
+                          {task.required && (
+                            <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded">
+                              Obligatoire
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-400 mb-3">{task.description}</p>
+                        
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {task.estimatedTime} min
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Zap className="w-3 h-3" />
+                            +{task.xp} XP
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {task.room}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {task.mentor}
+                          </div>
+                        </div>
+                      </div>
+
+                      {!isTaskCompleted && canStart && (
+                        <button
+                          onClick={() => onCompleteTask(phase.id, task.id)}
+                          className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Compléter
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </PremiumCard>
+        );
+      })}
+    </motion.div>
+  );
+};
+
+// ==========================================
+// 💬 ONGLET ENTRETIENS
+// ==========================================
+
+const EntretiensTab = ({ availableEntretiens, scheduledEntretiens, onScheduleEntretien, currentUser }) => {
+  return (
+    <motion.div
+      key="entretiens"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      {/* Entretiens planifiés */}
+      <PremiumCard>
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-blue-400" />
+          Mes Entretiens Planifiés
+        </h3>
+        
+        {scheduledEntretiens.length === 0 ? (
+          <p className="text-gray-400">Aucun entretien planifié pour le moment</p>
+        ) : (
+          <div className="space-y-3">
+            {scheduledEntretiens.map(entretien => (
+              <div
+                key={entretien.id}
+                className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-white">{entretien.title}</h4>
+                    <p className="text-sm text-gray-400">{entretien.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-400">
+                      {new Date(entretien.scheduledDate?.toDate()).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </PremiumCard>
+
+      {/* Entretiens disponibles */}
+      <PremiumCard>
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-purple-400" />
+          Entretiens Disponibles
+        </h3>
+        
+        {availableEntretiens.length === 0 ? (
+          <p className="text-gray-400">Aucun entretien disponible actuellement</p>
+        ) : (
+          <div className="space-y-3">
+            {availableEntretiens.map(entretien => (
+              <div
+                key={entretien.id}
+                className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:border-purple-500/50 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-white">{entretien.title}</h4>
+                    <p className="text-sm text-gray-400">{entretien.description}</p>
+                  </div>
+                  <button
+                    onClick={() => onScheduleEntretien(entretien.id)}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Planifier
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </PremiumCard>
+    </motion.div>
+  );
+};
+
+// ==========================================
+// 📊 ONGLET PROGRESSION
+// ==========================================
+
+const ProgressTab = ({ userProgress, stats, currentUser }) => {
+  return (
+    <motion.div
+      key="progress"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      {/* Statistiques globales */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="XP Total"
+          value={stats.totalXP}
+          icon={Zap}
+          color="blue"
+        />
+        <StatCard
+          title="Tâches Complétées"
+          value={stats.completedTasks}
+          icon={CheckCircle}
+          color="green"
+        />
+        <StatCard
+          title="Badges Obtenus"
+          value={stats.badges.length}
+          icon={Award}
+          color="purple"
+        />
+        <StatCard
+          title="Phases Actives"
+          value={Object.values(userProgress.phases || {}).filter(p => p.started && !p.completed).length}
+          icon={Target}
+          color="orange"
+        />
+      </div>
+
+      {/* Progression par phase */}
+      <PremiumCard>
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-blue-400" />
+          Progression par Phase
+        </h3>
+        
+        <div className="space-y-4">
+          {Object.values(FORMATION_PHASES).map(phase => {
+            const phaseProgress = userProgress.phases?.[phase.id];
+            const completedTasks = phaseProgress?.tasks?.filter(t => t.completed).length || 0;
+            const totalTasks = phase.tasks.length;
+            const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+            return (
+              <div key={phase.id}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{phase.icon}</span>
+                    <span className="font-medium text-white">{phase.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-400">
+                    {completedTasks}/{totalTasks} tâches
+                  </span>
+                </div>
+                <div className="w-full bg-gray-700/50 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full bg-gradient-to-r ${phase.color} transition-all duration-500`}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </PremiumCard>
+
+      {/* Badges obtenus */}
+      <PremiumCard>
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <Award className="w-5 h-5 text-yellow-400" />
+          Badges Obtenus
+        </h3>
+        
+        {stats.badges.length === 0 ? (
+          <p className="text-gray-400">Aucun badge obtenu pour le moment</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {stats.badges.map(badgeId => {
+              const badge = BADGES_ONBOARDING.find(b => b.id === badgeId);
+              if (!badge) return null;
+              
+              return (
+                <div
+                  key={badge.id}
+                  className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg text-center hover:scale-105 transition-all"
+                >
+                  <div className="text-4xl mb-2">{badge.icon}</div>
+                  <h4 className="font-semibold text-white text-sm">{badge.name}</h4>
+                  <p className="text-xs text-gray-400 mt-1">{badge.description}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </PremiumCard>
+    </motion.div>
   );
 };
 
