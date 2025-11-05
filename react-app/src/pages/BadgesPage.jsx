@@ -230,24 +230,84 @@ const BadgesPage = () => {
   const handleEditBadge = async (e) => {
     e.preventDefault();
     
-    if (!selectedBadge) return;
+    if (!selectedBadge) {
+      alert('Aucun badge sélectionné');
+      return;
+    }
     
     try {
-      const badgeRef = doc(db, 'badges', selectedBadge.id);
-      await updateDoc(badgeRef, {
-        ...badgeForm,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid
-      });
+      console.log('🔄 Modification de:', selectedBadge.name);
+      console.log('Badge sélectionné:', selectedBadge);
+      console.log('isFirebase:', selectedBadge.isFirebase);
+      
+      // Si c'est un badge Firebase existant (créé par admin ou version modifiée)
+      if (selectedBadge.isFirebase && selectedBadge.id) {
+        console.log('📝 Mise à jour badge Firebase ID:', selectedBadge.id);
+        const badgeRef = doc(db, 'badges', selectedBadge.id);
+        await updateDoc(badgeRef, {
+          name: badgeForm.name,
+          description: badgeForm.description,
+          icon: badgeForm.icon,
+          category: badgeForm.category,
+          rarity: badgeForm.rarity,
+          xpReward: parseInt(badgeForm.xpReward),
+          requirements: badgeForm.requirements || {},
+          isActive: badgeForm.isActive,
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid
+        });
+        console.log('✅ Badge Firebase mis à jour');
+      } else {
+        // Si c'est un badge par défaut (pas dans Firebase)
+        console.log('📝 Création version modifiée pour badge par défaut:', selectedBadge.id);
+        
+        // 1. Créer la nouvelle version modifiée
+        const newBadgeData = {
+          name: badgeForm.name,
+          description: badgeForm.description,
+          icon: badgeForm.icon,
+          category: badgeForm.category,
+          rarity: badgeForm.rarity,
+          xpReward: parseInt(badgeForm.xpReward),
+          requirements: badgeForm.requirements || {},
+          isActive: badgeForm.isActive,
+          originalId: selectedBadge.id,
+          isDefault: false,
+          isFirebase: true,
+          replacesDefault: true,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid
+        };
+        
+        const newBadge = await addDoc(collection(db, 'badges'), newBadgeData);
+        console.log('✅ Version modifiée créée avec ID:', newBadge.id);
+        
+        // 2. Masquer l'original
+        const hiddenData = {
+          originalId: selectedBadge.id,
+          isHidden: true,
+          isDefault: false,
+          isFirebase: true,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid
+        };
+        
+        await addDoc(collection(db, 'badges'), hiddenData);
+        console.log('✅ Version originale masquée');
+      }
       
       alert('✅ Badge modifié avec succès !');
       setShowEditBadgeModal(false);
       setSelectedBadge(null);
       
-      loadAllBadges();
+      console.log('🔄 Rechargement des badges...');
+      await loadAllBadges();
+      console.log('✅ Rechargement terminé');
     } catch (error) {
-      console.error('❌ Erreur modification badge:', error);
-      alert('Erreur lors de la modification du badge');
+      console.error('❌ ERREUR DÉTAILLÉE modification badge:', error);
+      console.error('Code erreur:', error.code);
+      console.error('Message:', error.message);
+      alert('Erreur: ' + error.message + ' (voir console pour détails)');
     }
   };
 
