@@ -87,30 +87,40 @@ const GamificationPage = () => {
         const userData = snapshot.docs[0].data();
         setUserProfile(userData);
         
-        // Extraire les données de gamification
-        const userGamification = userData.gamification || {};
-        
-        // Calculs basés sur les vraies données Firebase
-        const totalXp = userGamification.totalXp || 293;
-        const level = userGamification.level || Math.floor(totalXp / 100) + 1;
-        const currentLevelXp = totalXp % 100;
-        const xpForNextLevel = 100;
-        const progressToNext = Math.round((currentLevelXp / xpForNextLevel) * 100);
-        
-        setGamificationData({
-          totalXp,
-          level,
-          badges: (userGamification.badges || []).length || 2,
-          streak: userGamification.loginStreak || 1,
-          weeklyXp: userGamification.weeklyXp || 363,
-          monthlyXp: userGamification.monthlyXp || 363,
-          progressToNext,
-          xpForNextLevel,
-          tasksCompleted: userGamification.tasksCompleted || 0,
-          projectsCreated: userGamification.projectsCreated || 0,
-          completionRate: 0,
-          consecutiveDays: userGamification.loginStreak || 1
-        });
+// Extraire les données de gamification
+const userGamification = userData.gamification || {};
+
+// ✅ VALIDER ET CORRIGER LES DONNÉES XP
+const validatedData = validateAndFixXPData(userGamification);
+
+// 🚨 VÉRIFIER L'INTÉGRITÉ (optionnel - pour debug)
+const issues = checkDataIntegrity(userGamification);
+if (issues.length > 0) {
+  console.warn('⚠️ [GAMIFICATION] Problèmes détectés:', issues);
+  console.log('✅ [GAMIFICATION] Données corrigées automatiquement');
+}
+
+// 📊 CALCULER LES STATISTIQUES DÉRIVÉES
+const stats = calculateXPStats(validatedData);
+
+setGamificationData({
+  // Données corrigées
+  ...validatedData,
+  
+  // Statistiques supplémentaires
+  weeklyAverage: stats.weeklyAverage,
+  monthlyAverage: stats.monthlyAverage,
+  xpPerTask: stats.xpPerTask,
+  estimatedRank: stats.estimatedRank
+});
+
+console.log('🎮 [GAMIFICATION] Données validées et chargées:', {
+  totalXp: validatedData.totalXp,
+  level: validatedData.level,
+  weeklyXp: validatedData.weeklyXp,
+  monthlyXp: validatedData.monthlyXp,
+  badges: validatedData.badges
+});
         
         console.log('🎮 [GAMIFICATION] Données chargées:', {
           totalXp,
