@@ -103,7 +103,7 @@ export const validateAndFixXPData = (gamificationData) => {
     
     // Métadonnées
     lastActivityAt: gamificationData.lastActivityAt,
-    badges Array: gamificationData.badges || [],
+    badgesArray: gamificationData.badges || [],
     xpHistory: gamificationData.xpHistory || []
   };
 };
