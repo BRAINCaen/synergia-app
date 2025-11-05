@@ -135,15 +135,32 @@ const BadgesPage = () => {
       const snapshot = await getDocs(badgesRef);
       
       const firebaseBadges = [];
-      snapshot.forEach(doc => {
-        firebaseBadges.push({ id: doc.id, ...doc.data(), isFirebase: true });
-      });
+      const hiddenBadgeIds = []; // IDs des badges par défaut masqués
       
-      // Combiner badges par défaut + Firebase
-      const combined = [...DEFAULT_BADGES, ...firebaseBadges];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // Si c'est une version masquée d'un badge par défaut
+        if (data.isHidden && data.originalId) {
+          hiddenBadgeIds.push(data.originalId);
+        } else if (!data.isHidden) {
+          // Ajouter uniquement les badges non masqués
+          firebaseBadges.push({ id: doc.id, ...data, isFirebase: true });
+        }
+      });
+      console.log('✅ Badges Firebase chargés:', firebaseBadges.length);
+      console.log('🔒 Badges masqués:', hiddenBadgeIds);
+      
+      // Filtrer les badges par défaut pour exclure les masqués
+      const visibleDefaultBadges = DEFAULT_BADGES.filter(
+        badge => !hiddenBadgeIds.includes(badge.id)
+      );
+      
+      // Combiner badges par défaut visibles + Firebase
+      const combined = [...visibleDefaultBadges, ...firebaseBadges];
       setAllBadges(combined);
       
-      console.log('✅ Badges chargés:', combined.length);
+      console.log('✅ Total badges visibles:', combined.length);
     } catch (error) {
       console.error('❌ Erreur chargement badges:', error);
     } finally {
@@ -791,10 +808,64 @@ const BadgesPage = () => {
                     >
                       Annuler
                     </button>
+                    
+                    {selectedBadge && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const isDefault = !selectedBadge.isFirebase;
+                          const confirmMsg = isDefault 
+                            ? `Masquer "${selectedBadge.name}" de la collection ?` 
+                            : `Supprimer définitivement "${selectedBadge.name}" ?`;
+                          
+                          if (confirm(confirmMsg)) {
+                            try {
+                              if (selectedBadge.isFirebase) {
+                                // Supprimer le badge Firebase
+                                await deleteDoc(doc(db, 'badges', selectedBadge.id));
+                                console.log('✅ Badge Firebase supprimé');
+                              } else {
+                                // Masquer le badge par défaut en créant une version désactivée
+                                await addDoc(collection(db, 'badges'), {
+                                  name: selectedBadge.name,
+                                  description: selectedBadge.description,
+                                  icon: selectedBadge.icon,
+                                  category: selectedBadge.category,
+                                  rarity: selectedBadge.rarity,
+                                  xpReward: selectedBadge.xpReward,
+                                  isActive: false, // DÉSACTIVÉ
+                                  originalId: selectedBadge.id,
+                                  isDefault: false,
+                                  isFirebase: true,
+                                  isHidden: true, // Flag pour savoir que c'est masqué
+                                  createdAt: serverTimestamp(),
+                                  createdBy: user.uid
+                                });
+                                console.log('✅ Badge par défaut masqué');
+                              }
+                              
+                              alert('✅ Badge supprimé !');
+                              setShowEditBadgeModal(false);
+                              setSelectedBadge(null);
+                              await loadAllBadges();
+                            } catch (error) {
+                              console.error('❌ Erreur suppression:', error);
+                              alert('Erreur: ' + error.message);
+                            }
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {selectedBadge.isFirebase ? 'Supprimer' : 'Masquer'}
+                      </button>
+                    )}
+                    
                     <button
                       type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
                     >
+                      <Save className="w-4 h-4" />
                       Modifier
                     </button>
                   </div>
