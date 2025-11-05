@@ -532,8 +532,8 @@ const TasksPage = () => {
                 className="bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
               >
                 <option value="all">Tous les rôles</option>
-                {SYNERGIA_ROLES.map(role => (
-                  <option key={role.id} value={role.id}>{role.icon} {role.label}</option>
+                {Object.values(SYNERGIA_ROLES).map(role => (
+                  <option key={role.id} value={role.id}>{role.icon} {role.name}</option>
                 ))}
               </select>
 
