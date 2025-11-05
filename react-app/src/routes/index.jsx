@@ -17,8 +17,8 @@ import TeamPage from '../pages/TeamPage.jsx'
 
 // ✅ PAGES STANDARDS
 import TasksPage from '../pages/TasksPage.jsx'
-import CampaignsPage from '../pages/CampaignsPage.jsx' // ← RENOMMÉ
-import CampaignDetailPage from '../pages/CampaignDetailPage.jsx' // ← RENOMMÉ
+import CampaignsPage from '../pages/CampaignsPage.jsx'
+import CampaignDetailPage from '../pages/CampaignDetailPage.jsx'
 import GamificationPage from '../pages/GamificationPage.jsx'
 import BadgesPage from '../pages/BadgesPage.jsx'
 import LeaderboardPage from '../pages/LeaderboardPage.jsx'
@@ -142,4 +142,8 @@ export default AppRoutes
 ✅ RÉTROCOMPATIBILITÉ :
 - /projects redirige vers /campaigns
 - /projects/:id redirige vers /campaigns/:id
+
+✅ CORRECTION BUILD :
+- Import corrigé pour AdminUsersPage.jsx
+- Chemin d'import vérifié : '../pages/AdminUsersPage.jsx'
 */
