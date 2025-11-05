@@ -307,6 +307,8 @@ const RewardsPage = () => {
     if (!selectedReward) return;
 
     try {
+      console.log('🔄 Modification de:', selectedReward.name);
+      
       // Si c'est une récompense Firebase existante
       if (selectedReward.isFirebase) {
         const rewardRef = doc(db, 'rewards', selectedReward.id);
@@ -323,7 +325,10 @@ const RewardsPage = () => {
         });
         console.log('✅ Récompense Firebase mise à jour:', selectedReward.id);
       } else {
-        // Si c'est une récompense par défaut, créer une version modifiée dans Firebase
+        // Si c'est une récompense par défaut, créer une version modifiée ET masquer l'originale
+        console.log('🔄 Création version modifiée pour récompense par défaut:', selectedReward.id);
+        
+        // 1. Créer la nouvelle version modifiée
         const newReward = await addDoc(collection(db, 'rewards'), {
           name: rewardForm.name,
           description: rewardForm.description,
@@ -335,10 +340,22 @@ const RewardsPage = () => {
           originalId: selectedReward.id,
           isDefault: false,
           isFirebase: true,
+          replacesDefault: true, // Flag pour indiquer que ça remplace un défaut
           createdAt: serverTimestamp(),
           createdBy: user.uid
         });
         console.log('✅ Version modifiée créée:', newReward.id);
+        
+        // 2. Masquer l'originale en créant un flag "hidden"
+        await addDoc(collection(db, 'rewards'), {
+          originalId: selectedReward.id,
+          isHidden: true,
+          isDefault: false,
+          isFirebase: true,
+          createdAt: serverTimestamp(),
+          createdBy: user.uid
+        });
+        console.log('✅ Version originale masquée');
       }
 
       alert('✅ Récompense modifiée avec succès !');
@@ -346,6 +363,7 @@ const RewardsPage = () => {
       setSelectedReward(null);
       
       // Recharger les données
+      console.log('🔄 Rechargement des données...');
       await loadAllData();
     } catch (error) {
       console.error('❌ Erreur modification:', error);
