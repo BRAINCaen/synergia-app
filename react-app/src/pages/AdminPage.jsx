@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminPage.jsx
-// PAGE ADMIN PRINCIPALE - DASHBOARD ADMINISTRATEUR
+// PAGE ADMIN PRINCIPALE - DASHBOARD ADMINISTRATEUR CORRIGÉ
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -17,16 +17,10 @@ import {
   AlertTriangle,
   Clock,
   Target,
-  Trophy,
-  FileText,
-  Zap,
   RefreshCw,
   Eye,
-  UserCheck,
-  Calendar,
-  TrendingUp,
-  Award,
-  Cog
+  Cog,
+  Lock
 } from 'lucide-react';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
@@ -76,7 +70,7 @@ const AdminPage = () => {
     }
   };
 
-  // Grille des actions admin disponibles
+  // Grille des actions admin disponibles - UNIQUEMENT LES VRAIES PAGES
   const adminActions = [
     {
       title: 'Validation Tâches',
@@ -94,24 +88,6 @@ const AdminPage = () => {
       path: '/admin/objective-validation',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
-      count: null
-    },
-    {
-      title: 'Gestion Utilisateurs',
-      description: 'Administration des comptes',
-      icon: Users,
-      path: '/admin/users',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      count: stats.totalUsers
-    },
-    {
-      title: 'Gestion Badges',
-      description: 'Configuration du système de badges',
-      icon: Trophy,
-      path: '/admin/badges',
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50',
       count: null
     },
     {
@@ -133,15 +109,6 @@ const AdminPage = () => {
       count: null
     },
     {
-      title: 'Gestion Récompenses',
-      description: 'Configuration des rewards',
-      icon: Award,
-      path: '/admin/rewards',
-      color: 'text-pink-600',
-      bgColor: 'bg-pink-50',
-      count: null
-    },
-    {
       title: 'Paramètres Système',
       description: 'Configuration globale',
       icon: Settings,
@@ -151,12 +118,12 @@ const AdminPage = () => {
       count: null
     },
     {
-      title: 'Test Complet',
-      description: 'Suite de tests système',
-      icon: Zap,
-      path: '/admin/complete-test',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      title: 'Synchronisation',
+      description: 'Gestion des données et sync Firebase',
+      icon: RefreshCw,
+      path: '/admin/sync',
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-50',
       count: null
     }
   ];
@@ -300,7 +267,7 @@ const AdminPage = () => {
           </motion.div>
         )}
 
-        {/* Grille des Actions Admin */}
+        {/* Grille des Actions Admin - UNIQUEMENT LES VRAIES PAGES */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -349,7 +316,7 @@ const AdminPage = () => {
           </div>
         </motion.div>
 
-        {/* Section Accès Rapide */}
+        {/* Section Accès Rapide - UNIQUEMENT LES VRAIES PAGES */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -360,29 +327,21 @@ const AdminPage = () => {
             Accès Rapide
           </h3>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <Link
-              to="/admin/complete-test"
-              className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Zap className="w-6 h-6 text-orange-600" />
-              <span className="text-sm text-gray-700">Test Système</span>
-            </Link>
-            
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Link
               to="/admin/analytics"
               className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <TrendingUp className="w-6 h-6 text-indigo-600" />
+              <BarChart3 className="w-6 h-6 text-indigo-600" />
               <span className="text-sm text-gray-700">Analytics</span>
             </Link>
             
             <Link
-              to="/admin/users"
+              to="/admin/role-permissions"
               className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <UserCheck className="w-6 h-6 text-purple-600" />
-              <span className="text-sm text-gray-700">Utilisateurs</span>
+              <Lock className="w-6 h-6 text-red-600" />
+              <span className="text-sm text-gray-700">Permissions</span>
             </Link>
             
             <Link
@@ -399,14 +358,6 @@ const AdminPage = () => {
             >
               <Eye className="w-6 h-6 text-blue-600" />
               <span className="text-sm text-gray-700">Vue Utilisateur</span>
-            </Link>
-            
-            <Link
-              to="/admin/badges"
-              className="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Trophy className="w-6 h-6 text-yellow-600" />
-              <span className="text-sm text-gray-700">Badges</span>
             </Link>
           </div>
         </motion.div>
