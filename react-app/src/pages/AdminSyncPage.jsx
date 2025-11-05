@@ -42,8 +42,8 @@ import {
 // Hooks et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// Layout - Menu hamburger inclus
-import HamburgerMenu from '../shared/components/HamburgerMenu';
+// Layout - CHEMIN CORRECT DÉFINITIF
+import Layout from '../components/layout/Layout.jsx';
 
 // Firebase
 import { 
@@ -609,56 +609,49 @@ const AdminSyncPage = () => {
   // ✅ INTERFACE DE CHARGEMENT
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-        <HamburgerMenu />
-        
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-            <motion.div 
-              className="text-center"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
+      <Layout>
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <motion.div 
+            className="text-center"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-16 h-16 mx-auto mb-6"
             >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="w-16 h-16 mx-auto mb-6"
-              >
-                <Database className="w-16 h-16 text-purple-400" />
-              </motion.div>
-              <h3 className="text-2xl font-bold text-white mb-2">Analyse en cours...</h3>
-              <p className="text-gray-400">Vérification de la base de données</p>
-              
-              <div className="mt-6 flex items-center justify-center gap-2">
-                <motion.div 
-                  className="w-2 h-2 bg-purple-500 rounded-full"
-                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: 0 }}
-                />
-                <motion.div 
-                  className="w-2 h-2 bg-blue-500 rounded-full"
-                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                />
-                <motion.div 
-                  className="w-2 h-2 bg-pink-500 rounded-full"
-                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                />
-              </div>
+              <Database className="w-16 h-16 text-purple-400" />
             </motion.div>
-          </div>
+            <h3 className="text-2xl font-bold text-white mb-2">Analyse en cours...</h3>
+            <p className="text-gray-400">Vérification de la base de données</p>
+            
+            <div className="mt-6 flex items-center justify-center gap-2">
+              <motion.div 
+                className="w-2 h-2 bg-purple-500 rounded-full"
+                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+              />
+              <motion.div 
+                className="w-2 h-2 bg-blue-500 rounded-full"
+                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+              />
+              <motion.div 
+                className="w-2 h-2 bg-pink-500 rounded-full"
+                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+              />
+            </div>
+          </motion.div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-      {/* MENU HAMBURGER */}
-      <HamburgerMenu />
-
+    <Layout>
       {/* NOTIFICATION TOAST */}
       <AnimatePresence>
         {notification && (
@@ -1293,7 +1286,7 @@ const AdminSyncPage = () => {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </Layout>
   );
 };
 
