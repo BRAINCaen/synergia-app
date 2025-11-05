@@ -1,486 +1,480 @@
 // ==========================================
-// 📁 react-app/src/pages/RewardsPage.jsx
-// PAGE RÉCOMPENSES UNIFIÉE - HOOK CENTRAL
+// 📁 react-app/src/pages/Rewards.jsx
+// PAGE RÉCOMPENSES AVEC ONGLETS INDIVIDUELLES + ÉQUIPE RESTAURÉS
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Trophy, Search, Gift, Coins, Users, Clock,
-  Plus, Trash2, Settings, AlertCircle, Check, X, Shield
+  Trophy, Search, Filter, Star, Gift, Coins, Users, Target, 
+  Plus, Edit2, Trash2, Settings, AlertCircle, Check, X, 
+  ShoppingCart, Clock, User, Calendar, TrendingUp, Crown,
+  Shield, Eye, EyeOff, Package, Zap, Heart, Coffee, Gamepad2,
+  MapPin, Camera, Music, Book, Palette, Dumbbell, ChefHat
 } from 'lucide-react';
 
+// 🎯 IMPORT DU LAYOUT
 import Layout from '../components/layout/Layout.jsx';
+
+// 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
-import { useGamificationSync } from '../shared/hooks/useGamificationSync.js';
-import { addDoc, updateDoc, deleteDoc, doc, collection, serverTimestamp } from 'firebase/firestore';
+
+// 📊 FIREBASE IMPORTS
+import { 
+  collection, query, orderBy, where, getDocs, doc, getDoc,
+  addDoc, updateDoc, deleteDoc, serverTimestamp
+} from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 const RewardsPage = () => {
   const { user } = useAuthStore();
   const userIsAdmin = isAdmin(user);
-  
-  const {
-    gamification,
-    rewards,
-    rewardRequests,
-    userRewardHistory,
-    stats,
-    loading,
-    canAffordReward,
-    getAffordableRewards,
-    refresh
-  } = useGamificationSync();
 
+  // 📊 ÉTATS RÉCOMPENSES
+  const [userRewards, setUserRewards] = useState([]);
+  const [allRewards, setAllRewards] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
+  const [teamTotalXP, setTeamTotalXP] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedReward, setSelectedReward] = useState(null);
-  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [activeTab, setActiveTab] = useState('individual');
+
+  // 🛡️ ÉTATS ADMIN
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [notification, setNotification] = useState(null);
-  
+
+  // 📝 FORMULAIRE RÉCOMPENSE
   const [rewardForm, setRewardForm] = useState({
     name: '',
     description: '',
+    type: 'individual',
+    category: 'Mini-plaisirs',
     xpCost: 100,
     icon: '🎁',
-    category: 'Mini-plaisirs',
-    type: 'individual'
+    isAvailable: true
   });
 
+  // ==========================================
+  // 📊 CATALOGUES DE RÉCOMPENSES
+  // ==========================================
+
+  const INDIVIDUAL_REWARDS_CATALOG = [
+    // Mini-plaisirs (50-100 XP)
+    { id: 'snack', name: 'Goûter surprise', description: 'Un goûter de ton choix', xpCost: 50, icon: '🍪', category: 'Mini-plaisirs', type: 'individual' },
+    { id: 'coffee', name: 'Café premium', description: 'Un café de spécialité', xpCost: 75, icon: '☕', category: 'Mini-plaisirs', type: 'individual' },
+    { id: 'tea', name: 'Thé premium', description: 'Une sélection de thés fins', xpCost: 80, icon: '🍵', category: 'Mini-plaisirs', type: 'individual' },
+    
+    // Petits avantages (100-200 XP)
+    { id: 'earlyLeave', name: 'Sortie anticipée', description: 'Partir 30 min plus tôt', xpCost: 150, icon: '🏃', category: 'Petits avantages', type: 'individual' },
+    { id: 'parking', name: 'Place de parking', description: 'Place réservée pour une semaine', xpCost: 180, icon: '🅿️', category: 'Petits avantages', type: 'individual' },
+    
+    // Plaisirs utiles (200-400 XP)
+    { id: 'headphones', name: 'Écouteurs', description: 'Écouteurs sans fil', xpCost: 300, icon: '🎧', category: 'Plaisirs utiles', type: 'individual' },
+    { id: 'powerbank', name: 'Batterie externe', description: 'Power bank haute capacité', xpCost: 250, icon: '🔋', category: 'Plaisirs utiles', type: 'individual' },
+    
+    // Plaisirs food & cadeaux (400-700 XP)
+    { id: 'restaurant', name: 'Restaurant', description: 'Bon pour un restaurant', xpCost: 500, icon: '🍽️', category: 'Food & cadeaux', type: 'individual' },
+    { id: 'giftCard', name: 'Carte cadeau 30€', description: 'Utilisable en magasin', xpCost: 600, icon: '🎁', category: 'Food & cadeaux', type: 'individual' },
+    
+    // Bien-être & confort (700-1000 XP)
+    { id: 'massage', name: 'Massage', description: 'Séance de massage professionnel', xpCost: 800, icon: '💆', category: 'Bien-être', type: 'individual' },
+    { id: 'ergonomic', name: 'Accessoire ergonomique', description: 'Fauteuil ou coussin ergonomique', xpCost: 900, icon: '🪑', category: 'Bien-être', type: 'individual' },
+    
+    // Loisirs & sorties (1000-1500 XP)
+    { id: 'cinema', name: 'Pack cinéma', description: '2 places de cinéma + popcorn', xpCost: 1200, icon: '🎬', category: 'Loisirs', type: 'individual' },
+    { id: 'concert', name: 'Concert', description: 'Billet pour un concert', xpCost: 1400, icon: '🎵', category: 'Loisirs', type: 'individual' },
+    
+    // Lifestyle & bonus (1500-2500 XP)
+    { id: 'gadget', name: 'Gadget tech', description: 'Objet technologique au choix', xpCost: 2000, icon: '📺', category: 'Lifestyle', type: 'individual' },
+    { id: 'sport', name: 'Équipement sportif', description: 'Matériel pour ton sport préféré', xpCost: 2300, icon: '⚽', category: 'Lifestyle', type: 'individual' },
+    
+    // Avantages temps offert (2500-4000 XP)
+    { id: 'halfDay', name: 'Demi-journée congé', description: 'Une demi-journée de repos supplémentaire', xpCost: 2800, icon: '🌅', category: 'Temps offert', type: 'individual' },
+    { id: 'fullDay', name: 'Jour de congé bonus', description: 'Un jour de congé supplémentaire', xpCost: 3500, icon: '🏖️', category: 'Temps offert', type: 'individual' },
+    
+    // Grands plaisirs (4000-6000 XP)
+    { id: 'weekend', name: 'Week-end découverte', description: 'Un week-end dans un lieu touristique', xpCost: 5000, icon: '🗺️', category: 'Grands plaisirs', type: 'individual' },
+    { id: 'spa', name: 'Journée spa', description: 'Une journée complète dans un spa', xpCost: 4500, icon: '🧖', category: 'Grands plaisirs', type: 'individual' },
+    
+    // Premium (6000+ XP)
+    { id: 'vacation', name: 'Semaine de vacances offerte', description: 'Une semaine de vacances payée', xpCost: 12500, icon: '✈️', category: 'Premium', type: 'individual' },
+    { id: 'laptop', name: 'Ordinateur portable', description: 'Un laptop pour usage personnel', xpCost: 15000, icon: '💻', category: 'Premium', type: 'individual' }
+  ];
+
+  const TEAM_REWARDS_CATALOG = [
+    { id: 'teamSnack', name: 'Goûter d\'équipe', description: 'Goûter pour toute l\'équipe', xpCost: 500, icon: '🍰', category: 'Team', type: 'team' },
+    { id: 'teamLunch', name: 'Déjeuner d\'équipe', description: 'Restaurant pour l\'équipe', xpCost: 1500, icon: '🍴', category: 'Team', type: 'team' },
+    { id: 'teamActivity', name: 'Activité team building', description: 'Sortie ou activité collective', xpCost: 3000, icon: '🎯', category: 'Team', type: 'team' },
+    { id: 'teamOuting', name: 'Sortie d\'équipe', description: 'Journée découverte en équipe', xpCost: 5000, icon: '🚀', category: 'Team', type: 'team' },
+    { id: 'teamWeekend', name: 'Week-end d\'équipe', description: 'Week-end team building complet', xpCost: 10000, icon: '🏕️', category: 'Team', type: 'team' }
+  ];
+
+  // ==========================================
+  // 🔥 CHARGEMENT DES DONNÉES
+  // ==========================================
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const loadAllData = async () => {
+      try {
+        setLoading(true);
+        
+        // Charger le profil utilisateur
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data());
+        }
+
+        // Calculer le XP total d'équipe
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        let totalXP = 0;
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data();
+          totalXP += userData.xp || 0;
+        });
+        setTeamTotalXP(totalXP);
+
+        // Charger les demandes de récompenses
+        const requestsQuery = query(
+          collection(db, 'rewardRequests'),
+          where('userId', '==', user.uid),
+          orderBy('requestedAt', 'desc')
+        );
+        const requestsSnapshot = await getDocs(requestsQuery);
+        setUserRewards(requestsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })));
+
+        console.log('✅ Données chargées');
+      } catch (error) {
+        console.error('❌ Erreur chargement:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAllData();
+  }, [user]);
+
+  // ==========================================
   // 🎁 DEMANDER UNE RÉCOMPENSE
-  const handleRequestReward = async () => {
-    if (!selectedReward) return;
+  // ==========================================
+
+  const handleRequestReward = async (reward) => {
+    if (!user) {
+      alert('Vous devez être connecté');
+      return;
+    }
+
+    const userXP = userProfile?.xp || 0;
+    const requiredXP = reward.type === 'team' ? teamTotalXP : userXP;
+
+    if (requiredXP < reward.xpCost) {
+      alert(`XP insuffisants ! Il vous manque ${reward.xpCost - requiredXP} XP.`);
+      return;
+    }
+
+    if (!confirm(`Demander ${reward.name} pour ${reward.xpCost} XP ?`)) return;
 
     try {
       await addDoc(collection(db, 'rewardRequests'), {
         userId: user.uid,
         userName: user.displayName || user.email,
-        userEmail: user.email,
-        rewardId: selectedReward.id,
-        rewardName: selectedReward.name,
-        xpCost: selectedReward.xpCost,
+        rewardId: reward.id,
+        rewardName: reward.name,
+        rewardIcon: reward.icon,
+        xpCost: reward.xpCost,
+        type: reward.type,
         status: 'pending',
         requestedAt: serverTimestamp()
       });
 
-      showNotification('Demande envoyée !', 'success');
-      setShowRequestModal(false);
-      setSelectedReward(null);
+      alert('✅ Demande envoyée ! Un admin va la valider.');
     } catch (error) {
-      console.error('❌ Erreur:', error);
-      showNotification('Erreur lors de la demande', 'error');
+      console.error('❌ Erreur demande:', error);
+      alert('Erreur lors de la demande');
     }
   };
 
-  // 🛡️ CRÉER RÉCOMPENSE (ADMIN)
-  const handleCreateReward = async () => {
-    if (!rewardForm.name || !rewardForm.xpCost) {
-      showNotification('Remplissez tous les champs', 'error');
-      return;
+  // ==========================================
+  // 🔍 FILTRAGE DES RÉCOMPENSES
+  // ==========================================
+
+  const filteredRewards = useMemo(() => {
+    let rewards = activeTab === 'individual' ? INDIVIDUAL_REWARDS_CATALOG : TEAM_REWARDS_CATALOG;
+
+    if (searchTerm) {
+      rewards = rewards.filter(reward => 
+        reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reward.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
-    try {
-      await addDoc(collection(db, 'rewards'), {
-        ...rewardForm,
-        isActive: true,
-        createdAt: serverTimestamp(),
-        createdBy: user.uid
-      });
-
-      showNotification('Récompense créée !', 'success');
-      setShowCreateModal(false);
-      setRewardForm({ name: '', description: '', xpCost: 100, icon: '🎁', category: 'Mini-plaisirs', type: 'individual' });
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-      showNotification('Erreur création', 'error');
+    if (filterCategory !== 'all') {
+      rewards = rewards.filter(reward => reward.category === filterCategory);
     }
+
+    return rewards;
+  }, [searchTerm, filterCategory, activeTab]);
+
+  // ==========================================
+  // 🎨 COULEUR PAR COÛT XP
+  // ==========================================
+
+  const getRewardColor = (reward) => {
+    if (reward.type === 'team') return 'from-purple-600 to-indigo-600';
+    
+    const xp = reward.xpCost;
+    if (xp <= 100) return 'from-green-600 to-emerald-600';
+    if (xp <= 200) return 'from-blue-600 to-cyan-600';
+    if (xp <= 400) return 'from-yellow-600 to-orange-600';
+    if (xp <= 700) return 'from-red-600 to-pink-600';
+    if (xp <= 1000) return 'from-purple-600 to-violet-600';
+    if (xp <= 1500) return 'from-indigo-600 to-blue-600';
+    if (xp <= 2500) return 'from-pink-600 to-rose-600';
+    if (xp <= 4000) return 'from-orange-600 to-red-600';
+    if (xp <= 6000) return 'from-violet-600 to-purple-600';
+    return 'from-yellow-500 to-amber-500';
   };
 
-  // 🛡️ SUPPRIMER RÉCOMPENSE (ADMIN)
-  const handleDeleteReward = async (rewardId) => {
-    if (!window.confirm('Supprimer cette récompense ?')) return;
+  // ==========================================
+  // 🎨 RENDU
+  // ==========================================
 
-    try {
-      await deleteDoc(doc(db, 'rewards', rewardId));
-      showNotification('Récompense supprimée', 'success');
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-      showNotification('Erreur suppression', 'error');
-    }
-  };
-
-  // 🛡️ VALIDER DEMANDE (ADMIN)
-  const handleValidateRequest = async (requestId, action) => {
-    try {
-      await updateDoc(doc(db, 'rewardRequests', requestId), {
-        status: action === 'approve' ? 'approved' : 'rejected',
-        processedAt: serverTimestamp(),
-        processedBy: user.uid
-      });
-
-      showNotification(action === 'approve' ? 'Approuvé !' : 'Rejeté', 'success');
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-      showNotification('Erreur validation', 'error');
-    }
-  };
-
-  const showNotification = (message, type) => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
-  const filteredRewards = rewards.filter(r =>
-    !searchTerm || 
-    r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading || !gamification) {
+  if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-yellow-500"></div>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement des récompenses...</p>
+          </div>
         </div>
       </Layout>
     );
   }
 
+  const userXP = userProfile?.xp || 0;
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
-        
-        {/* NOTIFICATION */}
-        <AnimatePresence>
-          {notification && (
-            <motion.div
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
-                notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-              } text-white`}
-            >
-              {notification.message}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* EN-TÊTE */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* 🎯 EN-TÊTE */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-4xl font-bold text-white flex items-center gap-3">
-                <Trophy className="w-10 h-10 text-yellow-400" />
-                Boutique de Récompenses
-              </h1>
-              <p className="text-gray-400 mt-2">
-                Dépensez vos XP pour obtenir des avantages exclusifs
-              </p>
-            </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+            <Gift className="w-10 h-10 text-purple-500" />
+            Boutique de Récompenses
+          </h1>
+          <p className="text-gray-600">
+            Dépensez vos XP pour obtenir des avantages exclusifs !
+          </p>
+        </div>
 
-            {userIsAdmin && (
-              <button
-                onClick={() => setShowAdminPanel(!showAdminPanel)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2"
-              >
-                <Settings className="w-5 h-5" />
-                {showAdminPanel ? 'Masquer' : 'Admin'}
-              </button>
-            )}
+        {/* 📊 STATISTIQUES */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl">
+            <div className="flex items-center gap-3">
+              <User className="w-8 h-8 text-blue-600" />
+              <div>
+                <p className="text-blue-600 font-semibold">Mes XP</p>
+                <p className="text-2xl font-bold text-blue-800">{userXP}</p>
+              </div>
+            </div>
           </div>
 
-          {/* STATS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Mes XP</p>
-                  <p className="text-2xl font-bold text-white">{gamification.totalXp}</p>
-                </div>
-                <Coins className="w-8 h-8 text-yellow-400" />
+          <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-xl">
+            <div className="flex items-center gap-3">
+              <Users className="w-8 h-8 text-purple-600" />
+              <div>
+                <p className="text-purple-600 font-semibold">XP d'Équipe</p>
+                <p className="text-2xl font-bold text-purple-800">{teamTotalXP}</p>
               </div>
             </div>
+          </div>
 
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Disponibles</p>
-                  <p className="text-2xl font-bold text-white">{rewards.length}</p>
-                </div>
-                <Gift className="w-8 h-8 text-green-400" />
-              </div>
-            </div>
-
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Accessibles</p>
-                  <p className="text-2xl font-bold text-white">{getAffordableRewards().length}</p>
-                </div>
-                <Check className="w-8 h-8 text-blue-400" />
-              </div>
-            </div>
-
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
-              <div className="flex justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">En attente</p>
-                  <p className="text-2xl font-bold text-white">
-                    {userRewardHistory.filter(r => r.status === 'pending').length}
-                  </p>
-                </div>
-                <Clock className="w-8 h-8 text-orange-400" />
+          <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl">
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="w-8 h-8 text-green-600" />
+              <div>
+                <p className="text-green-600 font-semibold">Demandes en cours</p>
+                <p className="text-2xl font-bold text-green-800">{userRewards.filter(r => r.status === 'pending').length}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* RECHERCHE */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl text-white"
-            />
-          </div>
-        </div>
-
-        {/* RÉCOMPENSES */}
-        {filteredRewards.length === 0 ? (
-          <div className="text-center py-12">
-            <AlertCircle className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-400">Aucune récompense</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRewards.map((reward) => {
-              const affordable = canAffordReward(reward.xpCost);
-              
-              return (
-                <motion.div
-                  key={reward.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={`bg-gray-800/50 border rounded-xl p-6 cursor-pointer hover:scale-105 transition-transform ${
-                    affordable ? 'border-green-500/50' : 'border-gray-700/50'
-                  }`}
-                  onClick={() => {
-                    setSelectedReward(reward);
-                    setShowRequestModal(true);
-                  }}
-                >
-                  <div className="text-center mb-4">
-                    <div className="text-6xl mb-2">{reward.icon}</div>
-                    <h3 className="text-lg font-bold text-white">{reward.name}</h3>
-                  </div>
-
-                  <p className="text-gray-400 text-sm mb-4 min-h-[60px]">
-                    {reward.description}
-                  </p>
-
-                  <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-2">
-                      <Coins className="w-5 h-5 text-yellow-400" />
-                      <span className={`font-bold ${affordable ? 'text-green-400' : 'text-red-400'}`}>
-                        {reward.xpCost} XP
-                      </span>
-                    </div>
-                    {affordable ? <Check className="w-5 h-5 text-green-400" /> : <X className="w-5 h-5 text-red-400" />}
-                  </div>
-
-                  <button
-                    className={`w-full py-2 rounded-lg font-semibold ${
-                      affordable ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-400'
-                    }`}
-                    disabled={!affordable}
-                  >
-                    {affordable ? 'Demander' : 'XP insuffisants'}
-                  </button>
-
-                  {userIsAdmin && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteReward(reward.id);
-                      }}
-                      className="w-full mt-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
-                    >
-                      <Trash2 className="w-4 h-4 mx-auto" />
-                    </button>
-                  )}
-                </motion.div>
-              );
-            })}
+        {/* 🛡️ BOUTON ADMIN */}
+        {userIsAdmin && (
+          <div className="flex justify-center mb-8">
+            <button
+              onClick={() => setShowAdminPanel(!showAdminPanel)}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 ${
+                showAdminPanel 
+                  ? 'bg-red-600 text-white hover:bg-red-700' 
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
+              }`}
+            >
+              <Settings className="w-5 h-5" />
+              {showAdminPanel ? 'Fermer Panel Admin' : 'Ouvrir Panel Admin'}
+            </button>
           </div>
         )}
 
-        {/* PANEL ADMIN */}
+        {/* 🛡️ PANEL ADMIN */}
         {userIsAdmin && showAdminPanel && (
-          <div className="mt-8 bg-gray-800/50 border border-purple-500/50 rounded-xl p-6">
-            <div className="flex justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Shield className="w-6 h-6 text-purple-400" />
-                Administration
-              </h2>
-
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                Créer
-              </button>
-            </div>
-
-            <h3 className="text-xl font-bold text-white mb-4">
-              Demandes ({rewardRequests.length})
-            </h3>
-
-            {rewardRequests.length > 0 ? (
-              <div className="space-y-3">
-                {rewardRequests.map((request) => (
-                  <div key={request.id} className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="text-white font-semibold">{request.rewardName}</p>
-                        <p className="text-gray-400 text-sm">Par: {request.userName}</p>
-                        <p className="text-gray-400 text-sm">Coût: {request.xpCost} XP</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleValidateRequest(request.id, 'approve')}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                        >
-                          <Check className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleValidateRequest(request.id, 'reject')}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-center py-8">Aucune demande</p>
-            )}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8 border-l-4 border-blue-500">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield className="w-6 h-6 text-blue-600" />
+              Panel Administration Récompenses
+            </h2>
+            <p className="text-gray-600">
+              Les demandes de récompenses en attente apparaissent ici pour validation.
+            </p>
           </div>
         )}
 
-        {/* MODALS */}
-        <AnimatePresence>
-          {showRequestModal && selectedReward && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        {/* 🎯 ONGLETS INDIVIDUELLES / ÉQUIPE */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('individual')}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+              activeTab === 'individual'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <User className="w-5 h-5" />
+            Récompenses Individuelles
+            <span className="bg-white bg-opacity-20 px-2 py-1 rounded text-sm">
+              {INDIVIDUAL_REWARDS_CATALOG.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('team')}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+              activeTab === 'team'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            Récompenses d'Équipe
+            <span className="bg-white bg-opacity-20 px-2 py-1 rounded text-sm">
+              {TEAM_REWARDS_CATALOG.length}
+            </span>
+          </button>
+        </div>
+
+        {/* 🔍 BARRE DE RECHERCHE */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher une récompense..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">Toutes les catégories</option>
+              {activeTab === 'individual' ? (
+                <>
+                  <option value="Mini-plaisirs">Mini-plaisirs</option>
+                  <option value="Petits avantages">Petits avantages</option>
+                  <option value="Plaisirs utiles">Plaisirs utiles</option>
+                  <option value="Food & cadeaux">Food & cadeaux</option>
+                  <option value="Bien-être">Bien-être</option>
+                  <option value="Loisirs">Loisirs</option>
+                  <option value="Lifestyle">Lifestyle</option>
+                  <option value="Temps offert">Temps offert</option>
+                  <option value="Grands plaisirs">Grands plaisirs</option>
+                  <option value="Premium">Premium</option>
+                </>
+              ) : (
+                <option value="Team">Team</option>
+              )}
+            </select>
+          </div>
+        </div>
+
+        {/* 🏆 GRILLE DES RÉCOMPENSES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRewards.map((reward) => {
+            const requiredXP = reward.type === 'team' ? teamTotalXP : userXP;
+            const canAfford = requiredXP >= reward.xpCost;
+            
+            return (
               <motion.div
+                key={reward.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
+                className={`relative bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 ${
+                  canAfford ? 'hover:shadow-2xl hover:scale-105' : 'opacity-70'
+                }`}
               >
-                <h3 className="text-2xl font-bold text-white mb-4">
-                  {selectedReward.icon} {selectedReward.name}
-                </h3>
-                <p className="text-gray-300 mb-4">{selectedReward.description}</p>
-                <div className="bg-gray-700/50 rounded-lg p-4 mb-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-400">Coût:</span>
-                    <span className="text-yellow-400 font-bold">{selectedReward.xpCost} XP</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Votre solde:</span>
-                    <span className="text-white font-bold">{gamification.totalXp} XP</span>
-                  </div>
+                {/* Gradient Header */}
+                <div className={`h-32 bg-gradient-to-r ${getRewardColor(reward)} flex items-center justify-center`}>
+                  <span className="text-6xl">{reward.icon}</span>
                 </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowRequestModal(false);
-                      setSelectedReward(null);
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleRequestReward}
-                    className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                    disabled={!canAffordReward(selectedReward.xpCost)}
-                  >
-                    Confirmer
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
 
-          {showCreateModal && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
-              >
-                <h3 className="text-2xl font-bold text-white mb-6">Créer une récompense</h3>
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Nom"
-                    value={rewardForm.name}
-                    onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  />
-                  <textarea
-                    placeholder="Description"
-                    value={rewardForm.description}
-                    onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                    rows="3"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Coût XP"
-                    value={rewardForm.xpCost}
-                    onChange={(e) => setRewardForm({ ...rewardForm, xpCost: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Icône"
-                    value={rewardForm.icon}
-                    onChange={(e) => setRewardForm({ ...rewardForm, icon: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  />
-                </div>
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowCreateModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleCreateReward}
-                    className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                  >
-                    Créer
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+                {/* Content */}
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{reward.name}</h3>
+                  <p className="text-gray-600 text-sm mb-4">{reward.description}</p>
+                  
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                      {reward.category}
+                    </span>
+                    <div className="flex items-center gap-1 text-yellow-600">
+                      <Zap className="w-4 h-4" />
+                      <span className="font-bold">{reward.xpCost} XP</span>
+                    </div>
+                  </div>
 
+                  <button
+                    onClick={() => handleRequestReward(reward)}
+                    disabled={!canAfford}
+                    className={`w-full py-3 rounded-lg font-semibold transition-colors ${
+                      canAfford
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {canAfford ? 'Demander' : 'XP insuffisants'}
+                  </button>
+                </div>
+
+                {/* Badge Type */}
+                {reward.type === 'team' && (
+                  <div className="absolute top-2 right-2 bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    Équipe
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {filteredRewards.length === 0 && (
+          <div className="text-center py-12">
+            <Gift className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">Aucune récompense trouvée</p>
+          </div>
+        )}
       </div>
     </Layout>
   );
