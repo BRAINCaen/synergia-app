@@ -36,23 +36,3 @@ const ProtectedRoute = () => {
 };
 
 export default ProtectedRoute;
-```
-
----
-
-## ✅ RÉSULTAT
-
-**Ce qui est maintenant corrigé :**
-
-1. ✅ **AdminRoute.jsx créé** : Protection des routes admin
-2. ✅ **ProtectedRoute.jsx vérifié** : Protection des routes authentifiées
-3. ✅ **Utilisation de `<Outlet />`** : Pattern React Router v6 correct
-4. ✅ **Gestion du loading** : Affichage pendant la vérification
-5. ✅ **Vérification admin** : Double check avec `isAdmin` et `role`
-
-**Structure des routes attendue :**
-```
-src/routes/
-├── index.jsx (fichier principal)
-├── ProtectedRoute.jsx ✅
-└── AdminRoute.jsx ✅ (nouveau)
