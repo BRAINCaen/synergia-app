@@ -68,7 +68,7 @@ const AppRoutes = () => {
       {/* Routes admin - Nécessitent authentification + rôle admin */}
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+<Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
         <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
