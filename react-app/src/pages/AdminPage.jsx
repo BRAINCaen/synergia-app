@@ -41,7 +41,6 @@ const AdminPage = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Vérification des permissions admin
   useEffect(() => {
     if (!user || !isAdmin(user)) {
       console.warn('🚫 Accès refusé - permissions admin requises');
@@ -56,7 +55,6 @@ const AdminPage = () => {
     try {
       setLoading(true);
       
-      // Charger les vraies statistiques depuis Firebase
       const [usersSnapshot, tasksSnapshot, pendingSnapshot] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'tasks')),
@@ -90,109 +88,72 @@ const AdminPage = () => {
     return () => unsubscribe();
   };
 
-  // Cards de statistiques rapides - DESIGN EXACT SYNERGIA
+  // Cards de statistiques rapides - CHARTE GRAPHIQUE SYNERGIA
   const quickStats = [
     {
       label: 'Utilisateurs Actifs',
       value: stats.totalUsers,
       icon: Users,
-      bgColor: 'bg-blue-500',
-      textColor: 'text-blue-600'
+      gradient: 'from-blue-500 to-cyan-500'
     },
     {
       label: 'Tâches Actives',
       value: stats.activeTasks,
       icon: Activity,
-      bgColor: 'bg-green-500',
-      textColor: 'text-green-600'
+      gradient: 'from-green-500 to-emerald-500'
     },
     {
       label: 'En Attente',
       value: stats.pendingValidations,
       icon: Clock,
-      bgColor: 'bg-orange-500',
-      textColor: 'text-orange-600'
+      gradient: 'from-orange-500 to-red-500'
     },
     {
       label: 'Santé Système',
       value: `${stats.systemHealth}%`,
       icon: Database,
-      bgColor: 'bg-purple-500',
-      textColor: 'text-purple-600'
+      gradient: 'from-purple-500 to-pink-500'
     }
   ];
 
-  // Grille des actions admin - DESIGN EXACT SYNERGIA
+  // Grille des actions admin - CHARTE GRAPHIQUE SYNERGIA
   const adminActions = [
     {
       title: 'Validation Tâches',
       description: 'Approuver les tâches en attente',
       icon: CheckCircle2,
       path: '/admin/task-validation',
-      bgColor: 'bg-green-500'
+      count: stats.pendingValidations
     },
     {
       title: 'Validation Objectifs',
       description: 'Validation des objectifs utilisateur',
       icon: Target,
-      path: '/admin/objective-validation',
-      bgColor: 'bg-blue-500'
+      path: '/admin/objective-validation'
     },
     {
       title: 'Analytics Admin',
       description: 'Statistiques avancées',
       icon: BarChart3,
-      path: '/admin/analytics',
-      bgColor: 'bg-pink-500'
+      path: '/admin/analytics'
     },
     {
       title: 'Permissions & Rôles',
       description: 'Gestion des droits utilisateur',
       icon: Shield,
-      path: '/admin/role-permissions',
-      bgColor: 'bg-orange-500'
+      path: '/admin/role-permissions'
     },
     {
       title: 'Paramètres Système',
       description: 'Configuration globale',
       icon: Settings,
-      path: '/admin/settings',
-      bgColor: 'bg-gray-500'
+      path: '/admin/settings'
     },
     {
       title: 'Synchronisation',
       description: 'Gestion des données et sync Firebase',
       icon: RefreshCw,
-      path: '/admin/sync',
-      bgColor: 'bg-cyan-500'
-    }
-  ];
-
-  // Actions rapides - DESIGN EXACT SYNERGIA
-  const quickActions = [
-    {
-      label: 'Analytics',
-      icon: BarChart3,
-      path: '/admin/analytics',
-      color: 'text-purple-600'
-    },
-    {
-      label: 'Permissions',
-      icon: Lock,
-      path: '/admin/role-permissions',
-      color: 'text-red-600'
-    },
-    {
-      label: 'Paramètres',
-      icon: Cog,
-      path: '/admin/settings',
-      color: 'text-gray-600'
-    },
-    {
-      label: 'Vue Utilisateur',
-      icon: Eye,
-      path: '/dashboard',
-      color: 'text-blue-600'
+      path: '/admin/sync'
     }
   ];
 
@@ -200,15 +161,15 @@ const AdminPage = () => {
   if (!user || !isAdmin(user)) {
     return (
       <Layout>
-        <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg shadow-lg p-8 text-center max-w-md border"
+            className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-8 text-center max-w-md"
           >
-            <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Accès Refusé</h2>
-            <p className="text-gray-600 mb-6">Vous n'avez pas les permissions administrateur requises.</p>
+            <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Accès Refusé</h2>
+            <p className="text-gray-400 mb-6">Vous n'avez pas les permissions administrateur requises.</p>
             <Link 
               to="/dashboard" 
               className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
@@ -223,76 +184,96 @@ const AdminPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-white p-6 md:p-12">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+        <div className="max-w-7xl mx-auto">
           
-          {/* Header - DESIGN EXACT */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between mb-8"
-          >
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                Administration Synergia
-              </h1>
-              <p className="text-gray-600 text-sm">
-                Panneau de contrôle administrateur
-              </p>
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">
+                  🛡️ Administration Synergia
+                </h1>
+                <p className="text-gray-400">
+                  Panneau de contrôle administrateur
+                </p>
+              </div>
+              
+              <button
+                onClick={loadAdminStats}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Actualiser
+              </button>
             </div>
-            
-            <button
-              onClick={loadAdminStats}
-              disabled={loading}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualiser
-            </button>
-          </motion.div>
+          </div>
 
-          {/* Statistiques Rapides - DESIGN EXACT */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12"
-          >
+          {/* Statistiques Rapides */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {quickStats.map((stat, index) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.05 }}
-                className="text-center"
+                transition={{ delay: index * 0.1 }}
+                className={`bg-gradient-to-br ${stat.gradient} rounded-xl p-6 text-white`}
               >
-                <div className="mb-3">
-                  <p className="text-xs text-gray-600 mb-2">{stat.label}</p>
-                  <div className="flex items-center justify-center">
-                    <div className={`${stat.bgColor} rounded-xl p-4 inline-block`}>
-                      <stat.icon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
+                <div className="flex items-center gap-3 mb-2">
+                  <stat.icon className="w-6 h-6" />
+                  <h3 className="text-sm font-medium opacity-90">{stat.label}</h3>
                 </div>
-                <p className="text-3xl font-bold text-gray-900">
+                <div className="text-3xl font-bold mb-1">
                   {loading ? '...' : stat.value}
-                </p>
+                </div>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
 
-          {/* Outils d'Administration - DESIGN EXACT */}
+          {/* Alerte Urgente si validations en attente */}
+          {stats.pendingValidations > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="bg-orange-500/20 border border-orange-500/50 rounded-xl p-4 mb-8"
+            >
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-medium text-orange-300">
+                    {stats.pendingValidations} validation(s) en attente
+                  </h3>
+                  <p className="text-sm text-orange-400/80">
+                    Des tâches nécessitent votre validation pour débloquer les utilisateurs.
+                  </p>
+                </div>
+                <Link
+                  to="/admin/task-validation"
+                  className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors whitespace-nowrap"
+                >
+                  Traiter
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Grille des Actions Admin */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="mb-12"
+            className="mb-8"
           >
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">
-              Outils d'Administration
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-blue-400" />
+                Outils d'Administration
+              </h3>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {adminActions.map((action, index) => (
                 <motion.div
                   key={action.path}
@@ -302,19 +283,28 @@ const AdminPage = () => {
                 >
                   <Link
                     to={action.path}
-                    className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                    className="block bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 hover:bg-gray-700/50 transition-colors"
                   >
-                    <div className={`${action.bgColor} rounded-xl p-4`}>
-                      <action.icon className="w-6 h-6 text-white" />
-                    </div>
-                    
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">
-                        {action.title}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {action.description}
-                      </p>
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-blue-600/20 rounded-lg">
+                        <action.icon className="w-6 h-6 text-blue-400" />
+                      </div>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold text-white">
+                            {action.title}
+                          </h3>
+                          {action.count > 0 && (
+                            <span className="bg-red-500/20 text-red-400 text-xs px-2 py-1 rounded-full border border-red-500/50">
+                              {action.count}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-400">
+                          {action.description}
+                        </p>
+                      </div>
                     </div>
                   </Link>
                 </motion.div>
@@ -322,29 +312,49 @@ const AdminPage = () => {
             </div>
           </motion.div>
 
-          {/* Accès Rapide - DESIGN EXACT */}
+          {/* Section Accès Rapide */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6"
           >
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
               Accès Rapide
-            </h2>
+            </h3>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {quickActions.map((action, index) => (
-                <Link
-                  key={action.path}
-                  to={action.path}
-                  className="flex flex-col items-center gap-3 p-6 bg-white border border-gray-200 rounded-xl hover:shadow-md transition-shadow"
-                >
-                  <action.icon className={`w-8 h-8 ${action.color}`} />
-                  <span className="text-sm text-gray-700 font-medium text-center">
-                    {action.label}
-                  </span>
-                </Link>
-              ))}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Link
+                to="/admin/analytics"
+                className="flex flex-col items-center gap-2 p-4 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors"
+              >
+                <BarChart3 className="w-6 h-6 text-purple-400" />
+                <span className="text-sm text-gray-300">Analytics</span>
+              </Link>
+              
+              <Link
+                to="/admin/role-permissions"
+                className="flex flex-col items-center gap-2 p-4 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors"
+              >
+                <Lock className="w-6 h-6 text-red-400" />
+                <span className="text-sm text-gray-300">Permissions</span>
+              </Link>
+              
+              <Link
+                to="/admin/settings"
+                className="flex flex-col items-center gap-2 p-4 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors"
+              >
+                <Cog className="w-6 h-6 text-gray-400" />
+                <span className="text-sm text-gray-300">Paramètres</span>
+              </Link>
+              
+              <Link
+                to="/dashboard"
+                className="flex flex-col items-center gap-2 p-4 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors"
+              >
+                <Eye className="w-6 h-6 text-blue-400" />
+                <span className="text-sm text-gray-300">Vue Utilisateur</span>
+              </Link>
             </div>
           </motion.div>
 
@@ -353,7 +363,7 @@ const AdminPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="mt-12 text-center text-xs text-gray-500"
+            className="mt-8 text-center text-sm text-gray-500"
           >
             <p>Synergia v3.5 - Interface Administrateur</p>
             <p>Dernière mise à jour: {new Date().toLocaleDateString('fr-FR')}</p>
