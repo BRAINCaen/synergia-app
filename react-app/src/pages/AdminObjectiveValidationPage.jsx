@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/pages/AdminCampaignValidationPage.jsx
-// PAGE ADMIN DE VALIDATION DES RÉCLAMATIONS DE CAMPAGNES
+// 📁 react-app/src/pages/AdminObjectiveValidationPage.jsx
+// PAGE ADMIN DE VALIDATION DES RÉCLAMATIONS D'OBJECTIFS
 // AVEC DESIGN SYNERGIA PREMIUM + MENU HAMBURGER
 // ==========================================
 
@@ -12,7 +12,7 @@ import {
   XCircle, 
   Clock, 
   User, 
-  Flag,
+  Target, 
   Award,
   Filter,
   Search,
@@ -27,8 +27,7 @@ import {
   Users,
   ArrowLeft,
   Shield,
-  CheckCircle2,
-  Sword
+  CheckCircle2
 } from 'lucide-react';
 
 // ✅ IMPORTS SYNERGIA
@@ -37,10 +36,10 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 
 /**
- * 🛡️ PAGE ADMIN DE VALIDATION DES CAMPAGNES
- * Interface pour valider les réclamations de campagnes des utilisateurs
+ * 🛡️ PAGE ADMIN DE VALIDATION DES OBJECTIFS
+ * Interface pour valider les réclamations d'objectifs des utilisateurs
  */
-const AdminCampaignValidationPage = () => {
+const AdminObjectiveValidationPage = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [claims, setClaims] = useState([]);
@@ -62,64 +61,43 @@ const AdminCampaignValidationPage = () => {
     try {
       setLoading(true);
       
-      // Simulation des réclamations de campagnes
-      // Dans une vraie app, ces données viendraient de Firebase
+      // Simulation des réclamations d'objectifs
       const mockClaims = [
         {
           id: 'claim_001',
           userId: 'user_123',
           userName: 'Alice Martin',
           userEmail: 'alice.martin@example.com',
-          campaignId: 'camp_001',
-          campaignTitle: 'Conquête des Marchés Nordiques',
-          campaignCategory: 'Expansion Commerciale',
-          claimDescription: 'J\'ai complété toutes les étapes de la campagne avec succès : prospection de 50 clients, conversion de 15 nouveaux contrats, et augmentation du CA de 45%.',
+          objectiveId: 'obj_001',
+          objectiveTitle: 'Maîtriser React hooks avancés',
+          objectiveCategory: 'Développement Frontend',
+          claimDescription: 'J\'ai complété le cours sur les hooks avancés et créé 3 projets pratiques utilisant useReducer, useContext et custom hooks.',
           evidenceUrls: [
-            'https://drive.google.com/campaign-report',
-            'https://analytics.example.com/results'
+            'https://github.com/alice/react-hooks-project',
+            'https://deploy.example.com/project1'
           ],
           status: 'pending',
           submittedAt: new Date('2025-08-20T10:30:00'),
           priority: 'high',
-          estimatedReward: 250
+          estimatedReward: 150
         },
         {
           id: 'claim_002', 
           userId: 'user_456',
           userName: 'Bob Durant',
           userEmail: 'bob.durant@example.com',
-          campaignId: 'camp_002',
-          campaignTitle: 'Refonte Infrastructure Technique',
-          campaignCategory: 'Développement',
-          claimDescription: 'Migration complète vers microservices avec amélioration de 80% des performances et réduction de 60% des coûts serveur.',
+          objectiveId: 'obj_002',
+          objectiveTitle: 'Optimisation des performances API',
+          objectiveCategory: 'Backend',
+          claimDescription: 'Optimisation de 5 endpoints API avec réduction de 60% du temps de réponse moyen.',
           evidenceUrls: [
-            'https://github.com/bob/infrastructure-migration',
+            'https://github.com/bob/api-optimization',
             'https://monitoring.example.com/metrics'
           ],
           status: 'pending',
           submittedAt: new Date('2025-08-19T14:15:00'),
           priority: 'medium',
-          estimatedReward: 300
-        },
-        {
-          id: 'claim_003',
-          userId: 'user_789',
-          userName: 'Claire Lopez',
-          userEmail: 'claire.lopez@example.com', 
-          campaignId: 'camp_003',
-          campaignTitle: 'Lancement Produit Innovation 2025',
-          campaignCategory: 'Marketing',
-          claimDescription: 'Lancement réussi avec 10K utilisateurs en 1 mois, couverture médiatique dans 5 médias majeurs, et taux de satisfaction de 92%.',
-          evidenceUrls: [
-            'https://analytics.example.com/product-launch',
-            'https://docs.example.com/press-review'
-          ],
-          status: 'approved',
-          submittedAt: new Date('2025-08-18T09:00:00'),
-          processedAt: new Date('2025-08-19T11:30:00'),
-          priority: 'high',
-          estimatedReward: 400,
-          adminNotes: 'Excellent travail sur le lancement. Résultats au-dessus des objectifs.'
+          estimatedReward: 200
         }
       ];
 
@@ -144,23 +122,20 @@ const AdminCampaignValidationPage = () => {
   const handleApproveClaim = async (claimId) => {
     try {
       setProcessingClaim(true);
+      console.log('✅ Approbation réclamation:', claimId);
       
-      // Simulation de l'approbation
-      console.log('✅ Approbation réclamation campagne:', claimId);
-      
-      // Mettre à jour l'état local
       setClaims(prev => prev.map(claim => 
         claim.id === claimId 
           ? { 
               ...claim, 
               status: 'approved', 
               processedAt: new Date(),
-              adminNotes: 'Campagne validée par admin'
+              adminNotes: 'Objectif validé par admin'
             }
           : claim
       ));
       
-      alert('Réclamation de campagne approuvée avec succès !');
+      alert('Réclamation approuvée avec succès !');
       
     } catch (error) {
       console.error('❌ Erreur approbation:', error);
@@ -173,23 +148,20 @@ const AdminCampaignValidationPage = () => {
   const handleRejectClaim = async (claimId, reason) => {
     try {
       setProcessingClaim(true);
+      console.log('❌ Rejet réclamation:', claimId, reason);
       
-      // Simulation du rejet
-      console.log('❌ Rejet réclamation campagne:', claimId, reason);
-      
-      // Mettre à jour l'état local
       setClaims(prev => prev.map(claim => 
         claim.id === claimId 
           ? { 
               ...claim, 
               status: 'rejected',
               processedAt: new Date(),
-              adminNotes: reason || 'Campagne non validée'
+              adminNotes: reason || 'Objectif non validé'
             }
           : claim
       ));
       
-      alert('Réclamation de campagne rejetée');
+      alert('Réclamation rejetée');
       
     } catch (error) {
       console.error('❌ Erreur rejet:', error);
@@ -204,19 +176,17 @@ const AdminCampaignValidationPage = () => {
   // ==========================================
 
   const filteredClaims = claims.filter(claim => {
-    // Filtrer par onglet actif
     if (activeTab !== 'all' && claim.status !== activeTab) {
       return false;
     }
 
-    // Filtrer par recherche
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
-        claim.campaignTitle?.toLowerCase().includes(search) ||
+        claim.objectiveTitle?.toLowerCase().includes(search) ||
         claim.userName?.toLowerCase().includes(search) ||
         claim.claimDescription?.toLowerCase().includes(search) ||
-        claim.campaignCategory?.toLowerCase().includes(search)
+        claim.objectiveCategory?.toLowerCase().includes(search)
       );
     }
 
@@ -232,8 +202,8 @@ const AdminCampaignValidationPage = () => {
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
-            <RefreshCw className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-            <p className="text-gray-300">Chargement des réclamations de campagnes...</p>
+            <RefreshCw className="w-12 h-12 text-blue-400 animate-spin mx-auto mb-4" />
+            <p className="text-gray-300">Chargement des réclamations d'objectifs...</p>
           </div>
         </div>
       </Layout>
@@ -260,14 +230,14 @@ const AdminCampaignValidationPage = () => {
               Administration
             </Link>
             <div className="h-6 w-px bg-gray-700"></div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent flex items-center gap-3">
-              <Flag className="w-10 h-10 text-purple-400" />
-              Validation des Campagnes
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent flex items-center gap-3">
+              <Target className="w-10 h-10 text-blue-400" />
+              Validation des Objectifs
             </h1>
           </div>
           
           <p className="text-gray-400 text-lg">
-            Gérez les réclamations de campagnes soumises par les utilisateurs
+            Gérez les réclamations d'objectifs soumises par les utilisateurs
           </p>
         </motion.div>
 
@@ -318,11 +288,11 @@ const AdminCampaignValidationPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Total</p>
-                <p className="text-3xl font-bold text-purple-400">
+                <p className="text-3xl font-bold text-blue-400">
                   {claims.length}
                 </p>
               </div>
-              <Flag className="w-12 h-12 text-purple-400" />
+              <Target className="w-12 h-12 text-blue-400" />
             </div>
           </div>
         </motion.div>
@@ -341,14 +311,14 @@ const AdminCampaignValidationPage = () => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Rechercher par nom, campagne, utilisateur..."
-                className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                placeholder="Rechercher par nom, objectif, utilisateur..."
+                className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
             </div>
 
             <button
               onClick={loadClaims}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-medium shadow-lg hover:shadow-purple-500/50"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 font-medium shadow-lg hover:shadow-blue-500/50"
             >
               <RefreshCw className="w-5 h-5" />
               Actualiser
@@ -361,7 +331,7 @@ const AdminCampaignValidationPage = () => {
               onClick={() => setActiveTab('all')}
               className={`px-4 py-2 rounded-xl transition-all duration-200 font-medium ${
                 activeTab === 'all'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
                   : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
               }`}
             >
@@ -415,7 +385,7 @@ const AdminCampaignValidationPage = () => {
               <p className="text-gray-400">
                 {searchTerm 
                   ? 'Aucune réclamation ne correspond à votre recherche'
-                  : 'Il n\'y a aucune réclamation de campagne pour le moment'}
+                  : 'Il n\'y a aucune réclamation d\'objectif pour le moment'}
               </p>
             </div>
           ) : (
@@ -426,13 +396,13 @@ const AdminCampaignValidationPage = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 hover:scale-[1.02] hover:shadow-xl hover:border-purple-500/50 transition-all duration-300"
+                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 hover:scale-[1.02] hover:shadow-xl hover:border-blue-500/50 transition-all duration-300"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <div className="flex items-center gap-2">
-                          <User className="w-5 h-5 text-purple-400" />
+                          <User className="w-5 h-5 text-blue-400" />
                           <span className="font-medium text-white">{claim.userName}</span>
                           <span className="text-gray-400 text-sm">({claim.userEmail})</span>
                         </div>
@@ -448,7 +418,7 @@ const AdminCampaignValidationPage = () => {
                       </div>
 
                       <h3 className="text-lg font-medium text-white mb-2">
-                        {claim.campaignTitle}
+                        {claim.objectiveTitle}
                       </h3>
 
                       <p className="text-gray-300 mb-3">
@@ -465,8 +435,8 @@ const AdminCampaignValidationPage = () => {
                           {claim.estimatedReward} XP
                         </span>
                         <span className="flex items-center gap-1">
-                          <Flag className="w-4 h-4 text-purple-400" />
-                          {claim.campaignCategory}
+                          <Target className="w-4 h-4 text-blue-400" />
+                          {claim.objectiveCategory}
                         </span>
                       </div>
 
@@ -480,7 +450,7 @@ const AdminCampaignValidationPage = () => {
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm text-purple-400 hover:text-purple-300 underline flex items-center gap-1"
+                                className="text-sm text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
                               >
                                 <Eye className="w-4 h-4" />
                                 Lien {idx + 1}
@@ -554,7 +524,7 @@ const AdminCampaignValidationPage = () => {
           
           <Link
             to="/admin/task-validation"
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 font-medium shadow-lg hover:shadow-purple-500/50"
+            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 font-medium shadow-lg hover:shadow-blue-500/50"
           >
             Validation Tâches
           </Link>
@@ -564,4 +534,4 @@ const AdminCampaignValidationPage = () => {
   );
 };
 
-export default AdminCampaignValidationPage;
+export default AdminObjectiveValidationPage;
