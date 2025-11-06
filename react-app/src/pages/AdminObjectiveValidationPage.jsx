@@ -529,6 +529,7 @@ const AdminObjectiveValidationPage = () => {
             Validation Tâches
           </Link>
         </motion.div>
+        </div>
       </div>
     </Layout>
   );
