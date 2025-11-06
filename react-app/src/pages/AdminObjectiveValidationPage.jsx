@@ -1,7 +1,7 @@
 // ==========================================
-// 📁 react-app/src/pages/AdminCampaignValidationPage.jsx
-// PAGE ADMIN DE VALIDATION DES RÉCLAMATIONS DE CAMPAGNES
-// AVEC DESIGN SYNERGIA PREMIUM + MENU HAMBURGER
+// 📁 react-app/src/pages/AdminObjectiveValidationPage.jsx
+// PAGE ADMIN DE VALIDATION DES CAMPAGNES
+// ✅ DESIGN SYNERGIA PREMIUM + FIREBASE SYNC + PREMIUM LAYOUT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -14,39 +14,43 @@ import {
   User, 
   Flag,
   Award,
-  Filter,
   Search,
   RefreshCw,
-  MessageSquare,
   AlertCircle,
-  TrendingUp,
   Calendar,
-  Star,
   Eye,
-  ChevronRight,
-  Users,
-  ArrowLeft,
-  Shield,
-  CheckCircle2,
-  Sword
+  ArrowLeft
 } from 'lucide-react';
 
 // ✅ IMPORTS SYNERGIA
-import Layout from '../components/layout/Layout.jsx';
+import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 
+// ✅ FIREBASE IMPORTS
+import { 
+  collection, 
+  query, 
+  where,
+  orderBy, 
+  onSnapshot,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  getDoc
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
 /**
  * 🛡️ PAGE ADMIN DE VALIDATION DES CAMPAGNES
- * Interface pour valider les réclamations de campagnes des utilisateurs
+ * Avec synchronisation Firebase temps réel
  */
-const AdminCampaignValidationPage = () => {
+const AdminObjectiveValidationPage = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [claims, setClaims] = useState([]);
   const [activeTab, setActiveTab] = useState('pending');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClaim, setSelectedClaim] = useState(null);
   const [processingClaim, setProcessingClaim] = useState(false);
 
   // Protection d'accès admin
@@ -55,161 +59,153 @@ const AdminCampaignValidationPage = () => {
   }
 
   // ==========================================
-  // 🔄 CHARGEMENT DES DONNÉES
+  // 🔥 SYNCHRONISATION FIREBASE TEMPS RÉEL
   // ==========================================
   
-  const loadClaims = async () => {
-    try {
-      setLoading(true);
-      
-      // Simulation des réclamations de campagnes
-      // Dans une vraie app, ces données viendraient de Firebase
-      const mockClaims = [
-        {
-          id: 'claim_001',
-          userId: 'user_123',
-          userName: 'Alice Martin',
-          userEmail: 'alice.martin@example.com',
-          campaignId: 'camp_001',
-          campaignTitle: 'Conquête des Marchés Nordiques',
-          campaignCategory: 'Expansion Commerciale',
-          claimDescription: 'J\'ai complété toutes les étapes de la campagne avec succès : prospection de 50 clients, conversion de 15 nouveaux contrats, et augmentation du CA de 45%.',
-          evidenceUrls: [
-            'https://drive.google.com/campaign-report',
-            'https://analytics.example.com/results'
-          ],
-          status: 'pending',
-          submittedAt: new Date('2025-08-20T10:30:00'),
-          priority: 'high',
-          estimatedReward: 250
-        },
-        {
-          id: 'claim_002', 
-          userId: 'user_456',
-          userName: 'Bob Durant',
-          userEmail: 'bob.durant@example.com',
-          campaignId: 'camp_002',
-          campaignTitle: 'Refonte Infrastructure Technique',
-          campaignCategory: 'Développement',
-          claimDescription: 'Migration complète vers microservices avec amélioration de 80% des performances et réduction de 60% des coûts serveur.',
-          evidenceUrls: [
-            'https://github.com/bob/infrastructure-migration',
-            'https://monitoring.example.com/metrics'
-          ],
-          status: 'pending',
-          submittedAt: new Date('2025-08-19T14:15:00'),
-          priority: 'medium',
-          estimatedReward: 300
-        },
-        {
-          id: 'claim_003',
-          userId: 'user_789',
-          userName: 'Claire Lopez',
-          userEmail: 'claire.lopez@example.com', 
-          campaignId: 'camp_003',
-          campaignTitle: 'Lancement Produit Innovation 2025',
-          campaignCategory: 'Marketing',
-          claimDescription: 'Lancement réussi avec 10K utilisateurs en 1 mois, couverture médiatique dans 5 médias majeurs, et taux de satisfaction de 92%.',
-          evidenceUrls: [
-            'https://analytics.example.com/product-launch',
-            'https://docs.example.com/press-review'
-          ],
-          status: 'approved',
-          submittedAt: new Date('2025-08-18T09:00:00'),
-          processedAt: new Date('2025-08-19T11:30:00'),
-          priority: 'high',
-          estimatedReward: 400,
-          adminNotes: 'Excellent travail sur le lancement. Résultats au-dessus des objectifs.'
-        }
-      ];
-
-      setClaims(mockClaims);
-      
-    } catch (error) {
-      console.error('❌ Erreur chargement réclamations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Charger au montage
   useEffect(() => {
-    loadClaims();
-  }, []);
+    if (!user?.uid) return;
+
+    console.log('🔄 [CAMPAIGN-VALIDATION] Initialisation synchronisation Firebase...');
+    setLoading(true);
+
+    // Query pour les réclamations de campagnes
+    // Collection: campaign_validations (à créer si elle n'existe pas)
+    const claimsQuery = query(
+      collection(db, 'campaign_validations'),
+      orderBy('submittedAt', 'desc')
+    );
+
+    // Listener temps réel
+    const unsubscribe = onSnapshot(
+      claimsQuery,
+      async (snapshot) => {
+        console.log('✅ [CAMPAIGN-VALIDATION] Réclamations chargées:', snapshot.size);
+        
+        const claimsData = [];
+        
+        // Enrichir chaque réclamation avec les données utilisateur
+        for (const docSnapshot of snapshot.docs) {
+          const data = docSnapshot.data();
+          
+          try {
+            // Récupérer infos utilisateur
+            const userDoc = await getDoc(doc(db, 'users', data.userId));
+            const userData = userDoc.exists() ? userDoc.data() : {};
+            
+            // Récupérer infos campagne
+            let campaignData = {};
+            if (data.campaignId) {
+              const campaignDoc = await getDoc(doc(db, 'projects', data.campaignId));
+              campaignData = campaignDoc.exists() ? campaignDoc.data() : {};
+            }
+            
+            claimsData.push({
+              id: docSnapshot.id,
+              ...data,
+              submittedAt: data.submittedAt?.toDate(),
+              processedAt: data.processedAt?.toDate(),
+              userName: userData.displayName || userData.name || 'Utilisateur inconnu',
+              userEmail: userData.email || 'Email non disponible',
+              campaignTitle: campaignData.title || data.campaignTitle || 'Campagne inconnue',
+              campaignCategory: data.campaignCategory || 'Non catégorisé'
+            });
+          } catch (error) {
+            console.warn('⚠️ Erreur enrichissement réclamation:', error);
+            claimsData.push({
+              id: docSnapshot.id,
+              ...data,
+              submittedAt: data.submittedAt?.toDate(),
+              processedAt: data.processedAt?.toDate(),
+              userName: 'Utilisateur inconnu',
+              userEmail: 'Email non disponible',
+              campaignTitle: data.campaignTitle || 'Campagne inconnue'
+            });
+          }
+        }
+        
+        setClaims(claimsData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('❌ [CAMPAIGN-VALIDATION] Erreur synchronisation:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      console.log('🔌 [CAMPAIGN-VALIDATION] Désinscription listener');
+      unsubscribe();
+    };
+  }, [user?.uid]);
 
   // ==========================================
-  // 🎯 ACTIONS DE VALIDATION
+  // 🎯 ACTIONS DE VALIDATION FIREBASE
   // ==========================================
 
   const handleApproveClaim = async (claimId) => {
+    if (!confirm('Êtes-vous sûr de vouloir approuver cette réclamation ?')) return;
+    
     try {
       setProcessingClaim(true);
+      console.log('✅ [APPROVE] Approbation réclamation:', claimId);
       
-      // Simulation de l'approbation
-      console.log('✅ Approbation réclamation campagne:', claimId);
+      const claimRef = doc(db, 'campaign_validations', claimId);
+      await updateDoc(claimRef, {
+        status: 'approved',
+        processedAt: serverTimestamp(),
+        processedBy: user.uid,
+        adminNotes: 'Campagne validée par admin'
+      });
       
-      // Mettre à jour l'état local
-      setClaims(prev => prev.map(claim => 
-        claim.id === claimId 
-          ? { 
-              ...claim, 
-              status: 'approved', 
-              processedAt: new Date(),
-              adminNotes: 'Campagne validée par admin'
-            }
-          : claim
-      ));
+      // TODO: Attribuer les récompenses (XP, badges, etc.)
       
-      alert('Réclamation de campagne approuvée avec succès !');
+      alert('✅ Réclamation approuvée avec succès !');
       
     } catch (error) {
       console.error('❌ Erreur approbation:', error);
-      alert('Erreur lors de l\'approbation');
+      alert('❌ Erreur lors de l\'approbation');
     } finally {
       setProcessingClaim(false);
     }
   };
 
-  const handleRejectClaim = async (claimId, reason) => {
+  const handleRejectClaim = async (claimId) => {
+    const reason = prompt('Raison du rejet (optionnel):');
+    if (reason === null) return; // Annulé
+    
     try {
       setProcessingClaim(true);
+      console.log('❌ [REJECT] Rejet réclamation:', claimId);
       
-      // Simulation du rejet
-      console.log('❌ Rejet réclamation campagne:', claimId, reason);
+      const claimRef = doc(db, 'campaign_validations', claimId);
+      await updateDoc(claimRef, {
+        status: 'rejected',
+        processedAt: serverTimestamp(),
+        processedBy: user.uid,
+        adminNotes: reason || 'Campagne non validée'
+      });
       
-      // Mettre à jour l'état local
-      setClaims(prev => prev.map(claim => 
-        claim.id === claimId 
-          ? { 
-              ...claim, 
-              status: 'rejected',
-              processedAt: new Date(),
-              adminNotes: reason || 'Campagne non validée'
-            }
-          : claim
-      ));
-      
-      alert('Réclamation de campagne rejetée');
+      alert('❌ Réclamation rejetée');
       
     } catch (error) {
       console.error('❌ Erreur rejet:', error);
-      alert('Erreur lors du rejet');
+      alert('❌ Erreur lors du rejet');
     } finally {
       setProcessingClaim(false);
     }
   };
 
   // ==========================================
-  // 🔍 FILTRAGE DES RÉCLAMATIONS
+  // 🔍 FILTRAGE LOCAL DES RÉCLAMATIONS
   // ==========================================
 
   const filteredClaims = claims.filter(claim => {
-    // Filtrer par onglet actif
+    // Filtre par onglet actif
     if (activeTab !== 'all' && claim.status !== activeTab) {
       return false;
     }
 
-    // Filtrer par recherche
+    // Filtre par recherche
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
@@ -224,28 +220,39 @@ const AdminCampaignValidationPage = () => {
   });
 
   // ==========================================
-  // 🎨 RENDU DE L'INTERFACE
+  // 📊 STATISTIQUES
+  // ==========================================
+
+  const stats = {
+    pending: claims.filter(c => c.status === 'pending').length,
+    approved: claims.filter(c => c.status === 'approved').length,
+    rejected: claims.filter(c => c.status === 'rejected').length,
+    total: claims.length
+  };
+
+  // ==========================================
+  // 🎨 RENDU DE L'INTERFACE PREMIUM
   // ==========================================
 
   if (loading) {
     return (
-      <Layout>
+      <PremiumLayout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <RefreshCw className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-            <p className="text-gray-300">Chargement des réclamations de campagnes...</p>
+            <p className="text-gray-300 text-lg">Chargement des validations de campagnes...</p>
           </div>
         </div>
-      </Layout>
+      </PremiumLayout>
     );
   }
 
   return (
-    <Layout>
+    <PremiumLayout>
       <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
         
-        {/* En-tête */}
+        {/* En-tête avec gradient Synergia */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -271,7 +278,7 @@ const AdminCampaignValidationPage = () => {
           </p>
         </motion.div>
 
-        {/* Statistiques rapides */}
+        {/* Statistiques rapides avec glass morphism */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -282,9 +289,7 @@ const AdminCampaignValidationPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">En attente</p>
-                <p className="text-3xl font-bold text-orange-400">
-                  {claims.filter(c => c.status === 'pending').length}
-                </p>
+                <p className="text-3xl font-bold text-orange-400">{stats.pending}</p>
               </div>
               <Clock className="w-12 h-12 text-orange-400" />
             </div>
@@ -294,9 +299,7 @@ const AdminCampaignValidationPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Approuvées</p>
-                <p className="text-3xl font-bold text-green-400">
-                  {claims.filter(c => c.status === 'approved').length}
-                </p>
+                <p className="text-3xl font-bold text-green-400">{stats.approved}</p>
               </div>
               <CheckCircle className="w-12 h-12 text-green-400" />
             </div>
@@ -306,9 +309,7 @@ const AdminCampaignValidationPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Rejetées</p>
-                <p className="text-3xl font-bold text-red-400">
-                  {claims.filter(c => c.status === 'rejected').length}
-                </p>
+                <p className="text-3xl font-bold text-red-400">{stats.rejected}</p>
               </div>
               <XCircle className="w-12 h-12 text-red-400" />
             </div>
@@ -318,9 +319,7 @@ const AdminCampaignValidationPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Total</p>
-                <p className="text-3xl font-bold text-purple-400">
-                  {claims.length}
-                </p>
+                <p className="text-3xl font-bold text-purple-400">{stats.total}</p>
               </div>
               <Flag className="w-12 h-12 text-purple-400" />
             </div>
@@ -347,7 +346,7 @@ const AdminCampaignValidationPage = () => {
             </div>
 
             <button
-              onClick={loadClaims}
+              onClick={() => window.location.reload()}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-medium shadow-lg hover:shadow-purple-500/50"
             >
               <RefreshCw className="w-5 h-5" />
@@ -355,7 +354,7 @@ const AdminCampaignValidationPage = () => {
             </button>
           </div>
 
-          {/* Onglets de filtrage */}
+          {/* Onglets de filtrage avec gradients */}
           <div className="flex gap-2 mt-4 flex-wrap">
             <button
               onClick={() => setActiveTab('all')}
@@ -365,7 +364,7 @@ const AdminCampaignValidationPage = () => {
                   : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              Toutes ({claims.length})
+              Toutes ({stats.total})
             </button>
             <button
               onClick={() => setActiveTab('pending')}
@@ -375,7 +374,7 @@ const AdminCampaignValidationPage = () => {
                   : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              En attente ({claims.filter(c => c.status === 'pending').length})
+              En attente ({stats.pending})
             </button>
             <button
               onClick={() => setActiveTab('approved')}
@@ -385,7 +384,7 @@ const AdminCampaignValidationPage = () => {
                   : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              Approuvées ({claims.filter(c => c.status === 'approved').length})
+              Approuvées ({stats.approved})
             </button>
             <button
               onClick={() => setActiveTab('rejected')}
@@ -395,7 +394,7 @@ const AdminCampaignValidationPage = () => {
                   : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              Rejetées ({claims.filter(c => c.status === 'rejected').length})
+              Rejetées ({stats.rejected})
             </button>
           </div>
         </motion.div>
@@ -458,11 +457,11 @@ const AdminCampaignValidationPage = () => {
                       <div className="flex items-center gap-4 text-sm text-gray-400">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          Soumis le {claim.submittedAt.toLocaleDateString('fr-FR')}
+                          Soumis le {claim.submittedAt?.toLocaleDateString('fr-FR') || 'Date inconnue'}
                         </span>
                         <span className="flex items-center gap-1">
                           <Award className="w-4 h-4 text-yellow-400" />
-                          {claim.estimatedReward} XP
+                          {claim.estimatedReward || 0} XP
                         </span>
                         <span className="flex items-center gap-1">
                           <Flag className="w-4 h-4 text-purple-400" />
@@ -503,12 +502,7 @@ const AdminCampaignValidationPage = () => {
                           Approuver
                         </button>
                         <button
-                          onClick={() => {
-                            const reason = prompt('Raison du rejet (optionnel):');
-                            if (reason !== null) {
-                              handleRejectClaim(claim.id, reason);
-                            }
-                          }}
+                          onClick={() => handleRejectClaim(claim.id)}
                           disabled={processingClaim}
                           className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl hover:from-red-600 hover:to-pink-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-lg hover:shadow-red-500/50"
                         >
@@ -554,15 +548,15 @@ const AdminCampaignValidationPage = () => {
           
           <Link
             to="/admin/task-validation"
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 font-medium shadow-lg hover:shadow-purple-500/50"
+            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 font-medium shadow-lg hover:shadow-blue-500/50"
           >
             Validation Tâches
           </Link>
         </motion.div>
         </div>
       </div>
-    </Layout>
+    </PremiumLayout>
   );
 };
 
-export default AdminCampaignValidationPage;
+export default AdminObjectiveValidationPage;
