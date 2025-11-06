@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminSyncPage.jsx
 // PAGE ADMIN - SYNCHRONISATION DES DONNÉES
-// Version Premium avec Menu Hamburger
+// CHARTE GRAPHIQUE SYNERGIA AUTHENTIQUE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -574,38 +574,6 @@ const AdminSyncPage = () => {
 
   const healthScore = calculateHealthScore();
 
-  // Statistiques pour le header
-  const headerStats = [
-    { 
-      label: "Santé DB", 
-      value: `${healthScore}%`, 
-      icon: Database, 
-      color: healthScore > 80 ? "text-green-400" : healthScore > 60 ? "text-yellow-400" : "text-red-400",
-      trend: healthScore > 80 ? "up" : "down"
-    },
-    { 
-      label: "Problèmes", 
-      value: issues.length.toString(), 
-      icon: AlertTriangle, 
-      color: issues.length === 0 ? "text-green-400" : issues.length < 5 ? "text-yellow-400" : "text-red-400",
-      trend: issues.length === 0 ? "up" : "down"
-    },
-    { 
-      label: "Utilisateurs", 
-      value: realtimeStats.usersCount?.toString() || dbStats?.users?.total?.toString() || "0", 
-      icon: Users, 
-      color: "text-blue-400",
-      trend: "stable"
-    },
-    { 
-      label: "Sync", 
-      value: lastSyncTime ? "✓ OK" : "Jamais", 
-      icon: CheckCircle, 
-      color: lastSyncTime ? "text-green-400" : "text-gray-400",
-      trend: lastSyncTime ? "up" : "down"
-    }
-  ];
-
   // ✅ INTERFACE DE CHARGEMENT
   if (isLoading) {
     return (
@@ -677,26 +645,23 @@ const AdminSyncPage = () => {
         )}
       </AnimatePresence>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* HEADER PREMIUM */}
+      <div className="min-h-screen p-4 sm:p-6 lg:p-8">
+        {/* HEADER SYNERGIA */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          {/* Titre principal */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg">
-                <Database className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white">Synchronisation Admin</h1>
-                <p className="text-gray-400">Gestion et maintenance de la base de données</p>
-              </div>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                🗄️ Synchronisation Admin
+              </h1>
+              <p className="text-gray-400 text-lg">
+                Gestion et maintenance de la base de données
+              </p>
             </div>
             
-            {/* Actions rapides */}
             <div className="flex gap-3">
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -714,7 +679,7 @@ const AdminSyncPage = () => {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => performSync('full')}
                 disabled={isSyncing}
-                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50"
               >
                 {isSyncing ? (
                   <>
@@ -731,36 +696,100 @@ const AdminSyncPage = () => {
             </div>
           </div>
 
-          {/* Statistiques rapides */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {headerStats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">{stat.label}</p>
-                    <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                  </div>
-                  <div className={`p-3 bg-gray-800/50 rounded-lg ${stat.color}`}>
-                    <stat.icon className="w-6 h-6" />
-                  </div>
+          {/* STATS RAPIDES - DESIGN SYNERGIA */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ scale: 1.02 }}
+              className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 hover:border-blue-500/50 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">Santé DB</p>
+                  <p className={`text-2xl font-bold ${
+                    healthScore > 80 ? 'text-green-400' : 
+                    healthScore > 60 ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                    {healthScore}%
+                  </p>
                 </div>
-              </motion.div>
-            ))}
+                <Database className={`w-8 h-8 ${
+                  healthScore > 80 ? 'text-green-400' : 
+                  healthScore > 60 ? 'text-yellow-400' : 'text-red-400'
+                }`} />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ scale: 1.02 }}
+              className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 hover:border-red-500/50 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">Problèmes</p>
+                  <p className={`text-2xl font-bold ${
+                    issues.length === 0 ? 'text-green-400' : 
+                    issues.length < 5 ? 'text-yellow-400' : 'text-red-400'
+                  }`}>
+                    {issues.length}
+                  </p>
+                </div>
+                <AlertTriangle className={`w-8 h-8 ${
+                  issues.length === 0 ? 'text-green-400' : 
+                  issues.length < 5 ? 'text-yellow-400' : 'text-red-400'
+                }`} />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ scale: 1.02 }}
+              className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 hover:border-purple-500/50 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">Utilisateurs</p>
+                  <p className="text-2xl font-bold text-white">
+                    {realtimeStats.usersCount?.toString() || dbStats?.users?.total?.toString() || "0"}
+                  </p>
+                </div>
+                <Users className="w-8 h-8 text-blue-400" />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              whileHover={{ scale: 1.02 }}
+              className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 hover:border-green-500/50 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">Sync</p>
+                  <p className={`text-2xl font-bold ${lastSyncTime ? 'text-green-400' : 'text-gray-400'}`}>
+                    {lastSyncTime ? '✓ OK' : 'Jamais'}
+                  </p>
+                </div>
+                <CheckCircle className={`w-8 h-8 ${lastSyncTime ? 'text-green-400' : 'text-gray-400'}`} />
+              </div>
+            </motion.div>
           </div>
         </motion.div>
 
-        {/* ONGLETS DE NAVIGATION */}
+        {/* ONGLETS DE NAVIGATION - DESIGN SYNERGIA */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-2 mb-8 border border-gray-700/50"
+          className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-2 mb-8 border border-gray-700/50"
         >
           <div className="flex flex-wrap gap-2">
             {[
@@ -776,7 +805,7 @@ const AdminSyncPage = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-all ${
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/50'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                 }`}
               >
@@ -804,9 +833,9 @@ const AdminSyncPage = () => {
               className="space-y-8"
             >
               {/* Score de santé principal */}
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
-                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-purple-400" />
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 border border-gray-700/50">
+                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <Activity className="w-6 h-6 text-purple-400" />
                   Score de Santé Global
                 </h3>
 
@@ -819,7 +848,7 @@ const AdminSyncPage = () => {
                       healthScore > 80 ? 'from-green-400 to-green-600' : 
                       healthScore > 60 ? 'from-yellow-400 to-orange-500' : 
                       'from-red-400 to-red-600'
-                    } text-transparent bg-clip-text`}
+                    } bg-clip-text text-transparent`}
                   >
                     {healthScore}%
                   </motion.div>
@@ -837,7 +866,7 @@ const AdminSyncPage = () => {
                     />
                   </div>
                   
-                  <p className={`text-lg font-medium ${
+                  <p className={`text-xl font-semibold ${
                     healthScore > 80 ? 'text-green-300' : 
                     healthScore > 60 ? 'text-yellow-300' : 'text-red-300'
                   }`}>
@@ -849,30 +878,31 @@ const AdminSyncPage = () => {
               </div>
 
               {/* État des collections */}
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
-                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                  <Database className="w-5 h-5 text-purple-400" />
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 border border-gray-700/50">
+                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <Database className="w-6 h-6 text-purple-400" />
                   État des Collections
                 </h3>
 
                 {dbStats ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {Object.entries(dbStats).map(([collectionName, data], index) => (
                       <motion.div
                         key={collectionName}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 hover:border-purple-500/50 transition-all"
+                        whileHover={{ scale: 1.05 }}
+                        className="bg-gray-800/50 rounded-lg p-6 border border-gray-700/50 hover:border-purple-500/50 transition-all"
                       >
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-white font-medium capitalize">
+                          <h4 className="text-white font-semibold capitalize">
                             {collectionName.replace(/([A-Z])/g, ' $1').trim()}
                           </h4>
                           <Package className="w-5 h-5 text-gray-400" />
                         </div>
                         
-                        <div className="text-3xl font-bold text-purple-400 mb-2">
+                        <div className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
                           {data.total}
                         </div>
                         
@@ -904,7 +934,7 @@ const AdminSyncPage = () => {
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min(100, (data.total / 50) * 100)}%` }}
                             transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
-                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full"
+                            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full"
                           />
                         </div>
                       </motion.div>
@@ -920,37 +950,37 @@ const AdminSyncPage = () => {
 
               {/* Stats temps réel */}
               {realtimeStats && Object.keys(realtimeStats).length > 0 && (
-                <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
-                  <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    <Wifi className="w-5 h-5 text-green-400" />
+                <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 border border-gray-700/50">
+                  <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <Wifi className="w-6 h-6 text-green-400" />
                     Statistiques Temps Réel
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {realtimeStats.usersCount !== undefined && (
-                      <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg">
-                        <Users className="w-8 h-8 text-blue-400" />
+                      <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                        <Users className="w-10 h-10 text-blue-400" />
                         <div>
                           <p className="text-gray-400 text-sm">Utilisateurs actifs</p>
-                          <p className="text-2xl font-bold text-white">{realtimeStats.usersCount}</p>
+                          <p className="text-3xl font-bold text-white">{realtimeStats.usersCount}</p>
                         </div>
                       </div>
                     )}
                     {realtimeStats.tasksCount !== undefined && (
-                      <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg">
-                        <CheckCheck className="w-8 h-8 text-green-400" />
+                      <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                        <CheckCheck className="w-10 h-10 text-green-400" />
                         <div>
                           <p className="text-gray-400 text-sm">Tâches totales</p>
-                          <p className="text-2xl font-bold text-white">{realtimeStats.tasksCount}</p>
+                          <p className="text-3xl font-bold text-white">{realtimeStats.tasksCount}</p>
                         </div>
                       </div>
                     )}
                     {realtimeStats.gamificationCount !== undefined && (
-                      <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg">
-                        <Zap className="w-8 h-8 text-yellow-400" />
+                      <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                        <Zap className="w-10 h-10 text-yellow-400" />
                         <div>
                           <p className="text-gray-400 text-sm">Profils gamification</p>
-                          <p className="text-2xl font-bold text-white">{realtimeStats.gamificationCount}</p>
+                          <p className="text-3xl font-bold text-white">{realtimeStats.gamificationCount}</p>
                         </div>
                       </div>
                     )}
@@ -969,9 +999,9 @@ const AdminSyncPage = () => {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-6"
             >
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
-                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 border border-gray-700/50">
+                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-yellow-400" />
                   Problèmes Détectés ({issues.length})
                 </h3>
 
@@ -981,9 +1011,9 @@ const AdminSyncPage = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     className="text-center py-12"
                   >
-                    <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                    <p className="text-green-300 font-medium text-lg">✨ Aucun problème détecté</p>
-                    <p className="text-gray-400 text-sm mt-2">Votre base de données est en excellent état</p>
+                    <CheckCircle className="w-20 h-20 text-green-400 mx-auto mb-4" />
+                    <p className="text-green-300 font-semibold text-2xl">✨ Aucun problème détecté</p>
+                    <p className="text-gray-400 text-lg mt-2">Votre base de données est en excellent état</p>
                   </motion.div>
                 ) : (
                   <div className="space-y-4">
@@ -993,7 +1023,8 @@ const AdminSyncPage = () => {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className={`p-6 rounded-xl border-l-4 ${
+                        whileHover={{ scale: 1.02 }}
+                        className={`p-6 rounded-lg border-l-4 ${
                           issue.severity === 'critical' ? 'bg-red-950/30 border-red-500' :
                           issue.severity === 'high' ? 'bg-red-900/20 border-red-400' :
                           issue.severity === 'medium' ? 'bg-yellow-900/20 border-yellow-500' :
@@ -1003,9 +1034,9 @@ const AdminSyncPage = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <h4 className="text-white font-medium">{issue.issue}</h4>
+                              <h4 className="text-white font-semibold text-lg">{issue.issue}</h4>
                               {issue.fixable && (
-                                <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-full">
+                                <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-full font-medium">
                                   Réparable
                                 </span>
                               )}
@@ -1044,25 +1075,25 @@ const AdminSyncPage = () => {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-6"
             >
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
-                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-purple-400" />
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 border border-gray-700/50">
+                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <Settings className="w-6 h-6 text-purple-400" />
                   Actions de Maintenance
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Sync Gamification */}
                   <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="p-6 bg-gray-800/50 rounded-xl border border-gray-700/50 hover:border-yellow-500/50 transition-all"
+                    whileHover={{ scale: 1.05 }}
+                    className="p-6 bg-gray-800/50 rounded-lg border border-gray-700/50 hover:border-yellow-500/50 transition-all"
                   >
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-yellow-500/20 rounded-lg">
-                        <Zap className="w-6 h-6 text-yellow-400" />
+                        <Zap className="w-7 h-7 text-yellow-400" />
                       </div>
-                      <h4 className="text-white font-medium text-lg">Sync Gamification</h4>
+                      <h4 className="text-white font-semibold text-xl">Sync Gamification</h4>
                     </div>
-                    <p className="text-gray-400 text-sm mb-4">
+                    <p className="text-gray-400 mb-4">
                       Synchronise et répare les données de gamification (XP, niveaux, badges)
                     </p>
                     <motion.button
@@ -1070,7 +1101,7 @@ const AdminSyncPage = () => {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => performSync('gamification')}
                       disabled={isSyncing}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white rounded-lg shadow-lg hover:shadow-yellow-500/50 transition-all disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-lg shadow-lg hover:shadow-yellow-500/50 transition-all disabled:opacity-50 font-semibold"
                     >
                       {isSyncing ? (
                         <>
@@ -1088,16 +1119,16 @@ const AdminSyncPage = () => {
 
                   {/* Nettoyage */}
                   <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="p-6 bg-gray-800/50 rounded-xl border border-gray-700/50 hover:border-red-500/50 transition-all"
+                    whileHover={{ scale: 1.05 }}
+                    className="p-6 bg-gray-800/50 rounded-lg border border-gray-700/50 hover:border-red-500/50 transition-all"
                   >
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-red-500/20 rounded-lg">
-                        <Trash2 className="w-6 h-6 text-red-400" />
+                        <Trash2 className="w-7 h-7 text-red-400" />
                       </div>
-                      <h4 className="text-white font-medium text-lg">Nettoyage</h4>
+                      <h4 className="text-white font-semibold text-xl">Nettoyage</h4>
                     </div>
-                    <p className="text-gray-400 text-sm mb-4">
+                    <p className="text-gray-400 mb-4">
                       Supprime les données orphelines et les documents corrompus
                     </p>
                     <motion.button
@@ -1105,7 +1136,7 @@ const AdminSyncPage = () => {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => performSync('cleanup')}
                       disabled={isSyncing}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg shadow-lg hover:shadow-red-500/50 transition-all disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-lg shadow-lg hover:shadow-red-500/50 transition-all disabled:opacity-50 font-semibold"
                     >
                       {isSyncing ? (
                         <>
@@ -1123,16 +1154,16 @@ const AdminSyncPage = () => {
 
                   {/* Synchronisation complète */}
                   <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="p-6 bg-gray-800/50 rounded-xl border border-gray-700/50 hover:border-purple-500/50 transition-all"
+                    whileHover={{ scale: 1.05 }}
+                    className="p-6 bg-gray-800/50 rounded-lg border border-gray-700/50 hover:border-purple-500/50 transition-all"
                   >
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-purple-500/20 rounded-lg">
-                        <RefreshCw className="w-6 h-6 text-purple-400" />
+                        <RefreshCw className="w-7 h-7 text-purple-400" />
                       </div>
-                      <h4 className="text-white font-medium text-lg">Sync Complète</h4>
+                      <h4 className="text-white font-semibold text-xl">Sync Complète</h4>
                     </div>
-                    <p className="text-gray-400 text-sm mb-4">
+                    <p className="text-gray-400 mb-4">
                       Synchronisation totale : gamification + nettoyage + optimisation
                     </p>
                     <motion.button
@@ -1140,7 +1171,7 @@ const AdminSyncPage = () => {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => performSync('full')}
                       disabled={isSyncing}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 font-semibold"
                     >
                       {isSyncing ? (
                         <>
@@ -1158,20 +1189,20 @@ const AdminSyncPage = () => {
 
                   {/* Export/Backup (à venir) */}
                   <motion.div
-                    className="p-6 bg-gray-800/50 rounded-xl border border-gray-700/50 opacity-50"
+                    className="p-6 bg-gray-800/50 rounded-lg border border-gray-700/50 opacity-50"
                   >
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-blue-500/20 rounded-lg">
-                        <Download className="w-6 h-6 text-blue-400" />
+                        <Download className="w-7 h-7 text-blue-400" />
                       </div>
-                      <h4 className="text-white font-medium text-lg">Export/Sauvegarde</h4>
+                      <h4 className="text-white font-semibold text-xl">Export/Sauvegarde</h4>
                     </div>
-                    <p className="text-gray-400 text-sm mb-4">
+                    <p className="text-gray-400 mb-4">
                       Exporte les données importantes (fonctionnalité à venir)
                     </p>
                     <button
                       disabled
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 text-gray-400 rounded-lg cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 text-gray-400 rounded-lg cursor-not-allowed font-semibold"
                     >
                       <Download className="w-4 h-4" />
                       Bientôt disponible
@@ -1185,10 +1216,10 @@ const AdminSyncPage = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50"
+                  className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 border border-gray-700/50"
                 >
-                  <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-400" />
+                  <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <CheckCircle className="w-6 h-6 text-green-400" />
                     Résultats de la Dernière Synchronisation
                   </h3>
                   
@@ -1199,9 +1230,12 @@ const AdminSyncPage = () => {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
-                        className="text-center p-4 bg-gray-800/50 rounded-lg"
+                        whileHover={{ scale: 1.05 }}
+                        className="text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700/50"
                       >
-                        <div className="text-3xl font-bold text-purple-400 mb-1">{value}</div>
+                        <div className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-1">
+                          {value}
+                        </div>
                         <div className="text-xs text-gray-400 capitalize">
                           {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
                         </div>
@@ -1222,9 +1256,9 @@ const AdminSyncPage = () => {
               exit={{ opacity: 0, x: 20 }}
               className="space-y-6"
             >
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
-                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-purple-400" />
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 border border-gray-700/50">
+                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <FileText className="w-6 h-6 text-purple-400" />
                   Historique des Synchronisations
                 </h3>
 
@@ -1233,10 +1267,11 @@ const AdminSyncPage = () => {
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="border border-gray-700 rounded-xl p-6 bg-gray-800/30"
+                      whileHover={{ scale: 1.02 }}
+                      className="border border-gray-700 rounded-lg p-6 bg-gray-800/30 hover:border-purple-500/50 transition-all"
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-white font-medium text-lg">Dernière synchronisation</h4>
+                        <h4 className="text-white font-semibold text-xl">Dernière synchronisation</h4>
                         <span className="text-sm text-gray-400">
                           {lastSyncTime.timestamp.toLocaleString('fr-FR', {
                             dateStyle: 'full',
@@ -1248,15 +1283,15 @@ const AdminSyncPage = () => {
                       <div className="flex items-center gap-6 text-sm text-gray-400 mb-4">
                         <span className="flex items-center gap-2">
                           <Settings className="w-4 h-4" />
-                          Type: <span className="text-purple-400">{lastSyncTime.type}</span>
+                          Type: <span className="text-purple-400 font-semibold">{lastSyncTime.type}</span>
                         </span>
                         <span className="flex items-center gap-2">
                           <Shield className="w-4 h-4" />
-                          Admin: <span className="text-blue-400">{lastSyncTime.admin}</span>
+                          Admin: <span className="text-blue-400 font-semibold">{lastSyncTime.admin}</span>
                         </span>
                         <span className="flex items-center gap-2">
                           <Clock className="w-4 h-4" />
-                          Durée: <span className="text-green-400">{lastSyncTime.duration}ms</span>
+                          Durée: <span className="text-green-400 font-semibold">{lastSyncTime.duration}ms</span>
                         </span>
                       </div>
                       
@@ -1264,7 +1299,9 @@ const AdminSyncPage = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-4 border-t border-gray-700">
                           {Object.entries(lastSyncTime.results).map(([key, value]) => (
                             <div key={key} className="text-center">
-                              <div className="text-2xl font-bold text-purple-400">{value}</div>
+                              <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                {value}
+                              </div>
                               <div className="text-xs text-gray-500 capitalize mt-1">
                                 {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
                               </div>
@@ -1275,10 +1312,10 @@ const AdminSyncPage = () => {
                     </motion.div>
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <Clock className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400 text-lg">Aucune synchronisation enregistrée</p>
-                    <p className="text-gray-500 text-sm mt-2">Lancez votre première synchronisation pour voir l'historique</p>
+                  <div className="text-center py-16">
+                    <Clock className="w-20 h-20 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-2xl font-semibold">Aucune synchronisation enregistrée</p>
+                    <p className="text-gray-500 text-lg mt-2">Lancez votre première synchronisation pour voir l'historique</p>
                   </div>
                 )}
               </div>
