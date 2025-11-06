@@ -1,7 +1,7 @@
 // ==========================================
-// 📁 react-app/src/pages/AdminObjectiveValidationPage.jsx
-// PAGE ADMIN DE VALIDATION DES RÉCLAMATIONS D'OBJECTIFS
-// IMPORT CORRIGÉ - UTILISE useAuthStore
+// 📁 react-app/src/pages/AdminCampaignValidationPage.jsx
+// PAGE ADMIN DE VALIDATION DES RÉCLAMATIONS DE CAMPAGNES
+// BASÉE SUR AdminObjectiveValidationPage
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -12,7 +12,7 @@ import {
   XCircle, 
   Clock, 
   User, 
-  Target, 
+  Flag,
   Award,
   Filter,
   Search,
@@ -27,7 +27,8 @@ import {
   Users,
   ArrowLeft,
   Shield,
-  CheckCircle2
+  CheckCircle2,
+  Sword
 } from 'lucide-react';
 
 // ✅ IMPORT CORRIGÉ - Utilise le store d'authentification correct
@@ -35,10 +36,10 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 
 /**
- * 🛡️ PAGE ADMIN DE VALIDATION DES OBJECTIFS
- * Interface pour valider les réclamations d'objectifs des utilisateurs
+ * 🛡️ PAGE ADMIN DE VALIDATION DES CAMPAGNES
+ * Interface pour valider les réclamations de campagnes des utilisateurs
  */
-const AdminObjectiveValidationPage = () => {
+const AdminCampaignValidationPage = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [claims, setClaims] = useState([]);
@@ -60,7 +61,7 @@ const AdminObjectiveValidationPage = () => {
     try {
       setLoading(true);
       
-      // Simulation des réclamations d'objectifs
+      // Simulation des réclamations de campagnes
       // Dans une vraie app, ces données viendraient de Firebase
       const mockClaims = [
         {
@@ -68,56 +69,56 @@ const AdminObjectiveValidationPage = () => {
           userId: 'user_123',
           userName: 'Alice Martin',
           userEmail: 'alice.martin@example.com',
-          objectiveId: 'obj_001',
-          objectiveTitle: 'Maîtriser React hooks avancés',
-          objectiveCategory: 'Développement Frontend',
-          claimDescription: 'J\'ai complété le cours sur les hooks avancés et créé 3 projets pratiques utilisant useReducer, useContext et custom hooks.',
+          campaignId: 'camp_001',
+          campaignTitle: 'Conquête des Marchés Nordiques',
+          campaignCategory: 'Expansion Commerciale',
+          claimDescription: 'J\'ai complété toutes les étapes de la campagne avec succès : prospection de 50 clients, conversion de 15 nouveaux contrats, et augmentation du CA de 45%.',
           evidenceUrls: [
-            'https://github.com/alice/react-hooks-project',
-            'https://deploy.example.com/project1'
+            'https://drive.google.com/campaign-report',
+            'https://analytics.example.com/results'
           ],
           status: 'pending',
           submittedAt: new Date('2025-08-20T10:30:00'),
           priority: 'high',
-          estimatedReward: 150
+          estimatedReward: 250
         },
         {
           id: 'claim_002', 
           userId: 'user_456',
           userName: 'Bob Durant',
           userEmail: 'bob.durant@example.com',
-          objectiveId: 'obj_002',
-          objectiveTitle: 'Optimisation des performances API',
-          objectiveCategory: 'Backend',
-          claimDescription: 'Optimisation de 5 endpoints API avec réduction de 60% du temps de réponse moyen.',
+          campaignId: 'camp_002',
+          campaignTitle: 'Refonte Infrastructure Technique',
+          campaignCategory: 'Développement',
+          claimDescription: 'Migration complète vers microservices avec amélioration de 80% des performances et réduction de 60% des coûts serveur.',
           evidenceUrls: [
-            'https://github.com/bob/api-optimization',
+            'https://github.com/bob/infrastructure-migration',
             'https://monitoring.example.com/metrics'
           ],
           status: 'pending',
           submittedAt: new Date('2025-08-19T14:15:00'),
           priority: 'medium',
-          estimatedReward: 200
+          estimatedReward: 300
         },
         {
           id: 'claim_003',
           userId: 'user_789',
           userName: 'Claire Lopez',
           userEmail: 'claire.lopez@example.com', 
-          objectiveId: 'obj_003',
-          objectiveTitle: 'Configuration CI/CD avancée',
-          objectiveCategory: 'DevOps',
-          claimDescription: 'Mise en place pipeline CI/CD avec tests automatisés, déploiement multi-environnements et monitoring.',
+          campaignId: 'camp_003',
+          campaignTitle: 'Lancement Produit Innovation 2025',
+          campaignCategory: 'Marketing',
+          claimDescription: 'Lancement réussi avec 10K utilisateurs en 1 mois, couverture médiatique dans 5 médias majeurs, et taux de satisfaction de 92%.',
           evidenceUrls: [
-            'https://gitlab.example.com/devops/pipeline',
-            'https://docs.example.com/cicd-guide'
+            'https://analytics.example.com/product-launch',
+            'https://docs.example.com/press-review'
           ],
           status: 'approved',
           submittedAt: new Date('2025-08-18T09:00:00'),
           processedAt: new Date('2025-08-19T11:30:00'),
           priority: 'high',
-          estimatedReward: 300,
-          adminNotes: 'Excellent travail sur la pipeline. Implémentation très propre.'
+          estimatedReward: 400,
+          adminNotes: 'Excellent travail sur le lancement. Résultats au-dessus des objectifs.'
         }
       ];
 
@@ -144,7 +145,7 @@ const AdminObjectiveValidationPage = () => {
       setProcessingClaim(true);
       
       // Simulation de l'approbation
-      console.log('✅ Approbation réclamation:', claimId);
+      console.log('✅ Approbation réclamation campagne:', claimId);
       
       // Mettre à jour l'état local
       setClaims(prev => prev.map(claim => 
@@ -153,12 +154,12 @@ const AdminObjectiveValidationPage = () => {
               ...claim, 
               status: 'approved', 
               processedAt: new Date(),
-              adminNotes: 'Objectif validé par admin'
+              adminNotes: 'Campagne validée par admin'
             }
           : claim
       ));
       
-      alert('Réclamation approuvée avec succès !');
+      alert('Réclamation de campagne approuvée avec succès !');
       
     } catch (error) {
       console.error('❌ Erreur approbation:', error);
@@ -173,21 +174,21 @@ const AdminObjectiveValidationPage = () => {
       setProcessingClaim(true);
       
       // Simulation du rejet
-      console.log('❌ Rejet réclamation:', claimId, reason);
+      console.log('❌ Rejet réclamation campagne:', claimId, reason);
       
       // Mettre à jour l'état local
       setClaims(prev => prev.map(claim => 
         claim.id === claimId 
           ? { 
               ...claim, 
-              status: 'rejected', 
+              status: 'rejected',
               processedAt: new Date(),
-              adminNotes: reason || 'Réclamation rejetée par admin'
+              adminNotes: reason || 'Campagne non validée'
             }
           : claim
       ));
       
-      alert('Réclamation rejetée');
+      alert('Réclamation de campagne rejetée');
       
     } catch (error) {
       console.error('❌ Erreur rejet:', error);
@@ -198,25 +199,26 @@ const AdminObjectiveValidationPage = () => {
   };
 
   // ==========================================
-  // 🔍 FILTRAGE ET RECHERCHE
+  // 🔍 FILTRAGE DES RÉCLAMATIONS
   // ==========================================
 
   const filteredClaims = claims.filter(claim => {
-    // Filtre par statut
+    // Filtrer par onglet actif
     if (activeTab !== 'all' && claim.status !== activeTab) {
       return false;
     }
-    
-    // Filtre par recherche
+
+    // Filtrer par recherche
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+      const search = searchTerm.toLowerCase();
       return (
-        claim.userName.toLowerCase().includes(searchLower) ||
-        claim.objectiveTitle.toLowerCase().includes(searchLower) ||
-        claim.objectiveCategory.toLowerCase().includes(searchLower)
+        claim.campaignTitle?.toLowerCase().includes(search) ||
+        claim.userName?.toLowerCase().includes(search) ||
+        claim.claimDescription?.toLowerCase().includes(search) ||
+        claim.campaignCategory?.toLowerCase().includes(search)
       );
     }
-    
+
     return true;
   });
 
@@ -228,18 +230,18 @@ const AdminObjectiveValidationPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des réclamations...</p>
+          <RefreshCw className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Chargement des réclamations de campagnes...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
+        {/* En-tête */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -255,13 +257,13 @@ const AdminObjectiveValidationPage = () => {
             </Link>
             <div className="h-6 w-px bg-gray-300"></div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Target className="w-8 h-8 text-blue-600" />
-              Validation des Objectifs
+              <Flag className="w-8 h-8 text-purple-600" />
+              Validation des Campagnes
             </h1>
           </div>
           
           <p className="text-gray-600">
-            Gérez les réclamations d'objectifs soumises par les utilisateurs
+            Gérez les réclamations de campagnes soumises par les utilisateurs
           </p>
         </motion.div>
 
@@ -312,64 +314,84 @@ const AdminObjectiveValidationPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-blue-600">
                   {claims.length}
                 </p>
               </div>
-              <Target className="w-8 h-8 text-blue-600" />
+              <Flag className="w-8 h-8 text-blue-600" />
             </div>
           </div>
         </motion.div>
 
-        {/* Filtres et recherche */}
+        {/* Barre de recherche et filtres */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="bg-white rounded-lg border p-6 mb-6"
         >
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            {/* Onglets de statut */}
-            <div className="flex gap-2">
-              {[
-                { key: 'pending', label: 'En attente', color: 'orange' },
-                { key: 'approved', label: 'Approuvées', color: 'green' },
-                { key: 'rejected', label: 'Rejetées', color: 'red' },
-                { key: 'all', label: 'Toutes', color: 'gray' }
-              ].map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === tab.key
-                      ? `bg-${tab.color}-600 text-white`
-                      : `bg-${tab.color}-50 text-${tab.color}-600 hover:bg-${tab.color}-100`
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Barre de recherche */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Rechercher par nom, objectif..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Rechercher par nom, campagne, utilisateur..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
 
-            {/* Actions */}
             <button
               onClick={loadClaims}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-5 h-5" />
               Actualiser
+            </button>
+          </div>
+
+          {/* Onglets de filtrage */}
+          <div className="flex gap-2 mt-4 flex-wrap">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'all'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Toutes ({claims.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'pending'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              En attente ({claims.filter(c => c.status === 'pending').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('approved')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'approved'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Approuvées ({claims.filter(c => c.status === 'approved').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('rejected')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'rejected'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Rejetées ({claims.filter(c => c.status === 'rejected').length})
             </button>
           </div>
         </motion.div>
@@ -379,38 +401,39 @@ const AdminObjectiveValidationPage = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg border overflow-hidden"
         >
           {filteredClaims.length === 0 ? (
-            <div className="p-12 text-center">
-              <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <div className="bg-white rounded-lg border p-12 text-center">
+              <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
                 Aucune réclamation trouvée
               </h3>
               <p className="text-gray-600">
-                {activeTab === 'all' 
-                  ? 'Aucune réclamation d\'objectif disponible'
-                  : `Aucune réclamation ${activeTab === 'pending' ? 'en attente' : activeTab === 'approved' ? 'approuvée' : 'rejetée'}`
-                }
+                {searchTerm 
+                  ? 'Aucune réclamation ne correspond à votre recherche'
+                  : 'Il n\'y a aucune réclamation de campagne pour le moment'}
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="space-y-4">
               {filteredClaims.map((claim, index) => (
                 <motion.div
                   key={claim.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + index * 0.05 }}
-                  className="p-6 hover:bg-gray-50 transition-colors"
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-white rounded-lg border p-6 hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <User className="w-5 h-5 text-gray-500" />
-                        <span className="font-semibold text-gray-900">{claim.userName}</span>
-                        <span className="text-sm text-gray-500">({claim.userEmail})</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        <div className="flex items-center gap-2">
+                          <User className="w-5 h-5 text-gray-400" />
+                          <span className="font-medium text-gray-900">{claim.userName}</span>
+                          <span className="text-gray-500 text-sm">({claim.userEmail})</span>
+                        </div>
+                        
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           claim.status === 'pending' ? 'bg-orange-100 text-orange-800' :
                           claim.status === 'approved' ? 'bg-green-100 text-green-800' :
                           'bg-red-100 text-red-800'
@@ -421,7 +444,7 @@ const AdminObjectiveValidationPage = () => {
                       </div>
 
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        {claim.objectiveTitle}
+                        {claim.campaignTitle}
                       </h3>
 
                       <p className="text-gray-600 mb-3">
@@ -438,8 +461,8 @@ const AdminObjectiveValidationPage = () => {
                           {claim.estimatedReward} XP
                         </span>
                         <span className="flex items-center gap-1">
-                          <Target className="w-4 h-4" />
-                          {claim.objectiveCategory}
+                          <Flag className="w-4 h-4" />
+                          {claim.campaignCategory}
                         </span>
                       </div>
 
@@ -453,8 +476,9 @@ const AdminObjectiveValidationPage = () => {
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 text-sm underline"
+                                className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
                               >
+                                <Eye className="w-4 h-4" />
                                 Lien {idx + 1}
                               </a>
                             ))}
@@ -463,15 +487,15 @@ const AdminObjectiveValidationPage = () => {
                       )}
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions de validation */}
                     {claim.status === 'pending' && (
-                      <div className="flex gap-2 ml-6">
+                      <div className="flex gap-2">
                         <button
                           onClick={() => handleApproveClaim(claim.id)}
                           disabled={processingClaim}
-                          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
-                          <CheckCircle2 className="w-4 h-4" />
+                          <CheckCircle className="w-4 h-4" />
                           Approuver
                         </button>
                         <button
@@ -482,7 +506,7 @@ const AdminObjectiveValidationPage = () => {
                             }
                           }}
                           disabled={processingClaim}
-                          className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                           <XCircle className="w-4 h-4" />
                           Rejeter
@@ -536,4 +560,4 @@ const AdminObjectiveValidationPage = () => {
   );
 };
 
-export default AdminObjectiveValidationPage;
+export default AdminCampaignValidationPage;
