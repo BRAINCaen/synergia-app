@@ -36,6 +36,8 @@ import {
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { createTaskSafely } from '../../core/services/taskCreationFix.js';
 import storageService from '../../core/services/storageService.js';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../core/firebase.js';
 
 /**
  * 🎭 RÔLES SYNERGIA OFFICIELS
