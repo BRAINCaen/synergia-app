@@ -379,10 +379,26 @@ const NewTaskModal = ({
       if (mode === 'create') {
         await createTaskSafely(cleanedData);
         console.log('✅ [QUÊTE] Quête créée avec succès');
-      } else if (mode === 'edit' && task?.id) {
-        // TODO: Implémenter la mise à jour
-        console.log('✅ [QUÊTE] Quête mise à jour');
-      }
+} else if (mode === 'edit' && task?.id) {
+  // 🔥 MISE À JOUR DE LA QUÊTE
+  console.log('🔄 [QUÊTE] Mise à jour de la quête:', task.id);
+  
+  const { updateDoc, doc, serverTimestamp } = require('firebase/firestore');
+  const { db } = require('../../core/firebase.js');
+  
+  const taskRef = doc(db, 'tasks', task.id);
+  
+  // Préparer les données sans les champs de création
+  const { createdBy, createdByName, createdAt, ...updateFields } = cleanedData;
+  
+  await updateDoc(taskRef, {
+    ...updateFields,
+    updatedAt: serverTimestamp(),
+    lastUpdatedBy: user.uid
+  });
+  
+  console.log('✅ [QUÊTE] Quête mise à jour avec succès');
+}
 
       // ✅ Succès
       handleClose();
