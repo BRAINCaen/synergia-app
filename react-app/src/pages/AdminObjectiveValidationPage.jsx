@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 // ✅ IMPORTS SYNERGIA
-import PremiumLayout from '../shared/layouts/PremiumLayout.jsx';
+import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 
@@ -236,20 +236,20 @@ const AdminObjectiveValidationPage = () => {
 
   if (loading) {
     return (
-      <PremiumLayout>
-        <div className="min-h-screen flex items-center justify-center">
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
           <div className="text-center">
             <RefreshCw className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
             <p className="text-gray-300 text-lg">Chargement des validations de campagnes...</p>
           </div>
         </div>
-      </PremiumLayout>
+      </Layout>
     );
   }
 
   return (
-    <PremiumLayout>
-      <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
         
         {/* En-tête avec gradient Synergia */}
@@ -555,7 +555,7 @@ const AdminObjectiveValidationPage = () => {
         </motion.div>
         </div>
       </div>
-    </PremiumLayout>
+    </Layout>
   );
 };
 
