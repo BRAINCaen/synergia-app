@@ -41,7 +41,10 @@ import { useTeamGamificationSync } from '../shared/hooks/useTeamGamificationSync
  */
 const TeamPage = () => {
   const { user } = useAuthStore();
-  
+  // 🎮 SYNCHRONISATION XP TEMPS RÉEL POUR TOUTE L'ÉQUIPE
+const { getUserXp, usersGamification } = useTeamGamificationSync(
+  teamMembers.map(m => m.id)
+);
   // États principaux
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
