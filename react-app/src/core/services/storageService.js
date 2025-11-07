@@ -1,15 +1,34 @@
 // ==========================================
 // 📁 react-app/src/core/services/storageService.js
-// SERVICE FIREBASE STORAGE POUR UPLOAD D'IMAGES
+// SERVICE FIREBASE STORAGE AVEC API REST (BYPASS CORS)
 // ==========================================
 
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../firebase.js';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { getAuth } from 'firebase/auth';
 
 /**
- * 📷 UPLOAD AVATAR UTILISATEUR
+ * 🔑 Obtenir le token d'authentification Firebase
+ */
+const getAuthToken = async () => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('Utilisateur non connecté');
+    }
+    
+    const token = await user.getIdToken();
+    return token;
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur récupération token:', error);
+    throw error;
+  }
+};
+
+/**
+ * 📷 UPLOAD AVATAR UTILISATEUR (API REST)
  * @param {string} userId - ID de l'utilisateur
  * @param {File} file - Fichier image à uploader
  * @returns {Promise<string>} URL de l'image uploadée
@@ -34,28 +53,46 @@ export const uploadUserAvatar = async (userId, file) => {
       throw new Error('L\'image ne doit pas dépasser 5MB');
     }
 
-    // Créer une référence unique pour l'avatar
+    // Créer le nom de fichier unique
     const timestamp = Date.now();
     const fileExtension = file.name.split('.').pop();
     const fileName = `avatar_${userId}_${timestamp}.${fileExtension}`;
-    const storageRef = ref(storage, `avatars/${userId}/${fileName}`);
+    const filePath = `avatars/${userId}/${fileName}`;
 
-    console.log('📤 [STORAGE] Upload vers:', storageRef.fullPath);
+    console.log('📤 [STORAGE] Upload vers:', filePath);
 
-    // Upload du fichier
-    const snapshot = await uploadBytes(storageRef, file, {
-      contentType: file.type,
-      customMetadata: {
-        uploadedBy: userId,
-        uploadedAt: new Date().toISOString()
-      }
+    // Récupérer le token d'authentification
+    const token = await getAuthToken();
+
+    // Configuration de l'upload via API REST
+    const bucket = 'synergia-app-f27e7.appspot.com';
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(filePath)}`;
+
+    console.log('🔗 [STORAGE] URL upload:', uploadUrl);
+
+    // Upload du fichier via fetch
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': file.type,
+        'X-Goog-Upload-Protocol': 'multipart'
+      },
+      body: file
     });
 
-    console.log('✅ [STORAGE] Upload réussi');
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('❌ [STORAGE] Erreur upload:', errorText);
+      throw new Error(`Erreur upload: ${uploadResponse.status} - ${errorText}`);
+    }
 
-    // Récupérer l'URL de téléchargement
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    console.log('🔗 [STORAGE] URL générée:', downloadURL);
+    const uploadData = await uploadResponse.json();
+    console.log('✅ [STORAGE] Upload réussi:', uploadData);
+
+    // Construire l'URL de téléchargement public
+    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+    console.log('🔗 [STORAGE] URL de téléchargement:', downloadURL);
 
     // Mettre à jour le profil utilisateur dans Firestore
     const userRef = doc(db, 'users', userId);
@@ -75,7 +112,7 @@ export const uploadUserAvatar = async (userId, file) => {
 };
 
 /**
- * 🗑️ SUPPRIMER UN AVATAR UTILISATEUR
+ * 🗑️ SUPPRIMER UN AVATAR UTILISATEUR (API REST)
  * @param {string} photoURL - URL de l'image à supprimer
  */
 export const deleteUserAvatar = async (photoURL) => {
@@ -86,13 +123,35 @@ export const deleteUserAvatar = async (photoURL) => {
     }
 
     // Extraire le chemin depuis l'URL
-    const path = decodeURIComponent(photoURL.split('/o/')[1]?.split('?')[0]);
-    if (!path) {
-      throw new Error('Impossible d\'extraire le chemin du fichier');
+    const urlParts = photoURL.split('/o/');
+    if (urlParts.length < 2) {
+      throw new Error('URL invalide');
     }
+    
+    const pathWithQuery = urlParts[1];
+    const path = decodeURIComponent(pathWithQuery.split('?')[0]);
+    
+    console.log('🗑️ [STORAGE] Suppression:', path);
 
-    const storageRef = ref(storage, path);
-    await deleteObject(storageRef);
+    // Récupérer le token d'authentification
+    const token = await getAuthToken();
+
+    // Configuration de la suppression via API REST
+    const bucket = 'synergia-app-f27e7.appspot.com';
+    const deleteUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}`;
+
+    const deleteResponse = await fetch(deleteUrl, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!deleteResponse.ok) {
+      const errorText = await deleteResponse.text();
+      console.error('❌ [STORAGE] Erreur suppression:', errorText);
+      throw new Error(`Erreur suppression: ${deleteResponse.status}`);
+    }
     
     console.log('✅ [STORAGE] Avatar supprimé');
   } catch (error) {
@@ -102,7 +161,7 @@ export const deleteUserAvatar = async (photoURL) => {
 };
 
 /**
- * 📁 UPLOAD FICHIER GÉNÉRIQUE
+ * 📁 UPLOAD FICHIER GÉNÉRIQUE (API REST)
  * @param {string} path - Chemin de destination dans Storage
  * @param {File} file - Fichier à uploader
  * @returns {Promise<string>} URL du fichier uploadé
@@ -111,12 +170,30 @@ export const uploadFile = async (path, file) => {
   try {
     console.log('📁 [STORAGE] Upload fichier vers:', path);
 
-    const storageRef = ref(storage, path);
-    const snapshot = await uploadBytes(storageRef, file, {
-      contentType: file.type
+    // Récupérer le token d'authentification
+    const token = await getAuthToken();
+
+    // Configuration de l'upload via API REST
+    const bucket = 'synergia-app-f27e7.appspot.com';
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(path)}`;
+
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': file.type,
+        'X-Goog-Upload-Protocol': 'multipart'
+      },
+      body: file
     });
 
-    const downloadURL = await getDownloadURL(snapshot.ref);
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`Erreur upload: ${uploadResponse.status} - ${errorText}`);
+    }
+
+    // Construire l'URL de téléchargement
+    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
     console.log('✅ [STORAGE] Fichier uploadé:', downloadURL);
 
     return downloadURL;
@@ -127,7 +204,7 @@ export const uploadFile = async (path, file) => {
 };
 
 /**
- * 🗑️ SUPPRIMER UN FICHIER
+ * 🗑️ SUPPRIMER UN FICHIER (API REST)
  * @param {string} fileURL - URL du fichier à supprimer
  */
 export const deleteFile = async (fileURL) => {
@@ -137,13 +214,33 @@ export const deleteFile = async (fileURL) => {
       return;
     }
 
-    const path = decodeURIComponent(fileURL.split('/o/')[1]?.split('?')[0]);
-    if (!path) {
-      throw new Error('Impossible d\'extraire le chemin du fichier');
+    // Extraire le chemin depuis l'URL
+    const urlParts = fileURL.split('/o/');
+    if (urlParts.length < 2) {
+      throw new Error('URL invalide');
     }
+    
+    const pathWithQuery = urlParts[1];
+    const path = decodeURIComponent(pathWithQuery.split('?')[0]);
 
-    const storageRef = ref(storage, path);
-    await deleteObject(storageRef);
+    // Récupérer le token d'authentification
+    const token = await getAuthToken();
+
+    // Configuration de la suppression via API REST
+    const bucket = 'synergia-app-f27e7.appspot.com';
+    const deleteUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}`;
+
+    const deleteResponse = await fetch(deleteUrl, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!deleteResponse.ok) {
+      const errorText = await deleteResponse.text();
+      throw new Error(`Erreur suppression: ${deleteResponse.status}`);
+    }
     
     console.log('✅ [STORAGE] Fichier supprimé');
   } catch (error) {
@@ -152,9 +249,76 @@ export const deleteFile = async (fileURL) => {
   }
 };
 
+/**
+ * 📤 UPLOAD AVEC PROGRESSION (API REST + XMLHttpRequest)
+ * @param {File} file - Fichier à uploader
+ * @param {string} path - Chemin de destination
+ * @param {Function} onProgress - Callback de progression (0-100)
+ * @returns {Promise<string>} URL du fichier uploadé
+ */
+export const uploadFileWithProgress = async (file, path, onProgress) => {
+  try {
+    console.log('📤 [STORAGE] Upload avec progression vers:', path);
+
+    // Récupérer le token d'authentification
+    const token = await getAuthToken();
+
+    // Configuration de l'upload
+    const bucket = 'synergia-app-f27e7.appspot.com';
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(path)}`;
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      // Gestion de la progression
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          if (onProgress) {
+            onProgress(percentComplete);
+          }
+          console.log(`📊 [STORAGE] Progression: ${percentComplete}%`);
+        }
+      });
+
+      // Gestion de la réussite
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
+          console.log('✅ [STORAGE] Upload terminé:', downloadURL);
+          resolve(downloadURL);
+        } else {
+          reject(new Error(`Erreur upload: ${xhr.status} - ${xhr.responseText}`));
+        }
+      });
+
+      // Gestion des erreurs
+      xhr.addEventListener('error', () => {
+        reject(new Error('Erreur réseau lors de l\'upload'));
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload annulé'));
+      });
+
+      // Configuration et envoi de la requête
+      xhr.open('POST', uploadUrl);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.setRequestHeader('X-Goog-Upload-Protocol', 'multipart');
+      xhr.send(file);
+    });
+
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur upload avec progression:', error);
+    throw error;
+  }
+};
+
 export default {
   uploadUserAvatar,
   deleteUserAvatar,
   uploadFile,
-  deleteFile
+  deleteFile,
+  uploadFileWithProgress
 };
