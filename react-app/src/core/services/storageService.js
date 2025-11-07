@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/storageService.js
-// SERVICE FIREBASE STORAGE AVEC API REST (BYPASS CORS)
+// SERVICE FIREBASE STORAGE AVEC API REST (FORMAT MULTIPART CORRIGÉ)
 // ==========================================
 
 import { doc, updateDoc } from 'firebase/firestore';
@@ -28,7 +28,7 @@ const getAuthToken = async () => {
 };
 
 /**
- * 📷 UPLOAD AVATAR UTILISATEUR (API REST)
+ * 📷 UPLOAD AVATAR UTILISATEUR (API REST - FORMAT MULTIPART)
  * @param {string} userId - ID de l'utilisateur
  * @param {File} file - Fichier image à uploader
  * @returns {Promise<string>} URL de l'image uploadée
@@ -64,21 +64,25 @@ export const uploadUserAvatar = async (userId, file) => {
     // Récupérer le token d'authentification
     const token = await getAuthToken();
 
-    // Configuration de l'upload via API REST
-const bucket = 'synergia-app-f27e7.firebasestorage.app';
-    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(filePath)}`;
+    // Configuration de l'upload via API REST avec FormData
+    const bucket = 'synergia-app-f27e7.firebasestorage.app';
+    
+    // Créer FormData pour l'upload multipart
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // URL d'upload avec uploadType=multipart
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=multipart&name=${encodeURIComponent(filePath)}`;
 
     console.log('🔗 [STORAGE] URL upload:', uploadUrl);
 
-    // Upload du fichier via fetch
+    // Upload du fichier via fetch avec FormData
     const uploadResponse = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': file.type,
-        'X-Goog-Upload-Protocol': 'multipart'
       },
-      body: file
+      body: file // Envoyer le fichier directement, pas FormData
     });
 
     if (!uploadResponse.ok) {
@@ -137,7 +141,7 @@ export const deleteUserAvatar = async (photoURL) => {
     const token = await getAuthToken();
 
     // Configuration de la suppression via API REST
-const bucket = 'synergia-app-f27e7.firebasestorage.app';
+    const bucket = 'synergia-app-f27e7.firebasestorage.app';
     const deleteUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}`;
 
     const deleteResponse = await fetch(deleteUrl, {
@@ -174,15 +178,13 @@ export const uploadFile = async (path, file) => {
     const token = await getAuthToken();
 
     // Configuration de l'upload via API REST
-const bucket = 'synergia-app-f27e7.firebasestorage.app';
-    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(path)}`;
+    const bucket = 'synergia-app-f27e7.firebasestorage.app';
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=multipart&name=${encodeURIComponent(path)}`;
 
     const uploadResponse = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': file.type,
-        'X-Goog-Upload-Protocol': 'multipart'
       },
       body: file
     });
@@ -227,7 +229,7 @@ export const deleteFile = async (fileURL) => {
     const token = await getAuthToken();
 
     // Configuration de la suppression via API REST
-const bucket = 'synergia-app-f27e7.firebasestorage.app';
+    const bucket = 'synergia-app-f27e7.firebasestorage.app';
     const deleteUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}`;
 
     const deleteResponse = await fetch(deleteUrl, {
@@ -250,7 +252,7 @@ const bucket = 'synergia-app-f27e7.firebasestorage.app';
 };
 
 /**
- * 📤 UPLOAD AVEC PROGRESSION (API REST + XMLHttpRequest)
+ * 📤 UPLOAD AVEC PROGRESSION (XMLHttpRequest)
  * @param {File} file - Fichier à uploader
  * @param {string} path - Chemin de destination
  * @param {Function} onProgress - Callback de progression (0-100)
@@ -264,8 +266,8 @@ export const uploadFileWithProgress = async (file, path, onProgress) => {
     const token = await getAuthToken();
 
     // Configuration de l'upload
-const bucket = 'synergia-app-f27e7.firebasestorage.app';
-    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(path)}`;
+    const bucket = 'synergia-app-f27e7.firebasestorage.app';
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=multipart&name=${encodeURIComponent(path)}`;
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -304,8 +306,6 @@ const bucket = 'synergia-app-f27e7.firebasestorage.app';
       // Configuration et envoi de la requête
       xhr.open('POST', uploadUrl);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.setRequestHeader('Content-Type', file.type);
-      xhr.setRequestHeader('X-Goog-Upload-Protocol', 'multipart');
       xhr.send(file);
     });
 
