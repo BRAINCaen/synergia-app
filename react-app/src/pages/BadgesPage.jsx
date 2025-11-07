@@ -112,17 +112,16 @@ const BadgesPage = () => {
     if (!user) return;
     
     try {
-      const badgesRef = collection(db, 'user_badges');
-      const q = query(badgesRef, where('userId', '==', user.uid));
-      const snapshot = await getDocs(q);
+      // Charger depuis le profil utilisateur (gamification.badges)
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
       
-      const badges = [];
-      snapshot.forEach(doc => {
-        badges.push({ id: doc.id, ...doc.data() });
-      });
-      
-      setUserBadges(badges);
-      console.log('✅ Badges utilisateur chargés:', badges.length);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const badges = userData.gamification?.badges || [];
+        setUserBadges(badges);
+        console.log('✅ Badges utilisateur chargés depuis profil:', badges.length);
+      }
     } catch (error) {
       console.error('❌ Erreur chargement badges utilisateur:', error);
     }
@@ -326,38 +325,70 @@ const BadgesPage = () => {
     }
   };
 
-  // 🎁 ATTRIBUER UN BADGE À UN UTILISATEUR (ADMIN)
+  // 🎁 ATTRIBUER UN BADGE À UN UTILISATEUR (ADMIN) - ✅ VERSION CORRIGÉE
   const handleAssignBadge = async (userId, badgeId) => {
     try {
       const badge = allBadges.find(b => b.id === badgeId);
-      if (!badge) return;
+      if (!badge) {
+        alert('❌ Badge non trouvé');
+        return;
+      }
       
-      const userBadgeData = {
-        userId,
-        badgeId,
-        badgeName: badge.name,
-        badgeIcon: badge.icon,
+      console.log('🏆 Attribution badge:', { userId, badgeId, badgeName: badge.name });
+      
+      // 1. Récupérer l'utilisateur
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        alert('❌ Utilisateur non trouvé');
+        return;
+      }
+      
+      const userData = userSnap.data();
+      const currentBadges = userData.gamification?.badges || [];
+      
+      // 2. Vérifier si le badge n'est pas déjà attribué
+      if (currentBadges.some(b => b.id === badgeId || b.badgeId === badgeId)) {
+        alert('⚠️ Badge déjà attribué à cet utilisateur');
+        return;
+      }
+      
+      // 3. Créer le nouveau badge
+      const newBadge = {
+        id: badgeId,
+        badgeId: badgeId,
+        name: badge.name,
+        description: badge.description,
+        icon: badge.icon || '🏆',
+        category: badge.category || 'general',
+        rarity: badge.rarity || 'Commun',
         xpReward: badge.xpReward || 0,
-        earnedAt: serverTimestamp(),
+        unlockedAt: new Date().toISOString(),
         awardedBy: user.uid
       };
       
-      await addDoc(collection(db, 'user_badges'), userBadgeData);
-      
-      // Mettre à jour l'XP de l'utilisateur
-      const userRef = doc(db, 'users', userId);
-      const userDoc = await getDoc(userRef);
-      const currentXP = userDoc.data().xp || 0;
+      // 4. Mettre à jour le profil utilisateur
+      const updatedBadges = [...currentBadges, newBadge];
+      const currentXP = userData.gamification?.totalXp || 0;
+      const newXP = currentXP + (badge.xpReward || 0);
       
       await updateDoc(userRef, {
-        xp: currentXP + (badge.xpReward || 0)
+        'gamification.badges': updatedBadges,
+        'gamification.badgesUnlocked': updatedBadges.length,
+        'gamification.totalXp': newXP,
+        'gamification.totalBadgeXp': (userData.gamification?.totalBadgeXp || 0) + (badge.xpReward || 0)
       });
       
-      alert('✅ Badge attribué avec succès !');
+      alert(`✅ Badge "${badge.name}" attribué avec succès ! +${badge.xpReward} XP`);
+      console.log('✅ Badge attribué:', newBadge);
+      
+      // 5. Recharger les données
       loadUserBadges();
+      
     } catch (error) {
       console.error('❌ Erreur attribution badge:', error);
-      alert('Erreur lors de l\'attribution du badge');
+      alert('Erreur lors de l\'attribution du badge: ' + error.message);
     }
   };
 
@@ -576,7 +607,7 @@ const BadgesPage = () => {
           {/* 🏆 GRILLE DES BADGES DARK MODE */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredBadges.map((badge) => {
-              const isUnlocked = userBadges.some(ub => ub.badgeId === badge.id);
+              const isUnlocked = userBadges.some(ub => (ub.badgeId === badge.id || ub.id === badge.id));
               
               return (
                 <motion.div
@@ -956,7 +987,7 @@ const BadgesPage = () => {
                           }`}
                         >
                           <p className="font-medium text-white">{u.displayName || u.email}</p>
-                          <p className="text-sm text-gray-400">{u.xp || 0} XP</p>
+                          <p className="text-sm text-gray-400">{u.gamification?.totalXp || 0} XP</p>
                         </button>
                       ))}
                     </div>
