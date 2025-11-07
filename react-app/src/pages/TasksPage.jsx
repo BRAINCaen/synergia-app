@@ -120,11 +120,20 @@ const TasksPage = () => {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
-      const loadedTasks = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+  const loadedTasks = snapshot.docs
+    .map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    .filter(task => {
+      // ✅ Filtrer les quêtes invalides
+      if (!task.id || !task.title) {
+        console.warn('⚠️ Quête invalide détectée:', task.id);
+        return false;
+      }
+      return true;
+    });
       
       console.log(`✅ [QUÊTES] ${loadedTasks.length} quêtes chargées`);
       setTasks(loadedTasks);
