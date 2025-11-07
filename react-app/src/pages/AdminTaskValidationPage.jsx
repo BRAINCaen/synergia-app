@@ -30,7 +30,10 @@ import {
   Camera,
   Video,
   Send,
-  X as CloseIcon
+  X as CloseIcon,
+  RotateCcw,
+  Edit,
+  Coins
 } from 'lucide-react';
 
 // 🎯 IMPORTS
@@ -96,6 +99,7 @@ const AdminTaskValidationPage = () => {
   
   // États principaux
   const [pendingQuests, setPendingQuests] = useState([]);
+  const [validatedQuests, setValidatedQuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     pending: 0,
@@ -107,10 +111,13 @@ const AdminTaskValidationPage = () => {
   // États UI
   const [selectedQuest, setSelectedQuest] = useState(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showForceXpModal, setShowForceXpModal] = useState(false);
   const [adminComment, setAdminComment] = useState('');
   const [processing, setProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('pending');
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' ou 'validated'
+  const [editedXp, setEditedXp] = useState(0);
 
   /**
    * 📊 CHARGER LES QUÊTES EN ATTENTE
@@ -153,6 +160,7 @@ const AdminTaskValidationPage = () => {
         questsData.push({
           id: taskDoc.id,
           ...taskData,
+          userId,
           userName: userData.displayName || userData.email || 'Anonyme',
           userEmail: userData.email || '',
           submittedAt: taskData.updatedAt || taskData.createdAt,
@@ -190,25 +198,95 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
+   * 📊 CHARGER LES QUÊTES VALIDÉES
+   */
+  const loadValidatedQuests = async () => {
+    try {
+      setLoading(true);
+      console.log('📊 Chargement des quêtes validées...');
+
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('status', '==', 'completed'),
+        orderBy('validatedAt', 'desc')
+      );
+      
+      const tasksSnapshot = await getDocs(tasksQuery);
+      
+      const questsData = [];
+      
+      for (const taskDoc of tasksSnapshot.docs) {
+        const taskData = taskDoc.data();
+        
+        let userData = { displayName: 'Utilisateur inconnu', email: '' };
+        const userId = taskData.assignedTo?.[0] || taskData.createdBy;
+        
+        if (userId) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+              userData = userDoc.data();
+            }
+          } catch (err) {
+            console.warn('⚠️ Erreur récupération user:', err);
+          }
+        }
+        
+        questsData.push({
+          id: taskDoc.id,
+          ...taskData,
+          userId,
+          userName: userData.displayName || userData.email || 'Anonyme',
+          userEmail: userData.email || '',
+          validatedAt: taskData.validatedAt,
+          questTitle: taskData.title || 'Quête sans titre',
+          difficulty: taskData.difficulty || 'Normale',
+          xpReward: taskData.xpReward || 25,
+          comment: taskData.comment || '',
+          adminComment: taskData.adminComment || '',
+          photoUrl: taskData.photoUrl || null,
+          videoUrl: taskData.videoUrl || null
+        });
+      }
+      
+      setValidatedQuests(questsData);
+      console.log('✅ Quêtes validées chargées:', questsData.length);
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement quêtes validées:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
    * 🔄 ÉCOUTER LES MISES À JOUR TEMPS RÉEL
    */
   useEffect(() => {
-    loadPendingQuests();
+    if (activeTab === 'pending') {
+      loadPendingQuests();
+    } else {
+      loadValidatedQuests();
+    }
     
     // Listener temps réel
     const unsubscribe = onSnapshot(
       query(
         collection(db, 'tasks'),
-        where('status', '==', 'validation_pending')
+        where('status', '==', activeTab === 'pending' ? 'validation_pending' : 'completed')
       ),
       (snapshot) => {
         console.log('🔄 Mise à jour temps réel détectée');
-        loadPendingQuests();
+        if (activeTab === 'pending') {
+          loadPendingQuests();
+        } else {
+          loadValidatedQuests();
+        }
       }
     );
     
     return () => unsubscribe();
-  }, []);
+  }, [activeTab]);
 
   /**
    * ✅ VALIDER UNE QUÊTE
@@ -239,7 +317,6 @@ const AdminTaskValidationPage = () => {
           const userData = userDoc.data();
           const gamification = userData.gamification || {};
           
-          // ✅ CORRECTION : Utiliser gamification.totalXp
           const currentXP = gamification.totalXp || 0;
           const xpToAdd = selectedQuest.xpReward || 25;
           const newTotalXP = currentXP + xpToAdd;
@@ -254,7 +331,6 @@ const AdminTaskValidationPage = () => {
             newLevel
           });
           
-          // ✅ Mise à jour complète de la gamification
           await updateDoc(userRef, {
             'gamification.totalXp': newTotalXP,
             'gamification.level': newLevel,
@@ -296,7 +372,6 @@ const AdminTaskValidationPage = () => {
     try {
       console.log('❌ Rejet quête:', selectedQuest.id);
       
-      // Remettre en "todo" avec commentaire admin
       await updateDoc(doc(db, 'tasks', selectedQuest.id), {
         status: 'todo',
         validatedAt: serverTimestamp(),
@@ -305,7 +380,6 @@ const AdminTaskValidationPage = () => {
         validationStatus: 'rejected'
       });
       
-      // Fermer et recharger
       setShowValidationModal(false);
       setSelectedQuest(null);
       setAdminComment('');
@@ -322,6 +396,109 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
+   * 🔄 RÉACTIVER UNE QUÊTE (remettre en disponible)
+   */
+  const handleReactivate = async (quest) => {
+    if (!confirm('Voulez-vous vraiment réactiver cette quête ? Elle sera remise en "disponible".')) {
+      return;
+    }
+    
+    setProcessing(true);
+    try {
+      console.log('🔄 Réactivation quête:', quest.id);
+      
+      await updateDoc(doc(db, 'tasks', quest.id), {
+        status: 'available',
+        validatedAt: null,
+        validatedBy: null,
+        validationStatus: 'reactivated',
+        reactivatedAt: serverTimestamp(),
+        reactivatedBy: user.uid
+      });
+      
+      alert('✅ Quête réactivée avec succès !');
+      await loadValidatedQuests();
+      
+    } catch (error) {
+      console.error('❌ Erreur réactivation:', error);
+      alert('Erreur lors de la réactivation');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  /**
+   * 💎 FORCER L'ATTRIBUTION DES XP
+   */
+  const handleForceXp = async () => {
+    if (!selectedQuest || !editedXp) return;
+    
+    setProcessing(true);
+    try {
+      console.log('💎 Force attribution XP:', editedXp, 'pour quête:', selectedQuest.id);
+      
+      const userId = selectedQuest.userId || selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
+      
+      if (!userId) {
+        alert('❌ Utilisateur introuvable pour cette quête');
+        return;
+      }
+      
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const gamification = userData.gamification || {};
+        
+        const currentXP = gamification.totalXp || 0;
+        const xpToAdd = parseInt(editedXp);
+        const newTotalXP = currentXP + xpToAdd;
+        const newLevel = Math.floor(newTotalXP / 100) + 1;
+        
+        console.log(`🎯 Force XP:`, {
+          userId,
+          currentXP,
+          xpToAdd,
+          newTotalXP,
+          newLevel
+        });
+        
+        await updateDoc(userRef, {
+          'gamification.totalXp': newTotalXP,
+          'gamification.level': newLevel,
+          'gamification.weeklyXp': (gamification.weeklyXp || 0) + xpToAdd,
+          'gamification.monthlyXp': (gamification.monthlyXp || 0) + xpToAdd,
+          'gamification.lastActivityAt': serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        
+        // Mettre à jour la quête pour indiquer que les XP ont été forcés
+        await updateDoc(doc(db, 'tasks', selectedQuest.id), {
+          xpForcedAt: serverTimestamp(),
+          xpForcedBy: user.uid,
+          xpForcedAmount: xpToAdd
+        });
+        
+        alert(`✅ ${xpToAdd} XP attribués avec succès !`);
+        setShowForceXpModal(false);
+        setEditedXp(0);
+        await loadValidatedQuests();
+        
+        console.log(`💎 ${xpToAdd} XP forcés pour ${userId}`);
+      } else {
+        alert('❌ Utilisateur introuvable');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur force XP:', error);
+      alert('Erreur lors de l\'attribution des XP');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  /**
    * 👁️ OUVRIR LE MODAL DE VALIDATION
    */
   const openValidationModal = (quest) => {
@@ -330,8 +507,17 @@ const AdminTaskValidationPage = () => {
     setShowValidationModal(true);
   };
 
+  /**
+   * 💎 OUVRIR LE MODAL FORCE XP
+   */
+  const openForceXpModal = (quest) => {
+    setSelectedQuest(quest);
+    setEditedXp(quest.xpReward || 25);
+    setShowForceXpModal(true);
+  };
+
   // Filtrer les quêtes par recherche
-  const filteredQuests = pendingQuests.filter(quest =>
+  const filteredQuests = (activeTab === 'pending' ? pendingQuests : validatedQuests).filter(quest =>
     quest.questTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quest.userName.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -358,7 +544,7 @@ const AdminTaskValidationPage = () => {
               </div>
               
               <button
-                onClick={loadPendingQuests}
+                onClick={() => activeTab === 'pending' ? loadPendingQuests() : loadValidatedQuests()}
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-colors"
               >
@@ -405,6 +591,44 @@ const AdminTaskValidationPage = () => {
             />
           </motion.div>
 
+          {/* 🎯 ONGLETS */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mb-6"
+          >
+            <div className="flex items-center gap-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-2">
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                  activeTab === 'pending'
+                    ? 'bg-orange-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  En Attente ({stats.pending})
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('validated')}
+                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                  activeTab === 'validated'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <CheckCircle className="w-5 h-5" />
+                  Validées ({stats.validated})
+                </div>
+              </button>
+            </div>
+          </motion.div>
+
           {/* 🔍 BARRE DE RECHERCHE */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -432,14 +656,18 @@ const AdminTaskValidationPage = () => {
               className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-6 text-center"
             >
               <Shield className="w-12 h-12 text-blue-400 mx-auto mb-3" />
-              <h3 className="text-xl font-bold text-white mb-2">Aucune quête en attente</h3>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {activeTab === 'pending' ? 'Aucune quête en attente' : 'Aucune quête validée'}
+              </h3>
               <p className="text-gray-400">
-                Toutes les quêtes ont été traitées ! Revenez plus tard.
+                {activeTab === 'pending' 
+                  ? 'Toutes les quêtes ont été traitées ! Revenez plus tard.'
+                  : 'Aucune quête n\'a encore été validée.'}
               </p>
             </motion.div>
           )}
 
-          {/* 📋 LISTE DES QUÊTES EN ATTENTE */}
+          {/* 📋 LISTE DES QUÊTES */}
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
@@ -458,8 +686,16 @@ const AdminTaskValidationPage = () => {
                 <GlassCard key={quest.id}>
                   <div className="flex items-start gap-4">
                     {/* Icône */}
-                    <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-6 h-6 text-orange-400" />
+                    <div className={`w-12 h-12 ${
+                      activeTab === 'pending' 
+                        ? 'bg-orange-500/20' 
+                        : 'bg-green-500/20'
+                    } rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      {activeTab === 'pending' ? (
+                        <Clock className="w-6 h-6 text-orange-400" />
+                      ) : (
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                      )}
                     </div>
                     
                     {/* Contenu */}
@@ -476,7 +712,9 @@ const AdminTaskValidationPage = () => {
                             </span>
                             <span className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
-                              {quest.submittedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
+                              {activeTab === 'pending'
+                                ? quest.submittedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'
+                                : quest.validatedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
                             </span>
                             <span className="flex items-center gap-1">
                               <Star className="w-4 h-4 text-yellow-400" />
@@ -492,9 +730,13 @@ const AdminTaskValidationPage = () => {
                           </div>
                         </div>
                         
-                        {/* Badge urgence */}
-                        <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm font-semibold border border-orange-500/50">
-                          En attente
+                        {/* Badge statut */}
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${
+                          activeTab === 'pending'
+                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
+                            : 'bg-green-500/20 text-green-400 border-green-500/50'
+                        }`}>
+                          {activeTab === 'pending' ? 'En attente' : 'Validée'}
                         </span>
                       </div>
                       
@@ -502,6 +744,13 @@ const AdminTaskValidationPage = () => {
                       {quest.comment && (
                         <p className="text-gray-400 text-sm mb-3">
                           💬 {quest.comment}
+                        </p>
+                      )}
+                      
+                      {/* Commentaire admin (quêtes validées) */}
+                      {activeTab === 'validated' && quest.adminComment && (
+                        <p className="text-blue-400 text-sm mb-3 bg-blue-500/10 rounded-lg p-2 border border-blue-500/30">
+                          🛡️ Admin : {quest.adminComment}
                         </p>
                       )}
                       
@@ -523,13 +772,34 @@ const AdminTaskValidationPage = () => {
                       
                       {/* Actions */}
                       <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => openValidationModal(quest)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Examiner
-                        </button>
+                        {activeTab === 'pending' ? (
+                          <button
+                            onClick={() => openValidationModal(quest)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Examiner
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleReactivate(quest)}
+                              disabled={processing}
+                              className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              Réactiver
+                            </button>
+                            
+                            <button
+                              onClick={() => openForceXpModal(quest)}
+                              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                            >
+                              <Coins className="w-4 h-4" />
+                              Forcer XP
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -646,6 +916,95 @@ const AdminTaskValidationPage = () => {
                     >
                       <CheckCircle className="w-5 h-5" />
                       {processing ? 'Traitement...' : 'Valider & Attribuer XP'}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 💎 MODAL FORCE XP */}
+          <AnimatePresence>
+            {showForceXpModal && selectedQuest && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                onClick={() => !processing && setShowForceXpModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-lg w-full"
+                >
+                  {/* Header Modal */}
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-2">
+                        💎 Forcer l'Attribution d'XP
+                      </h2>
+                      <p className="text-gray-400">
+                        Attribuez manuellement des XP pour cette quête
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => !processing && setShowForceXpModal(false)}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <CloseIcon className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  {/* Détails */}
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="text-sm text-gray-400 mb-1 block">Quête</label>
+                      <p className="text-white font-bold">{selectedQuest.questTitle}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 mb-1 block">Utilisateur</label>
+                      <p className="text-white">{selectedQuest.userName}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 mb-2 block">
+                        Montant d'XP à attribuer
+                      </label>
+                      <input
+                        type="number"
+                        value={editedXp}
+                        onChange={(e) => setEditedXp(e.target.value)}
+                        placeholder="25"
+                        min="1"
+                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        XP de base de la quête : {selectedQuest.xpReward} XP
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => !processing && setShowForceXpModal(false)}
+                      disabled={processing}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    
+                    <button
+                      onClick={handleForceXp}
+                      disabled={processing || !editedXp}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+                    >
+                      <Coins className="w-5 h-5" />
+                      {processing ? 'Attribution...' : `Attribuer ${editedXp} XP`}
                     </button>
                   </div>
                 </motion.div>
