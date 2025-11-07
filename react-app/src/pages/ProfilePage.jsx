@@ -114,6 +114,68 @@ const CustomSelect = ({ value, options, onChange, placeholder = "Sélectionner..
   );
 };
 
+/**
+ * 🏆 COMPOSANT CARTE DE BADGE
+ */
+const BadgeCard = ({ badge }) => {
+  // Déterminer la rareté du badge basée sur l'XP
+  const getRarity = (xpReward) => {
+    if (xpReward >= 200) return { text: 'ÉPIQUE', color: 'from-purple-500 to-pink-500', border: 'border-purple-400' };
+    if (xpReward >= 100) return { text: 'RARE', color: 'from-blue-500 to-cyan-500', border: 'border-blue-400' };
+    return { text: 'COMMUN', color: 'from-green-500 to-emerald-500', border: 'border-green-400' };
+  };
+
+  const rarity = getRarity(badge.xpReward || 50);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ scale: 1.05 }}
+      className={`relative bg-gradient-to-br ${rarity.color} rounded-xl p-4 border-2 ${rarity.border} shadow-lg`}
+    >
+      {/* Badge de rareté */}
+      <div className="absolute top-2 right-2 bg-black/30 backdrop-blur-sm rounded-full px-2 py-0.5">
+        <span className="text-[10px] font-bold text-white">{rarity.text}</span>
+      </div>
+
+      {/* Icône du badge */}
+      <div className="text-center mb-2">
+        <div className="w-12 h-12 mx-auto bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-2 border-white/50">
+          <span className="text-2xl">{badge.icon || '🏆'}</span>
+        </div>
+      </div>
+
+      {/* Nom du badge */}
+      <h4 className="text-white font-bold text-center text-sm mb-1 line-clamp-1">
+        {badge.name || 'Badge'}
+      </h4>
+
+      {/* Description */}
+      {badge.description && (
+        <p className="text-white/80 text-xs text-center line-clamp-2 mb-2">
+          {badge.description}
+        </p>
+      )}
+
+      {/* Récompense XP */}
+      <div className="flex items-center justify-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2 py-1">
+        <Zap className="w-3 h-3 text-yellow-400" />
+        <span className="text-xs font-bold text-white">+{badge.xpReward || 50} XP</span>
+      </div>
+
+      {/* Date d'obtention */}
+      {badge.earnedAt && (
+        <div className="mt-2 text-center">
+          <span className="text-[10px] text-white/70">
+            {new Date(badge.earnedAt).toLocaleDateString('fr-FR')}
+          </span>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 const ProfilePage = () => {
   // 👤 AUTHENTIFICATION
   const { user, updateProfile } = useAuthStore();
@@ -244,13 +306,13 @@ const ProfilePage = () => {
           company: userData.company || '',
           role: userData.role || 'member',
           skills: userData.skills || [],
-totalXp: userData.gamification?.totalXp || 0,
-level: userData.gamification?.level || 1,
-badges: userData.gamification?.badges || [],
-tasksCompleted: userData.gamification?.tasksCompleted || 0,
-projectsCreated: userData.gamification?.projectsCreated || 0,
-completionRate: userData.gamification?.completionRate || 0,
-streak: userData.gamification?.loginStreak || 0,
+          totalXp: userData.gamification?.totalXp || 0,
+          level: userData.gamification?.level || 1,
+          badges: userData.gamification?.badges || [],
+          tasksCompleted: userData.gamification?.tasksCompleted || 0,
+          projectsCreated: userData.gamification?.projectsCreated || 0,
+          completionRate: userData.gamification?.completionRate || 0,
+          streak: userData.gamification?.loginStreak || 0,
           joinDate: userData.createdAt?.toDate() || new Date(),
           lastActivity: userData.lastActivity?.toDate() || new Date(),
           preferences: {
@@ -798,20 +860,24 @@ streak: userData.gamification?.loginStreak || 0,
                     </h3>
                     
                     {userProfile.badges.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         {userProfile.badges.slice(0, 6).map((badge, index) => (
-                          <div 
-                            key={index}
-                            className="aspect-square bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg"
-                          >
-                            🏆
-                          </div>
+                          <BadgeCard key={badge.id || index} badge={badge} />
                         ))}
                       </div>
                     ) : (
                       <p className="text-gray-400 text-center py-4">
                         Aucun badge obtenu pour le moment
                       </p>
+                    )}
+                    
+                    {userProfile.badges.length > 6 && (
+                      <button
+                        onClick={() => setActiveTab('gamification')}
+                        className="w-full mt-4 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        Voir tous les badges ({userProfile.badges.length})
+                      </button>
                     )}
                   </div>
 
