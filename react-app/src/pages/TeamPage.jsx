@@ -198,7 +198,7 @@ const TeamPage = () => {
           console.log(`🔍 Recherche quêtes pour: ${userName} (ID: ${userId}, Email: ${userEmail})`);
           
           // RÉCUPÉRER TOUTES LES QUÊTES
-          const allQuestsQuery = query(collection(db, 'quests'));
+const allQuestsQuery = query(collection(db, 'tasks'));
           const allQuestsSnap = await getDocs(allQuestsQuery);
           
           const userQuests = [];
