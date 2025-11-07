@@ -174,208 +174,173 @@ const TeamPage = () => {
     };
   }, [showMemberModal, selectedMember?.id]); // ✅ SEULEMENT l'ID, pas l'objet complet !
 
-  const loadAllTeamMembers = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('👥 Chargement COMPLET avec synchronisation QUÊTES...');
-      
-      // ÉCOUTE TEMPS RÉEL sur users
-      const usersQuery = query(
-        collection(db, 'users'),
-        orderBy('gamification.totalXp', 'desc')
-      );
-      
-      const unsubscribe = onSnapshot(usersQuery, async (usersSnapshot) => {
-        
-        if (usersSnapshot.empty) {
-          console.warn('⚠️ Aucun utilisateur trouvé !');
-          setTeamMembers([]);
-          setLoading(false);
-          return;
-        }
+  // Remplace UNIQUEMENT la fonction loadAllTeamMembers dans TeamPage.jsx
 
-        const membersData = [];
+const loadAllTeamMembers = async () => {
+  setLoading(true);
+  setError(null);
+  
+  try {
+    console.log('👥 Chargement COMPLET avec synchronisation QUÊTES ET XP...');
+    
+    // ÉCOUTE TEMPS RÉEL sur users
+    const usersQuery = query(
+      collection(db, 'users'),
+      orderBy('gamification.totalXp', 'desc')
+    );
+    
+    const unsubscribe = onSnapshot(usersQuery, async (usersSnapshot) => {
+      
+      if (usersSnapshot.empty) {
+        console.warn('⚠️ Aucun utilisateur trouvé !');
+        setTeamMembers([]);
+        setLoading(false);
+        return;
+      }
+
+      const membersData = [];
+      
+      // Pour chaque utilisateur
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const userId = userDoc.id;
         
-        // Pour chaque utilisateur
-        for (const userDoc of usersSnapshot.docs) {
-          const userData = userDoc.data();
-          const userId = userDoc.id;
+        const userName = userData.displayName || userData.name || 'Inconnu';
+        const userEmail = userData.email || '';
+        console.log(`🔍 Recherche quêtes pour: ${userName} (ID: ${userId}, Email: ${userEmail})`);
+        
+        // RÉCUPÉRER TOUTES LES QUÊTES
+        const allQuestsQuery = query(collection(db, 'tasks'));
+        const allQuestsSnap = await getDocs(allQuestsQuery);
+        
+        const userQuests = [];
+        let questsInProgress = 0;
+        let questsCompleted = 0;
+        
+        allQuestsSnap.forEach(doc => {
+          const questData = doc.data();
+          const assignedTo = questData.assignedTo;
           
-          const userName = userData.displayName || userData.name || 'Inconnu';
-          const userEmail = userData.email || '';
-          console.log(`🔍 Recherche quêtes pour: ${userName} (ID: ${userId}, Email: ${userEmail})`);
+          // VÉRIFICATION MULTIPLE : UID, EMAIL, NOM
+          let isAssigned = false;
           
-          // RÉCUPÉRER TOUTES LES QUÊTES
-          const allQuestsQuery = query(collection(db, 'tasks'));
-          const allQuestsSnap = await getDocs(allQuestsQuery);
-          
-          const userQuests = [];
-          let questsInProgress = 0;
-          let questsCompleted = 0;
-          
-          // 🔍 DEBUG : Afficher TOUTES les quêtes pour cet utilisateur
-          if (userName === 'Laurena Gey' || userEmail.includes('laurena')) {
-            console.log('🐛 DEBUG LAURENA - Analyse de TOUTES les quêtes:');
-            allQuestsSnap.forEach(doc => {
-              const q = doc.data();
-              console.log(`   📋 "${q.title}"`);
-              console.log(`      assignedTo:`, q.assignedTo);
-              console.log(`      type:`, Array.isArray(q.assignedTo) ? 'array' : typeof q.assignedTo);
-              console.log(`      status:`, q.status);
+          if (Array.isArray(assignedTo)) {
+            isAssigned = assignedTo.some(item => {
+              if (!item) return false;
+              const itemStr = String(item).toLowerCase();
+              const matchUID = itemStr === userId.toLowerCase();
+              const matchEmail = itemStr === userEmail.toLowerCase();
+              const matchName = itemStr === userName.toLowerCase();
+              
+              return matchUID || matchEmail || matchName;
             });
+          } else if (assignedTo) {
+            const assignedStr = String(assignedTo).toLowerCase();
+            const matchUID = assignedStr === userId.toLowerCase();
+            const matchEmail = assignedStr === userEmail.toLowerCase();
+            const matchName = assignedStr === userName.toLowerCase();
+            
+            isAssigned = matchUID || matchEmail || matchName;
           }
           
-          allQuestsSnap.forEach(doc => {
-            const questData = doc.data();
-            const assignedTo = questData.assignedTo;
+          if (isAssigned) {
+            const quest = {
+              id: doc.id,
+              ...questData
+            };
+            userQuests.push(quest);
             
-            // VÉRIFICATION MULTIPLE : UID, EMAIL, NOM
-            let isAssigned = false;
-            
-            // 🔍 DEBUG pour Laurena
-            const isLaurena = userName === 'Laurena Gey' || userEmail.includes('laurena');
-            
-            if (Array.isArray(assignedTo)) {
-              // Vérifier si array contient UID, email ou nom
-              isAssigned = assignedTo.some(item => {
-                if (!item) return false;
-                const itemStr = String(item).toLowerCase();
-                const matchUID = itemStr === userId.toLowerCase();
-                const matchEmail = itemStr === userEmail.toLowerCase();
-                const matchName = itemStr === userName.toLowerCase();
-                
-                if (isLaurena && (matchUID || matchEmail || matchName)) {
-                  console.log(`      ✅ MATCH trouvé pour "${questData.title}":`, { itemStr, matchUID, matchEmail, matchName });
-                }
-                
-                return matchUID || matchEmail || matchName;
-              });
-            } else if (assignedTo) {
-              // Vérifier si string correspond à UID, email ou nom
-              const assignedStr = String(assignedTo).toLowerCase();
-              const matchUID = assignedStr === userId.toLowerCase();
-              const matchEmail = assignedStr === userEmail.toLowerCase();
-              const matchName = assignedStr === userName.toLowerCase();
-              
-              if (isLaurena) {
-                console.log(`   🔍 Comparaison pour "${questData.title}":`, {
-                  assignedStr,
-                  userId: userId.toLowerCase(),
-                  userEmail: userEmail.toLowerCase(),
-                  userName: userName.toLowerCase(),
-                  matchUID,
-                  matchEmail,
-                  matchName
-                });
-              }
-              
-              isAssigned = matchUID || matchEmail || matchName;
+            // Compter par statut
+            if (questData.status === 'in_progress' || questData.status === 'todo') {
+              questsInProgress++;
+            } else if (questData.status === 'completed' || questData.status === 'validated') {
+              questsCompleted++;
             }
-            
-            if (isAssigned) {
-              const quest = {
-                id: doc.id,
-                ...questData
-              };
-              userQuests.push(quest);
-              
-              console.log(`   ✅ Quête trouvée: "${questData.title}" (${questData.status})`);
-              
-              // Compter par statut
-              if (questData.status === 'in_progress' || questData.status === 'todo') {
-                questsInProgress++;
-              } else if (questData.status === 'completed' || questData.status === 'validated') {
-                questsCompleted++;
-              }
-            }
-          });
-          
-          console.log(`📊 ${userName}: ${userQuests.length} quêtes trouvées`);
-          console.log(`   📍 ${questsInProgress} en cours, ${questsCompleted} accomplies`);
-          if (userQuests.length > 0) {
-            console.log(`   📋 Liste:`, userQuests.map(q => `"${q.title}" (${q.status})`).join(', '));
           }
-          
-          // DONNÉES GAMIFICATION
-          const gamification = userData.gamification || {};
-          const totalXp = gamification.totalXp || 0;
-          const level = gamification.level || Math.floor(totalXp / 100) + 1;
-          const badges = gamification.badges || [];
-          
-          // CRÉER L'OBJET MEMBRE COMPLET
-          const member = {
-            id: userId,
-            uid: userId,
-            name: userData.displayName || userData.name || 'Utilisateur anonyme',
-            email: userData.email || '',
-            role: userData.role || 'Membre',
-            department: userData.department || 'Non spécifié',
-            photoURL: userData.photoURL || null,
-            status: userData.status || 'actif',
-            isOnline: userData.isOnline || false,
-            joinedAt: userData.createdAt?.toDate?.() || new Date(),
-            lastActivity: userData.lastActivity?.toDate?.() || new Date(),
-            
-            // DONNÉES GAMIFICATION SYNCHRONISÉES
-            totalXp: totalXp,
-            level: level,
-            weeklyXp: gamification.weeklyXp || 0,
-            monthlyXp: gamification.monthlyXp || 0,
-            badgesCount: badges.length,
-            badges: badges,
-            
-            // DONNÉES QUÊTES SYNCHRONISÉES
-            questsInProgress: questsInProgress,
-            questsCompleted: questsCompleted,
-            questsTotal: userQuests.length,
-            quests: userQuests, // Toutes les quêtes détaillées
-            
-            // DONNÉES CALCULÉES
-            completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
-            currentLevelXp: totalXp % 100,
-            nextLevelXpRequired: 100,
-            xpProgress: ((totalXp % 100) / 100) * 100,
-            
-            // DONNÉES PROFIL
-            phone: userData.phone || null,
-            location: userData.location || null,
-            bio: userData.bio || null,
-            skills: userData.skills || [],
-            synergiaRoles: userData.synergiaRoles || [],
-            
-            // MÉTADONNÉES
-            lastSync: new Date(),
-            syncSource: 'firebase_realtime_quests'
-          };
-          
-          membersData.push(member);
-        }
+        });
         
-        const totalQuests = membersData.reduce((sum, m) => sum + m.questsTotal, 0);
-        const totalInProgress = membersData.reduce((sum, m) => sum + m.questsInProgress, 0);
-        const totalCompleted = membersData.reduce((sum, m) => sum + m.questsCompleted, 0);
+        console.log(`📊 ${userName}: ${userQuests.length} quêtes trouvées`);
+        console.log(`   📍 ${questsInProgress} en cours, ${questsCompleted} accomplies`);
         
-        console.log(`✅ ${membersData.length} membres chargés`);
-        console.log(`📊 Total: ${totalQuests} quêtes (${totalInProgress} en cours, ${totalCompleted} accomplies)`);
+        // ✅ DONNÉES GAMIFICATION SYNCHRONISÉES EN TEMPS RÉEL
+        const gamification = userData.gamification || {};
+        const totalXp = gamification.totalXp || 0;
+        const level = gamification.level || Math.floor(totalXp / 100) + 1;
+        const badges = gamification.badges || [];
         
-        setTeamMembers(membersData);
-        setLoading(false);
-      }, (error) => {
-        console.error('❌ Erreur synchronisation:', error);
-        setError(error.message);
-        setLoading(false);
-      });
+        // CRÉER L'OBJET MEMBRE COMPLET
+        const member = {
+          id: userId,
+          uid: userId,
+          name: userData.displayName || userData.name || 'Utilisateur anonyme',
+          email: userData.email || '',
+          role: userData.role || 'Membre',
+          department: userData.department || 'Non spécifié',
+          photoURL: userData.photoURL || null,
+          status: userData.status || 'actif',
+          isOnline: userData.isOnline || false,
+          joinedAt: userData.createdAt?.toDate?.() || new Date(),
+          lastActivity: userData.lastActivity?.toDate?.() || new Date(),
+          
+          // DONNÉES GAMIFICATION SYNCHRONISÉES
+          totalXp: totalXp,
+          level: level,
+          weeklyXp: gamification.weeklyXp || 0,
+          monthlyXp: gamification.monthlyXp || 0,
+          badgesCount: badges.length,
+          badges: badges,
+          
+          // DONNÉES QUÊTES SYNCHRONISÉES
+          questsInProgress: questsInProgress,
+          questsCompleted: questsCompleted,
+          questsTotal: userQuests.length,
+          quests: userQuests,
+          
+          // DONNÉES CALCULÉES
+          completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
+          currentLevelXp: totalXp % 100,
+          nextLevelXpRequired: 100,
+          xpProgress: ((totalXp % 100) / 100) * 100,
+          
+          // DONNÉES PROFIL
+          phone: userData.phone || null,
+          location: userData.location || null,
+          bio: userData.bio || null,
+          skills: userData.skills || [],
+          synergiaRoles: userData.synergiaRoles || [],
+          
+          // MÉTADONNÉES
+          lastSync: new Date(),
+          syncSource: 'firebase_realtime_quests_and_xp'
+        };
+        
+        membersData.push(member);
+      }
       
-      return unsubscribe;
+      const totalQuests = membersData.reduce((sum, m) => sum + m.questsTotal, 0);
+      const totalInProgress = membersData.reduce((sum, m) => sum + m.questsInProgress, 0);
+      const totalCompleted = membersData.reduce((sum, m) => sum + m.questsCompleted, 0);
       
-    } catch (error) {
-      console.error('❌ Erreur chargement équipe:', error);
+      console.log(`✅ ${membersData.length} membres chargés`);
+      console.log(`📊 Total: ${totalQuests} quêtes (${totalInProgress} en cours, ${totalCompleted} accomplies)`);
+      console.log(`💎 XP total équipe: ${membersData.reduce((sum, m) => sum + m.totalXp, 0)}`);
+      
+      setTeamMembers(membersData);
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ Erreur synchronisation:', error);
       setError(error.message);
       setLoading(false);
-    }
-  };
+    });
+    
+    return unsubscribe;
+    
+  } catch (error) {
+    console.error('❌ Erreur chargement équipe:', error);
+    setError(error.message);
+    setLoading(false);
+  }
+};
 
   const loadMessagingData = async () => {
     try {
