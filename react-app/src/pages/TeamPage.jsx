@@ -34,6 +34,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { useTeamGamificationSync } from '../shared/hooks/useTeamGamificationSync.js';
 
 /**
  * 🏢 PAGE ÉQUIPE AVEC PILOTAGE ADMIN
