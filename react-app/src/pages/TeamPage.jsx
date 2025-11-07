@@ -89,6 +89,35 @@ const { getUserXp, usersGamification } = useTeamGamificationSync(
     }
   }, [user, isAdmin]);
 
+// 🔄 METTRE À JOUR LES XP QUAND LE STORE CHANGE
+useEffect(() => {
+  if (usersGamification.size === 0) return;
+  
+  console.log('🔄 [TEAM] Mise à jour XP depuis la synchronisation temps réel...');
+  
+  setTeamMembers(prev => 
+    prev.map(member => {
+      const gamifData = getUserXp(member.id);
+      if (!gamifData) return member;
+      
+      console.log(`✅ [TEAM] MAJ ${member.name}: ${gamifData.totalXp} XP`);
+      
+      return {
+        ...member,
+        totalXp: gamifData.totalXp,
+        level: gamifData.level,
+        weeklyXp: gamifData.weeklyXp,
+        monthlyXp: gamifData.monthlyXp,
+        badges: gamifData.badges,
+        badgesCount: gamifData.badgeCount,
+        currentLevelXp: gamifData.totalXp % 100,
+        nextLevelXpRequired: 100,
+        xpProgress: ((gamifData.totalXp % 100) / 100) * 100
+      };
+    }).sort((a, b) => b.totalXp - a.totalXp)
+  );
+}, [usersGamification, getUserXp]);
+  
   /**
    * 🚀 CHARGEMENT ET SYNCHRONISATION AUTOMATIQUE
    */
