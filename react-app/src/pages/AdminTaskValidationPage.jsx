@@ -158,7 +158,7 @@ const AdminTaskValidationPage = () => {
           submittedAt: taskData.updatedAt || taskData.createdAt,
           questTitle: taskData.title || 'Quête sans titre',
           difficulty: taskData.difficulty || 'Normale',
-          xpReward: taskData.xpReward || 100,
+          xpReward: taskData.xpReward || 25,
           comment: taskData.comment || '',
           photoUrl: taskData.photoUrl || null,
           videoUrl: taskData.videoUrl || null
@@ -236,13 +236,37 @@ const AdminTaskValidationPage = () => {
         const userDoc = await getDoc(userRef);
         
         if (userDoc.exists()) {
-          const currentXP = userDoc.data().xp || 0;
-          await updateDoc(userRef, {
-            xp: currentXP + (selectedQuest.xpReward || 100),
-            lastXPUpdate: serverTimestamp()
+          const userData = userDoc.data();
+          const gamification = userData.gamification || {};
+          
+          // ✅ CORRECTION : Utiliser gamification.totalXp
+          const currentXP = gamification.totalXp || 0;
+          const xpToAdd = selectedQuest.xpReward || 25;
+          const newTotalXP = currentXP + xpToAdd;
+          const newLevel = Math.floor(newTotalXP / 100) + 1;
+          const currentTasksCompleted = gamification.tasksCompleted || 0;
+          
+          console.log(`🎯 Attribution XP:`, {
+            userId,
+            currentXP,
+            xpToAdd,
+            newTotalXP,
+            newLevel
           });
           
-          console.log(`💎 ${selectedQuest.xpReward} XP attribués à ${userId}`);
+          // ✅ Mise à jour complète de la gamification
+          await updateDoc(userRef, {
+            'gamification.totalXp': newTotalXP,
+            'gamification.level': newLevel,
+            'gamification.tasksCompleted': currentTasksCompleted + 1,
+            'gamification.weeklyXp': (gamification.weeklyXp || 0) + xpToAdd,
+            'gamification.monthlyXp': (gamification.monthlyXp || 0) + xpToAdd,
+            'gamification.lastActivityAt': serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          
+          console.log(`💎 ${xpToAdd} XP attribués à ${userId}`);
+          console.log(`✅ Nouveau total: ${newTotalXP} XP (Niveau ${newLevel})`);
         }
       }
       
