@@ -1221,8 +1221,300 @@ const TeamPage = () => {
                 onClick={(e) => e.stopPropagation()}
                 className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
               >
-                {/* Tout le contenu du modal reste identique */}
-                {/* ... copie tout le reste depuis ton document ... */}
+{/* HEADER DU MODAL */}
+<div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-700">
+  <div className="flex items-center gap-4">
+    {selectedMember.photoURL ? (
+      <img 
+        src={selectedMember.photoURL} 
+        alt={selectedMember.name}
+        className="w-16 h-16 rounded-full object-cover"
+      />
+    ) : (
+      <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+        <span className="text-white font-bold text-2xl">
+          {selectedMember.name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    )}
+    <div>
+      <h3 className="text-2xl font-bold text-white">{selectedMember.name}</h3>
+      <p className="text-gray-400">{selectedMember.role}</p>
+      <p className="text-gray-500 text-sm">{selectedMember.email}</p>
+    </div>
+  </div>
+  <button
+    onClick={() => setShowMemberModal(false)}
+    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+  >
+    <X className="w-5 h-5 text-gray-400" />
+  </button>
+</div>
+
+{/* STATISTIQUES RAPIDES */}
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div className="bg-yellow-500/10 rounded-lg p-4 border border-yellow-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <Zap className="w-5 h-5 text-yellow-400" />
+      <span className="text-yellow-400 text-sm">XP Total</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.totalXp?.toLocaleString() || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">Niveau {selectedMember.level || 1}</div>
+  </div>
+
+  <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <Target className="w-5 h-5 text-blue-400" />
+      <span className="text-blue-400 text-sm">En cours</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.questsInProgress || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">quêtes actives</div>
+  </div>
+
+  <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <CheckCircle className="w-5 h-5 text-green-400" />
+      <span className="text-green-400 text-sm">Accomplies</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.questsCompleted || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">quêtes validées</div>
+  </div>
+
+  <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <Trophy className="w-5 h-5 text-purple-400" />
+      <span className="text-purple-400 text-sm">Badges</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.badgesCount || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">débloqu és</div>
+  </div>
+</div>
+
+{/* PROGRESSION NIVEAU */}
+<div className="bg-gray-700/30 rounded-lg p-4 mb-6">
+  <div className="flex items-center justify-between mb-2">
+    <span className="text-gray-300 font-medium">Niveau {selectedMember.level || 1}</span>
+    <span className="text-gray-400 text-sm">
+      {selectedMember.currentLevelXp || 0} / {selectedMember.nextLevelXpRequired || 100} XP
+    </span>
+  </div>
+  <div className="w-full bg-gray-600 rounded-full h-2">
+    <div 
+      className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-500"
+      style={{ width: `${selectedMember.xpProgress || 0}%` }}
+    />
+  </div>
+  <div className="text-xs text-gray-400 mt-1 text-right">
+    {Math.round(selectedMember.xpProgress || 0)}% jusqu'au niveau suivant
+  </div>
+</div>
+
+{/* LISTE DES QUÊTES */}
+<div className="bg-gray-700/30 rounded-lg p-4">
+  <div className="flex items-center gap-3 mb-4">
+    <Target className="w-5 h-5 text-purple-400" />
+    <h4 className="text-lg font-bold text-white">
+      Quêtes assignées ({selectedMember.questsTotal || 0})
+    </h4>
+  </div>
+
+  {(!selectedMember.quests || selectedMember.quests.length === 0) ? (
+    <div className="text-center py-8">
+      <Target className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+      <p className="text-gray-400">Aucune quête assignée pour le moment</p>
+    </div>
+  ) : (
+    <div className="space-y-3 max-h-96 overflow-y-auto">
+      {selectedMember.quests.map((quest) => {
+        const statusConfig = {
+          'todo': { color: 'text-gray-400', bg: 'bg-gray-500/20', icon: Clock, label: 'À faire' },
+          'in_progress': { color: 'text-blue-400', bg: 'bg-blue-500/20', icon: Zap, label: 'En cours' },
+          'pending': { color: 'text-orange-400', bg: 'bg-orange-500/20', icon: AlertCircle, label: 'En attente' },
+          'completed': { color: 'text-green-400', bg: 'bg-green-500/20', icon: CheckCircle, label: 'Accomplie' },
+          'validated': { color: 'text-purple-400', bg: 'bg-purple-500/20', icon: Trophy, label: 'Validée' }
+        };
+
+        const config = statusConfig[quest.status] || statusConfig['todo'];
+        const StatusIcon = config.icon;
+
+        return (
+          <div
+            key={quest.id}
+            className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 hover:border-purple-500/50 transition-all"
+          >
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <h5 className="text-white font-medium mb-1">{quest.title}</h5>
+                {quest.description && (
+                  <p className="text-gray-400 text-sm line-clamp-2">{quest.description}</p>
+                )}
+              </div>
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${config.bg} ${config.color} text-xs font-medium ml-2`}>
+                <StatusIcon className="w-3 h-3" />
+                {config.label}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs text-gray-400 mt-3">
+              {quest.priority && (
+                <span className={`flex items-center gap-1 ${
+                  quest.priority === 'urgent' ? 'text-red-400' :
+                  quest.priority === 'high' ? 'text-orange-400' :
+                  quest.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'
+                }`}>
+                  <AlertCircle className="w-3 h-3" />
+                  {quest.priority}
+                </span>
+              )}
+              {quest.difficulty && (
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3" />
+                  {quest.difficulty}
+                </span>
+              )}
+              {quest.xpReward && (
+                <span className="flex items-center gap-1 text-yellow-400">
+                  <Zap className="w-3 h-3" />
+                  +{quest.xpReward} XP
+                </span>
+              )}
+              {quest.dueDate && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(quest.dueDate).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
+
+{/* INFORMATIONS SUPPLÉMENTAIRES */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+  <div className="bg-gray-700/30 rounded-lg p-4">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+      <MapPin className="w-4 h-4 text-gray-400" />
+      Informations
+    </h5>
+    <div className="space-y-2 text-sm">
+      <div className="flex justify-between">
+        <span className="text-gray-400">Département:</span>
+        <span className="text-white">{selectedMember.department || 'Non spécifié'}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">Statut:</span>
+        <span className={`font-medium ${
+          selectedMember.status === 'actif' ? 'text-green-400' :
+          selectedMember.status === 'suspendu' ? 'text-orange-400' :
+          selectedMember.status === 'bloqué' ? 'text-red-400' : 'text-gray-400'
+        }`}>
+          {selectedMember.status || 'actif'}
+        </span>
+      </div>
+      {selectedMember.phone && (
+        <div className="flex justify-between">
+          <span className="text-gray-400">Téléphone:</span>
+          <span className="text-white">{selectedMember.phone}</span>
+        </div>
+      )}
+      {selectedMember.location && (
+        <div className="flex justify-between">
+          <span className="text-gray-400">Localisation:</span>
+          <span className="text-white">{selectedMember.location}</span>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div className="bg-gray-700/30 rounded-lg p-4">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+      <TrendingUp className="w-4 h-4 text-gray-400" />
+      Performance
+    </h5>
+    <div className="space-y-2 text-sm">
+      <div className="flex justify-between">
+        <span className="text-gray-400">Taux de complétion:</span>
+        <span className="text-white font-medium">{selectedMember.completionRate || 0}%</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">XP cette semaine:</span>
+        <span className="text-yellow-400 font-medium">+{selectedMember.weeklyXp || 0}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">XP ce mois:</span>
+        <span className="text-yellow-400 font-medium">+{selectedMember.monthlyXp || 0}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">Dernière activité:</span>
+        <span className="text-white">
+          {selectedMember.lastActivity 
+            ? new Date(selectedMember.lastActivity).toLocaleDateString()
+            : 'Inconnue'}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* BADGES */}
+{selectedMember.badges && selectedMember.badges.length > 0 && (
+  <div className="bg-gray-700/30 rounded-lg p-4 mt-4">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+      <Award className="w-4 h-4 text-gray-400" />
+      Badges débloqués ({selectedMember.badges.length})
+    </h5>
+    <div className="flex flex-wrap gap-3">
+      {selectedMember.badges.slice(0, 12).map((badge, index) => (
+        <div
+          key={index}
+          className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-lg p-3 flex items-center gap-2"
+          title={badge.name || badge}
+        >
+          <Trophy className="w-5 h-5 text-yellow-400" />
+          <span className="text-white text-sm font-medium">
+            {typeof badge === 'string' ? badge : badge.name || 'Badge'}
+          </span>
+        </div>
+      ))}
+      {selectedMember.badges.length > 12 && (
+        <div className="bg-gray-600/30 rounded-lg p-3 flex items-center justify-center text-gray-400 text-sm">
+          +{selectedMember.badges.length - 12} autres
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{/* ACTIONS */}
+<div className="flex gap-3 mt-6 pt-4 border-t border-gray-700">
+  <button
+    onClick={() => {
+      setMessageRecipient(selectedMember);
+      setShowMemberModal(false);
+      setShowMessageModal(true);
+    }}
+    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
+  >
+    <Mail className="w-5 h-5" />
+    Envoyer un message
+  </button>
+  
+  {isAdmin && (
+    <button
+      onClick={() => {
+        setShowMemberModal(false);
+        handleEditMember(selectedMember);
+      }}
+      className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg transition-colors"
+    >
+      <Edit className="w-5 h-5" />
+      Modifier
+    </button>
+  )}
+</div>
               </motion.div>
             </motion.div>
           )}
