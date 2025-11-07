@@ -91,34 +91,34 @@ const TeamPage = () => {
     }
   }, [user, isAdmin]);
 
-  // 🔄 METTRE À JOUR LES XP QUAND LE STORE CHANGE
-  useEffect(() => {
-    if (usersGamification.size === 0) return;
-    
-    console.log('🔄 [TEAM] Mise à jour XP depuis la synchronisation temps réel...');
-    
-    setTeamMembers(prev => 
-      prev.map(member => {
-        const gamifData = getUserXp(member.id);
-        if (!gamifData) return member;
-        
-        console.log(`✅ [TEAM] MAJ ${member.name}: ${gamifData.totalXp} XP`);
-        
-        return {
-          ...member,
-          totalXp: gamifData.totalXp,
-          level: gamifData.level,
-          weeklyXp: gamifData.weeklyXp,
-          monthlyXp: gamifData.monthlyXp,
-          badges: gamifData.badges,
-          badgesCount: gamifData.badgeCount,
-          currentLevelXp: gamifData.totalXp % 100,
-          nextLevelXpRequired: 100,
-          xpProgress: ((gamifData.totalXp % 100) / 100) * 100
-        };
-      }).sort((a, b) => b.totalXp - a.totalXp)
-    );
-  }, [usersGamification, getUserXp]);
+// 🔄 METTRE À JOUR LES XP QUAND LE STORE CHANGE
+useEffect(() => {
+  if (usersGamification.size === 0) return;
+  
+  console.log('🔄 [TEAM] Mise à jour XP depuis la synchronisation temps réel...');
+  
+  setTeamMembers(prev => 
+    prev.map(member => {
+      const gamifData = getUserXp(member.id);
+      if (!gamifData) return member;
+      
+      console.log(`✅ [TEAM] MAJ ${member.name}: ${gamifData.totalXp} XP`);
+      
+      return {
+        ...member,
+        totalXp: gamifData.totalXp,
+        level: gamifData.level,
+        weeklyXp: gamifData.weeklyXp,
+        monthlyXp: gamifData.monthlyXp,
+        badges: gamifData.badges,
+        badgesCount: gamifData.badgeCount,
+        currentLevelXp: gamifData.totalXp % 100,
+        nextLevelXpRequired: 100,
+        xpProgress: ((gamifData.totalXp % 100) / 100) * 100
+      };
+    }).sort((a, b) => b.totalXp - a.totalXp)
+  );
+}, [usersGamification, getUserXp]);
   
   /**
    * 🚀 CHARGEMENT ET SYNCHRONISATION AUTOMATIQUE
@@ -150,7 +150,7 @@ const TeamPage = () => {
         unsubscribeMessages();
       }
     };
-  }, [user]);
+}, [user]);  // ✅ PAS [user?.uid]
 
   // 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL - CORRIGÉ
   useEffect(() => {
@@ -207,189 +207,191 @@ const TeamPage = () => {
       console.log('🧹 [MODAL] Nettoyage listener quêtes');
       unsubscribe();
     };
-  }, [showMemberModal, selectedMember?.id]);
+  }, [showMemberModal, selectedMember?.id]); // ✅ SEULEMENT l'ID, pas l'objet complet !
 
-  const loadAllTeamMembers = async () => {
-    setLoading(true);
-    setError(null);
+  // Remplace UNIQUEMENT la fonction loadAllTeamMembers dans TeamPage.jsx
+
+const loadAllTeamMembers = async () => {
+  setLoading(true);
+  setError(null);
+  
+  try {
+    console.log('👥 Chargement COMPLET avec synchronisation QUÊTES ET XP TEMPS RÉEL...');
     
-    try {
-      console.log('👥 Chargement COMPLET avec synchronisation QUÊTES ET XP TEMPS RÉEL...');
-      
-      // 1️⃣ CHARGER LA LISTE DES UTILISATEURS UNE FOIS
-      const usersQuery = query(
-        collection(db, 'users'),
-        orderBy('gamification.totalXp', 'desc')
-      );
-      
-      const usersSnapshot = await getDocs(usersQuery);
-      
-      if (usersSnapshot.empty) {
-        console.warn('⚠️ Aucun utilisateur trouvé !');
-        setTeamMembers([]);
-        setLoading(false);
-        return;
-      }
+    // 1️⃣ CHARGER LA LISTE DES UTILISATEURS UNE FOIS
+    const usersQuery = query(
+      collection(db, 'users'),
+      orderBy('gamification.totalXp', 'desc')
+    );
+    
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    if (usersSnapshot.empty) {
+      console.warn('⚠️ Aucun utilisateur trouvé !');
+      setTeamMembers([]);
+      setLoading(false);
+      return;
+    }
 
-      const userIds = usersSnapshot.docs.map(doc => doc.id);
-      console.log(`📋 ${userIds.length} utilisateurs trouvés`);
+    const userIds = usersSnapshot.docs.map(doc => doc.id);
+    console.log(`📋 ${userIds.length} utilisateurs trouvés`);
 
-      // 2️⃣ CRÉER UN LISTENER TEMPS RÉEL POUR CHAQUE UTILISATEUR
-      const unsubscribeFunctions = [];
-      const membersMap = new Map();
+    // 2️⃣ CRÉER UN LISTENER TEMPS RÉEL POUR CHAQUE UTILISATEUR
+    const unsubscribeFunctions = [];
+    const membersMap = new Map();
 
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        const initialData = userDoc.data();
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id;
+      const initialData = userDoc.data();
 
-        // 🔥 LISTENER TEMPS RÉEL sur ce document utilisateur
-        const unsubscribeUser = onSnapshot(
-          doc(db, 'users', userId),
-          async (userSnapshot) => {
-            if (!userSnapshot.exists()) return;
+      // 🔥 LISTENER TEMPS RÉEL sur ce document utilisateur
+      const unsubscribeUser = onSnapshot(
+        doc(db, 'users', userId),
+        async (userSnapshot) => {
+          if (!userSnapshot.exists()) return;
 
-            const userData = userSnapshot.data();
-            const userName = userData.displayName || userData.name || 'Inconnu';
-            const userEmail = userData.email || '';
+          const userData = userSnapshot.data();
+          const userName = userData.displayName || userData.name || 'Inconnu';
+          const userEmail = userData.email || '';
 
-            console.log(`🔄 [XP-SYNC] Mise à jour pour ${userName}: ${userData.gamification?.totalXp || 0} XP`);
+          console.log(`🔄 [XP-SYNC] Mise à jour pour ${userName}: ${userData.gamification?.totalXp || 0} XP`);
 
-            // RÉCUPÉRER LES QUÊTES
-            const allQuestsQuery = query(collection(db, 'tasks'));
-            const allQuestsSnap = await getDocs(allQuestsQuery);
+          // RÉCUPÉRER LES QUÊTES
+          const allQuestsQuery = query(collection(db, 'tasks'));
+          const allQuestsSnap = await getDocs(allQuestsQuery);
 
-            const userQuests = [];
-            let questsInProgress = 0;
-            let questsCompleted = 0;
+          const userQuests = [];
+          let questsInProgress = 0;
+          let questsCompleted = 0;
 
-            allQuestsSnap.forEach(doc => {
-              const questData = doc.data();
-              const assignedTo = questData.assignedTo;
+          allQuestsSnap.forEach(doc => {
+            const questData = doc.data();
+            const assignedTo = questData.assignedTo;
 
-              let isAssigned = false;
+            let isAssigned = false;
 
-              if (Array.isArray(assignedTo)) {
-                isAssigned = assignedTo.some(item => {
-                  if (!item) return false;
-                  const itemStr = String(item).toLowerCase();
-                  return itemStr === userId.toLowerCase() || 
-                         itemStr === userEmail.toLowerCase() || 
-                         itemStr === userName.toLowerCase();
-                });
-              } else if (assignedTo) {
-                const assignedStr = String(assignedTo).toLowerCase();
-                isAssigned = assignedStr === userId.toLowerCase() || 
-                            assignedStr === userEmail.toLowerCase() || 
-                            assignedStr === userName.toLowerCase();
+            if (Array.isArray(assignedTo)) {
+              isAssigned = assignedTo.some(item => {
+                if (!item) return false;
+                const itemStr = String(item).toLowerCase();
+                return itemStr === userId.toLowerCase() || 
+                       itemStr === userEmail.toLowerCase() || 
+                       itemStr === userName.toLowerCase();
+              });
+            } else if (assignedTo) {
+              const assignedStr = String(assignedTo).toLowerCase();
+              isAssigned = assignedStr === userId.toLowerCase() || 
+                          assignedStr === userEmail.toLowerCase() || 
+                          assignedStr === userName.toLowerCase();
+            }
+
+            if (isAssigned) {
+              userQuests.push({ id: doc.id, ...questData });
+
+              if (questData.status === 'in_progress' || questData.status === 'todo') {
+                questsInProgress++;
+              } else if (questData.status === 'completed' || questData.status === 'validated') {
+                questsCompleted++;
               }
+            }
+          });
 
-              if (isAssigned) {
-                userQuests.push({ id: doc.id, ...questData });
+          // DONNÉES GAMIFICATION
+          const gamification = userData.gamification || {};
+          const totalXp = gamification.totalXp || 0;
+          const level = gamification.level || Math.floor(totalXp / 100) + 1;
+          const badges = gamification.badges || [];
 
-                if (questData.status === 'in_progress' || questData.status === 'todo') {
-                  questsInProgress++;
-                } else if (questData.status === 'completed' || questData.status === 'validated') {
-                  questsCompleted++;
-                }
-              }
-            });
+          // CRÉER/METTRE À JOUR LE MEMBRE
+          const member = {
+            id: userId,
+            uid: userId,
+            name: userName,
+            email: userEmail,
+            role: userData.role || 'Membre',
+            department: userData.department || 'Non spécifié',
+            photoURL: userData.photoURL || null,
+            status: userData.status || 'actif',
+            isOnline: userData.isOnline || false,
+            joinedAt: userData.createdAt?.toDate?.() || new Date(),
+            lastActivity: userData.lastActivity?.toDate?.() || new Date(),
 
             // DONNÉES GAMIFICATION
-            const gamification = userData.gamification || {};
-            const totalXp = gamification.totalXp || 0;
-            const level = gamification.level || Math.floor(totalXp / 100) + 1;
-            const badges = gamification.badges || [];
+            totalXp: totalXp,
+            level: level,
+            weeklyXp: gamification.weeklyXp || 0,
+            monthlyXp: gamification.monthlyXp || 0,
+            badgesCount: badges.length,
+            badges: badges,
 
-            // CRÉER/METTRE À JOUR LE MEMBRE
-            const member = {
-              id: userId,
-              uid: userId,
-              name: userName,
-              email: userEmail,
-              role: userData.role || 'Membre',
-              department: userData.department || 'Non spécifié',
-              photoURL: userData.photoURL || null,
-              status: userData.status || 'actif',
-              isOnline: userData.isOnline || false,
-              joinedAt: userData.createdAt?.toDate?.() || new Date(),
-              lastActivity: userData.lastActivity?.toDate?.() || new Date(),
+            // DONNÉES QUÊTES
+            questsInProgress: questsInProgress,
+            questsCompleted: questsCompleted,
+            questsTotal: userQuests.length,
+            quests: userQuests,
 
-              // DONNÉES GAMIFICATION
-              totalXp: totalXp,
-              level: level,
-              weeklyXp: gamification.weeklyXp || 0,
-              monthlyXp: gamification.monthlyXp || 0,
-              badgesCount: badges.length,
-              badges: badges,
+            // DONNÉES CALCULÉES
+            completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
+            currentLevelXp: totalXp % 100,
+            nextLevelXpRequired: 100,
+            xpProgress: ((totalXp % 100) / 100) * 100,
 
-              // DONNÉES QUÊTES
-              questsInProgress: questsInProgress,
-              questsCompleted: questsCompleted,
-              questsTotal: userQuests.length,
-              quests: userQuests,
+            // DONNÉES PROFIL
+            phone: userData.phone || null,
+            location: userData.location || null,
+            bio: userData.bio || null,
+            skills: userData.skills || [],
+            synergiaRoles: userData.synergiaRoles || [],
 
-              // DONNÉES CALCULÉES
-              completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
-              currentLevelXp: totalXp % 100,
-              nextLevelXpRequired: 100,
-              xpProgress: ((totalXp % 100) / 100) * 100,
+            // MÉTADONNÉES
+            lastSync: new Date(),
+            syncSource: 'firebase_realtime_individual_listeners'
+          };
 
-              // DONNÉES PROFIL
-              phone: userData.phone || null,
-              location: userData.location || null,
-              bio: userData.bio || null,
-              skills: userData.skills || [],
-              synergiaRoles: userData.synergiaRoles || [],
+          // METTRE À JOUR DANS LA MAP
+          membersMap.set(userId, member);
 
-              // MÉTADONNÉES
-              lastSync: new Date(),
-              syncSource: 'firebase_realtime_individual_listeners'
-            };
+          // METTRE À JOUR LE STATE
+          const updatedMembers = Array.from(membersMap.values())
+            .sort((a, b) => b.totalXp - a.totalXp);
 
-            // METTRE À JOUR DANS LA MAP
-            membersMap.set(userId, member);
+          setTeamMembers(updatedMembers);
 
-            // METTRE À JOUR LE STATE
-            const updatedMembers = Array.from(membersMap.values())
-              .sort((a, b) => b.totalXp - a.totalXp);
+          console.log(`✅ [XP-SYNC] ${userName}: ${totalXp} XP, ${userQuests.length} quêtes`);
+        },
+        (error) => {
+          console.error(`❌ Erreur listener ${userId}:`, error);
+        }
+      );
 
-            setTeamMembers(updatedMembers);
+      unsubscribeFunctions.push(unsubscribeUser);
 
-            console.log(`✅ [XP-SYNC] ${userName}: ${totalXp} XP, ${userQuests.length} quêtes`);
-          },
-          (error) => {
-            console.error(`❌ Erreur listener ${userId}:`, error);
-          }
-        );
-
-        unsubscribeFunctions.push(unsubscribeUser);
-
-        // Initialiser la map avec les données initiales
-        const initialMember = {
-          id: userId,
-          name: initialData.displayName || initialData.name || 'Inconnu',
-          totalXp: initialData.gamification?.totalXp || 0
-        };
-        membersMap.set(userId, initialMember);
-      }
-
-      // Charger les données initiales immédiatement
-      setLoading(false);
-
-      console.log(`✅ ${unsubscribeFunctions.length} listeners XP temps réel activés`);
-
-      // Fonction de nettoyage qui unsub tous les listeners
-      return () => {
-        console.log('🧹 Nettoyage de tous les listeners XP...');
-        unsubscribeFunctions.forEach(unsub => unsub());
+      // Initialiser la map avec les données initiales
+      const initialMember = {
+        id: userId,
+        name: initialData.displayName || initialData.name || 'Inconnu',
+        totalXp: initialData.gamification?.totalXp || 0
       };
-
-    } catch (error) {
-      console.error('❌ Erreur chargement équipe:', error);
-      setError(error.message);
-      setLoading(false);
+      membersMap.set(userId, initialMember);
     }
-  };
+
+    // Charger les données initiales immédiatement
+    setLoading(false);
+
+    console.log(`✅ ${unsubscribeFunctions.length} listeners XP temps réel activés`);
+
+    // Fonction de nettoyage qui unsub tous les listeners
+    return () => {
+      console.log('🧹 Nettoyage de tous les listeners XP...');
+      unsubscribeFunctions.forEach(unsub => unsub());
+    };
+
+  } catch (error) {
+    console.error('❌ Erreur chargement équipe:', error);
+    setError(error.message);
+    setLoading(false);
+  }
+};
 
   const loadMessagingData = async () => {
     try {
@@ -1122,15 +1124,675 @@ const TeamPage = () => {
             </>
           )}
 
-          {/* ONGLET ADMINISTRATION - reste identique, je ne copie pas pour gagner de la place */}
+          {/* ONGLET ADMINISTRATION */}
           {activeTab === 'admin' && isAdmin && (
-            /* ... ton code admin existant ... */
-            <div>Admin Panel (code existant préservé)</div>
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+              <div className="flex items-center gap-3 mb-6">
+                <Shield className="w-6 h-6 text-red-400" />
+                <h2 className="text-2xl font-bold text-white">Panneau d'Administration</h2>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-700/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Membre</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Rôle</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Département</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">XP</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700/50">
+                    {filteredMembers.map((member) => (
+                      <tr key={member.id} className="hover:bg-gray-700/30 transition-colors">
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                              <span className="text-white font-bold">
+                                {member.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">{member.name}</div>
+                              <div className="text-gray-400 text-sm">{member.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-gray-300">{member.role}</td>
+                        <td className="px-4 py-4 text-gray-300">{member.department}</td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            member.status === 'actif' ? 'bg-green-500/20 text-green-400' :
+                            member.status === 'suspendu' ? 'bg-orange-500/20 text-orange-400' :
+                            member.status === 'bloqué' ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {member.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-yellow-400 font-bold">{member.totalXp.toLocaleString()}</td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleEditMember(member)}
+                              className="p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
+                              title="Modifier"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+
+                            {member.status === 'actif' ? (
+                              <button
+                                onClick={() => handleSuspendMember(member.id)}
+                                className="p-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors"
+                                title="Suspendre"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            ) : member.status === 'suspendu' ? (
+                              <button
+                                onClick={() => handleActivateMember(member.id)}
+                                className="p-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors"
+                                title="Réactiver"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </button>
+                            ) : null}
+
+                            <button
+                              onClick={() => handleBlockMember(member.id)}
+                              className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                              title="Bloquer"
+                            >
+                              <Lock className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedMember(member);
+                                setShowDeleteModal(true);
+                              }}
+                              className="p-2 bg-red-600/20 hover:bg-red-600/30 text-red-500 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* MODALS - reste identique, je ne copie pas pour gagner de la place */}
-        {/* ... tous tes modaux existants ... */}
+    {/* MODAL PROFIL MEMBRE AVEC QUÊTES DÉTAILLÉES */}
+        <AnimatePresence>
+          {showMemberModal && selectedMember && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowMemberModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              >
+{/* HEADER DU MODAL */}
+<div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-700">
+  <div className="flex items-center gap-4">
+    {selectedMember.photoURL ? (
+      <img 
+        src={selectedMember.photoURL} 
+        alt={selectedMember.name}
+        className="w-16 h-16 rounded-full object-cover"
+      />
+    ) : (
+      <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+        <span className="text-white font-bold text-2xl">
+          {selectedMember.name.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    )}
+    <div>
+      <h3 className="text-2xl font-bold text-white">{selectedMember.name}</h3>
+      <p className="text-gray-400">{selectedMember.role}</p>
+      <p className="text-gray-500 text-sm">{selectedMember.email}</p>
+    </div>
+  </div>
+  <button
+    onClick={() => setShowMemberModal(false)}
+    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+  >
+    <X className="w-5 h-5 text-gray-400" />
+  </button>
+</div>
+
+{/* STATISTIQUES RAPIDES */}
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div className="bg-yellow-500/10 rounded-lg p-4 border border-yellow-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <Zap className="w-5 h-5 text-yellow-400" />
+      <span className="text-yellow-400 text-sm">XP Total</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.totalXp?.toLocaleString() || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">Niveau {selectedMember.level || 1}</div>
+  </div>
+
+  <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <Target className="w-5 h-5 text-blue-400" />
+      <span className="text-blue-400 text-sm">En cours</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.questsInProgress || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">quêtes actives</div>
+  </div>
+
+  <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <CheckCircle className="w-5 h-5 text-green-400" />
+      <span className="text-green-400 text-sm">Accomplies</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.questsCompleted || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">quêtes validées</div>
+  </div>
+
+  <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/20">
+    <div className="flex items-center gap-2 mb-2">
+      <Trophy className="w-5 h-5 text-purple-400" />
+      <span className="text-purple-400 text-sm">Badges</span>
+    </div>
+    <div className="text-2xl font-bold text-white">{selectedMember.badgesCount || 0}</div>
+    <div className="text-xs text-gray-400 mt-1">débloqués</div>
+  </div>
+</div>
+
+{/* PROGRESSION NIVEAU */}
+<div className="bg-gray-700/30 rounded-lg p-4 mb-6">
+  <div className="flex items-center justify-between mb-2">
+    <span className="text-gray-300 font-medium">Niveau {selectedMember.level || 1}</span>
+    <span className="text-gray-400 text-sm">
+      {selectedMember.currentLevelXp || 0} / {selectedMember.nextLevelXpRequired || 100} XP
+    </span>
+  </div>
+  <div className="w-full bg-gray-600 rounded-full h-2">
+    <div 
+      className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-500"
+      style={{ width: `${selectedMember.xpProgress || 0}%` }}
+    />
+  </div>
+  <div className="text-xs text-gray-400 mt-1 text-right">
+    {Math.round(selectedMember.xpProgress || 0)}% jusqu'au niveau suivant
+  </div>
+</div>
+
+{/* LISTE DES QUÊTES */}
+<div className="bg-gray-700/30 rounded-lg p-4">
+  <div className="flex items-center gap-3 mb-4">
+    <Target className="w-5 h-5 text-purple-400" />
+    <h4 className="text-lg font-bold text-white">
+      Quêtes assignées ({selectedMember.questsTotal || 0})
+    </h4>
+  </div>
+
+  {(!selectedMember.quests || selectedMember.quests.length === 0) ? (
+    <div className="text-center py-8">
+      <Target className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+      <p className="text-gray-400">Aucune quête assignée pour le moment</p>
+    </div>
+  ) : (
+    <div className="space-y-3 max-h-96 overflow-y-auto">
+      {selectedMember.quests.map((quest) => {
+        const statusConfig = {
+          'todo': { color: 'text-gray-400', bg: 'bg-gray-500/20', icon: Clock, label: 'À faire' },
+          'in_progress': { color: 'text-blue-400', bg: 'bg-blue-500/20', icon: Zap, label: 'En cours' },
+          'pending': { color: 'text-orange-400', bg: 'bg-orange-500/20', icon: AlertCircle, label: 'En attente' },
+          'completed': { color: 'text-green-400', bg: 'bg-green-500/20', icon: CheckCircle, label: 'Accomplie' },
+          'validated': { color: 'text-purple-400', bg: 'bg-purple-500/20', icon: Trophy, label: 'Validée' }
+        };
+
+        const config = statusConfig[quest.status] || statusConfig['todo'];
+        const StatusIcon = config.icon;
+
+        return (
+          <div
+            key={quest.id}
+            className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 hover:border-purple-500/50 transition-all"
+          >
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <h5 className="text-white font-medium mb-1">{quest.title}</h5>
+                {quest.description && (
+                  <p className="text-gray-400 text-sm line-clamp-2">{quest.description}</p>
+                )}
+              </div>
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${config.bg} ${config.color} text-xs font-medium ml-2`}>
+                <StatusIcon className="w-3 h-3" />
+                {config.label}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs text-gray-400 mt-3">
+              {quest.priority && (
+                <span className={`flex items-center gap-1 ${
+                  quest.priority === 'urgent' ? 'text-red-400' :
+                  quest.priority === 'high' ? 'text-orange-400' :
+                  quest.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'
+                }`}>
+                  <AlertCircle className="w-3 h-3" />
+                  {quest.priority}
+                </span>
+              )}
+              {quest.difficulty && (
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3" />
+                  {quest.difficulty}
+                </span>
+              )}
+              {quest.xpReward && (
+                <span className="flex items-center gap-1 text-yellow-400">
+                  <Zap className="w-3 h-3" />
+                  +{quest.xpReward} XP
+                </span>
+              )}
+              {quest.dueDate && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(quest.dueDate).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
+
+{/* INFORMATIONS SUPPLÉMENTAIRES */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+  <div className="bg-gray-700/30 rounded-lg p-4">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+      <MapPin className="w-4 h-4 text-gray-400" />
+      Informations
+    </h5>
+    <div className="space-y-2 text-sm">
+      <div className="flex justify-between">
+        <span className="text-gray-400">Département:</span>
+        <span className="text-white">{selectedMember.department || 'Non spécifié'}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">Statut:</span>
+        <span className={`font-medium ${
+          selectedMember.status === 'actif' ? 'text-green-400' :
+          selectedMember.status === 'suspendu' ? 'text-orange-400' :
+          selectedMember.status === 'bloqué' ? 'text-red-400' : 'text-gray-400'
+        }`}>
+          {selectedMember.status || 'actif'}
+        </span>
+      </div>
+      {selectedMember.phone && (
+        <div className="flex justify-between">
+          <span className="text-gray-400">Téléphone:</span>
+          <span className="text-white">{selectedMember.phone}</span>
+        </div>
+      )}
+      {selectedMember.location && (
+        <div className="flex justify-between">
+          <span className="text-gray-400">Localisation:</span>
+          <span className="text-white">{selectedMember.location}</span>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div className="bg-gray-700/30 rounded-lg p-4">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+      <TrendingUp className="w-4 h-4 text-gray-400" />
+      Performance
+    </h5>
+    <div className="space-y-2 text-sm">
+      <div className="flex justify-between">
+        <span className="text-gray-400">Taux de complétion:</span>
+        <span className="text-white font-medium">{selectedMember.completionRate || 0}%</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">XP cette semaine:</span>
+        <span className="text-yellow-400 font-medium">+{selectedMember.weeklyXp || 0}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">XP ce mois:</span>
+        <span className="text-yellow-400 font-medium">+{selectedMember.monthlyXp || 0}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-gray-400">Dernière activité:</span>
+        <span className="text-white">
+          {selectedMember.lastActivity 
+            ? new Date(selectedMember.lastActivity).toLocaleDateString()
+            : 'Inconnue'}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* BADGES */}
+{selectedMember.badges && selectedMember.badges.length > 0 && (
+  <div className="bg-gray-700/30 rounded-lg p-4 mt-4">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+      <Award className="w-4 h-4 text-gray-400" />
+      Badges débloqués ({selectedMember.badges.length})
+    </h5>
+    <div className="flex flex-wrap gap-3">
+      {selectedMember.badges.slice(0, 12).map((badge, index) => (
+        <div
+          key={index}
+          className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-lg p-3 flex items-center gap-2"
+          title={badge.name || badge}
+        >
+          <Trophy className="w-5 h-5 text-yellow-400" />
+          <span className="text-white text-sm font-medium">
+            {typeof badge === 'string' ? badge : badge.name || 'Badge'}
+          </span>
+        </div>
+      ))}
+      {selectedMember.badges.length > 12 && (
+        <div className="bg-gray-600/30 rounded-lg p-3 flex items-center justify-center text-gray-400 text-sm">
+          +{selectedMember.badges.length - 12} autres
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{/* ACTIONS */}
+<div className="flex gap-3 mt-6 pt-4 border-t border-gray-700">
+  <button
+    onClick={() => {
+      setMessageRecipient(selectedMember);
+      setShowMemberModal(false);
+      setShowMessageModal(true);
+    }}
+    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
+  >
+    <Mail className="w-5 h-5" />
+    Envoyer un message
+  </button>
+  
+  {isAdmin && (
+    <button
+      onClick={() => {
+        setShowMemberModal(false);
+        handleEditMember(selectedMember);
+      }}
+      className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg transition-colors"
+    >
+      <Edit className="w-5 h-5" />
+      Modifier
+    </button>
+  )}
+</div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL ÉDITION */}
+        <AnimatePresence>
+          {showEditModal && selectedMember && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowEditModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white">Modifier le membre</h3>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={selectedMember.name}
+                      onChange={(e) => setSelectedMember({...selectedMember, name: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Rôle</label>
+                    <input
+                      type="text"
+                      value={selectedMember.role}
+                      onChange={(e) => setSelectedMember({...selectedMember, role: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Département</label>
+                    <input
+                      type="text"
+                      value={selectedMember.department}
+                      onChange={(e) => setSelectedMember({...selectedMember, department: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Statut</label>
+                    <select
+                      value={selectedMember.status}
+                      onChange={(e) => setSelectedMember({...selectedMember, status: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    >
+                      <option value="actif">Actif</option>
+                      <option value="inactif">Inactif</option>
+                      <option value="suspendu">Suspendu</option>
+                      <option value="bloqué">Bloqué</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => setShowEditModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL SUPPRESSION */}
+        <AnimatePresence>
+          {showDeleteModal && selectedMember && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+              >
+                <div className="flex items-center gap-3 mb-6 text-red-500">
+                  <AlertTriangle className="w-6 h-6" />
+                  <h3 className="text-xl font-bold">Suppression définitive</h3>
+                </div>
+
+                <p className="text-gray-300 mb-6">
+                  Êtes-vous absolument certain de vouloir supprimer <strong>{selectedMember.name}</strong> ?
+                  Cette action est irréversible et toutes les données seront perdues.
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleDeleteMember}
+                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* MODAL MESSAGE */}
+        <AnimatePresence>
+          {showMessageModal && messageRecipient && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowMessageModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <MessageCircle className="w-6 h-6 text-blue-400" />
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Conversation avec {messageRecipient.name}</h3>
+                      <p className="text-gray-400 text-sm">{messageRecipient.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowMessageModal(false)}
+                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+
+                {/* Historique des messages */}
+                <div className="mb-6 max-h-96 overflow-y-auto space-y-3">
+                  {messages
+                    .filter(msg => 
+                      (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
+                      (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
+                    )
+                    .sort((a, b) => {
+                      const aTime = a.createdAt?.toDate?.() || new Date(a.createdAt);
+                      const bTime = b.createdAt?.toDate?.() || new Date(b.createdAt);
+                      return aTime - bTime;
+                    })
+                    .map((message) => {
+                      const isOwn = message.senderId === user.uid;
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[70%] rounded-lg p-3 ${
+                            isOwn 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-gray-700 text-gray-100'
+                          }`}>
+                            <p className="text-sm">{message.content}</p>
+                            <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
+                              {message.createdAt?.toDate?.().toLocaleString() || 'À l\'instant'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  
+                  {messages.filter(msg => 
+                    (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
+                    (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
+                  ).length === 0 && (
+                    <div className="text-center text-gray-400 py-8">
+                      <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>Aucun message échangé</p>
+                      <p className="text-sm mt-2">Démarrez la conversation ci-dessous</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Formulaire nouveau message */}
+                <div className="space-y-4">
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Votre message..."
+                    rows={4}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowMessageModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!newMessage.trim()}
+                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <Send className="w-4 h-4" />
+                      Envoyer
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Layout>
   );
