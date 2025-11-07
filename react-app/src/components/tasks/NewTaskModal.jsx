@@ -38,6 +38,8 @@ import { createTaskSafely } from '../../core/services/taskCreationFix.js';
 import storageService from '../../core/services/storageService.js';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
+import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+
 
 /**
  * 🎭 RÔLES SYNERGIA OFFICIELS
@@ -386,6 +388,11 @@ const NewTaskModal = ({
   console.log('🔄 [QUÊTE] Mise à jour de la quête:', task.id);
   
   const taskRef = doc(db, 'tasks', task.id);
+  const taskSnap = await getDoc(taskRef);
+  
+  if (!taskSnap.exists()) {
+    throw new Error('Cette quête n\'existe plus dans la base de données.');
+  }
   
   // Préparer les données sans les champs de création
   const { createdBy, createdByName, createdAt, assignedTo, ...updateFields } = cleanedData;
