@@ -1,15 +1,15 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT FINAL AVEC MENU PREMIUM - VERSION COMPLÈTE
+// LAYOUT FINAL AVEC MENU PREMIUM + DÉTECTION PAGE ACTIVE
 // ==========================================
 
 import React, { useState, memo, useRef, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-// 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ
-const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
-  console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen);
+// 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + DÉTECTION PAGE ACTIVE
+const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, currentPath }) => {
+  console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen, 'currentPath:', currentPath);
   
   if (!isOpen) return null;
 
@@ -52,6 +52,20 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
     navigateFunction(path); // Naviguer
   };
 
+  // 🎯 FONCTION POUR DÉTERMINER SI UN BOUTON EST ACTIF
+  const isActive = (itemPath) => {
+    // Exacte correspondance ou page de base (/ = /dashboard)
+    if (currentPath === itemPath) return true;
+    if (currentPath === '/' && itemPath === '/dashboard') return true;
+    
+    // Pour les routes admin, vérifier si on est dans une sous-route
+    if (itemPath.startsWith('/admin') && currentPath.startsWith('/admin')) {
+      return currentPath === itemPath;
+    }
+    
+    return false;
+  };
+
   return (
     <div 
       style={{
@@ -61,58 +75,69 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
         width: '100vw',
         height: '100vh',
         zIndex: 999999,
-        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(88, 28, 135, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        animation: 'fadeIn 0.3s ease-out'
+        pointerEvents: 'none'
       }}
-      onClick={onClose}
     >
-      {/* CONTENU MENU PREMIUM */}
-      <div 
+      {/* OVERLAY FOND */}
+      <div
+        onClick={onClose}
         style={{
-          background: 'linear-gradient(135deg, rgba(31, 41, 55, 0.8) 0%, rgba(55, 65, 81, 0.8) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(156, 163, 175, 0.2)',
-          borderRadius: '24px',
-          width: '90%',
-          maxWidth: '700px',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          padding: '32px',
-          position: 'relative',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-          animation: 'slideUp 0.4s ease-out'
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(10px)',
+          animation: 'fadeIn 0.3s ease-out',
+          pointerEvents: 'auto'
         }}
-        onClick={(e) => e.stopPropagation()}
+      />
+
+      {/* PANNEAU MENU */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '400px',
+          maxWidth: '90vw',
+          height: '100%',
+          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 0 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          pointerEvents: 'auto',
+          overflow: 'hidden'
+        }}
       >
-        {/* HEADER PREMIUM */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '32px' 
+        {/* HEADER */}
+        <div style={{
+          padding: '24px',
+          borderBottom: '1px solid rgba(156, 163, 175, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
         }}>
           <div>
-            <h2 style={{ 
-              fontSize: '32px', 
-              fontWeight: '800',
-              background: 'linear-gradient(135deg, #60a5fa 0%, #a855f7 100%)',
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              marginBottom: '8px'
+              marginBottom: '4px'
             }}>
               Navigation
             </h2>
             <p style={{
-              color: '#9ca3af',
-              fontSize: '16px',
-              fontWeight: '400'
+              fontSize: '14px',
+              color: '#9ca3af'
             }}>
-              Explorez toutes les sections de Synergia
+              Explorer toutes les sections de Synergia
             </p>
           </div>
           
@@ -120,11 +145,11 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
           <button
             onClick={onClose}
             style={{
+              width: '40px',
+              height: '40px',
               background: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '12px',
-              width: '48px',
-              height: '48px',
+              borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -146,7 +171,14 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
         </div>
 
         {/* SECTIONS MENU */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '24px',
+          padding: '24px',
+          overflowY: 'auto',
+          flex: 1
+        }}>
           {menuItems.map((section, sectionIndex) => (
             <div key={sectionIndex}>
               <h3 style={{
@@ -161,41 +193,67 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
               </h3>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {section.items.map((item, itemIndex) => (
-                  <button
-                    key={itemIndex}
-                    onClick={() => handleNavigation(item.path)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px 16px',
-                      background: 'rgba(55, 65, 81, 0.5)',
-                      border: '1px solid rgba(156, 163, 175, 0.2)',
-                      borderRadius: '12px',
-                      color: 'white',
-                      fontSize: '16px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      textAlign: 'left',
-                      width: '100%'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)';
-                      e.target.style.borderColor = 'rgba(139, 92, 246, 0.5)';
-                      e.target.style.transform = 'translateX(8px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'rgba(55, 65, 81, 0.5)';
-                      e.target.style.borderColor = 'rgba(156, 163, 175, 0.2)';
-                      e.target.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    <span style={{ fontSize: '20px' }}>{item.icon}</span>
-                    <span>{item.label}</span>
-                  </button>
-                ))}
+                {section.items.map((item, itemIndex) => {
+                  const active = isActive(item.path);
+                  
+                  return (
+                    <button
+                      key={itemIndex}
+                      onClick={() => handleNavigation(item.path)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px 16px',
+                        background: active 
+                          ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)'
+                          : 'rgba(55, 65, 81, 0.5)',
+                        border: active
+                          ? '1px solid rgba(139, 92, 246, 0.5)'
+                          : '1px solid rgba(156, 163, 175, 0.2)',
+                        borderRadius: '12px',
+                        color: 'white',
+                        fontSize: '16px',
+                        fontWeight: active ? '600' : '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        textAlign: 'left',
+                        width: '100%',
+                        transform: active ? 'translateX(8px)' : 'translateX(0)',
+                        boxShadow: active 
+                          ? '0 4px 12px rgba(139, 92, 246, 0.3)'
+                          : 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!active) {
+                          e.target.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)';
+                          e.target.style.borderColor = 'rgba(139, 92, 246, 0.4)';
+                          e.target.style.transform = 'translateX(4px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!active) {
+                          e.target.style.background = 'rgba(55, 65, 81, 0.5)';
+                          e.target.style.borderColor = 'rgba(156, 163, 175, 0.2)';
+                          e.target.style.transform = 'translateX(0)';
+                        }
+                      }}
+                    >
+                      <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                      <span>{item.label}</span>
+                      {active && (
+                        <span style={{
+                          marginLeft: 'auto',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
+                          boxShadow: '0 0 8px rgba(139, 92, 246, 0.6)'
+                        }} />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -252,6 +310,7 @@ const Layout = memo(({ children }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuOpenRef = useRef(false);
   const navigate = useNavigate();
+  const location = useLocation(); // 🎯 Hook pour obtenir le chemin actuel
 
   const openMenu = useCallback(() => {
     console.log('🔓 [LAYOUT] Ouverture menu demandée');
@@ -316,11 +375,12 @@ const Layout = memo(({ children }) => {
         <Menu style={{ width: '28px', height: '28px', color: 'white' }} />
       </button>
 
-      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE */}
+      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE + PATH ACTUEL */}
       <HamburgerMenuStable 
         isOpen={menuOpen} 
         onClose={closeMenu}
         navigateFunction={navigateFunction}
+        currentPath={location.pathname}
       />
 
       {/* CONTENU */}
