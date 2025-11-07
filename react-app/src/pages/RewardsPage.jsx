@@ -139,7 +139,7 @@ const RewardsPage = () => {
       let totalXP = 0;
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();
-        totalXP += userData.xp || 0;
+totalXP += userData.gamification?.totalXp || 0;
       });
       setTeamTotalXP(totalXP);
       console.log('✅ XP équipe calculé:', totalXP);
@@ -214,7 +214,7 @@ const RewardsPage = () => {
       return;
     }
 
-    const userXP = userProfile?.xp || 0;
+const userXP = userProfile?.gamification?.totalXp || 0;
     const requiredXP = reward.type === 'team' ? teamTotalXP : userXP;
 
     if (requiredXP < reward.xpCost) {
@@ -450,8 +450,7 @@ const RewardsPage = () => {
     );
   }
 
-  const userXP = userProfile?.xp || 0;
-
+const userXP = userProfile?.gamification?.totalXp || 0;
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
