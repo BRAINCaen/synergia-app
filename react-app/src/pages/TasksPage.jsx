@@ -120,20 +120,20 @@ const TasksPage = () => {
       orderBy('createdAt', 'desc')
     );
 
-const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
-  const loadedTasks = snapshot.docs
-    .map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    .filter(task => {
-      // ✅ Filtrer les quêtes invalides
-      if (!task.id || !task.title) {
-        console.warn('⚠️ Quête invalide détectée:', task.id);
-        return false;
-      }
-      return true;
-    });
+    const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+      const loadedTasks = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        .filter(task => {
+          // ✅ Filtrer les quêtes invalides
+          if (!task.id || !task.title) {
+            console.warn('⚠️ Quête invalide détectée:', task.id);
+            return false;
+          }
+          return true;
+        });
       
       console.log(`✅ [QUÊTES] ${loadedTasks.length} quêtes chargées`);
       setTasks(loadedTasks);
@@ -145,36 +145,7 @@ const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
 
     return () => unsubscribe();
   }, [user?.uid]);
-useEffect(() => {
-  if (!user?.uid) return;
 
-  console.log('🔍 [DEBUG] UID utilisateur:', user.uid);
-  console.log('🔍 [DEBUG] Email utilisateur:', user.email);
-
-  const tasksQuery = query(
-    collection(db, 'tasks'),
-    orderBy('createdAt', 'desc')
-  );
-
-  const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
-    const loadedTasks = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    
-    console.log('📊 [DEBUG] Total quêtes dans Firebase:', loadedTasks.length);
-    console.log('📊 [DEBUG] Quêtes chargées:', loadedTasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      assignedTo: t.assignedTo
-    })));
-    
-    setTasks(loadedTasks);
-    setIsLoading(false);
-  });
-
-  return () => unsubscribe();
-}, [user?.uid]);
   // 💬 CHARGEMENT DES COMMENTAIRES EN TEMPS RÉEL
   useEffect(() => {
     if (!user?.uid || tasks.length === 0) return;
@@ -233,14 +204,15 @@ useEffect(() => {
         return !isAssignedToMe && (isOpenToVolunteers || hasNoAssignment) && task.status === 'todo';
       });
     } else if (activeTab === 'others') {
-      // ✅ CORRECTION : Afficher TOUTES les quêtes assignées à d'autres utilisateurs
+      // ✅ CORRECTION : Afficher les quêtes assignées à d'autres ET exclure celles terminées
       filtered = filtered.filter(task => {
         const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
         const isAssignedToMe = assignedTo.includes(user?.uid);
         const hasAssignments = assignedTo.length > 0 && assignedTo.some(id => id && id !== '');
+        const isCompleted = ['completed', 'validated', 'cancelled'].includes(task.status);
         
-        // Afficher les quêtes qui ont des assignations ET qui ne me sont pas assignées
-        return !isAssignedToMe && hasAssignments;
+        // Afficher les quêtes qui ont des assignations ET qui ne me sont pas assignées ET qui ne sont PAS terminées
+        return !isAssignedToMe && hasAssignments && !isCompleted;
       });
     } else if (activeTab === 'history') {
       filtered = filtered.filter(task => ['completed', 'validated', 'cancelled'].includes(task.status));
@@ -300,10 +272,21 @@ useEffect(() => {
   }, []);
 
   const handleEdit = useCallback((task) => {
+    // ✅ BLOQUER l'édition des quêtes dans l'historique
+    if (['completed', 'validated', 'cancelled'].includes(task.status)) {
+      alert('❌ Les quêtes terminées ne peuvent plus être modifiées');
+      return;
+    }
     setSelectedTaskForEdit(task);
   }, []);
 
   const handleDelete = useCallback(async (task) => {
+    // ✅ BLOQUER la suppression des quêtes dans l'historique
+    if (['completed', 'validated', 'cancelled'].includes(task.status)) {
+      alert('❌ Les quêtes terminées ne peuvent plus être supprimées');
+      return;
+    }
+
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette quête ?')) return;
 
     try {
@@ -463,8 +446,9 @@ useEffect(() => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
       const isAssignedToMe = assignedTo.includes(user?.uid);
       const hasAssignments = assignedTo.length > 0 && assignedTo.some(id => id && id !== '');
+      const isCompleted = ['completed', 'validated', 'cancelled'].includes(t.status);
       
-      return !isAssignedToMe && hasAssignments;
+      return !isAssignedToMe && hasAssignments && !isCompleted;
     });
 
     return {
@@ -726,6 +710,7 @@ useEffect(() => {
                         key={task.id}
                         task={task}
                         commentCount={taskComments[task.id]?.length || 0}
+                        isHistoryMode={activeTab === 'history'}
                         onViewDetails={handleViewDetails}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
@@ -748,6 +733,7 @@ useEffect(() => {
                         task={task}
                         viewMode="list"
                         commentCount={taskComments[task.id]?.length || 0}
+                        isHistoryMode={activeTab === 'history'}
                         onViewDetails={handleViewDetails}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
