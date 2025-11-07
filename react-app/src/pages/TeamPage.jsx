@@ -116,11 +116,15 @@ const TeamPage = () => {
       }
     };
 }, [user]);  // ✅ PAS [user?.uid]
-  // 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL
+// 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL - CORRIGÉ
   useEffect(() => {
     if (!showMemberModal || !selectedMember) return;
 
     console.log('🔄 [MODAL] Synchronisation quêtes pour:', selectedMember.name);
+
+    // ✅ Sauvegarder l'ID pour éviter la dépendance sur l'objet complet
+    const memberId = selectedMember.id;
+    const memberName = selectedMember.name;
 
     const questsQuery = query(collection(db, 'quests'));
     
@@ -133,7 +137,7 @@ const TeamPage = () => {
         const questData = doc.data();
         const assigned = questData.assignedTo || [];
         
-        if (Array.isArray(assigned) && assigned.includes(selectedMember.id)) {
+        if (Array.isArray(assigned) && assigned.includes(memberId)) {
           userQuests.push({
             id: doc.id,
             ...questData
@@ -147,22 +151,27 @@ const TeamPage = () => {
         }
       });
 
-      console.log(`✅ [MODAL] ${userQuests.length} quêtes synchronisées pour ${selectedMember.name}`);
+      console.log(`✅ [MODAL] ${userQuests.length} quêtes synchronisées pour ${memberName}`);
 
-      setSelectedMember(prev => ({
-        ...prev,
-        quests: userQuests,
-        questsTotal: userQuests.length,
-        questsInProgress: questsInProgress,
-        questsCompleted: questsCompleted
-      }));
+      // ✅ CORRECTION : Ne met à jour QUE si nécessaire
+      setSelectedMember(prev => {
+        if (!prev || prev.id !== memberId) return prev;
+        
+        return {
+          ...prev,
+          quests: userQuests,
+          questsTotal: userQuests.length,
+          questsInProgress: questsInProgress,
+          questsCompleted: questsCompleted
+        };
+      });
     });
 
     return () => {
       console.log('🧹 [MODAL] Nettoyage listener quêtes');
       unsubscribe();
     };
-    }, [showMemberModal, selectedMember]);
+  }, [showMemberModal, selectedMember?.id]); // ✅ SEULEMENT l'ID, pas l'objet complet !
 
   const loadAllTeamMembers = async () => {
     setLoading(true);
