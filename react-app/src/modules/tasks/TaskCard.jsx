@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/modules/tasks/TaskCard.jsx
-// CARTE DE QUÊTE - AVEC BADGE COMMENTAIRES TEMPS RÉEL
+// CARTE DE QUÊTE - AVEC BOUTON SOUMISSION RPG ⚔️
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -16,7 +16,9 @@ import {
   CheckCircle,
   Send,
   Eye,
-  MessageCircle
+  MessageCircle,
+  Scroll,
+  Trophy
 } from 'lucide-react';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
@@ -55,58 +57,24 @@ const STATUS_CONFIG = {
 };
 
 /**
- * 🎯 COMPOSANT SUBMIT BUTTON
- */
-const SubmitButton = ({ task, onSubmit, disabled }) => {
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      await onSubmit(task);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleSubmit}
-      disabled={disabled || submitting}
-      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
-    >
-      {submitting ? (
-        <>
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          Envoi...
-        </>
-      ) : (
-        <>
-          <Send className="w-4 h-4" />
-          Soumettre
-        </>
-      )}
-    </button>
-  );
-};
-
-/**
- * 🎯 COMPOSANT PRINCIPAL TASKCARD - VERSION AVEC BADGE COMMENTAIRES
+ * 🎯 COMPOSANT PRINCIPAL TASKCARD - AVEC BOUTON SOUMISSION
  */
 const TaskCard = ({ 
   task, 
   currentUser,
-  commentCount = 0, // 💬 NOUVEAU PROP POUR LES COMMENTAIRES
-  onViewDetails,  // ⚡ FONCTION CRITIQUE
+  commentCount = 0,
+  onViewDetails,
   onEdit, 
   onDelete, 
   onVolunteer, 
   onUnvolunteer,
   onSubmit,
-  onTaskUpdate
+  onTaskUpdate,
+  onStatusChange
 }) => {
   const { user } = useAuthStore();
   const [volunteering, setVolunteering] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [creatorInfo, setCreatorInfo] = useState({ name: 'Chargement...', loading: true });
   const [assigneeInfo, setAssigneeInfo] = useState({ names: [], loading: true });
 
@@ -120,9 +88,12 @@ const TaskCard = ({
                        (task.openToVolunteers || assignedTo.length === 0) && 
                        task.status === 'todo';
   
+  // ✅ CORRECTION PRINCIPALE : Définir quand le bouton de soumission doit apparaître
   const canSubmit = isAssignedToMe && 
                     task.status === 'in_progress' && 
-                    task.status !== 'validation_pending';
+                    task.status !== 'validation_pending' &&
+                    task.status !== 'completed' &&
+                    task.status !== 'validated';
 
   // Charger info créateur
   useEffect(() => {
@@ -139,123 +110,141 @@ const TaskCard = ({
           }
         } catch (error) {
           console.error('Erreur chargement créateur:', error);
-          setCreatorInfo({ name: task.createdByName || 'Inconnu', loading: false });
+          setCreatorInfo({ name: 'Utilisateur', loading: false });
         }
       }
     };
+
     loadCreatorInfo();
   }, [task.createdBy]);
 
   // Charger info assignés
   useEffect(() => {
-    const loadAssigneeInfo = async () => {
+    const loadAssignees = async () => {
       if (assignedTo.length > 0) {
         try {
           const names = await Promise.all(
             assignedTo.map(async (userId) => {
-              try {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                  const userData = userDoc.data();
-                  return userData.displayName || userData.email || 'Utilisateur';
-                }
-                return 'Inconnu';
-              } catch {
-                return 'Inconnu';
+              const userDoc = await getDoc(doc(db, 'users', userId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                return userData.displayName || userData.email || 'Utilisateur';
               }
+              return 'Utilisateur';
             })
           );
           setAssigneeInfo({ names, loading: false });
         } catch (error) {
           console.error('Erreur chargement assignés:', error);
-          setAssigneeInfo({ names: ['Inconnu'], loading: false });
+          setAssigneeInfo({ names: ['Utilisateur'], loading: false });
         }
       } else {
         setAssigneeInfo({ names: [], loading: false });
       }
     };
-    loadAssigneeInfo();
-  }, [task.assignedTo]);
 
-  // Handlers
+    loadAssignees();
+  }, [assignedTo]);
+
+  // Handler volontariat
   const handleVolunteer = async () => {
-    if (!user || volunteering) return;
+    if (!onVolunteer) return;
     setVolunteering(true);
     try {
-      if (onVolunteer) {
-        await onVolunteer(task);
-      }
+      await onVolunteer(task);
     } finally {
       setVolunteering(false);
     }
   };
 
+  // Handler désassignation
   const handleUnvolunteer = async () => {
-    if (!user || volunteering) return;
+    if (!onUnvolunteer) return;
     setVolunteering(true);
     try {
-      if (onUnvolunteer) {
-        await onUnvolunteer(task);
-      }
+      await onUnvolunteer(task);
     } finally {
       setVolunteering(false);
     }
   };
 
-  // 🎨 Obtenir config statut/priorité
-  const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo;
-  const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+  // ✅ NOUVEAU : Handler soumission
+  const handleSubmit = async (e) => {
+    e.stopPropagation();
+    
+    console.log('⚔️ [SUBMIT] Clic sur Valider la Quête:', {
+      taskId: task.id,
+      title: task.title,
+      status: task.status
+    });
 
-  // 📅 Formater date
-  const formatDate = (date) => {
-    if (!date) return 'Non définie';
+    if (!onViewDetails) {
+      console.error('❌ [SUBMIT] onViewDetails non défini!');
+      alert('Erreur : impossible d\'ouvrir le modal de soumission');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const dateObj = date.toDate ? date.toDate() : new Date(date);
-      return dateObj.toLocaleDateString('fr-FR');
-    } catch {
-      return 'Date invalide';
+      // Ouvrir le modal de détails qui contient le formulaire de soumission
+      console.log('✅ [SUBMIT] Ouverture du modal de détails avec task:', task);
+      onViewDetails(task);
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  // Formater les dates
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = date.toDate ? date.toDate() : new Date(date);
+    return d.toLocaleDateString('fr-FR');
+  };
+
+  // Obtenir config priorité
+  const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+  const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo;
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-all relative">
+    <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-5 hover:border-blue-500/50 transition-all relative">
       
-      {/* 💬 BADGE COMMENTAIRES - EN HAUT À DROITE */}
+      {/* 💬 BADGE COMMENTAIRES */}
       {commentCount > 0 && (
-        <div className="absolute -top-2 -right-2 z-10">
-          <div className="relative">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold shadow-lg animate-pulse">
-              {commentCount}
-            </div>
-            <MessageCircle className="absolute top-0 right-0 w-3 h-3 text-white transform translate-x-1 -translate-y-1" />
-          </div>
+        <div className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold shadow-lg z-10 animate-pulse">
+          {commentCount}
         </div>
       )}
 
-      {/* Header avec badges */}
+      {/* En-tête */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className={`${priorityConfig.color} ${priorityConfig.textColor} px-2 py-1 rounded text-xs font-medium`}>
-            {priorityConfig.label}
-          </span>
-          <span className={`${statusConfig.color} ${statusConfig.textColor} px-2 py-1 rounded text-xs font-medium`}>
-            {statusConfig.label}
-          </span>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-white mb-1">{task.title}</h3>
+          <p className="text-sm text-gray-400 line-clamp-2">{task.description}</p>
         </div>
-        
+      </div>
+
+      {/* Badges */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {/* Statut */}
+        <span className={`${statusConfig.color} ${statusConfig.textColor} px-3 py-1 rounded-full text-xs font-medium`}>
+          {statusConfig.label}
+        </span>
+
+        {/* Priorité */}
+        <span className={`${priorityConfig.color} ${priorityConfig.textColor} px-3 py-1 rounded-full text-xs font-medium`}>
+          {priorityConfig.label}
+        </span>
+
+        {/* XP */}
         {task.xpReward && (
-          <span className="bg-yellow-600 text-yellow-100 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
-            ⭐ {task.xpReward} XP
+          <span className="bg-yellow-900/30 text-yellow-400 px-3 py-1 rounded-full text-xs font-medium border border-yellow-700/50">
+            ⚡ {task.xpReward} XP
           </span>
         )}
       </div>
 
-      {/* Titre et description */}
-      <h3 className="text-white font-semibold text-lg mb-2">{task.title}</h3>
-      <p className="text-gray-400 text-sm mb-4 line-clamp-2">{task.description}</p>
-
       {/* Métadonnées */}
-      <div className="space-y-2 mb-4 text-sm">
+      <div className="flex flex-wrap gap-3 mb-4 text-sm">
         {/* Créateur */}
         <div className="flex items-center gap-2 text-gray-400">
           <Users className="w-4 h-4" />
@@ -263,11 +252,11 @@ const TaskCard = ({
         </div>
 
         {/* Assignés */}
-        {assigneeInfo.names.length > 0 && (
-          <div className="flex items-center gap-2 text-gray-400">
-            <UserPlus className="w-4 h-4" />
+        {assignedTo.length > 0 && (
+          <div className="flex items-center gap-2 text-blue-400">
+            <Users className="w-4 h-4" />
             <span>
-              Assignés: {assigneeInfo.loading ? 'Chargement...' : assigneeInfo.names.join(', ')}
+              Assigné à: {assigneeInfo.loading ? 'Chargement...' : assigneeInfo.names.join(', ')}
             </span>
           </div>
         )}
@@ -299,10 +288,10 @@ const TaskCard = ({
         )}
       </div>
 
-      {/* Actions - CORRECTION CRITIQUE ICI */}
+      {/* Actions */}
       <div className="flex items-center gap-2 flex-wrap">
         
-        {/* ⚡ BOUTON VOIR DÉTAILS - CORRIGÉ */}
+        {/* ⚡ BOUTON VOIR DÉTAILS */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -325,9 +314,27 @@ const TaskCard = ({
           )}
         </button>
 
-        {/* Soumettre */}
-        {canSubmit && onSubmit && (
-          <SubmitButton task={task} onSubmit={onSubmit} disabled={false} />
+        {/* ⚔️ BOUTON VALIDER LA QUÊTE - VOCABULAIRE RPG */}
+        {canSubmit && (
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded text-sm hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Soumettre votre quête terminée pour validation par un Maître du Jeu"
+          >
+            {submitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Validation...
+              </>
+            ) : (
+              <>
+                <Scroll className="w-4 h-4" />
+                <Trophy className="w-4 h-4" />
+                Valider la Quête
+              </>
+            )}
+          </button>
         )}
 
         {/* Se porter volontaire */}
@@ -400,6 +407,11 @@ const TaskCard = ({
         <div className="mt-3 px-3 py-2 bg-green-900/30 border border-green-600/50 rounded-lg text-green-300 text-sm flex items-center gap-2">
           <CheckCircle className="w-4 h-4" />
           <span className="font-medium">✅ Vous êtes assigné à cette quête</span>
+          {canSubmit && (
+            <span className="ml-auto text-xs bg-green-600/30 px-2 py-1 rounded">
+              🎯 Prêt à valider
+            </span>
+          )}
         </div>
       )}
 
@@ -410,6 +422,9 @@ const TaskCard = ({
           <span>Status: {task.status}</span>
           {commentCount > 0 && (
             <span className="text-blue-400">💬 {commentCount}</span>
+          )}
+          {canSubmit && (
+            <span className="text-green-400">⚔️ Peut valider</span>
           )}
         </div>
       </div>
