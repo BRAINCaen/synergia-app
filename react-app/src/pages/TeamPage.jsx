@@ -181,160 +181,176 @@ const loadAllTeamMembers = async () => {
   setError(null);
   
   try {
-    console.log('👥 Chargement COMPLET avec synchronisation QUÊTES ET XP...');
+    console.log('👥 Chargement COMPLET avec synchronisation QUÊTES ET XP TEMPS RÉEL...');
     
-    // ÉCOUTE TEMPS RÉEL sur users
+    // 1️⃣ CHARGER LA LISTE DES UTILISATEURS UNE FOIS
     const usersQuery = query(
       collection(db, 'users'),
       orderBy('gamification.totalXp', 'desc')
     );
     
-    const unsubscribe = onSnapshot(usersQuery, async (usersSnapshot) => {
-      
-      if (usersSnapshot.empty) {
-        console.warn('⚠️ Aucun utilisateur trouvé !');
-        setTeamMembers([]);
-        setLoading(false);
-        return;
-      }
+    const usersSnapshot = await getDocs(usersQuery);
+    
+    if (usersSnapshot.empty) {
+      console.warn('⚠️ Aucun utilisateur trouvé !');
+      setTeamMembers([]);
+      setLoading(false);
+      return;
+    }
 
-      const membersData = [];
-      
-      // Pour chaque utilisateur
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        const userId = userDoc.id;
-        
-        const userName = userData.displayName || userData.name || 'Inconnu';
-        const userEmail = userData.email || '';
-        console.log(`🔍 Recherche quêtes pour: ${userName} (ID: ${userId}, Email: ${userEmail})`);
-        
-        // RÉCUPÉRER TOUTES LES QUÊTES
-        const allQuestsQuery = query(collection(db, 'tasks'));
-        const allQuestsSnap = await getDocs(allQuestsQuery);
-        
-        const userQuests = [];
-        let questsInProgress = 0;
-        let questsCompleted = 0;
-        
-        allQuestsSnap.forEach(doc => {
-          const questData = doc.data();
-          const assignedTo = questData.assignedTo;
-          
-          // VÉRIFICATION MULTIPLE : UID, EMAIL, NOM
-          let isAssigned = false;
-          
-          if (Array.isArray(assignedTo)) {
-            isAssigned = assignedTo.some(item => {
-              if (!item) return false;
-              const itemStr = String(item).toLowerCase();
-              const matchUID = itemStr === userId.toLowerCase();
-              const matchEmail = itemStr === userEmail.toLowerCase();
-              const matchName = itemStr === userName.toLowerCase();
-              
-              return matchUID || matchEmail || matchName;
-            });
-          } else if (assignedTo) {
-            const assignedStr = String(assignedTo).toLowerCase();
-            const matchUID = assignedStr === userId.toLowerCase();
-            const matchEmail = assignedStr === userEmail.toLowerCase();
-            const matchName = assignedStr === userName.toLowerCase();
-            
-            isAssigned = matchUID || matchEmail || matchName;
-          }
-          
-          if (isAssigned) {
-            const quest = {
-              id: doc.id,
-              ...questData
-            };
-            userQuests.push(quest);
-            
-            // Compter par statut
-            if (questData.status === 'in_progress' || questData.status === 'todo') {
-              questsInProgress++;
-            } else if (questData.status === 'completed' || questData.status === 'validated') {
-              questsCompleted++;
+    const userIds = usersSnapshot.docs.map(doc => doc.id);
+    console.log(`📋 ${userIds.length} utilisateurs trouvés`);
+
+    // 2️⃣ CRÉER UN LISTENER TEMPS RÉEL POUR CHAQUE UTILISATEUR
+    const unsubscribeFunctions = [];
+    const membersMap = new Map();
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id;
+      const initialData = userDoc.data();
+
+      // 🔥 LISTENER TEMPS RÉEL sur ce document utilisateur
+      const unsubscribeUser = onSnapshot(
+        doc(db, 'users', userId),
+        async (userSnapshot) => {
+          if (!userSnapshot.exists()) return;
+
+          const userData = userSnapshot.data();
+          const userName = userData.displayName || userData.name || 'Inconnu';
+          const userEmail = userData.email || '';
+
+          console.log(`🔄 [XP-SYNC] Mise à jour pour ${userName}: ${userData.gamification?.totalXp || 0} XP`);
+
+          // RÉCUPÉRER LES QUÊTES
+          const allQuestsQuery = query(collection(db, 'tasks'));
+          const allQuestsSnap = await getDocs(allQuestsQuery);
+
+          const userQuests = [];
+          let questsInProgress = 0;
+          let questsCompleted = 0;
+
+          allQuestsSnap.forEach(doc => {
+            const questData = doc.data();
+            const assignedTo = questData.assignedTo;
+
+            let isAssigned = false;
+
+            if (Array.isArray(assignedTo)) {
+              isAssigned = assignedTo.some(item => {
+                if (!item) return false;
+                const itemStr = String(item).toLowerCase();
+                return itemStr === userId.toLowerCase() || 
+                       itemStr === userEmail.toLowerCase() || 
+                       itemStr === userName.toLowerCase();
+              });
+            } else if (assignedTo) {
+              const assignedStr = String(assignedTo).toLowerCase();
+              isAssigned = assignedStr === userId.toLowerCase() || 
+                          assignedStr === userEmail.toLowerCase() || 
+                          assignedStr === userName.toLowerCase();
             }
-          }
-        });
-        
-        console.log(`📊 ${userName}: ${userQuests.length} quêtes trouvées`);
-        console.log(`   📍 ${questsInProgress} en cours, ${questsCompleted} accomplies`);
-        
-        // ✅ DONNÉES GAMIFICATION SYNCHRONISÉES EN TEMPS RÉEL
-        const gamification = userData.gamification || {};
-        const totalXp = gamification.totalXp || 0;
-        const level = gamification.level || Math.floor(totalXp / 100) + 1;
-        const badges = gamification.badges || [];
-        
-        // CRÉER L'OBJET MEMBRE COMPLET
-        const member = {
-          id: userId,
-          uid: userId,
-          name: userData.displayName || userData.name || 'Utilisateur anonyme',
-          email: userData.email || '',
-          role: userData.role || 'Membre',
-          department: userData.department || 'Non spécifié',
-          photoURL: userData.photoURL || null,
-          status: userData.status || 'actif',
-          isOnline: userData.isOnline || false,
-          joinedAt: userData.createdAt?.toDate?.() || new Date(),
-          lastActivity: userData.lastActivity?.toDate?.() || new Date(),
-          
-          // DONNÉES GAMIFICATION SYNCHRONISÉES
-          totalXp: totalXp,
-          level: level,
-          weeklyXp: gamification.weeklyXp || 0,
-          monthlyXp: gamification.monthlyXp || 0,
-          badgesCount: badges.length,
-          badges: badges,
-          
-          // DONNÉES QUÊTES SYNCHRONISÉES
-          questsInProgress: questsInProgress,
-          questsCompleted: questsCompleted,
-          questsTotal: userQuests.length,
-          quests: userQuests,
-          
-          // DONNÉES CALCULÉES
-          completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
-          currentLevelXp: totalXp % 100,
-          nextLevelXpRequired: 100,
-          xpProgress: ((totalXp % 100) / 100) * 100,
-          
-          // DONNÉES PROFIL
-          phone: userData.phone || null,
-          location: userData.location || null,
-          bio: userData.bio || null,
-          skills: userData.skills || [],
-          synergiaRoles: userData.synergiaRoles || [],
-          
-          // MÉTADONNÉES
-          lastSync: new Date(),
-          syncSource: 'firebase_realtime_quests_and_xp'
-        };
-        
-        membersData.push(member);
-      }
-      
-      const totalQuests = membersData.reduce((sum, m) => sum + m.questsTotal, 0);
-      const totalInProgress = membersData.reduce((sum, m) => sum + m.questsInProgress, 0);
-      const totalCompleted = membersData.reduce((sum, m) => sum + m.questsCompleted, 0);
-      
-      console.log(`✅ ${membersData.length} membres chargés`);
-      console.log(`📊 Total: ${totalQuests} quêtes (${totalInProgress} en cours, ${totalCompleted} accomplies)`);
-      console.log(`💎 XP total équipe: ${membersData.reduce((sum, m) => sum + m.totalXp, 0)}`);
-      
-      setTeamMembers(membersData);
-      setLoading(false);
-    }, (error) => {
-      console.error('❌ Erreur synchronisation:', error);
-      setError(error.message);
-      setLoading(false);
-    });
-    
-    return unsubscribe;
-    
+
+            if (isAssigned) {
+              userQuests.push({ id: doc.id, ...questData });
+
+              if (questData.status === 'in_progress' || questData.status === 'todo') {
+                questsInProgress++;
+              } else if (questData.status === 'completed' || questData.status === 'validated') {
+                questsCompleted++;
+              }
+            }
+          });
+
+          // DONNÉES GAMIFICATION
+          const gamification = userData.gamification || {};
+          const totalXp = gamification.totalXp || 0;
+          const level = gamification.level || Math.floor(totalXp / 100) + 1;
+          const badges = gamification.badges || [];
+
+          // CRÉER/METTRE À JOUR LE MEMBRE
+          const member = {
+            id: userId,
+            uid: userId,
+            name: userName,
+            email: userEmail,
+            role: userData.role || 'Membre',
+            department: userData.department || 'Non spécifié',
+            photoURL: userData.photoURL || null,
+            status: userData.status || 'actif',
+            isOnline: userData.isOnline || false,
+            joinedAt: userData.createdAt?.toDate?.() || new Date(),
+            lastActivity: userData.lastActivity?.toDate?.() || new Date(),
+
+            // DONNÉES GAMIFICATION
+            totalXp: totalXp,
+            level: level,
+            weeklyXp: gamification.weeklyXp || 0,
+            monthlyXp: gamification.monthlyXp || 0,
+            badgesCount: badges.length,
+            badges: badges,
+
+            // DONNÉES QUÊTES
+            questsInProgress: questsInProgress,
+            questsCompleted: questsCompleted,
+            questsTotal: userQuests.length,
+            quests: userQuests,
+
+            // DONNÉES CALCULÉES
+            completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
+            currentLevelXp: totalXp % 100,
+            nextLevelXpRequired: 100,
+            xpProgress: ((totalXp % 100) / 100) * 100,
+
+            // DONNÉES PROFIL
+            phone: userData.phone || null,
+            location: userData.location || null,
+            bio: userData.bio || null,
+            skills: userData.skills || [],
+            synergiaRoles: userData.synergiaRoles || [],
+
+            // MÉTADONNÉES
+            lastSync: new Date(),
+            syncSource: 'firebase_realtime_individual_listeners'
+          };
+
+          // METTRE À JOUR DANS LA MAP
+          membersMap.set(userId, member);
+
+          // METTRE À JOUR LE STATE
+          const updatedMembers = Array.from(membersMap.values())
+            .sort((a, b) => b.totalXp - a.totalXp);
+
+          setTeamMembers(updatedMembers);
+
+          console.log(`✅ [XP-SYNC] ${userName}: ${totalXp} XP, ${userQuests.length} quêtes`);
+        },
+        (error) => {
+          console.error(`❌ Erreur listener ${userId}:`, error);
+        }
+      );
+
+      unsubscribeFunctions.push(unsubscribeUser);
+
+      // Initialiser la map avec les données initiales
+      const initialMember = {
+        id: userId,
+        name: initialData.displayName || initialData.name || 'Inconnu',
+        totalXp: initialData.gamification?.totalXp || 0
+      };
+      membersMap.set(userId, initialMember);
+    }
+
+    // Charger les données initiales immédiatement
+    setLoading(false);
+
+    console.log(`✅ ${unsubscribeFunctions.length} listeners XP temps réel activés`);
+
+    // Fonction de nettoyage qui unsub tous les listeners
+    return () => {
+      console.log('🧹 Nettoyage de tous les listeners XP...');
+      unsubscribeFunctions.forEach(unsub => unsub());
+    };
+
   } catch (error) {
     console.error('❌ Erreur chargement équipe:', error);
     setError(error.message);
