@@ -383,13 +383,10 @@ const NewTaskModal = ({
   // 🔥 MISE À JOUR DE LA QUÊTE
   console.log('🔄 [QUÊTE] Mise à jour de la quête:', task.id);
   
-  const { updateDoc, doc, serverTimestamp } = require('firebase/firestore');
-  const { db } = require('../../core/firebase.js');
-  
   const taskRef = doc(db, 'tasks', task.id);
   
   // Préparer les données sans les champs de création
-  const { createdBy, createdByName, createdAt, ...updateFields } = cleanedData;
+  const { createdBy, createdByName, createdAt, assignedTo, ...updateFields } = cleanedData;
   
   await updateDoc(taskRef, {
     ...updateFields,
