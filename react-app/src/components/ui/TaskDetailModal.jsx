@@ -1,299 +1,169 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+// ==========================================
+// 📁 react-app/src/components/ui/TaskDetailModal.jsx
+// MODAL DÉTAILS QUÊTE - AVEC FORMULAIRE DE SOUMISSION INTÉGRÉ ⚔️
+// ==========================================
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
+  Users, 
   Calendar, 
-  User, 
-  Trophy, 
-  MessageCircle, 
-  Send, 
   Clock, 
-  Target,
-  Tag,
-  MapPin,
-  AlertCircle,
-  CheckCircle,
-  Loader2,
-  Edit,
-  Trash2,
-  UserPlus,
-  Eye
+  Tag, 
+  CheckCircle, 
+  FileText, 
+  MessageCircle,
+  User,
+  Eye,
+  Upload,
+  Camera,
+  Video,
+  Send,
+  Loader,
+  AlertTriangle,
+  Trophy,
+  Scroll,
+  Image as ImageIcon,
+  Play,
+  Trash2
 } from 'lucide-react';
 
-// Firebase
+// Imports Firebase
 import { 
   collection, 
   query, 
-  where, 
   orderBy, 
   onSnapshot, 
   addDoc, 
-  serverTimestamp 
+  serverTimestamp,
+  doc,
+  updateDoc,
+  getDoc
 } from 'firebase/firestore';
-import { db } from '../../core/firebase';
+import { db } from '../../core/firebase.js';
 
-// Services
-import { taskService } from '../../core/services/taskService';
-import { taskAssignmentService } from '../../core/services/taskAssignmentService';
-import { userService } from '../../core/services/userService';
-
-// Stores
-import { useAuthStore } from '../../shared/stores/authStore';
-
-// Utils
-import { formatDate } from '../../shared/utils/helpers';
-import dateUtils from '../../shared/utils/dateUtils';
+// Imports services
+import { useAuthStore } from '../../shared/stores/authStore.js';
+import { taskValidationService } from '../../core/services/taskValidationService.js';
 
 /**
- * ✨ COMPOSANT TEXTAREA ISOLÉ - SANS RE-RENDER
- * La clé est d'isoler complètement le textarea dans son propre composant
+ * 📊 SECTION COMMENTAIRES
  */
-const IsolatedTextarea = ({ onSubmit, disabled }) => {
-  // État complètement isolé
-  const [value, setValue] = useState('');
-  const textareaRef = useRef(null);
-  
-  // Gestionnaire de changement stable
-  const handleChange = useCallback((e) => {
-    const newValue = e.target.value;
-    console.log('📝 [TEXTAREA] Changement détecté:', newValue.length, 'caractères');
-    setValue(newValue);
-  }, []);
-  
-  // Gestionnaire de soumission stable
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault();
-    const trimmedValue = value.trim();
-    if (trimmedValue && onSubmit) {
-      console.log('📤 [TEXTAREA] Envoi commentaire:', trimmedValue);
-      onSubmit(trimmedValue);
-      setValue(''); // Vider après envoi
-    }
-  }, [value, onSubmit]);
-  
-  // Gestionnaire touche Entrée
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      handleSubmit(e);
-    }
-  }, [handleSubmit]);
-  
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Tapez votre commentaire ici... (Ctrl+Entrée pour envoyer)"
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-all duration-200"
-          rows={3}
-          disabled={disabled}
-          style={{ minHeight: '80px' }}
-        />
-        <div className="absolute bottom-2 right-2 text-xs text-gray-500">
-          {value.length}/1000
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <span className="text-gray-400 text-xs">
-          💡 Ctrl+Entrée pour envoyer rapidement
-        </span>
-        <button
-          type="submit"
-          disabled={!value.trim() || disabled}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-        >
-          <Send className="w-4 h-4" />
-          {disabled ? 'Envoi...' : 'Envoyer'}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-/**
- * 💬 COMPOSANT COMMENTAIRE INTÉGRÉ - SOLUTION DÉFINITIVE
- */
-const IntegratedCommentComponent = ({ entityType = 'task', entityId }) => {
-  const { user } = useAuthStore();
-  
-  // États locaux isolés
+const CommentsSection = ({ task, currentUser }) => {
   const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [loadingComments, setLoadingComments] = useState(true);
   
-  // Ref pour gérer l'abonnement temps réel
-  const unsubscribeRef = useRef(null);
-  
-  // Formatage date simple
-  const formatCommentDate = useCallback((timestamp) => {
-    if (!timestamp) return 'Date inconnue';
-    
-    try {
-      let date;
-      if (timestamp.seconds) {
-        date = new Date(timestamp.seconds * 1000);
-      } else if (timestamp.toDate) {
-        date = timestamp.toDate();
-      } else {
-        date = new Date(timestamp);
-      }
-      
-      return date.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      console.warn('Erreur formatage date:', error);
-      return 'Date invalide';
-    }
-  }, []);
-  
-  // Charger les commentaires avec écoute temps réel
+  // Charger les commentaires en temps réel
   useEffect(() => {
-    if (!entityId) {
-      setComments([]);
-      setLoading(false);
-      return;
-    }
+    if (!task?.id) return;
+
+    console.log('💬 [COMMENTS] Configuration listener pour:', task.id);
     
-    console.log('💬 [COMMENTS] Initialisation pour:', entityType, entityId);
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Requête Firestore avec écoute temps réel
-      const commentsQuery = query(
-        collection(db, 'comments'),
-        where('entityType', '==', entityType),
-        where('entityId', '==', entityId),
-        orderBy('createdAt', 'desc')
-      );
+    const commentsQuery = query(
+      collection(db, 'tasks', task.id, 'comments'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+      const loadedComments = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       
-      // Abonnement temps réel
-      unsubscribeRef.current = onSnapshot(commentsQuery, 
-        (snapshot) => {
-          const commentsData = [];
-          snapshot.forEach((doc) => {
-            commentsData.push({
-              id: doc.id,
-              ...doc.data()
-            });
-          });
-          
-          console.log('💬 [COMMENTS] Données reçues:', commentsData.length, 'commentaires');
-          setComments(commentsData);
-          setLoading(false);
-        },
-        (error) => {
-          console.error('❌ [COMMENTS] Erreur écoute:', error);
-          setError('Erreur lors du chargement des commentaires');
-          setLoading(false);
-        }
-      );
-      
-    } catch (error) {
-      console.error('❌ [COMMENTS] Erreur initialisation:', error);
-      setError('Erreur lors de l\'initialisation');
-      setLoading(false);
-    }
-    
-    // Nettoyage à la désactivation
-    return () => {
-      if (unsubscribeRef.current) {
-        console.log('🧹 [COMMENTS] Nettoyage abonnement');
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-    };
-  }, [entityType, entityId]);
-  
+      console.log(`💬 [COMMENTS] ${loadedComments.length} commentaires chargés`);
+      setComments(loadedComments);
+      setLoadingComments(false);
+    }, (error) => {
+      console.error('❌ [COMMENTS] Erreur:', error);
+      setLoadingComments(false);
+    });
+
+    return () => unsubscribe();
+  }, [task?.id]);
+
   // Ajouter un commentaire
-  const handleAddComment = useCallback(async (content) => {
-    if (!user?.uid || !entityId || submitting) {
-      console.warn('❌ [COMMENTS] Conditions non remplies pour ajout');
-      return;
-    }
+  const handleAddComment = async (e) => {
+    e.preventDefault();
     
+    if (!newComment.trim() || !currentUser?.uid || submitting) return;
+
     setSubmitting(true);
-    setError(null);
     
     try {
-      console.log('📤 [COMMENTS] Ajout commentaire...');
+      await addDoc(collection(db, 'tasks', task.id, 'comments'), {
+        content: newComment.trim(),
+        authorId: currentUser.uid,
+        authorName: currentUser.displayName || currentUser.email || 'Utilisateur',
+        createdAt: serverTimestamp()
+      });
       
-      const commentData = {
-        entityType,
-        entityId,
-        content: content.trim(),
-        authorId: user.uid,
-        authorName: user.displayName || user.email || 'Utilisateur',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      await addDoc(collection(db, 'comments'), commentData);
-      console.log('✅ [COMMENTS] Commentaire ajouté avec succès');
-      
+      console.log('✅ [COMMENT] Commentaire ajouté');
+      setNewComment('');
     } catch (error) {
-      console.error('❌ [COMMENTS] Erreur ajout:', error);
-      setError('Erreur lors de l\'ajout du commentaire');
+      console.error('❌ [COMMENT] Erreur:', error);
+      alert('Erreur lors de l\'ajout du commentaire');
     } finally {
       setSubmitting(false);
     }
-  }, [user, entityType, entityId, submitting]);
-  
-  // Affichage du loading
-  if (loading) {
-    return (
-      <div className="p-6 text-center">
-        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-        <p className="text-gray-400 text-sm">Chargement des commentaires...</p>
-      </div>
-    );
-  }
-  
+  };
+
+  // Formater la date
+  const formatCommentDate = (timestamp) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
-    <div className="p-6 space-y-4">
-      {/* Formulaire d'ajout - EN PREMIER pour la visibilité */}
-      {user ? (
-        <IsolatedTextarea 
-          onSubmit={handleAddComment}
+    <div className="space-y-4">
+      {/* Formulaire nouveau commentaire */}
+      <form onSubmit={handleAddComment} className="space-y-3">
+        <textarea
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          placeholder="Ajouter un commentaire..."
+          className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"
+          rows={3}
           disabled={submitting}
         />
-      ) : (
-        <div className="text-center py-4 text-gray-400 text-sm border border-gray-600 rounded-lg">
-          Connectez-vous pour ajouter un commentaire
-        </div>
-      )}
-      
-      {/* Erreur */}
-      {error && (
-        <div className="p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-300 text-sm">
-          {error}
-        </div>
-      )}
-      
+        <button
+          type="submit"
+          disabled={!newComment.trim() || submitting}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submitting ? (
+            <Loader className="w-4 h-4 animate-spin" />
+          ) : (
+            <MessageCircle className="w-4 h-4" />
+          )}
+          <span>{submitting ? 'Envoi...' : 'Commenter'}</span>
+        </button>
+      </form>
+
       {/* Liste des commentaires */}
-      <div className="space-y-4 max-h-96 overflow-y-auto">
-        {comments.length === 0 ? (
+      <div className="space-y-3">
+        {loadingComments ? (
+          <div className="text-center py-4">
+            <Loader className="w-6 h-6 animate-spin mx-auto text-gray-400" />
+          </div>
+        ) : comments.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
-            <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>Aucun commentaire pour l'instant</p>
-            <p className="text-sm">Soyez le premier à commenter !</p>
+            Aucun commentaire pour le moment
           </div>
         ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 hover:bg-gray-800/70 transition-colors">
-              {/* En-tête du commentaire */}
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+          comments.map(comment => (
+            <div key={comment.id} className="bg-gray-800 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
                   {comment.authorName ? comment.authorName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
                 </div>
                 <div>
@@ -305,8 +175,6 @@ const IntegratedCommentComponent = ({ entityType = 'task', entityId }) => {
                   </div>
                 </div>
               </div>
-              
-              {/* Contenu du commentaire */}
               <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
                 {comment.content}
               </p>
@@ -314,308 +182,561 @@ const IntegratedCommentComponent = ({ entityType = 'task', entityId }) => {
           ))
         )}
       </div>
-      
-      {/* Indicateur de frappe en cours */}
-      {submitting && (
-        <div className="text-center py-2">
-          <div className="inline-flex items-center gap-2 text-blue-400 text-sm">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            Envoi du commentaire...
+    </div>
+  );
+};
+
+/**
+ * ⚔️ SECTION SOUMISSION POUR VALIDATION
+ */
+const SubmissionSection = ({ task, currentUser, onSubmissionSuccess }) => {
+  const [comment, setComment] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const [fileType, setFileType] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
+
+  const expectedXP = task?.xpReward || 25;
+
+  // Gérer la sélection de fichier
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Vérifier la taille (max 50MB pour permettre vidéos)
+    if (file.size > 50 * 1024 * 1024) {
+      setError('Le fichier est trop volumineux (max 50MB)');
+      return;
+    }
+
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    
+    if (!isImage && !isVideo) {
+      setError('Seuls les images et vidéos sont acceptées');
+      return;
+    }
+
+    setSelectedFile(file);
+    setFileType(isImage ? 'image' : 'video');
+    setError('');
+
+    // Prévisualisation pour les images
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (e) => setFilePreview(e.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  // Supprimer le fichier
+  const handleFileRemove = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    setFileType('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Soumettre la validation
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!comment.trim()) {
+      setError('Veuillez ajouter un commentaire décrivant votre travail');
+      return;
+    }
+    
+    if (!currentUser?.uid) {
+      setError('Utilisateur non connecté');
+      return;
+    }
+    
+    setSubmitting(true);
+    setError('');
+    
+    try {
+      console.log('📤 [SUBMISSION] Soumission validation:', {
+        taskId: task.id,
+        userId: currentUser.uid,
+        hasFile: !!selectedFile
+      });
+
+      // Préparer les données de validation
+      const validationData = {
+        taskId: task.id,
+        userId: currentUser.uid,
+        taskTitle: task.title,
+        projectId: task.projectId,
+        difficulty: task.difficulty || 'normal',
+        comment: comment.trim(),
+        photoFile: fileType === 'image' ? selectedFile : null,
+        videoFile: fileType === 'video' ? selectedFile : null
+      };
+
+      // Appeler le service de validation
+      const result = await taskValidationService.submitTaskForValidation(validationData);
+
+      console.log('✅ [SUBMISSION] Résultat:', result);
+
+      if (result.success) {
+        setSuccess(true);
+        
+        // Notifier le parent
+        if (onSubmissionSuccess) {
+          onSubmissionSuccess({
+            taskId: task.id,
+            validationId: result.validationId,
+            xpAmount: result.xpAmount
+          });
+        }
+
+        // Attendre 2 secondes puis réinitialiser
+        setTimeout(() => {
+          setSuccess(false);
+          setComment('');
+          handleFileRemove();
+        }, 2000);
+
+      } else {
+        setError(result.message || 'Erreur lors de la soumission');
+      }
+
+    } catch (error) {
+      console.error('❌ [SUBMISSION] Erreur:', error);
+      setError(error.message || 'Erreur lors de la soumission');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Message de succès */}
+      {success && (
+        <div className="bg-green-900/30 border border-green-600/50 rounded-lg p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-400" />
+          <div>
+            <p className="text-green-300 font-medium">✅ Quête soumise pour validation !</p>
+            <p className="text-green-400 text-sm">
+              Vous recevrez {expectedXP} XP une fois validée par un Maître du Jeu
+            </p>
           </div>
         </div>
+      )}
+
+      {/* Message d'erreur */}
+      {error && (
+        <div className="bg-red-900/30 border border-red-600/50 rounded-lg p-4 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-400" />
+          <span className="text-red-300">{error}</span>
+        </div>
+      )}
+
+      {/* Formulaire */}
+      {!success && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Info XP */}
+          <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-yellow-400" />
+            <span className="text-yellow-300 text-sm">
+              Récompense : <strong>{expectedXP} XP</strong> après validation
+            </span>
+          </div>
+
+          {/* Commentaire */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Décrivez votre travail *
+            </label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Expliquez ce que vous avez fait pour accomplir cette quête..."
+              className="w-full h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"
+              disabled={submitting}
+              required
+            />
+          </div>
+
+          {/* Upload fichier */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              Preuve (photo/vidéo) - optionnel
+            </label>
+            
+            {!selectedFile ? (
+              <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={submitting}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mx-auto w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+                  disabled={submitting}
+                >
+                  <Upload className="w-6 h-6 text-gray-400" />
+                </button>
+                <p className="mt-2 text-sm text-gray-400">
+                  Cliquez pour ajouter une photo ou vidéo
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Max 50MB • JPG, PNG, MP4, MOV, etc.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                {/* Prévisualisation image */}
+                {fileType === 'image' && filePreview && (
+                  <img
+                    src={filePreview}
+                    alt="Prévisualisation"
+                    className="w-full h-48 object-cover rounded-lg mb-3"
+                  />
+                )}
+
+                {/* Info vidéo */}
+                {fileType === 'video' && (
+                  <div className="flex items-center gap-3 mb-3 bg-gray-900 p-3 rounded-lg">
+                    <Play className="w-8 h-8 text-blue-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium truncate">{selectedFile.name}</p>
+                      <p className="text-gray-400 text-sm">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bouton supprimer */}
+                <button
+                  type="button"
+                  onClick={handleFileRemove}
+                  className="flex items-center gap-2 px-3 py-2 bg-red-900/30 text-red-400 rounded-lg hover:bg-red-900/50 transition-colors"
+                  disabled={submitting}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Supprimer</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Bouton soumettre */}
+          <button
+            type="submit"
+            disabled={!comment.trim() || submitting}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          >
+            {submitting ? (
+              <>
+                <Loader className="w-5 h-5 animate-spin" />
+                <span>Validation en cours...</span>
+              </>
+            ) : (
+              <>
+                <Scroll className="w-5 h-5" />
+                <Trophy className="w-5 h-5" />
+                <span>⚔️ Valider la Quête</span>
+              </>
+            )}
+          </button>
+        </form>
       )}
     </div>
   );
 };
 
 /**
- * 📋 MODAL DÉTAILS DE TÂCHE - VERSION CORRIGÉE COMMENTAIRES
+ * 📋 COMPOSANT PRINCIPAL : MODAL DÉTAILS QUÊTE
  */
-export const TaskDetailsModal = ({ 
+const TaskDetailModal = ({ 
   task, 
   isOpen, 
-  onClose, 
-  onEdit, 
-  onDelete, 
-  onSubmit,
-  currentUser,
-  onTaskUpdate
+  onClose,
+  onEdit,
+  onDelete,
+  currentUser
 }) => {
-  // 📊 ÉTATS LOCAUX - STABLES POUR ÉVITER RE-RENDERS
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('details');
-  
-  // 👤 UTILISATEUR EFFECTIF (pour compatibilité)
-  const effectiveUser = currentUser || (typeof window !== 'undefined' && window.currentUser);
-  
-  // 💬 ÉTATS COMMENTAIRES - SIMPLIFIÉS CAR GÉRÉS PAR LE COMPOSANT UNIFIÉ
-  const [volunteerLoading, setVolunteerLoading] = useState(false);
-  
-  // 📌 REF POUR ÉVITER LES RE-RENDERS
-  const mountedRef = useRef(true);
-  
-  // 🔄 NETTOYAGE À LA FERMETURE
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
+  const effectiveUser = currentUser || user;
+
+  // Déterminer si l'utilisateur est assigné
+  const assignedTo = Array.isArray(task?.assignedTo) ? task.assignedTo : (task?.assignedTo ? [task.assignedTo] : []);
+  const isAssignedToMe = assignedTo.includes(effectiveUser?.uid);
+  const canSubmit = isAssignedToMe && 
+                    task?.status === 'in_progress' && 
+                    task?.status !== 'validation_pending' &&
+                    task?.status !== 'completed';
+
+  // Handler succès soumission
+  const handleSubmissionSuccess = useCallback((result) => {
+    console.log('✅ [MODAL] Soumission réussie:', result);
+    // Le modal reste ouvert pour que l'utilisateur voie le message de succès
   }, []);
 
-  // 🎯 SE PORTER VOLONTAIRE
-  const handleVolunteer = useCallback(async () => {
-    if (!effectiveUser?.uid || volunteerLoading) return;
-    
-    setVolunteerLoading(true);
-    try {
-      await taskAssignmentService.addVolunteer(task.id, effectiveUser.uid);
-      
-      if (onTaskUpdate) {
-        onTaskUpdate();
-      }
-      
-      if (window.showNotification) {
-        window.showNotification('Vous vous êtes porté volontaire pour cette tâche !', 'success');
-      }
-    } catch (error) {
-      console.error('Erreur volontariat:', error);
-      if (window.showNotification) {
-        window.showNotification('Erreur lors du volontariat', 'error');
-      }
-    } finally {
-      setVolunteerLoading(false);
-    }
-  }, [effectiveUser?.uid, volunteerLoading, task?.id, onTaskUpdate]);
+  // Formater les dates
+  const formatDate = (date) => {
+    if (!date) return 'Non définie';
+    const d = date.toDate ? date.toDate() : new Date(date);
+    return d.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
 
-  // 🚫 FERMETURE ET NETTOYAGE
-  const handleClose = useCallback(() => {
-    setActiveTab('details');
-    setError(null);
-    onClose();
-  }, [onClose]);
-
-  // 🎨 DONNÉES FORMATÉES MÉMORISÉES
-  const formattedData = useMemo(() => {
-    if (!task) return {};
-    
-    return {
-      priorityColor: task.priority === 'haute' ? 'text-red-400' : 
-                    task.priority === 'moyenne' ? 'text-yellow-400' : 'text-green-400',
-      statusBadge: task.status === 'completed' ? 'bg-green-500' :
-                   task.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-500',
-      statusText: task.status === 'completed' ? 'Terminée' :
-                  task.status === 'in_progress' ? 'En cours' : 'En attente',
-      formattedDate: task.dueDate ? formatDate(task.dueDate) : 'Aucune',
-      timeFromNow: task.dueDate ? `Échéance dans ${Math.ceil((new Date(task.dueDate) - new Date()) / (1000 * 60 * 60 * 24))} jours` : null
-    };
-  }, [task]);
-
-  // 📱 RENDU CONDITIONNEL
-  if (!task) return null;
+  if (!isOpen || !task) return null;
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={handleClose}
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-none sm:rounded-xl w-full max-w-[375px] sm:max-w-4xl min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-hidden flex flex-col border border-gray-700"
+          onClick={(e) => e.stopPropagation()}
         >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-gray-900 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-hidden"
-          >
-            {/* En-tête */}
-            <div className="p-6 border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h1 className="text-xl font-bold text-white mb-2">{task.title}</h1>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${formattedData.statusBadge} text-white`}>
-                      {formattedData.statusText}
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 backdrop-blur-sm px-4 sm:px-6 py-4 border-b border-gray-700 flex-shrink-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 break-words">
+                  {task.title}
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {/* Badge statut */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    task.status === 'completed' ? 'bg-green-600 text-white' :
+                    task.status === 'in_progress' ? 'bg-blue-600 text-white' :
+                    task.status === 'validation_pending' ? 'bg-yellow-600 text-white' :
+                    'bg-gray-600 text-white'
+                  }`}>
+                    {task.status === 'completed' ? '✅ Terminée' :
+                     task.status === 'in_progress' ? '🚀 En cours' :
+                     task.status === 'validation_pending' ? '⏳ En validation' :
+                     '📋 À faire'}
+                  </span>
+
+                  {/* Badge priorité */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    task.priority === 'high' ? 'bg-red-600 text-white' :
+                    task.priority === 'medium' ? 'bg-yellow-600 text-white' :
+                    'bg-green-600 text-white'
+                  }`}>
+                    {task.priority === 'high' ? '🔴 Haute' :
+                     task.priority === 'medium' ? '🟡 Moyenne' :
+                     '🟢 Basse'}
+                  </span>
+
+                  {/* Badge XP */}
+                  {task.xpReward && (
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-900/30 text-yellow-400 border border-yellow-700/50">
+                      ⚡ {task.xpReward} XP
                     </span>
-                    <span className={`${formattedData.priorityColor} font-medium`}>
-                      Priorité {task.priority}
-                    </span>
-                    {task.points > 0 && (
-                      <span className="text-yellow-400 flex items-center gap-1">
-                        <Trophy className="w-4 h-4" />
-                        {task.points} pts
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
-                <button
-                  onClick={handleClose}
-                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
 
-              {/* Onglets */}
-              <div className="flex gap-1 mt-4">
-                <button
-                  onClick={() => setActiveTab('details')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'details' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  }`}
-                >
-                  <Eye className="w-4 h-4 mr-2 inline" />
-                  Détails
-                </button>
-                <button
-                  onClick={() => setActiveTab('comments')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === 'comments' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  }`}
-                >
-                  <MessageCircle className="w-4 h-4 mr-2 inline" />
-                  Commentaires (temps réel)
-                </button>
-              </div>
+              {/* Bouton fermer */}
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+              >
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
             </div>
 
-            {/* Contenu principal */}
-            <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
-              {activeTab === 'details' && (
-                <div className="p-6 space-y-6">
-                  
-                  {/* Description */}
-                  {task.description && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                        <Target className="w-5 h-5 mr-2 text-blue-400" />
-                        Description
-                      </h3>
-                      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                        <p className="text-gray-300 whitespace-pre-wrap">{task.description}</p>
+            {/* Indicateur assignation */}
+            {isAssignedToMe && (
+              <div className="mt-3 px-3 py-2 bg-green-900/30 border border-green-600/50 rounded-lg flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span className="text-green-300 text-sm font-medium">
+                  ✅ Vous êtes assigné à cette quête
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Onglets */}
+          <div className="bg-gray-900/50 border-b border-gray-700 flex-shrink-0">
+            <div className="flex px-4 sm:px-6">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'details'
+                    ? 'text-blue-400 border-blue-400'
+                    : 'text-gray-400 border-transparent hover:text-white'
+                }`}
+              >
+                <FileText className="w-4 h-4 inline mr-2" />
+                Détails
+              </button>
+
+              <button
+                onClick={() => setActiveTab('comments')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'comments'
+                    ? 'text-blue-400 border-blue-400'
+                    : 'text-gray-400 border-transparent hover:text-white'
+                }`}
+              >
+                <MessageCircle className="w-4 h-4 inline mr-2" />
+                Commentaires
+              </button>
+
+              {/* Onglet soumission si l'utilisateur peut soumettre */}
+              {canSubmit && (
+                <button
+                  onClick={() => setActiveTab('submission')}
+                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'submission'
+                      ? 'text-green-400 border-green-400'
+                      : 'text-gray-400 border-transparent hover:text-white'
+                  }`}
+                >
+                  <Trophy className="w-4 h-4 inline mr-2" />
+                  ⚔️ Valider
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Contenu scrollable */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            {/* Onglet Détails */}
+            {activeTab === 'details' && (
+              <div className="space-y-4">
+                {/* Description */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-2 text-gray-300">Description</h3>
+                  <p className="text-gray-400 leading-relaxed whitespace-pre-wrap">
+                    {task.description || 'Aucune description'}
+                  </p>
+                </div>
+
+                {/* Métadonnées */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Date limite */}
+                  {task.dueDate && (
+                    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                      <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>Échéance</span>
                       </div>
+                      <p className="text-white font-medium">{formatDate(task.dueDate)}</p>
                     </div>
                   )}
 
-                  {/* Informations détaillées */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
-                    {/* Date d'échéance */}
-                    <div className="space-y-2">
-                      <h4 className="text-white font-medium flex items-center">
-                        <Calendar className="w-4 h-4 mr-2 text-blue-400" />
-                        Échéance
-                      </h4>
-                      <div className="text-gray-300">
-                        <p>{formattedData.formattedDate}</p>
-                        {formattedData.timeFromNow && (
-                          <p className="text-sm text-gray-500">{formattedData.timeFromNow}</p>
-                        )}
+                  {/* Temps estimé */}
+                  {task.estimatedHours && (
+                    <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                      <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                        <Clock className="w-4 h-4" />
+                        <span>Durée estimée</span>
                       </div>
+                      <p className="text-white font-medium">{task.estimatedHours}h</p>
                     </div>
-
-                    {/* Catégorie */}
-                    {task.category && (
-                      <div className="space-y-2">
-                        <h4 className="text-white font-medium flex items-center">
-                          <Tag className="w-4 h-4 mr-2 text-blue-400" />
-                          Catégorie
-                        </h4>
-                        <p className="text-gray-300">{task.category}</p>
-                      </div>
-                    )}
-
-                    {/* Lieu */}
-                    {task.location && (
-                      <div className="space-y-2">
-                        <h4 className="text-white font-medium flex items-center">
-                          <MapPin className="w-4 h-4 mr-2 text-blue-400" />
-                          Lieu
-                        </h4>
-                        <p className="text-gray-300">{task.location}</p>
-                      </div>
-                    )}
-
-                    {/* Rôle Synergia */}
-                    {task.synergiaRole && (
-                      <div className="space-y-2">
-                        <h4 className="text-white font-medium flex items-center">
-                          <User className="w-4 h-4 mr-2 text-blue-400" />
-                          Rôle Synergia
-                        </h4>
-                        <p className="text-gray-300">{task.synergiaRole}</p>
-                      </div>
-                    )}
-
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-4 border-t border-gray-700">
-                    {onEdit && (
-                      <button
-                        onClick={() => onEdit(task)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Modifier
-                      </button>
-                    )}
-                    
-                    {onSubmit && effectiveUser && task.status !== 'completed' && (
-                      <button
-                        onClick={() => onSubmit(task)}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Soumettre
-                      </button>
-                    )}
-                    
-                    {task.status === 'open' && effectiveUser && (
-                      <button
-                        onClick={handleVolunteer}
-                        disabled={volunteerLoading}
-                        className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                      >
-                        {volunteerLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <UserPlus className="w-4 h-4" />
-                        )}
-                        Se porter volontaire
-                      </button>
-                    )}
-                    
-                    {onDelete && (
-                      <button
-                        onClick={() => onDelete(task)}
-                        className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
-              )}
 
-              {activeTab === 'comments' && (
-                <IntegratedCommentComponent 
-                  entityType="task" 
-                  entityId={task.id}
-                />
+                {/* Notes */}
+                {task.notes && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Notes
+                    </h3>
+                    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                      <p className="text-gray-300 whitespace-pre-wrap">{task.notes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Onglet Commentaires */}
+            {activeTab === 'comments' && (
+              <CommentsSection task={task} currentUser={effectiveUser} />
+            )}
+
+            {/* Onglet Soumission */}
+            {activeTab === 'submission' && canSubmit && (
+              <SubmissionSection 
+                task={task} 
+                currentUser={effectiveUser}
+                onSubmissionSuccess={handleSubmissionSuccess}
+              />
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="bg-gray-900/50 border-t border-gray-700 p-4 sm:p-6 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Fermer
+              </button>
+
+              {/* Boutons supplémentaires pour le créateur */}
+              {task.createdBy === effectiveUser?.uid && (
+                <>
+                  {onEdit && (
+                    <button
+                      onClick={() => {
+                        onEdit(task);
+                        onClose();
+                      }}
+                      className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                    >
+                      Modifier
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Êtes-vous sûr de vouloir supprimer cette quête ?')) {
+                          onDelete(task);
+                          onClose();
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </>
               )}
             </div>
-          </motion.div>
+          </div>
         </motion.div>
-      )}
+      </motion.div>
     </AnimatePresence>
   );
 };
 
-export default TaskDetailsModal;
+export default TaskDetailModal;
