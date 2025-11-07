@@ -145,7 +145,36 @@ const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
 
     return () => unsubscribe();
   }, [user?.uid]);
+useEffect(() => {
+  if (!user?.uid) return;
 
+  console.log('🔍 [DEBUG] UID utilisateur:', user.uid);
+  console.log('🔍 [DEBUG] Email utilisateur:', user.email);
+
+  const tasksQuery = query(
+    collection(db, 'tasks'),
+    orderBy('createdAt', 'desc')
+  );
+
+  const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+    const loadedTasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    console.log('📊 [DEBUG] Total quêtes dans Firebase:', loadedTasks.length);
+    console.log('📊 [DEBUG] Quêtes chargées:', loadedTasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      assignedTo: t.assignedTo
+    })));
+    
+    setTasks(loadedTasks);
+    setIsLoading(false);
+  });
+
+  return () => unsubscribe();
+}, [user?.uid]);
   // 💬 CHARGEMENT DES COMMENTAIRES EN TEMPS RÉEL
   useEffect(() => {
     if (!user?.uid || tasks.length === 0) return;
