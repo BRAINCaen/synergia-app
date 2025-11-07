@@ -65,7 +65,7 @@ export const uploadUserAvatar = async (userId, file) => {
     const token = await getAuthToken();
 
     // Configuration de l'upload via API REST
-    const bucket = 'synergia-app-f27e7.appspot.com';
+const bucket = 'synergia-app-f27e7.firebasestorage.app';
     const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(filePath)}`;
 
     console.log('🔗 [STORAGE] URL upload:', uploadUrl);
@@ -137,7 +137,7 @@ export const deleteUserAvatar = async (photoURL) => {
     const token = await getAuthToken();
 
     // Configuration de la suppression via API REST
-    const bucket = 'synergia-app-f27e7.appspot.com';
+const bucket = 'synergia-app-f27e7.firebasestorage.app';
     const deleteUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}`;
 
     const deleteResponse = await fetch(deleteUrl, {
@@ -174,7 +174,7 @@ export const uploadFile = async (path, file) => {
     const token = await getAuthToken();
 
     // Configuration de l'upload via API REST
-    const bucket = 'synergia-app-f27e7.appspot.com';
+const bucket = 'synergia-app-f27e7.firebasestorage.app';
     const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(path)}`;
 
     const uploadResponse = await fetch(uploadUrl, {
@@ -227,7 +227,7 @@ export const deleteFile = async (fileURL) => {
     const token = await getAuthToken();
 
     // Configuration de la suppression via API REST
-    const bucket = 'synergia-app-f27e7.appspot.com';
+const bucket = 'synergia-app-f27e7.firebasestorage.app';
     const deleteUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}`;
 
     const deleteResponse = await fetch(deleteUrl, {
@@ -264,7 +264,7 @@ export const uploadFileWithProgress = async (file, path, onProgress) => {
     const token = await getAuthToken();
 
     // Configuration de l'upload
-    const bucket = 'synergia-app-f27e7.appspot.com';
+const bucket = 'synergia-app-f27e7.firebasestorage.app';
     const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?name=${encodeURIComponent(path)}`;
 
     return new Promise((resolve, reject) => {
