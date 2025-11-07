@@ -116,7 +116,8 @@ const TeamPage = () => {
       }
     };
 }, [user]);  // ✅ PAS [user?.uid]
-// 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL - CORRIGÉ
+
+  // 🔄 SYNCHRONISATION TEMPS RÉEL DES QUÊTES DANS LE MODAL - CORRIGÉ
   useEffect(() => {
     if (!showMemberModal || !selectedMember) return;
 
@@ -126,7 +127,7 @@ const TeamPage = () => {
     const memberId = selectedMember.id;
     const memberName = selectedMember.name;
 
-    const questsQuery = query(collection(db, 'quests'));
+    const questsQuery = query(collection(db, 'tasks'));
     
     const unsubscribe = onSnapshot(questsQuery, (snapshot) => {
       const userQuests = [];
@@ -207,7 +208,7 @@ const TeamPage = () => {
           console.log(`🔍 Recherche quêtes pour: ${userName} (ID: ${userId}, Email: ${userEmail})`);
           
           // RÉCUPÉRER TOUTES LES QUÊTES
-const allQuestsQuery = query(collection(db, 'tasks'));
+          const allQuestsQuery = query(collection(db, 'tasks'));
           const allQuestsSnap = await getDocs(allQuestsQuery);
           
           const userQuests = [];
@@ -1295,7 +1296,7 @@ const allQuestsQuery = query(collection(db, 'tasks'));
       <span className="text-purple-400 text-sm">Badges</span>
     </div>
     <div className="text-2xl font-bold text-white">{selectedMember.badgesCount || 0}</div>
-    <div className="text-xs text-gray-400 mt-1">débloqu és</div>
+    <div className="text-xs text-gray-400 mt-1">débloqués</div>
   </div>
 </div>
 
