@@ -439,14 +439,29 @@ const ProfilePage = () => {
 
     setUploading(true);
     try {
+      console.log('📷 [PROFILE] Début upload avatar...');
+      
+      // Upload vers Firebase Storage
       const photoURL = await uploadUserAvatar(user.uid, file);
+      console.log('✅ [PROFILE] Avatar uploadé:', photoURL);
+      
+      // Mettre à jour le store Auth
       await updateProfile({ photoURL });
-      showSuccessNotification('✅ Avatar mis à jour !', 'success');
+      console.log('✅ [PROFILE] Store Auth mis à jour');
+      
+      // Afficher notification de succès
+      showSuccessNotification('✅ Avatar mis à jour ! Rechargement...', 'success');
+      
+      // Recharger la page après 1 seconde pour afficher la nouvelle photo
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
     } catch (error) {
       console.error('❌ [PROFILE] Erreur upload avatar:', error);
-      showSuccessNotification('❌ Erreur lors de l\'upload', 'error');
+      showSuccessNotification('❌ Erreur lors de l\'upload: ' + error.message, 'error');
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   /**
@@ -675,6 +690,7 @@ const ProfilePage = () => {
                               src={user.photoURL} 
                               alt="Avatar"
                               className="w-full h-full object-cover"
+                              key={user.photoURL} // Force re-render si photoURL change
                             />
                           ) : (
                             userProfile.displayName?.charAt(0)?.toUpperCase() || 
