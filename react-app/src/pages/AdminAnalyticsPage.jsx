@@ -10,7 +10,8 @@ import {
   Calendar, Download, RefreshCw, Filter, Eye, Award, CheckCircle,
   Clock, Zap, Activity, PieChart, LineChart, ArrowUp, ArrowDown,
   UserPlus, UserCheck, UserX, Shield, Flame, AlertCircle, Info,
-  BookOpen, Briefcase, Heart, ThumbsUp, Settings, Package, MessageSquare
+  BookOpen, Briefcase, Heart, ThumbsUp, Settings, Package, MessageSquare,
+  XCircle
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
