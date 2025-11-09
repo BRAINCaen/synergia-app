@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
 // SYSTÈME D'INTÉGRATION COMPLET - FORMATION + ENTRETIENS
-// VERSION CORRIGÉE : setDoc pour créer le document Firebase
+// VERSION FINALE : Mise à jour complète de l'objet phases
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -1182,7 +1182,7 @@ const OnboardingPage = () => {
     }
   }, [user?.uid]);
 
-  // ✅ CORRECTION : Initialiser avec setDoc au lieu de updateDoc
+  // Initialiser le profil d'onboarding
   const initializeOnboardingProfile = async () => {
     if (!user?.uid) return;
 
@@ -1215,7 +1215,6 @@ const OnboardingPage = () => {
         };
       });
 
-      // ✅ UTILISER setDoc AU LIEU DE updateDoc
       await setDoc(doc(db, 'userOnboarding', user.uid), initialProgress);
       setUserProgress(initialProgress);
 
@@ -1226,7 +1225,7 @@ const OnboardingPage = () => {
     }
   };
 
-  // Compléter une tâche
+  // ✅ CORRECTION FINALE : Mettre à jour tout l'objet phases
   const completeTask = async (phaseId, taskId) => {
     if (!user?.uid) return;
 
@@ -1243,7 +1242,10 @@ const OnboardingPage = () => {
       }
 
       const currentProgress = progressDoc.data();
-      const phase = currentProgress.phases[phaseId];
+      
+      // ✅ COPIER TOUT L'OBJET PHASES
+      const updatedPhases = { ...currentProgress.phases };
+      const phase = updatedPhases[phaseId];
       
       if (!phase) {
         console.error('❌ Phase non trouvée:', phaseId);
@@ -1252,7 +1254,10 @@ const OnboardingPage = () => {
 
       const task = phase.tasks.find(t => t.id === taskId);
 
-      if (!task || task.completed) return;
+      if (!task || task.completed) {
+        console.log('⚠️ Tâche déjà complétée ou non trouvée');
+        return;
+      }
 
       // Marquer la tâche comme complétée
       task.completed = true;
@@ -1265,9 +1270,9 @@ const OnboardingPage = () => {
         phase.completedAt = new Date().toISOString();
       }
 
-      // Mettre à jour Firebase
+      // ✅ METTRE À JOUR TOUT L'OBJET PHASES EN UNE FOIS
       await updateDoc(progressRef, {
-        [`phases.${phaseId}`]: phase
+        phases: updatedPhases
       });
 
       // Recharger les données
