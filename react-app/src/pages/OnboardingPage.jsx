@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
 // SYSTÈME D'INTÉGRATION COMPLET - FORMATION + ENTRETIENS
-// VERSION ENRICHIE : Compétences réelles Brain par expérience
+// VERSION CORRIGÉE : setDoc pour créer le document Firebase
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -55,7 +55,8 @@ import {
   collection, 
   doc, 
   addDoc, 
-  updateDoc, 
+  updateDoc,
+  setDoc,
   getDocs, 
   getDoc, 
   deleteDoc,
@@ -1181,7 +1182,7 @@ const OnboardingPage = () => {
     }
   }, [user?.uid]);
 
-  // Initialiser le profil d'onboarding
+  // ✅ CORRECTION : Initialiser avec setDoc au lieu de updateDoc
   const initializeOnboardingProfile = async () => {
     if (!user?.uid) return;
 
@@ -1214,7 +1215,8 @@ const OnboardingPage = () => {
         };
       });
 
-      await updateDoc(doc(db, 'userOnboarding', user.uid), initialProgress);
+      // ✅ UTILISER setDoc AU LIEU DE updateDoc
+      await setDoc(doc(db, 'userOnboarding', user.uid), initialProgress);
       setUserProgress(initialProgress);
 
       console.log('✅ Profil onboarding initialisé');
@@ -1234,7 +1236,11 @@ const OnboardingPage = () => {
       const progressRef = doc(db, 'userOnboarding', user.uid);
       const progressDoc = await getDoc(progressRef);
       
-      if (!progressDoc.exists()) return;
+      if (!progressDoc.exists()) {
+        console.log('⚠️ Document n\'existe pas, initialisation...');
+        await initializeOnboardingProfile();
+        return;
+      }
 
       const currentProgress = progressDoc.data();
       const phase = currentProgress.phases[phaseId];
