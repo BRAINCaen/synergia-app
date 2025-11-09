@@ -803,14 +803,21 @@ const OnboardingPage = () => {
 
       if (progressData?.phases?.[phase.id]) {
         const phaseProgress = progressData.phases[phase.id];
-        if (phaseProgress.completed) {
-          completedPhases++;
-        }
+        
+        // Compter les tâches complétées
+        let phaseCompletedTasks = 0;
         phaseProgress.tasks?.forEach(task => {
           if (task.completed) {
             completedTasks++;
+            phaseCompletedTasks++;
           }
         });
+        
+        // ✅ FIX : Une phase est complète si TOUTES ses tâches sont complétées
+        const allTasksCompleted = phaseCompletedTasks === phase.tasks.length;
+        if (allTasksCompleted || phaseProgress.completed) {
+          completedPhases++;
+        }
       }
     });
 
@@ -1001,13 +1008,39 @@ const OnboardingPage = () => {
   const scheduleInterview = async () => {
     if (!user?.uid || !selectedTemplate) return;
 
+    // ✅ VALIDATION : Vérifier que date et heure sont remplies
+    if (!interviewForm.date || !interviewForm.time) {
+      alert('⚠️ Veuillez renseigner la date et l\'heure de l\'entretien !');
+      console.error('❌ [INTERVIEWS] Date ou heure manquante');
+      return;
+    }
+
+    if (!interviewForm.referent || interviewForm.referent.trim() === '') {
+      alert('⚠️ Veuillez renseigner le nom du référent !');
+      console.error('❌ [INTERVIEWS] Référent manquant');
+      return;
+    }
+
     try {
+      console.log('📅 [INTERVIEWS] Création entretien avec date:', interviewForm.date, 'heure:', interviewForm.time);
+      
+      // Créer la date de manière sûre
+      const dateString = `${interviewForm.date}T${interviewForm.time}`;
+      const interviewDate = new Date(dateString);
+      
+      // Vérifier que la date est valide
+      if (isNaN(interviewDate.getTime())) {
+        alert('⚠️ Date ou heure invalide !');
+        console.error('❌ [INTERVIEWS] Date invalide:', dateString);
+        return;
+      }
+
       const newInterview = {
         userId: user.uid,
         templateId: selectedTemplate.id,
         templateName: selectedTemplate.name,
-        date: new Date(`${interviewForm.date}T${interviewForm.time}`).toISOString(),
-        referent: interviewForm.referent,
+        date: interviewDate.toISOString(),
+        referent: interviewForm.referent.trim(),
         location: interviewForm.location,
         type: interviewForm.type,
         notes: interviewForm.notes,
@@ -1017,14 +1050,18 @@ const OnboardingPage = () => {
         createdAt: new Date().toISOString()
       };
 
+      console.log('💾 [INTERVIEWS] Sauvegarde entretien:', newInterview);
+      
       await addDoc(collection(db, 'interviews'), newInterview);
       await loadInterviews();
       setShowInterviewModal(false);
       resetInterviewForm();
       
-      console.log('✅ [INTERVIEWS] Entretien planifié');
+      console.log('✅ [INTERVIEWS] Entretien planifié avec succès');
+      alert('✅ Entretien planifié avec succès !');
     } catch (error) {
       console.error('❌ [INTERVIEWS] Erreur planification:', error);
+      alert('❌ Erreur lors de la planification de l\'entretien');
     }
   };
 
@@ -1460,33 +1497,42 @@ const OnboardingPage = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Date</label>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Date <span className="text-red-400">*</span>
+                      </label>
                       <input
                         type="date"
                         value={interviewForm.date}
                         onChange={(e) => setInterviewForm({...interviewForm, date: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                        required
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Heure</label>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">
+                        Heure <span className="text-red-400">*</span>
+                      </label>
                       <input
                         type="time"
                         value={interviewForm.time}
                         onChange={(e) => setInterviewForm({...interviewForm, time: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                        required
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Référent</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Référent <span className="text-red-400">*</span>
+                    </label>
                     <input
                       type="text"
                       value={interviewForm.referent}
                       onChange={(e) => setInterviewForm({...interviewForm, referent: e.target.value})}
                       placeholder="Nom du référent"
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                      required
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
                     />
                   </div>
 
