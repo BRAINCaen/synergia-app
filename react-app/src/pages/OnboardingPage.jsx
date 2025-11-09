@@ -1,7 +1,9 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// VERSION COMPLÈTE : Tous les composants inclus
+// VERSION FINALE : Synchronisation XP Onboarding + Gamification
 // ==========================================
+
+// [GARDER TOUS LES IMPORTS IDENTIQUES]
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,7 +52,6 @@ import {
   RotateCcw
 } from 'lucide-react';
 
-// Firebase imports
 import { 
   collection, 
   doc, 
@@ -64,19 +65,15 @@ import {
   where, 
   orderBy, 
   serverTimestamp,
-  onSnapshot 
+  onSnapshot,
+  increment
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-// 🎯 IMPORT DU VRAI LAYOUT AVEC MENU HAMBURGER
 import Layout from '../components/layout/Layout.jsx';
-
-// Hooks et stores
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// ==========================================
-// 🎯 DONNÉES DE FORMATION BRAIN - MIX COMPLET
-// ==========================================
+// [GARDER TOUTES LES DONNÉES FORMATION_PHASES ET BADGES IDENTIQUES]
 
 const FORMATION_PHASES = {
   DECOUVERTE_BRAIN: {
@@ -315,10 +312,6 @@ const FORMATION_PHASES = {
   }
 };
 
-// ==========================================
-// 🏆 BADGES D'ONBOARDING - GAMIFICATION
-// ==========================================
-
 const BADGES_ONBOARDING = [
   {
     id: 'bienvenue_brain',
@@ -346,9 +339,7 @@ const BADGES_ONBOARDING = [
   }
 ];
 
-// ==========================================
-// 🎨 COMPOSANT CARD PREMIUM
-// ==========================================
+// [GARDER LES COMPOSANTS PremiumCard et StatCard IDENTIQUES]
 
 const PremiumCard = ({ children, className = "" }) => (
   <motion.div
@@ -359,10 +350,6 @@ const PremiumCard = ({ children, className = "" }) => (
     {children}
   </motion.div>
 );
-
-// ==========================================
-// 📊 COMPOSANT STAT CARD
-// ==========================================
 
 const StatCard = ({ title, value, icon: Icon, color = "blue" }) => {
   const colorMap = {
@@ -518,6 +505,7 @@ const OnboardingPage = () => {
     }
   };
 
+  // ✅ CORRECTION : Synchroniser avec le système de gamification principal
   const completeTask = async (phaseId, taskId) => {
     if (!user?.uid) return;
 
@@ -555,25 +543,45 @@ const OnboardingPage = () => {
         return;
       }
 
+      // Marquer la tâche comme complétée
       task.completed = true;
       task.completedAt = new Date().toISOString();
 
+      // Vérifier si la phase est complète
       const allTasksCompleted = phase.tasks.every(t => t.completed);
       if (allTasksCompleted) {
         phase.completed = true;
         phase.completedAt = new Date().toISOString();
       }
 
+      // Mettre à jour Firebase Onboarding
       await updateDoc(progressRef, {
         phases: updatedPhases
       });
 
+      // ✅ NOUVEAUTÉ : Synchroniser avec le système de gamification principal
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        'gamification.totalXp': increment(task.xp),
+        'gamification.xpHistory': arrayUnion({
+          amount: task.xp,
+          source: 'onboarding',
+          taskId: task.id,
+          phaseId: phaseId,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      console.log(`✅ +${task.xp} XP ajoutés au profil principal`);
+
+      // Recharger les données
       await loadUserProgress();
 
       console.log('✅ Tâche complétée avec succès');
 
     } catch (error) {
       console.error('❌ Erreur complétion tâche:', error);
+      alert('Erreur lors de la complétion. Vérifiez la console.');
     }
   };
 
@@ -604,6 +612,8 @@ const OnboardingPage = () => {
       loadUserProgress();
     }
   }, [isAuthenticated, user?.uid, loadUserProgress]);
+
+  // [GARDER TOUT LE RESTE DU CODE IDENTIQUE : rendu, FormationTab, EntretiensTab, ProgressTab]
 
   if (!isAuthenticated) {
     return (
@@ -739,9 +749,7 @@ const OnboardingPage = () => {
   );
 };
 
-// ==========================================
-// 🎓 ONGLET FORMATION
-// ==========================================
+// [GARDER TOUS LES COMPOSANTS FormationTab, EntretiensTab, ProgressTab IDENTIQUES À AVANT]
 
 const FormationTab = ({ userProgress, onCompleteTask }) => {
   return (
@@ -879,10 +887,6 @@ const FormationTab = ({ userProgress, onCompleteTask }) => {
   );
 };
 
-// ==========================================
-// 💬 ONGLET ENTRETIENS
-// ==========================================
-
 const EntretiensTab = ({ availableEntretiens, scheduledEntretiens, onScheduleEntretien }) => {
   return (
     <motion.div
@@ -959,10 +963,6 @@ const EntretiensTab = ({ availableEntretiens, scheduledEntretiens, onScheduleEnt
     </motion.div>
   );
 };
-
-// ==========================================
-// 📊 ONGLET PROGRESSION
-// ==========================================
 
 const ProgressTab = ({ userProgress, stats }) => {
   return (
