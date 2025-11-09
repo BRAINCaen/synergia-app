@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
 // SYSTÈME D'INTÉGRATION COMPLET - FORMATION + ENTRETIENS
-// VERSION CORRIGÉE : Menu fonctionnel + Formation déverrouillée
+// VERSION ENRICHIE : Compétences réelles Brain par expérience
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -74,26 +74,26 @@ import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 // ==========================================
-// 🎯 DONNÉES DE FORMATION PAR SALLE COMPLÈTES
+// 🎯 DONNÉES DE FORMATION BRAIN - MIX COMPLET
 // ==========================================
 
 const FORMATION_PHASES = {
   DECOUVERTE_BRAIN: {
     id: 'decouverte_brain',
-    name: '🎯 Découverte de Brain',
+    name: '💡 Découverte de Brain',
     description: 'Immersion dans l\'univers et la culture Brain',
     duration: 3,
     color: 'from-blue-500 to-cyan-500',
-    icon: '🎯',
+    icon: '💡',
     order: 1,
-    xpTotal: 100,
-    badge: 'Explorateur Brain',
-    room: 'Salle principale',
+    xpTotal: 150,
+    badge: 'Bienvenue chez Brain !',
+    room: 'Tous les espaces',
     tasks: [
       {
-        id: 'visite_locaux',
-        name: 'Visite guidée des locaux',
-        description: 'Tour complet des espaces Brain avec présentation de chaque zone',
+        id: 'accueil_officiel',
+        name: 'Accueil officiel et tour des locaux',
+        description: 'Participer à ton accueil et découvrir tous les espaces Brain',
         xp: 20,
         required: true,
         estimatedTime: 90,
@@ -101,109 +101,44 @@ const FORMATION_PHASES = {
         mentor: 'Responsable RH'
       },
       {
-        id: 'comprendre_valeurs',
-        name: 'Comprendre les valeurs Brain',
-        description: 'Découverte de l\'ADN Brain, vision, valeurs et culture',
-        xp: 20,
+        id: 'charte_histoire',
+        name: 'Charte, règlement et histoire Brain',
+        description: 'Lire et comprendre l\'ADN, la vision et les valeurs Brain',
+        xp: 15,
         required: true,
-        estimatedTime: 60,
+        estimatedTime: 45,
         room: 'Salle de réunion',
         mentor: 'Direction'
       },
       {
-        id: 'rencontrer_equipe',
-        name: 'Rencontrer l\'équipe',
-        description: 'Discussions informelles avec les membres de l\'équipe',
-        xp: 15,
+        id: 'equipe_organigramme',
+        name: 'Découvrir l\'équipe et l\'organigramme',
+        description: 'Rencontrer l\'équipe (photos, rôles, anecdotes) et comprendre qui fait quoi',
+        xp: 20,
         required: true,
-        estimatedTime: 120,
+        estimatedTime: 60,
         room: 'Open space',
         mentor: 'Équipe'
       },
       {
-        id: 'outils_communication',
-        name: 'Outils de communication',
-        description: 'Configuration et présentation de Discord, Slack, emails...',
+        id: 'outils_internes',
+        name: 'Outils de communication internes',
+        description: 'Configuration messagerie, email, planning, réservations, canaux internes',
         xp: 25,
         required: true,
-        estimatedTime: 45,
+        estimatedTime: 60,
         room: 'Salle formation',
         mentor: 'IT Manager'
       },
       {
-        id: 'quiz_culture',
-        name: 'Quiz culture Brain',
-        description: 'Test de connaissances sur l\'entreprise et ses valeurs',
+        id: 'presentation_equipe',
+        name: 'Te présenter à l\'équipe',
+        description: 'Présentation officielle en live ou par message à toute l\'équipe',
         xp: 20,
-        required: false,
+        required: true,
         estimatedTime: 30,
-        room: 'En ligne',
-        mentor: 'Auto-évaluation'
-      }
-    ]
-  },
-  
-  FORMATION_TECHNIQUE: {
-    id: 'formation_technique',
-    name: '🛠️ Formation Technique',
-    description: 'Montée en compétences techniques spécifiques au poste',
-    duration: 7,
-    color: 'from-purple-500 to-pink-500',
-    icon: '🛠️',
-    order: 2,
-    xpTotal: 200,
-    badge: 'Technicien Certifié',
-    room: 'Salle technique',
-    tasks: [
-      {
-        id: 'setup_environnement',
-        name: 'Setup environnement de travail',
-        description: 'Installation et configuration de tous les outils nécessaires',
-        xp: 30,
-        required: true,
-        estimatedTime: 180,
-        room: 'Salle technique',
-        mentor: 'Lead Developer'
-      },
-      {
-        id: 'formation_outils',
-        name: 'Formation aux outils Brain',
-        description: 'Maîtrise des outils internes et workflows',
-        xp: 40,
-        required: true,
-        estimatedTime: 240,
-        room: 'Salle formation',
-        mentor: 'Senior Developer'
-      },
-      {
-        id: 'premier_projet',
-        name: 'Premier mini-projet',
-        description: 'Réalisation d\'un projet simple pour valider les acquis',
-        xp: 50,
-        required: true,
-        estimatedTime: 480,
         room: 'Open space',
-        mentor: 'Binôme senior'
-      },
-      {
-        id: 'code_review',
-        name: 'Sessions code review',
-        description: 'Apprentissage des bonnes pratiques via review de code',
-        xp: 40,
-        required: true,
-        estimatedTime: 120,
-        room: 'Salle de réunion',
-        mentor: 'Tech Lead'
-      },
-      {
-        id: 'certification_interne',
-        name: 'Certification interne',
-        description: 'Évaluation finale des compétences techniques',
-        xp: 40,
-        required: false,
-        estimatedTime: 180,
-        room: 'En ligne',
-        mentor: 'CTO'
+        mentor: 'Équipe'
       }
     ]
   },
@@ -213,202 +148,802 @@ const FORMATION_PHASES = {
     name: '👥 Parcours Client',
     description: 'Maîtrise du parcours client de A à Z',
     duration: 5,
-    color: 'from-blue-500 to-cyan-500',
+    color: 'from-green-500 to-emerald-500',
     icon: '👥',
-    order: 3,
-    xpTotal: 150,
-    badge: 'Ambassadeur Brain',
+    order: 2,
+    xpTotal: 180,
+    badge: 'Ambassadeur·rice Brain',
     room: 'Salle expérience',
     tasks: [
       {
-        id: 'experience_complete',
-        name: 'Vivre une expérience complète',
-        description: 'Participer à une session en tant que joueur',
-        xp: 30,
+        id: 'observer_accueil',
+        name: 'Observer l\'accueil client',
+        description: 'Observer l\'accueil avec un·e Game Master expérimenté·e',
+        xp: 20,
         required: true,
-        estimatedTime: 90,
-        room: 'Salle jeu',
-        mentor: 'Game Master'
-      },
-      {
-        id: 'observer_gm',
-        name: 'Observer un Game Master',
-        description: 'Observation d\'une session complète',
-        xp: 25,
-        required: true,
-        estimatedTime: 90,
-        room: 'Salle jeu',
+        estimatedTime: 60,
+        room: 'Accueil',
         mentor: 'Game Master senior'
       },
       {
-        id: 'gestion_reservations',
-        name: 'Gestion des réservations',
-        description: 'Maîtrise du système de réservation et planning',
-        xp: 30,
+        id: 'observer_briefing',
+        name: 'Observer un briefing complet',
+        description: 'Observer briefing Escape et Quiz Game en conditions réelles',
+        xp: 20,
         required: true,
-        estimatedTime: 60,
-        room: 'Accueil',
-        mentor: 'Responsable Booking'
-      },
-      {
-        id: 'accueil_clients',
-        name: 'Accueil et briefing clients',
-        description: 'Techniques d\'accueil et présentation des expériences',
-        xp: 30,
-        required: true,
-        estimatedTime: 90,
-        room: 'Accueil',
-        mentor: 'Responsable Accueil'
-      },
-      {
-        id: 'gestion_feedback',
-        name: 'Gestion des feedbacks',
-        description: 'Collecte et traitement des retours clients',
-        xp: 35,
-        required: false,
-        estimatedTime: 60,
-        room: 'Bureau',
-        mentor: 'Customer Success'
-      }
-    ]
-  },
-  
-  GAME_MASTER: {
-    id: 'game_master',
-    name: '🎮 Game Master',
-    description: 'Formation complète Game Master',
-    duration: 14,
-    color: 'from-orange-500 to-red-500',
-    icon: '🎮',
-    order: 4,
-    xpTotal: 300,
-    badge: 'Game Master Certifié',
-    room: 'Salle jeu principale',
-    tasks: [
-      {
-        id: 'scenarios_base',
-        name: 'Maîtrise des scénarios de base',
-        description: 'Apprentissage complet de tous les scénarios standards',
-        xp: 50,
-        required: true,
-        estimatedTime: 360,
-        room: 'Salle jeu',
+        estimatedTime: 45,
+        room: 'Salle briefing',
         mentor: 'Game Master expert'
       },
       {
-        id: 'gestion_technique',
-        name: 'Gestion technique des salles',
-        description: 'Setup, troubleshooting, réinitialisation',
+        id: 'comprendre_parcours',
+        name: 'Comprendre le parcours client type',
+        description: 'Maîtriser toutes les étapes : accueil, briefing, jeu, débriefing',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle formation',
+        mentor: 'Responsable Expérience'
+      },
+      {
+        id: 'accueil_duo',
+        name: 'Participer à un accueil en duo',
+        description: 'Premier accueil client en binôme avec un·e GM confirmé·e',
+        xp: 30,
+        required: true,
+        estimatedTime: 60,
+        room: 'Accueil',
+        mentor: 'Game Master senior'
+      },
+      {
+        id: 'briefing_roleplay',
+        name: 'Briefing fictif en jeu de rôle',
+        description: 'Pratiquer un briefing complet en simulation',
+        xp: 25,
+        required: true,
+        estimatedTime: 45,
+        room: 'Salle formation',
+        mentor: 'Formateur'
+      },
+      {
+        id: 'debriefing_reel',
+        name: 'Participer à un débriefing',
+        description: 'Observer et participer au débriefing client après session',
+        xp: 20,
+        required: true,
+        estimatedTime: 30,
+        room: 'Salle débriefing',
+        mentor: 'Game Master'
+      },
+      {
+        id: 'notes_session',
+        name: 'Prendre des notes sur session réelle',
+        description: 'Observer et noter tous les détails d\'une session complète',
+        xp: 20,
+        required: false,
+        estimatedTime: 90,
+        room: 'Régie',
+        mentor: 'Game Master'
+      }
+    ]
+  },
+
+  SECURITE_PROCEDURES: {
+    id: 'securite_procedures',
+    name: '🔐 Sécurité & Procédures',
+    description: 'Garantir la sécurité et maîtriser les procédures',
+    duration: 3,
+    color: 'from-red-500 to-orange-500',
+    icon: '🔐',
+    order: 3,
+    xpTotal: 200,
+    badge: 'Gardien·ne du Temple',
+    room: 'Tous les espaces',
+    tasks: [
+      {
+        id: 'consignes_securite',
+        name: 'Consignes de sécurité',
+        description: 'Lire et comprendre incendie, évacuation, premiers secours',
+        xp: 30,
+        required: true,
+        estimatedTime: 60,
+        room: 'Salle formation',
+        mentor: 'Responsable Sécurité'
+      },
+      {
+        id: 'equipements_securite',
+        name: 'Repérer les équipements de sécurité',
+        description: 'Localiser extincteurs, issues de secours, alarmes',
+        xp: 25,
+        required: true,
+        estimatedTime: 30,
+        room: 'Tous les espaces',
+        mentor: 'Responsable Sécurité'
+      },
+      {
+        id: 'procedures_urgence',
+        name: 'Procédures d\'urgence',
+        description: 'Maîtriser coupure courant, alarme, incidents, malaise joueur',
+        xp: 35,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle formation',
+        mentor: 'Responsable Ops'
+      },
+      {
+        id: 'outils_techniques',
+        name: 'Prise en main outils techniques',
+        description: 'Caméras, micros, écrans, effets spéciaux de toutes les salles',
         xp: 40,
         required: true,
-        estimatedTime: 240,
+        estimatedTime: 120,
         room: 'Salle technique',
         mentor: 'Technicien Senior'
       },
       {
-        id: 'animation_groupe',
-        name: 'Techniques d\'animation de groupe',
-        description: 'Communication, gestion des personnalités, dynamique',
-        xp: 45,
+        id: 'reset_complet',
+        name: 'Reset complet d\'une salle',
+        description: 'Apprendre à réinitialiser complètement chaque salle',
+        xp: 30,
         required: true,
-        estimatedTime: 180,
+        estimatedTime: 90,
+        room: 'Salles jeu',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'gestion_materiel',
+        name: 'Gestion du matériel',
+        description: 'Cadenas, accessoires, maintenance de base, vérifications',
+        xp: 20,
+        required: true,
+        estimatedTime: 60,
+        room: 'Réserve',
+        mentor: 'Responsable Maintenance'
+      },
+      {
+        id: 'ouverture_fermeture',
+        name: 'Procédure ouverture/fermeture',
+        description: 'Réaliser procédure complète sous supervision',
+        xp: 20,
+        required: false,
+        estimatedTime: 120,
+        room: 'Tous les espaces',
+        mentor: 'Manager'
+      }
+    ]
+  },
+
+  EXPERIENCE_PSYCHIATRIC: {
+    id: 'experience_psychiatric',
+    name: '🩺 Expert·e Psychiatric',
+    description: 'Formation complète sur l\'expérience Psychiatric',
+    duration: 7,
+    color: 'from-purple-500 to-pink-500',
+    icon: '🩺',
+    order: 4,
+    xpTotal: 240,
+    badge: 'Expert·e Psychiatric',
+    room: 'Salle Psychiatric',
+    tasks: [
+      {
+        id: 'scenario_psychiatric',
+        name: 'Lire et comprendre le scénario',
+        description: 'Maîtriser l\'ambiance, les enjeux et les moments clés',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle formation',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'musiques_effets',
+        name: 'Musiques et effets sonores',
+        description: 'Connaître les musiques et effets principaux de Psychiatric',
+        xp: 20,
+        required: true,
+        estimatedTime: 45,
+        room: 'Régie Psychiatric',
+        mentor: 'Technicien'
+      },
+      {
+        id: 'cameras_micros_psy',
+        name: 'Caméras et micros spécifiques',
+        description: 'Maîtriser l\'utilisation des équipements Psychiatric',
+        xp: 30,
+        required: true,
+        estimatedTime: 60,
+        room: 'Régie Psychiatric',
+        mentor: 'Technicien Senior'
+      },
+      {
+        id: 'effets_speciaux_psy',
+        name: 'Effets spéciaux Psychiatric',
+        description: 'Maîtriser tous les effets spéciaux et leur timing',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle Psychiatric',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'reset_psychiatric',
+        name: 'Reset complet Psychiatric',
+        description: 'Reset rapide avec check de tous les éléments sensibles',
+        xp: 25,
+        required: true,
+        estimatedTime: 60,
+        room: 'Salle Psychiatric',
+        mentor: 'Game Master'
+      },
+      {
+        id: 'accompagnement_anxieux',
+        name: 'Rassurer et accompagner',
+        description: 'Gérer un groupe anxieux ou effrayé avec bienveillance',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
         room: 'Salle formation',
         mentor: 'Formateur Communication'
       },
       {
-        id: 'gestion_incidents',
-        name: 'Gestion des incidents et imprevus',
-        description: 'Protocoles d\'urgence et résolution de problèmes',
-        xp: 40,
+        id: 'indices_immersion',
+        name: 'Donner indices sans casser l\'immersion',
+        description: 'Techniques d\'aide adaptées selon âge/expérience',
+        xp: 25,
         required: true,
-        estimatedTime: 120,
+        estimatedTime: 60,
+        room: 'Régie Psychiatric',
+        mentor: 'Game Master senior'
+      },
+      {
+        id: 'briefing_psychiatric',
+        name: 'Briefing Psychiatric complet',
+        description: 'Pratiquer le briefing en jeu de rôle puis en réel',
+        xp: 30,
+        required: true,
+        estimatedTime: 45,
         room: 'Salle briefing',
-        mentor: 'Responsable Ops'
+        mentor: 'Game Master expert'
       },
       {
-        id: 'scenarios_avances',
-        name: 'Scénarios avancés et personnalisation',
-        description: 'Maîtrise des variantes et adaptations',
-        xp: 60,
+        id: 'validation_psychiatric',
+        name: 'Sessions Psychiatric validées',
+        description: 'Animer 2 sessions dont 1 en quasi-autonomie',
+        xp: 25,
         required: true,
-        estimatedTime: 300,
-        room: 'Salle jeu',
-        mentor: 'Game Master Legend'
-      },
-      {
-        id: 'certification_gm',
-        name: 'Certification Game Master',
-        description: 'Évaluation finale en conditions réelles',
-        xp: 65,
-        required: true,
-        estimatedTime: 240,
-        room: 'Salle certification',
-        mentor: 'Panel d\'experts'
+        estimatedTime: 180,
+        room: 'Salle Psychiatric',
+        mentor: 'Référent·e'
       }
     ]
   },
-  
-  SPECIALISATIONS: {
-    id: 'specialisations',
-    name: '⭐ Spécialisations',
-    description: 'Formations avancées optionnelles',
-    duration: 999,
-    color: 'from-yellow-500 to-orange-500',
-    icon: '⭐',
+
+  EXPERIENCE_PRISON: {
+    id: 'experience_prison',
+    name: '🚨 Expert·e Prison',
+    description: 'Formation complète sur l\'expérience Prison',
+    duration: 7,
+    color: 'from-gray-600 to-gray-800',
+    icon: '🚨',
     order: 5,
-    xpTotal: 500,
-    badge: 'Expert Spécialisé',
-    room: 'Salles diverses',
+    xpTotal: 220,
+    badge: 'Expert·e Prison',
+    room: 'Salle Prison',
     tasks: [
       {
-        id: 'evenements_speciaux',
-        name: 'Événements spéciaux et corporate',
-        description: 'Organisation et animation d\'événements sur mesure',
-        xp: 80,
-        required: false,
-        estimatedTime: 360,
-        room: 'Salle événements',
-        mentor: 'Event Manager'
-      },
-      {
-        id: 'scenarios_vr',
-        name: 'Scénarios VR avancés',
-        description: 'Maîtrise des expériences en réalité virtuelle',
-        xp: 90,
-        required: false,
-        estimatedTime: 300,
-        room: 'Salle VR',
-        mentor: 'VR Specialist'
-      },
-      {
-        id: 'creation_scenarios',
-        name: 'Création de nouveaux scénarios',
-        description: 'Concevoir et développer de nouvelles expériences',
-        xp: 100,
-        required: false,
-        estimatedTime: 600,
-        room: 'Salle créative',
-        mentor: 'Creative Director'
-      },
-      {
-        id: 'formation_formateurs',
-        name: 'Formation de formateurs',
-        description: 'Former les nouveaux Game Masters',
-        xp: 120,
-        required: false,
-        estimatedTime: 480,
+        id: 'scenario_prison',
+        name: 'Lire et comprendre le scénario Prison',
+        description: 'Expliquer les enjeux et l\'ambiance carcérale',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
         room: 'Salle formation',
-        mentor: 'Lead Trainer'
+        mentor: 'Game Master expert'
       },
       {
-        id: 'master_brain',
-        name: 'Master Brain Certification',
-        description: 'Niveau expert ultime et reconnaissance',
-        xp: 110,
+        id: 'temps_forts_prison',
+        name: 'Repérer les temps forts',
+        description: 'Identifier stress, compétition, coopération',
+        xp: 20,
+        required: true,
+        estimatedTime: 60,
+        room: 'Salle formation',
+        mentor: 'Game Master senior'
+      },
+      {
+        id: 'equipes_multiples',
+        name: 'Gestion des équipes multiples',
+        description: 'Gérer plusieurs équipes en simultané',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle Prison',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'dispositifs_securite',
+        name: 'Dispositifs de sécurité Prison',
+        description: 'Maîtriser portes, menottes, alarmes',
+        xp: 30,
+        required: true,
+        estimatedTime: 60,
+        room: 'Salle Prison',
+        mentor: 'Technicien'
+      },
+      {
+        id: 'effets_prison',
+        name: 'Effets sonores et lumineux',
+        description: 'Lancer/arrêter les effets au bon moment',
+        xp: 25,
+        required: true,
+        estimatedTime: 45,
+        room: 'Régie Prison',
+        mentor: 'Technicien'
+      },
+      {
+        id: 'reset_prison',
+        name: 'Reset complet Prison',
+        description: 'Cellules, objets cachés, routine nettoyage',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle Prison',
+        mentor: 'Game Master'
+      },
+      {
+        id: 'interactions_equipes',
+        name: 'Interactions entre équipes',
+        description: 'Gérer compétition ou coopération, triche, blocages',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle Prison',
+        mentor: 'Game Master senior'
+      },
+      {
+        id: 'briefing_prison',
+        name: 'Briefing Prison complet',
+        description: 'Pratiquer briefing en jeu de rôle puis en réel',
+        xp: 20,
+        required: true,
+        estimatedTime: 45,
+        room: 'Salle briefing',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'validation_prison',
+        name: 'Sessions Prison validées',
+        description: 'Animer 2 sessions dont 1 en quasi-autonomie',
+        xp: 15,
+        required: true,
+        estimatedTime: 180,
+        room: 'Salle Prison',
+        mentor: 'Référent·e'
+      }
+    ]
+  },
+
+  EXPERIENCE_80S: {
+    id: 'experience_80s',
+    name: '🎸 Expert·e Back to the 80\'s',
+    description: 'Formation complète sur l\'expérience rétro',
+    duration: 5,
+    color: 'from-pink-500 to-purple-500',
+    icon: '🎸',
+    order: 6,
+    xpTotal: 200,
+    badge: 'Expert·e Back to the 80\'s',
+    room: 'Salle 80\'s',
+    tasks: [
+      {
+        id: 'scenario_80s',
+        name: 'Lire et comprendre le scénario',
+        description: 'Maîtriser références, anecdotes, musiques et objets emblématiques',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle formation',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'playlist_ambiance',
+        name: 'Gérer la playlist et l\'ambiance rétro',
+        description: 'Maîtriser la playlist et renforcer l\'ambiance 80\'s',
+        xp: 20,
+        required: true,
+        estimatedTime: 45,
+        room: 'Salle 80\'s',
+        mentor: 'Game Master'
+      },
+      {
+        id: 'objets_vintage',
+        name: 'Objets et mécanismes vintage',
+        description: 'Maîtriser téléphone, cassettes et tous les objets d\'époque',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle 80\'s',
+        mentor: 'Technicien'
+      },
+      {
+        id: 'reset_80s',
+        name: 'Reset complet 80\'s',
+        description: 'Remise en place de tous les éléments fragiles',
+        xp: 25,
+        required: true,
+        estimatedTime: 60,
+        room: 'Salle 80\'s',
+        mentor: 'Game Master'
+      },
+      {
+        id: 'adaptation_culture',
+        name: 'Adapter selon culture 80\'s du groupe',
+        description: 'Rendre l\'expérience inclusive et fun, quel que soit l\'âge',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle formation',
+        mentor: 'Formateur'
+      },
+      {
+        id: 'humour_nostalgie',
+        name: 'Humour et nostalgie',
+        description: 'Gérer clins d\'œil à l\'époque sans exclure les plus jeunes',
+        xp: 25,
+        required: true,
+        estimatedTime: 60,
+        room: 'Salle 80\'s',
+        mentor: 'Game Master senior'
+      },
+      {
+        id: 'briefing_80s',
+        name: 'Briefing 80\'s complet',
+        description: 'Pratiquer briefing en jeu de rôle puis en réel',
+        xp: 25,
+        required: true,
+        estimatedTime: 45,
+        room: 'Salle briefing',
+        mentor: 'Game Master expert'
+      },
+      {
+        id: 'validation_80s',
+        name: 'Sessions 80\'s validées',
+        description: 'Animer 2 sessions dont 1 en quasi-autonomie',
+        xp: 20,
+        required: true,
+        estimatedTime: 180,
+        room: 'Salle 80\'s',
+        mentor: 'Référent·e'
+      }
+    ]
+  },
+
+  EXPERIENCE_QUIZGAME: {
+    id: 'experience_quizgame',
+    name: '🏆 Expert·e Quiz Game',
+    description: 'Formation complète animation Quiz Game',
+    duration: 7,
+    color: 'from-yellow-500 to-orange-500',
+    icon: '🏆',
+    order: 7,
+    xpTotal: 220,
+    badge: 'Expert·e Quiz Game',
+    room: 'Plateau Quiz Game',
+    tasks: [
+      {
+        id: 'modes_regles_quiz',
+        name: 'Tous les modes de jeu et règles',
+        description: 'Connaître parfaitement tous les modes et règles',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
+        room: 'Plateau Quiz',
+        mentor: 'Animateur expert'
+      },
+      {
+        id: 'presentation_plateau',
+        name: 'Présenter le plateau',
+        description: 'Savoir présenter le plateau et ses fonctionnalités',
+        xp: 20,
+        required: true,
+        estimatedTime: 45,
+        room: 'Plateau Quiz',
+        mentor: 'Animateur'
+      },
+      {
+        id: 'prise_micro',
+        name: 'Prise de micro et animation de base',
+        description: 'Maîtriser le micro et les bases de l\'animation',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Plateau Quiz',
+        mentor: 'Animateur expert'
+      },
+      {
+        id: 'lancement_modes',
+        name: 'Lancer chaque mode de jeu',
+        description: 'Buzzers, tablettes, pupitres : tout maîtriser',
+        xp: 30,
+        required: true,
+        estimatedTime: 120,
+        room: 'Plateau Quiz',
+        mentor: 'Technicien'
+      },
+      {
+        id: 'scores_transitions',
+        name: 'Affichage scores et transitions',
+        description: 'Gérer l\'affichage et les transitions entre modes',
+        xp: 25,
+        required: true,
+        estimatedTime: 60,
+        room: 'Régie Quiz',
+        mentor: 'Technicien'
+      },
+      {
+        id: 'bugs_litiges',
+        name: 'Réagir en cas de bug ou litige',
+        description: 'Gérer problème technique ou question litigieuse',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Salle formation',
+        mentor: 'Animateur expert'
+      },
+      {
+        id: 'ambiance_motivation',
+        name: 'Créer l\'ambiance et motiver',
+        description: 'Créer l\'ambiance et motiver chaque équipe',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Plateau Quiz',
+        mentor: 'Animateur expert'
+      },
+      {
+        id: 'adaptation_public_quiz',
+        name: 'Adapter au public',
+        description: 'S\'adapter : enfants, EVJF/G, entreprises, familles',
+        xp: 30,
+        required: true,
+        estimatedTime: 120,
+        room: 'Plateau Quiz',
+        mentor: 'Formateur'
+      },
+      {
+        id: 'validation_quiz',
+        name: 'Sessions Quiz validées',
+        description: 'Animer 2 sessions dont 1 en quasi-autonomie',
+        xp: 0,
+        required: true,
+        estimatedTime: 180,
+        room: 'Plateau Quiz',
+        mentor: 'Référent·e'
+      }
+    ]
+  },
+
+  QUOTIDIEN_GESTION: {
+    id: 'quotidien_gestion',
+    name: '🛠️ Quotidien & Gestion',
+    description: 'Maîtriser les tâches quotidiennes',
+    duration: 5,
+    color: 'from-cyan-500 to-blue-500',
+    icon: '🛠️',
+    order: 8,
+    xpTotal: 170,
+    badge: 'Pilier du Quotidien',
+    room: 'Tous les espaces',
+    tasks: [
+      {
+        id: 'preparation_salle',
+        name: 'Préparer une salle avant session',
+        description: 'Reset, check matériel, vérifications complètes',
+        xp: 25,
+        required: true,
+        estimatedTime: 45,
+        room: 'Salles jeu',
+        mentor: 'Game Master'
+      },
+      {
+        id: 'stocks_consommables',
+        name: 'Vérifier et réapprovisionner stocks',
+        description: 'Gérer consommables et accessoires',
+        xp: 20,
+        required: true,
+        estimatedTime: 30,
+        room: 'Réserve',
+        mentor: 'Responsable Stock'
+      },
+      {
+        id: 'nettoyage_espaces',
+        name: 'Nettoyer et entretenir les espaces',
+        description: 'Espaces clients et staff, propreté quotidienne',
+        xp: 20,
+        required: true,
+        estimatedTime: 60,
+        room: 'Tous les espaces',
+        mentor: 'Équipe'
+      },
+      {
+        id: 'gestion_caisse',
+        name: 'Gérer la caisse et le bar',
+        description: 'Caisse, consommations, encaissements',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
+        room: 'Accueil/Bar',
+        mentor: 'Responsable'
+      },
+      {
+        id: 'outils_numeriques',
+        name: 'Utiliser les outils numériques',
+        description: 'Gestion réservations, mails, rapports d\'activité',
+        xp: 30,
+        required: true,
+        estimatedTime: 90,
+        room: 'Bureau',
+        mentor: 'Manager'
+      },
+      {
+        id: 'ouverture_fermeture_quotidien',
+        name: 'Ouverture/fermeture en autonomie',
+        description: 'Procédure complète en binôme puis seul·e',
+        xp: 30,
+        required: true,
+        estimatedTime: 120,
+        room: 'Tous les espaces',
+        mentor: 'Manager'
+      },
+      {
+        id: 'rapport_journalier',
+        name: 'Remplir un rapport journalier',
+        description: 'Carnet de bord, incidents, observations',
+        xp: 20,
         required: false,
-        estimatedTime: 720,
-        room: 'Certification finale',
-        mentor: 'CEO & Founders'
+        estimatedTime: 30,
+        room: 'Bureau',
+        mentor: 'Manager'
+      }
+    ]
+  },
+
+  SOFT_SKILLS: {
+    id: 'soft_skills',
+    name: '🌱 Soft Skills & Communication',
+    description: 'Développer tes qualités humaines',
+    duration: 999,
+    color: 'from-emerald-500 to-green-500',
+    icon: '🌱',
+    order: 9,
+    xpTotal: 140,
+    badge: 'Esprit Brain',
+    room: 'Salle formation',
+    tasks: [
+      {
+        id: 'formation_communication',
+        name: 'Formation communication',
+        description: 'Jeu de rôle sur gestion client difficile',
+        xp: 30,
+        required: true,
+        estimatedTime: 120,
+        room: 'Salle formation',
+        mentor: 'Formateur Communication'
+      },
+      {
+        id: 'situation_delicate',
+        name: 'Gérer une situation délicate',
+        description: 'Observer ou gérer une situation client délicate',
+        xp: 25,
+        required: true,
+        estimatedTime: 90,
+        room: 'En situation',
+        mentor: 'Game Master senior'
+      },
+      {
+        id: 'feedback_collegue',
+        name: 'Donner et recevoir du feedback',
+        description: 'Exercice de feedback constructif avec collègue',
+        xp: 20,
+        required: true,
+        estimatedTime: 45,
+        room: 'Salle formation',
+        mentor: 'Manager'
+      },
+      {
+        id: 'proposition_amelioration',
+        name: 'Proposer une amélioration',
+        description: 'Proposer une idée pour améliorer l\'équipe ou l\'expérience',
+        xp: 25,
+        required: false,
+        estimatedTime: 60,
+        room: 'Réunion',
+        mentor: 'Manager'
+      },
+      {
+        id: 'bilan_hebdo',
+        name: 'Bilan personnel hebdomadaire',
+        description: 'Auto-évaluation rapide chaque semaine',
+        xp: 20,
+        required: true,
+        estimatedTime: 30,
+        room: 'Chez soi',
+        mentor: 'Auto-évaluation'
+      },
+      {
+        id: 'initiative_equipe',
+        name: 'Prendre l\'initiative',
+        description: 'Dépanner un·e collègue, animer un moment convivial',
+        xp: 20,
+        required: false,
+        estimatedTime: 60,
+        room: 'En situation',
+        mentor: 'Équipe'
+      }
+    ]
+  },
+
+  VALIDATION_FINALE: {
+    id: 'validation_finale',
+    name: '🚩 Validation Finale',
+    description: 'Certification Game Master Brain',
+    duration: 1,
+    color: 'from-yellow-400 to-orange-500',
+    icon: '🚩',
+    order: 10,
+    xpTotal: 300,
+    badge: 'Game Master certifié·e Brain',
+    room: 'Certification',
+    tasks: [
+      {
+        id: 'session_complete_autonomie',
+        name: 'Session complète en autonomie',
+        description: 'Accueil, briefing, gestion, débriefing, reset - validé',
+        xp: 100,
+        required: true,
+        estimatedTime: 180,
+        room: 'Salle au choix',
+        mentor: 'Référent·e + Manager'
+      },
+      {
+        id: 'synthese_parcours',
+        name: 'Présenter synthèse du parcours',
+        description: 'Présentation orale ou écrite à manager/référent·e',
+        xp: 50,
+        required: true,
+        estimatedTime: 60,
+        room: 'Salle réunion',
+        mentor: 'Manager'
+      },
+      {
+        id: 'retour_experience',
+        name: 'Retour d\'expérience complet',
+        description: 'Bilan écrit ou oral de tout le parcours',
+        xp: 50,
+        required: true,
+        estimatedTime: 90,
+        room: 'Bureau',
+        mentor: 'Manager'
+      },
+      {
+        id: 'obtenir_validation',
+        name: 'Obtenir la validation finale',
+        description: 'Validation officielle par manager et référent·e',
+        xp: 50,
+        required: true,
+        estimatedTime: 30,
+        room: 'Bureau',
+        mentor: 'Direction'
+      },
+      {
+        id: 'celebration',
+        name: 'Célébrer ton intégration !',
+        description: 'Célébration officielle avec toute l\'équipe',
+        xp: 50,
+        required: true,
+        estimatedTime: 120,
+        room: 'Espace convivial',
+        mentor: 'Toute l\'équipe'
       }
     ]
   }
@@ -420,41 +955,81 @@ const FORMATION_PHASES = {
 
 const BADGES_ONBOARDING = [
   {
-    id: 'first_step',
-    name: 'Premier Pas',
-    description: 'Première connexion et découverte',
-    icon: '👶',
+    id: 'bienvenue_brain',
+    name: 'Bienvenue chez Brain !',
+    description: 'Découverte de Brain complétée',
+    icon: '💡',
     rarity: 'common',
-    xp: 10
-  },
-  {
-    id: 'formation_starter',
-    name: 'Formation Starter',
-    description: 'Première phase de formation complétée',
-    icon: '🌟',
-    rarity: 'uncommon',
     xp: 50
   },
   {
-    id: 'tech_master',
-    name: 'Tech Master',
-    description: 'Formation technique réussie avec excellence',
-    icon: '⚙️',
+    id: 'ambassadeur_brain',
+    name: 'Ambassadeur·rice Brain',
+    description: 'Parcours client maîtrisé',
+    icon: '👥',
+    rarity: 'uncommon',
+    xp: 80
+  },
+  {
+    id: 'gardien_temple',
+    name: 'Gardien·ne du Temple',
+    description: 'Sécurité et procédures validées',
+    icon: '🔐',
     rarity: 'rare',
     xp: 100
   },
   {
-    id: 'team_spirit',
-    name: 'Team Spirit',
-    description: 'Intégration parfaite dans l\'équipe',
-    icon: '🤝',
+    id: 'expert_psychiatric',
+    name: 'Expert·e Psychiatric',
+    description: 'Expérience Psychiatric maîtrisée',
+    icon: '🩺',
     rarity: 'epic',
-    xp: 150
+    xp: 120
   },
   {
-    id: 'brain_certified',
-    name: 'Brain Certifié',
-    description: 'Parcours d\'onboarding terminé avec succès',
+    id: 'expert_prison',
+    name: 'Expert·e Prison',
+    description: 'Expérience Prison maîtrisée',
+    icon: '🚨',
+    rarity: 'epic',
+    xp: 120
+  },
+  {
+    id: 'expert_80s',
+    name: 'Expert·e Back to the 80\'s',
+    description: 'Expérience rétro maîtrisée',
+    icon: '🎸',
+    rarity: 'epic',
+    xp: 120
+  },
+  {
+    id: 'expert_quiz',
+    name: 'Expert·e Quiz Game',
+    description: 'Animation Quiz Game maîtrisée',
+    icon: '🏆',
+    rarity: 'epic',
+    xp: 120
+  },
+  {
+    id: 'pilier_quotidien',
+    name: 'Pilier du Quotidien',
+    description: 'Gestion quotidienne maîtrisée',
+    icon: '🛠️',
+    rarity: 'rare',
+    xp: 90
+  },
+  {
+    id: 'esprit_brain',
+    name: 'Esprit Brain',
+    description: 'Soft skills et communication validées',
+    icon: '🌱',
+    rarity: 'rare',
+    xp: 70
+  },
+  {
+    id: 'gm_certifie',
+    name: 'Game Master certifié·e Brain',
+    description: 'Parcours complet validé avec excellence',
     icon: '🎓',
     rarity: 'legendary',
     xp: 300
@@ -626,9 +1201,9 @@ const OnboardingPage = () => {
       // Initialiser chaque phase - TOUTES DÉVERROUILLÉES
       Object.values(FORMATION_PHASES).forEach(phase => {
         initialProgress.phases[phase.id] = {
-          started: true, // ✅ TOUTES LES PHASES DÉMARRÉES
+          started: true,
           completed: false,
-          startedAt: serverTimestamp(),
+          startedAt: new Date().toISOString(),
           completedAt: null,
           tasks: phase.tasks.map(task => ({
             id: task.id,
@@ -663,24 +1238,30 @@ const OnboardingPage = () => {
 
       const currentProgress = progressDoc.data();
       const phase = currentProgress.phases[phaseId];
+      
+      if (!phase) {
+        console.error('❌ Phase non trouvée:', phaseId);
+        return;
+      }
+
       const task = phase.tasks.find(t => t.id === taskId);
 
       if (!task || task.completed) return;
 
       // Marquer la tâche comme complétée
       task.completed = true;
-      task.completedAt = serverTimestamp();
+      task.completedAt = new Date().toISOString();
 
       // Vérifier si la phase est complète
       const allTasksCompleted = phase.tasks.every(t => t.completed);
       if (allTasksCompleted) {
         phase.completed = true;
-        phase.completedAt = serverTimestamp();
+        phase.completedAt = new Date().toISOString();
       }
 
       // Mettre à jour Firebase
       await updateDoc(progressRef, {
-        phases: currentProgress.phases
+        [`phases.${phaseId}`]: phase
       });
 
       // Recharger les données
@@ -759,9 +1340,9 @@ const OnboardingPage = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-4xl font-bold text-white mb-2">
-                Parcours d'Onboarding
+                Ton Parcours Game Master
               </h1>
-              <p className="text-gray-400">Votre intégration personnalisée chez Brain</p>
+              <p className="text-gray-400">Ton intégration personnalisée chez Brain Escape & Quiz Game</p>
             </div>
             <button
               onClick={loadUserProgress}
@@ -855,7 +1436,7 @@ const OnboardingPage = () => {
 };
 
 // ==========================================
-// 🎓 ONGLET FORMATION (Composant séparé pour éviter duplication)
+// 🎓 ONGLET FORMATION
 // ==========================================
 
 const FormationTab = ({ userProgress, onCompleteTask }) => {
@@ -871,7 +1452,7 @@ const FormationTab = ({ userProgress, onCompleteTask }) => {
         const phaseProgress = userProgress.phases?.[phase.id];
         const isActive = userProgress.currentPhase === phase.id;
         const isCompleted = phaseProgress?.completed;
-        const canStart = true; // ✅ TOUJOURS ACCESSIBLE
+        const canStart = true;
 
         return (
           <PremiumCard key={phase.id} className="relative overflow-hidden">
@@ -911,7 +1492,7 @@ const FormationTab = ({ userProgress, onCompleteTask }) => {
               <div className="flex items-center gap-4 text-sm text-gray-400 mt-4">
                 <div className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  {phase.duration} jours
+                  {phase.duration === 999 ? 'Flexible' : `${phase.duration} jours`}
                 </div>
                 <div className="flex items-center gap-1">
                   <Zap className="w-4 h-4" />
@@ -1168,7 +1749,7 @@ const ProgressTab = ({ userProgress, stats }) => {
         </h3>
         
         {stats.badges.length === 0 ? (
-          <p className="text-gray-400">Aucun badge obtenu pour le moment</p>
+          <p className="text-gray-400">Aucun badge obtenu pour le moment. Continue ta progression !</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {stats.badges.map(badgeId => {
