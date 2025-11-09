@@ -52,37 +52,21 @@ export const useGameService = (userId) => {
   
   // ✅ Utiliser useRef pour éviter les réinitialisations multiples
   const initializationRef = useRef(false);
-  const dailyLoginRef = useRef(false);
+// ❌ SUPPRIMÉ: dailyLoginRef qui bloquait
 
-  useEffect(() => {
-    let unsubscribe = null;
-
-    const initializeGameData = async () => {
-      // ✅ Éviter les initialisations multiples
-      if (initializationRef.current || !userId) return;
-      initializationRef.current = true;
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        console.log('🔧 Initialisation du service de gamification...');
-        
-        const initialData = await gamificationService.initializeUserData(userId);
-        setGameData(initialData);
-        setIsConnected(true);
-
-        // ✅ Gérer la connexion quotidienne UNE SEULE FOIS
-        if (!dailyLoginRef.current) {
-          dailyLoginRef.current = true;
-          setTimeout(async () => {
-            try {
-              await gamificationService.dailyLogin(userId);
-            } catch (err) {
-              console.log('ℹ️ Connexion quotidienne déjà traitée ou erreur mineure');
-            }
-          }, 1000);
-        }
+// ✅ CORRECTION: dailyLogin appelé à CHAQUE montage du hook
+setTimeout(async () => {
+  try {
+    console.log('🌅 Tentative connexion quotidienne...');
+    const loginResult = await gamificationService.dailyLogin(userId);
+    
+    if (loginResult.isNewDay) {
+      console.log(`✅ Nouveau jour ! Streak: ${loginResult.streak}`);
+    }
+  } catch (err) {
+    console.error('❌ Erreur connexion quotidienne:', err);
+  }
+}, 1000);
 
         // ✅ S'abonner aux mises à jour temps réel
         unsubscribe = gamificationService.subscribeToUserData(userId, (data) => {
