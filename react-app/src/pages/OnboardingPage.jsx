@@ -1,7 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/OnboardingPage.jsx
-// VERSION SIMPLIFIÉE : Liste de tâches + Entretiens complets
-// SANS XP NI BADGES
+// VERSION CORRIGÉE : Checkboxes + Compte-rendu 100% fonctionnels
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -667,6 +666,7 @@ const OnboardingPage = () => {
   // États pour les entretiens
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [viewingInterview, setViewingInterview] = useState(null);
   const [interviewForm, setInterviewForm] = useState({
     date: '',
     time: '',
@@ -749,9 +749,11 @@ const OnboardingPage = () => {
     if (!user?.uid) return;
 
     try {
+      console.log('🚀 Initialisation progression pour:', user.uid);
+      
       const initialProgress = {
         userId: user.uid,
-        startedAt: serverTimestamp(),
+        startedAt: new Date().toISOString(),
         currentPhase: 'decouverte_brain',
         phases: {},
         completedTasks: 0
@@ -761,7 +763,7 @@ const OnboardingPage = () => {
         initialProgress.phases[phase.id] = {
           started: true,
           completed: false,
-          startedAt: serverTimestamp(),
+          startedAt: new Date().toISOString(),
           completedAt: null,
           tasks: phase.tasks.map(task => ({
             id: task.id,
@@ -773,41 +775,73 @@ const OnboardingPage = () => {
 
       await setDoc(doc(db, 'userOnboarding', user.uid), initialProgress);
       setUserProgress(initialProgress);
+      calculateStats(initialProgress);
+      
+      console.log('✅ Progression initialisée');
     } catch (error) {
       console.error('❌ Erreur initialisation:', error);
     }
   };
 
-  // Compléter une tâche
-  const completeTask = async (phaseId, taskId) => {
-    if (!user?.uid) return;
+  // ✅ FIX CHECKBOX : Compléter une tâche - VERSION 100% FONCTIONNELLE
+  const completeTask = async (phaseId, taskId, event) => {
+    // 🔥 CRITIQUE : Empêcher la propagation pour éviter le conflit avec le bouton parent
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+
+    if (!user?.uid || !userProgress) return;
 
     try {
-      const progressRef = doc(db, 'userOnboarding', user.uid);
-      const progressDoc = await getDoc(progressRef);
+      console.log('✅ [CHECKBOX] Complétion tâche:', { phaseId, taskId });
+
+      // Créer une copie profonde des données
+      const updatedProgress = JSON.parse(JSON.stringify(userProgress));
+      const phase = updatedProgress.phases[phaseId];
       
-      if (!progressDoc.exists()) return;
+      if (!phase) {
+        console.error('❌ Phase non trouvée:', phaseId);
+        return;
+      }
 
-      const currentProgress = progressDoc.data();
-      const phase = currentProgress.phases[phaseId];
-      const task = phase.tasks.find(t => t.id === taskId);
+      const taskIndex = phase.tasks.findIndex(t => t.id === taskId);
+      
+      if (taskIndex === -1) {
+        console.error('❌ Tâche non trouvée:', taskId);
+        return;
+      }
 
-      if (!task || task.completed) return;
+      const task = phase.tasks[taskIndex];
 
+      if (task.completed) {
+        console.log('⚠️ Tâche déjà complétée');
+        return;
+      }
+
+      // Marquer la tâche comme complétée
       task.completed = true;
-      task.completedAt = serverTimestamp();
+      task.completedAt = new Date().toISOString();
 
+      // Vérifier si toutes les tâches de la phase sont complétées
       const allTasksCompleted = phase.tasks.every(t => t.completed);
       if (allTasksCompleted) {
         phase.completed = true;
-        phase.completedAt = serverTimestamp();
+        phase.completedAt = new Date().toISOString();
+        console.log('🎉 Phase complète:', phaseId);
       }
 
-      await updateDoc(progressRef, currentProgress);
-      setUserProgress(currentProgress);
-      calculateStats(currentProgress);
+      // Sauvegarder dans Firebase
+      const progressRef = doc(db, 'userOnboarding', user.uid);
+      await setDoc(progressRef, updatedProgress, { merge: true });
+      
+      // Mettre à jour l'état local immédiatement
+      setUserProgress(updatedProgress);
+      calculateStats(updatedProgress);
+      
+      console.log('✅ [CHECKBOX] Tâche complétée avec succès');
     } catch (error) {
-      console.error('❌ Erreur:', error);
+      console.error('❌ Erreur complétion tâche:', error);
     }
   };
 
@@ -828,9 +862,11 @@ const OnboardingPage = () => {
         loadedInterviews.push({ id: doc.id, ...doc.data() });
       });
       
+      console.log('📊 Entretiens chargés:', loadedInterviews.length);
       setInterviews(loadedInterviews);
     } catch (error) {
       console.error('❌ Erreur chargement entretiens:', error);
+      setInterviews([]);
     }
   };
 
@@ -851,13 +887,15 @@ const OnboardingPage = () => {
         status: 'planned',
         questions: selectedTemplate.questions,
         responses: {},
-        createdAt: serverTimestamp()
+        createdAt: new Date().toISOString()
       };
 
       await addDoc(collection(db, 'interviews'), newInterview);
       await loadInterviews();
       setShowInterviewModal(false);
       resetInterviewForm();
+      
+      console.log('✅ Entretien planifié');
     } catch (error) {
       console.error('❌ Erreur planification:', error);
     }
@@ -873,12 +911,14 @@ const OnboardingPage = () => {
       await updateDoc(interviewRef, {
         responses: interviewResponses,
         status: 'completed',
-        completedAt: serverTimestamp()
+        completedAt: new Date().toISOString()
       });
 
       await loadInterviews();
       setConductingInterview(null);
       setInterviewResponses({});
+      
+      console.log('✅ Entretien terminé et sauvegardé');
     } catch (error) {
       console.error('❌ Erreur passage entretien:', error);
     }
@@ -947,13 +987,13 @@ const OnboardingPage = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold text-white">Progression globale</h3>
             <span className="text-2xl font-bold text-blue-400">
-              {Math.round((stats.completedTasks / stats.totalTasks) * 100)}%
+              {stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%
             </span>
           </div>
           <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
-              animate={{ width: `${(stats.completedTasks / stats.totalTasks) * 100}%` }}
+              animate={{ width: `${stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
               className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
             />
           </div>
@@ -1057,18 +1097,21 @@ const OnboardingPage = () => {
                                       }`}
                                     >
                                       <div className="flex items-start gap-3">
+                                        {/* ✅ FIX : Bouton checkbox standalone avec stopPropagation */}
                                         <button
-                                          onClick={() => !isCompleted && completeTask(phase.id, task.id)}
-                                          className="mt-1"
+                                          onClick={(e) => completeTask(phase.id, task.id, e)}
+                                          disabled={isCompleted}
+                                          className="mt-1 cursor-pointer flex-shrink-0"
+                                          type="button"
                                         >
                                           {isCompleted ? (
                                             <CheckSquare className="h-5 w-5 text-green-400" />
                                           ) : (
-                                            <Square className="h-5 w-5 text-gray-400 hover:text-blue-400" />
+                                            <Square className="h-5 w-5 text-gray-400 hover:text-blue-400 transition-colors" />
                                           )}
                                         </button>
                                         <div className="flex-1">
-                                          <h5 className={`font-semibold ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                                          <h5 className={`font-semibold ${isCompleted ? 'text-green-400 line-through' : 'text-white'}`}>
                                             {task.name}
                                           </h5>
                                           <p className="text-sm text-gray-400 mb-2">{task.description}</p>
@@ -1163,7 +1206,10 @@ const OnboardingPage = () => {
                         </div>
                         {interview.status === 'planned' && (
                           <button
-                            onClick={() => setConductingInterview(interview)}
+                            onClick={() => {
+                              console.log('🎯 Passage entretien:', interview.id);
+                              setConductingInterview(interview);
+                            }}
                             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2"
                           >
                             <Play className="h-4 w-4" />
@@ -1172,6 +1218,11 @@ const OnboardingPage = () => {
                         )}
                         {interview.status === 'completed' && (
                           <button
+                            onClick={() => {
+                              console.log('👁️ Voir compte-rendu:', interview.id);
+                              console.log('📋 Données entretien:', interview);
+                              setViewingInterview(interview);
+                            }}
                             className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg flex items-center justify-center gap-2"
                           >
                             <Eye className="h-4 w-4" />
@@ -1201,7 +1252,7 @@ const OnboardingPage = () => {
                     const phaseProgress = userProgress?.phases?.[phase.id];
                     const completedTasks = phaseProgress?.tasks?.filter(t => t.completed).length || 0;
                     const totalTasks = phase.tasks.length;
-                    const progressPercent = (completedTasks / totalTasks) * 100;
+                    const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
                     return (
                       <div key={phase.id} className="border-b border-gray-700/50 pb-6 last:border-0">
@@ -1420,6 +1471,83 @@ const OnboardingPage = () => {
                 >
                   <Save className="h-5 w-5" />
                   Enregistrer l'entretien
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ FIX COMPTE-RENDU : Modal Voir Compte-Rendu - VERSION CORRIGÉE */}
+        {viewingInterview && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white">📄 Compte-rendu d'entretien</h3>
+                <button
+                  onClick={() => {
+                    console.log('❌ Fermeture modal compte-rendu');
+                    setViewingInterview(null);
+                  }}
+                  className="p-2 hover:bg-gray-800 rounded-lg"
+                >
+                  <X className="h-6 w-6 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <h4 className="font-bold text-white mb-3">{viewingInterview.templateName}</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Calendar className="h-4 w-4" />
+                      {new Date(viewingInterview.date).toLocaleDateString('fr-FR')}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <User className="h-4 w-4" />
+                      {viewingInterview.referent}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <MapPin className="h-4 w-4" />
+                      {viewingInterview.location}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Clock className="h-4 w-4" />
+                      Terminé le {viewingInterview.completedAt ? new Date(viewingInterview.completedAt).toLocaleDateString('fr-FR') : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-bold text-white text-lg">Réponses :</h4>
+                  {/* ✅ FIX : Vérifier que questions existe et utiliser le bon mapping */}
+                  {viewingInterview.questions && viewingInterview.questions.length > 0 ? (
+                    viewingInterview.questions.map((question, index) => {
+                      const responseKey = `question_${index}`;
+                      const response = viewingInterview.responses?.[responseKey] || 'Pas de réponse';
+                      
+                      return (
+                        <div key={index} className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg">
+                          <p className="text-white font-medium mb-2">
+                            {index + 1}. {question}
+                          </p>
+                          <p className="text-gray-300 pl-4">
+                            {response}
+                          </p>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-gray-400 text-center py-4">
+                      Aucune question trouvée pour cet entretien
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setViewingInterview(null)}
+                  className="w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium"
+                >
+                  Fermer
                 </button>
               </div>
             </div>
