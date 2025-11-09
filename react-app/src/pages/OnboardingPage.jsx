@@ -1414,8 +1414,277 @@ const OnboardingPage = () => {
           )}
         </AnimatePresence>
 
-        {/* MODALS - Inchangés */}
-        {/* ... (le reste du code des modals reste identique) ... */}
+        {/* Modal Planification Entretien */}
+        {showInterviewModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white">Planifier un entretien</h3>
+                <button
+                  onClick={() => {
+                    setShowInterviewModal(false);
+                    resetInterviewForm();
+                  }}
+                  className="p-2 hover:bg-gray-800 rounded-lg"
+                >
+                  <X className="h-6 w-6 text-gray-400" />
+                </button>
+              </div>
+
+              {!selectedTemplate ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.values(INTERVIEW_TEMPLATES).map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => setSelectedTemplate(template)}
+                      className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:border-blue-500/50 transition-all text-left"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <template.icon className="h-6 w-6 text-blue-400" />
+                        <h4 className="font-bold text-white">{template.name}</h4>
+                      </div>
+                      <p className="text-sm text-gray-400 mb-2">{template.description}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Clock className="h-3 w-3" />
+                        {template.duration} min
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <h4 className="font-bold text-white mb-2">{selectedTemplate.name}</h4>
+                    <p className="text-sm text-gray-400">{selectedTemplate.description}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Date</label>
+                      <input
+                        type="date"
+                        value={interviewForm.date}
+                        onChange={(e) => setInterviewForm({...interviewForm, date: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Heure</label>
+                      <input
+                        type="time"
+                        value={interviewForm.time}
+                        onChange={(e) => setInterviewForm({...interviewForm, time: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Référent</label>
+                    <input
+                      type="text"
+                      value={interviewForm.referent}
+                      onChange={(e) => setInterviewForm({...interviewForm, referent: e.target.value})}
+                      placeholder="Nom du référent"
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Type</label>
+                      <select
+                        value={interviewForm.type}
+                        onChange={(e) => setInterviewForm({...interviewForm, type: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                      >
+                        <option value="presentiel">Présentiel</option>
+                        <option value="visio">Visioconférence</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Lieu</label>
+                      <input
+                        type="text"
+                        value={interviewForm.location}
+                        onChange={(e) => setInterviewForm({...interviewForm, location: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Notes</label>
+                    <textarea
+                      value={interviewForm.notes}
+                      onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
+                      rows={3}
+                      placeholder="Notes complémentaires..."
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                    />
+                  </div>
+
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setSelectedTemplate(null)}
+                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                    >
+                      Retour
+                    </button>
+                    <button
+                      onClick={scheduleInterview}
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      Planifier
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal Passage Entretien */}
+        {conductingInterview && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white">{conductingInterview.templateName}</h3>
+                <button
+                  onClick={() => {
+                    console.log('❌ [INTERVIEWS] Fermeture modal passage entretien');
+                    setConductingInterview(null);
+                    setInterviewResponses({});
+                  }}
+                  className="p-2 hover:bg-gray-800 rounded-lg"
+                >
+                  <X className="h-6 w-6 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Calendar className="h-4 w-4" />
+                      {new Date(conductingInterview.date).toLocaleDateString('fr-FR')}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <User className="h-4 w-4" />
+                      {conductingInterview.referent}
+                    </div>
+                  </div>
+                </div>
+
+                {conductingInterview.questions.map((question, index) => (
+                  <div key={index} className="space-y-2">
+                    <label className="block text-white font-medium">
+                      {index + 1}. {question}
+                    </label>
+                    <textarea
+                      value={interviewResponses[`question_${index}`] || ''}
+                      onChange={(e) => setInterviewResponses({
+                        ...interviewResponses,
+                        [`question_${index}`]: e.target.value
+                      })}
+                      rows={3}
+                      placeholder="Votre réponse..."
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                    />
+                  </div>
+                ))}
+
+                <button
+                  onClick={conductInterview}
+                  className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                >
+                  <Save className="h-5 w-5" />
+                  Enregistrer l'entretien
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ MODAL COMPTE-RENDU - VERSION CORRIGÉE AVEC LOGS */}
+        {viewingInterview && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white">📄 Compte-rendu d'entretien</h3>
+                <button
+                  onClick={() => {
+                    console.log('❌ [INTERVIEWS] Fermeture modal compte-rendu');
+                    setViewingInterview(null);
+                  }}
+                  className="p-2 hover:bg-gray-800 rounded-lg"
+                >
+                  <X className="h-6 w-6 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <h4 className="font-bold text-white mb-3">{viewingInterview.templateName}</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Calendar className="h-4 w-4" />
+                      {new Date(viewingInterview.date).toLocaleDateString('fr-FR')}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <User className="h-4 w-4" />
+                      {viewingInterview.referent}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <MapPin className="h-4 w-4" />
+                      {viewingInterview.location}
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Clock className="h-4 w-4" />
+                      Terminé le {viewingInterview.completedAt ? new Date(viewingInterview.completedAt).toLocaleDateString('fr-FR') : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-bold text-white text-lg">Réponses :</h4>
+                  {viewingInterview.questions && viewingInterview.questions.length > 0 ? (
+                    viewingInterview.questions.map((question, index) => {
+                      const responseKey = `question_${index}`;
+                      const response = viewingInterview.responses?.[responseKey] || 'Pas de réponse';
+                      
+                      console.log(`📋 [COMPTE-RENDU] Question ${index}:`, question);
+                      console.log(`📋 [COMPTE-RENDU] Réponse ${index}:`, response);
+                      
+                      return (
+                        <div key={index} className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg">
+                          <p className="text-white font-medium mb-2">
+                            {index + 1}. {question}
+                          </p>
+                          <p className="text-gray-300 pl-4">
+                            {response}
+                          </p>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-gray-400 text-center py-4">
+                      Aucune question trouvée pour cet entretien
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setViewingInterview(null)}
+                  className="w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </Layout>
