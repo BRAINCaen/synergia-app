@@ -225,32 +225,32 @@ const CreateInfoModal = ({ info, user, onClose }) => {
   const [filePreview, setFilePreview] = useState(info?.media?.url || null);
   const [fileType, setFileType] = useState(info?.media?.type || null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
-const handleFileSelect = (e) => {
-  const selectedFile = e.target.files?.[0];
-  if (!selectedFile) return;
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
 
-  const isImage = selectedFile.type.startsWith('image/');
-  const isVideo = selectedFile.type.startsWith('video/');
+    const isImage = selectedFile.type.startsWith('image/');
+    const isVideo = selectedFile.type.startsWith('video/');
 
-  if (!isImage && !isVideo) {
-    setError('Seules les images et vidéos sont acceptées');
-    return;
-  }
+    if (!isImage && !isVideo) {
+      setError('Seules les images et vidéos sont acceptées');
+      return;
+    }
 
-  // ✅ AUCUNE LIMITE DE TAILLE - Upload accepté quelle que soit la taille
-  console.log('📤 Fichier sélectionné:', selectedFile.name, 'Taille:', (selectedFile.size / 1024 / 1024).toFixed(2), 'MB');
+    console.log('📤 Fichier sélectionné:', selectedFile.name, 'Taille:', (selectedFile.size / 1024 / 1024).toFixed(2), 'MB');
 
-  setFile(selectedFile);
-  setFileType(isVideo ? 'video' : 'image');
-  setError('');
+    setFile(selectedFile);
+    setFileType(isVideo ? 'video' : 'image');
+    setError('');
 
-  const reader = new FileReader();
-  reader.onload = (e) => setFilePreview(e.target.result);
-  reader.readAsDataURL(selectedFile);
-};
+    const reader = new FileReader();
+    reader.onload = (e) => setFilePreview(e.target.result);
+    reader.readAsDataURL(selectedFile);
+  };
 
   const handleSubmit = async () => {
     if (!text.trim() && !file && !info?.media) {
@@ -260,12 +260,20 @@ const handleFileSelect = (e) => {
 
     try {
       setUploading(true);
+      setUploadProgress(0);
       setError('');
 
       let mediaData = info?.media || null;
 
       if (file) {
-        mediaData = await infosService.uploadFile(file, user.uid);
+        console.log('📤 Début upload du fichier...');
+        
+        // Upload avec callback de progression
+        mediaData = await infosService.uploadFile(file, user.uid, (progress) => {
+          setUploadProgress(progress);
+        });
+        
+        console.log('✅ Upload terminé, création de l\'info...');
       }
 
       if (info) {
@@ -280,6 +288,7 @@ const handleFileSelect = (e) => {
       setError(error.message || 'Erreur lors de la soumission');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -302,7 +311,7 @@ const handleFileSelect = (e) => {
           <h2 className="text-2xl font-bold text-white">
             {info ? 'Modifier l\'information' : 'Nouvelle information'}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors" disabled={uploading}>
             <X className="w-6 h-6 text-white/60" />
           </button>
         </div>
@@ -315,6 +324,7 @@ const handleFileSelect = (e) => {
             placeholder="Écrivez votre information ici..."
             className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-purple-400 transition-colors resize-none"
             rows={6}
+            disabled={uploading}
           />
         </div>
 
@@ -328,26 +338,29 @@ const handleFileSelect = (e) => {
               ) : (
                 <video src={filePreview} controls className="w-full max-h-64" />
               )}
-              <button
-                onClick={() => {
-                  setFile(null);
-                  setFilePreview(null);
-                  setFileType(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {!uploading && (
+                <button
+                  onClick={() => {
+                    setFile(null);
+                    setFilePreview(null);
+                    setFileType(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ) : (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full bg-white/10 border-2 border-dashed border-white/30 hover:border-purple-400 rounded-xl p-8 flex flex-col items-center gap-3 transition-colors"
+              disabled={uploading}
+              className="w-full bg-white/10 border-2 border-dashed border-white/30 hover:border-purple-400 rounded-xl p-8 flex flex-col items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload className="w-12 h-12 text-white/60" />
               <p className="text-white/80 font-semibold">Cliquez pour ajouter une image ou vidéo</p>
-              <p className="text-white/40 text-sm">Max: 10MB (images) / 100MB (vidéos)</p>
+              <p className="text-white/40 text-sm">Aucune limite de taille</p>
             </button>
           )}
 
@@ -357,8 +370,30 @@ const handleFileSelect = (e) => {
             accept="image/*,video/*"
             onChange={handleFileSelect}
             className="hidden"
+            disabled={uploading}
           />
         </div>
+
+        {/* BARRE DE PROGRESSION */}
+        {uploading && uploadProgress > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/80 text-sm font-semibold">Upload en cours...</span>
+              <span className="text-purple-400 text-sm font-bold">{Math.round(uploadProgress)}%</span>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${uploadProgress}%` }}
+                className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full"
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <p className="text-white/60 text-xs mt-2">
+              {uploadProgress < 100 ? 'Ne fermez pas cette fenêtre...' : 'Finalisation...'}
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 bg-red-500/20 border border-red-400/30 rounded-xl p-4 flex items-center gap-3">
@@ -383,7 +418,7 @@ const handleFileSelect = (e) => {
             {uploading ? (
               <>
                 <Loader className="w-5 h-5 animate-spin" />
-                {info ? 'Mise à jour...' : 'Création...'}
+                {uploadProgress > 0 && uploadProgress < 100 ? 'Upload...' : 'Finalisation...'}
               </>
             ) : (
               <>
