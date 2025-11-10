@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/infosService.js
-// SERVICE COMPLET DE GESTION DES INFORMATIONS - SANS LIMITES DE TAILLE
+// SERVICE COMPLET DE GESTION DES INFORMATIONS - AVEC PROGRESSION
 // ==========================================
 
 import { 
@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import { 
   ref, 
-  uploadBytes, 
+  uploadBytesResumable,
   getDownloadURL, 
   deleteObject 
 } from 'firebase/storage';
@@ -51,56 +51,112 @@ class InfosService {
   }
 
   /**
-   * 📤 UPLOAD FICHIER (PHOTO/VIDÉO) - SANS LIMITE DE TAILLE
+   * 📤 UPLOAD FICHIER AVEC PROGRESSION
    */
-  async uploadFile(file, userId) {
-    try {
-      console.log('📤 [INFOS] Upload fichier:', file.name, 'Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
-      
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
-      
-      if (!isImage && !isVideo) {
-        throw new Error('Seules les images et vidéos sont acceptées');
-      }
-
-      // ✅ AUCUNE LIMITE DE TAILLE - Upload de n'importe quelle taille accepté
-      console.log('✅ [INFOS] Aucune limite de taille - Upload autorisé');
-
-      const timestamp = Date.now();
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `${timestamp}_${userId}.${fileExtension}`;
-      const storagePath = `${this.STORAGE_PATH}/${fileName}`;
-      const storageRef = ref(storage, storagePath);
-
-      console.log('📤 [INFOS] Début upload vers Firebase Storage...');
-
-      await uploadBytes(storageRef, file, {
-        contentType: file.type,
-        customMetadata: {
-          uploadedBy: userId,
-          uploadedAt: new Date().toISOString(),
-          originalSize: file.size.toString(),
-          originalName: file.name
+  async uploadFile(file, userId, onProgress) {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log('📤 [INFOS] Upload fichier:', file.name, 'Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+        
+        const isImage = file.type.startsWith('image/');
+        const isVideo = file.type.startsWith('video/');
+        
+        if (!isImage && !isVideo) {
+          reject(new Error('Seules les images et vidéos sont acceptées'));
+          return;
         }
-      });
 
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      console.log('✅ [INFOS] Fichier uploadé avec succès:', downloadURL);
-      
-      return {
-        url: downloadURL,
-        type: isVideo ? 'video' : 'image',
-        filename: file.name,
-        size: file.size,
-        storagePath
-      };
+        const timestamp = Date.now();
+        const fileExtension = file.name.split('.').pop();
+        const fileName = `${timestamp}_${userId}.${fileExtension}`;
+        const storagePath = `${this.STORAGE_PATH}/${fileName}`;
+        const storageRef = ref(storage, storagePath);
 
-    } catch (error) {
-      console.error('❌ [INFOS] Erreur upload:', error);
-      throw error;
-    }
+        console.log('📤 [INFOS] Début upload vers Firebase Storage...');
+
+        // ✅ Upload avec suivi de progression
+        const uploadTask = uploadBytesResumable(storageRef, file, {
+          contentType: file.type,
+          customMetadata: {
+            uploadedBy: userId,
+            uploadedAt: new Date().toISOString(),
+            originalSize: file.size.toString(),
+            originalName: file.name
+          }
+        });
+
+        // Écouter les changements d'état
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            // Calculer le pourcentage de progression
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log('📊 [INFOS] Progression upload:', progress.toFixed(1) + '%');
+            
+            // Appeler le callback de progression si fourni
+            if (onProgress) {
+              onProgress(progress);
+            }
+
+            // Afficher l'état
+            switch (snapshot.state) {
+              case 'paused':
+                console.log('⏸️ [INFOS] Upload en pause');
+                break;
+              case 'running':
+                console.log('▶️ [INFOS] Upload en cours...');
+                break;
+            }
+          },
+          (error) => {
+            // Gestion des erreurs
+            console.error('❌ [INFOS] Erreur upload:', error);
+            
+            let errorMessage = 'Erreur lors de l\'upload';
+            
+            switch (error.code) {
+              case 'storage/unauthorized':
+                errorMessage = 'Permission refusée. Vérifiez vos droits.';
+                break;
+              case 'storage/canceled':
+                errorMessage = 'Upload annulé';
+                break;
+              case 'storage/unknown':
+                errorMessage = 'Erreur inconnue. Réessayez.';
+                break;
+              case 'storage/retry-limit-exceeded':
+                errorMessage = 'Délai dépassé. Vérifiez votre connexion.';
+                break;
+            }
+            
+            reject(new Error(errorMessage));
+          },
+          async () => {
+            // Upload terminé avec succès
+            try {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              
+              console.log('✅ [INFOS] Fichier uploadé avec succès:', downloadURL);
+              
+              resolve({
+                url: downloadURL,
+                type: isVideo ? 'video' : 'image',
+                filename: file.name,
+                size: file.size,
+                storagePath
+              });
+            } catch (error) {
+              console.error('❌ [INFOS] Erreur récupération URL:', error);
+              reject(error);
+            }
+          }
+        );
+
+      } catch (error) {
+        console.error('❌ [INFOS] Erreur initialisation upload:', error);
+        reject(error);
+      }
+    });
   }
 
   /**
