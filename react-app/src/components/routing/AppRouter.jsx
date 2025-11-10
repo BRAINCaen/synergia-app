@@ -13,6 +13,8 @@ import GamificationPage from '../../pages/GamificationPage.jsx';
 import TasksPage from '../../pages/TasksPage.jsx';
 import ProjectsPage from '../../pages/ProjectsPage.jsx';
 import TeamPage from '../../pages/TeamPage.jsx';
+import InfosPage from '../../pages/InfosPage.jsx';
+
 
 // ==========================================
 // 🚀 COMPOSANTS DE BASE SIMPLIFIÉS (CHEMINS CORRIGÉS)
@@ -291,7 +293,8 @@ const AppRouter = () => {
           </ProtectedRoute>
         } 
       />
-      
+        <Route path="/infos" element={<InfosPage />} /> {/* ← NOUVELLE ROUTE AJOUTÉE */}
+
       {/* ✨ ROUTES PRINCIPALES AVEC IMPORTS CORRIGÉS */}
       <Route 
         path="/gamification" 
