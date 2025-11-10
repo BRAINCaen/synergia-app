@@ -82,6 +82,8 @@ export const FIREBASE_COLLECTIONS = {
   OBJECTIVE_CLAIMS: 'objectiveClaims',
   INTERVIEWS: 'interviews',
   SYSTEM_SETTINGS: 'systemSettings'
+    INFOS: 'infos' // ← NOUVELLE COLLECTION AJOUTÉE
+
 };
 
 // 🗂️ STRUCTURE DE NAVIGATION COMPLÈTE - VERSION QUÊTES
