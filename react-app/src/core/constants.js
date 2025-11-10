@@ -90,6 +90,8 @@ export const NAVIGATION_STRUCTURE = {
     label: 'Principal',
     routes: [
       { path: ROUTES.DASHBOARD, label: 'Tableau de bord', icon: '🏠', priority: 1 },
+            { path: ROUTES.INFOS, label: 'Infos', icon: '📢', priority: 2 }, // ← NOUVELLE LIGNE AJOUTÉE
+
       { path: ROUTES.TASKS, label: 'Quêtes', icon: '⚔️', priority: 2 },
       { path: ROUTES.PROJECTS, label: 'Projets', icon: '📁', priority: 3 },
       { path: ROUTES.ANALYTICS, label: 'Analytics', icon: '📊', priority: 4 }
@@ -124,7 +126,6 @@ export const NAVIGATION_STRUCTURE = {
       { path: ROUTES.ONBOARDING, label: 'Intégration', icon: '📚', priority: 1 },
       { path: ROUTES.TIMETRACK, label: 'Pointeuse', icon: '⏰', priority: 2 },
       { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👨‍💼', priority: 3 },
-      { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 4 }
     ]
   },
   admin: {
