@@ -8,7 +8,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Pages principales
 import DashboardPage from '../pages/Dashboard.jsx';
-import InfosPage from '../../pages/InfosPage.jsx';
+import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
 import AnalyticsPage from '../pages/AnalyticsPage.jsx';
@@ -70,7 +70,7 @@ const AppRoutes = () => {
       {/* Routes admin - Nécessitent authentification + rôle admin */}
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminPage />} />
-<Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+        <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
         <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
