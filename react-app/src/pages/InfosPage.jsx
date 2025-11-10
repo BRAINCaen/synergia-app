@@ -228,32 +228,29 @@ const CreateInfoModal = ({ info, user, onClose }) => {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
-  const handleFileSelect = (e) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+const handleFileSelect = (e) => {
+  const selectedFile = e.target.files?.[0];
+  if (!selectedFile) return;
 
-    const isImage = selectedFile.type.startsWith('image/');
-    const isVideo = selectedFile.type.startsWith('video/');
+  const isImage = selectedFile.type.startsWith('image/');
+  const isVideo = selectedFile.type.startsWith('video/');
 
-    if (!isImage && !isVideo) {
-      setError('Seules les images et vidéos sont acceptées');
-      return;
-    }
+  if (!isImage && !isVideo) {
+    setError('Seules les images et vidéos sont acceptées');
+    return;
+  }
 
-    const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (selectedFile.size > maxSize) {
-      setError(`Fichier trop volumineux (max: ${isVideo ? '100MB' : '10MB'})`);
-      return;
-    }
+  // ✅ AUCUNE LIMITE DE TAILLE - Upload accepté quelle que soit la taille
+  console.log('📤 Fichier sélectionné:', selectedFile.name, 'Taille:', (selectedFile.size / 1024 / 1024).toFixed(2), 'MB');
 
-    setFile(selectedFile);
-    setFileType(isVideo ? 'video' : 'image');
-    setError('');
+  setFile(selectedFile);
+  setFileType(isVideo ? 'video' : 'image');
+  setError('');
 
-    const reader = new FileReader();
-    reader.onload = (e) => setFilePreview(e.target.result);
-    reader.readAsDataURL(selectedFile);
-  };
+  const reader = new FileReader();
+  reader.onload = (e) => setFilePreview(e.target.result);
+  reader.readAsDataURL(selectedFile);
+};
 
   const handleSubmit = async () => {
     if (!text.trim() && !file && !info?.media) {
