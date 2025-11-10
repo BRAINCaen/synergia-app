@@ -8,6 +8,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Pages principales
 import DashboardPage from '../pages/Dashboard.jsx';
+import InfosPage from '../../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
 import AnalyticsPage from '../pages/AnalyticsPage.jsx';
@@ -45,6 +46,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         {/* PRINCIPAL */}
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/infos" element={<InfosPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<CampaignsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
