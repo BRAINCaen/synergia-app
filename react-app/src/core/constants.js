@@ -10,6 +10,8 @@ export const ROUTES = {
   
   // Pages principales
   DASHBOARD: '/dashboard',
+    INFOS: '/infos', // ← NOUVELLE ROUTE AJOUTÉE
+
   TASKS: '/tasks',
   PROJECTS: '/projects',
   ANALYTICS: '/analytics',
@@ -34,7 +36,6 @@ export const ROUTES = {
   
   // Profil & Paramètres
   PROFILE: '/profile',
-  SETTINGS: '/settings',
   
   // Fonctionnalités spécialisées
   ONBOARDING: '/onboarding',
