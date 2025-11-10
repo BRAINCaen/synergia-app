@@ -1,237 +1,142 @@
 // ==========================================
 // 📁 react-app/src/pages/InfosPage.jsx
-// PAGE INFORMATIONS ÉQUIPE - VERSION COMPLÈTE
+// PAGE INFORMATIONS ÉQUIPE AVEC LAYOUT
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Info, 
-  Plus, 
-  Upload, 
-  Image as ImageIcon, 
-  Video, 
-  FileText,
-  X,
-  Edit,
-  Trash2,
-  Check,
-  AlertCircle,
-  Loader,
-  Send,
-  CheckCircle,
-  Clock,
-  User,
-  Eye,
-  Bell,
-  BellOff
+  Info, Plus, Upload, X, Edit, Trash2, Check, AlertCircle, 
+  Loader, Send, CheckCircle, Eye, Bell
 } from 'lucide-react';
 
-// Services
+import Layout from '../components/layout/Layout.jsx';
 import infosService from '../core/services/infosService.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-/**
- * 📢 PAGE INFORMATIONS ÉQUIPE
- */
 const InfosPage = () => {
   const { user } = useAuthStore();
-  
-  // États
   const [infos, setInfos] = useState([]);
   const [unvalidatedCount, setUnvalidatedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingInfo, setEditingInfo] = useState(null);
-  
-  // Listener ID
   const [listenerId, setListenerId] = useState(null);
   
   const isAdmin = infosService.isAdmin(user);
 
-  /**
-   * 📊 CHARGER LES INFOS EN TEMPS RÉEL
-   */
   useEffect(() => {
     if (!user) return;
 
-    console.log('🎧 [INFOS PAGE] Démarrage listener temps réel');
-    
     const id = infosService.listenToInfos((updatedInfos) => {
-      console.log('🔄 [INFOS PAGE] Infos mises à jour:', updatedInfos.length);
       setInfos(updatedInfos);
-      
-      // Compter les non validées
       const count = updatedInfos.filter(info => !info.validatedBy?.[user.uid]).length;
       setUnvalidatedCount(count);
-      
       setLoading(false);
     });
 
     setListenerId(id);
-
-    // Cleanup
     return () => {
-      if (id) {
-        infosService.stopListening(id);
-      }
+      if (id) infosService.stopListening(id);
     };
   }, [user]);
 
-  /**
-   * ➕ OUVRIR LE MODAL DE CRÉATION
-   */
-  const handleCreate = () => {
-    setEditingInfo(null);
-    setShowCreateModal(true);
-  };
-
-  /**
-   * ✏️ OUVRIR LE MODAL D'ÉDITION
-   */
-  const handleEdit = (info) => {
-    setEditingInfo(info);
-    setShowCreateModal(true);
-  };
-
-  /**
-   * 🗑️ SUPPRIMER UNE INFO
-   */
-  const handleDelete = async (infoId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette information ?')) {
-      return;
-    }
-
-    try {
-      await infosService.deleteInfo(infoId, user);
-    } catch (error) {
-      console.error('❌ Erreur suppression:', error);
-      alert('Erreur lors de la suppression');
-    }
-  };
-
-  /**
-   * ✅ VALIDER UNE INFO
-   */
-  const handleValidate = async (infoId) => {
-    try {
-      await infosService.validateInfo(infoId, user.uid);
-    } catch (error) {
-      console.error('❌ Erreur validation:', error);
-    }
-  };
-
-  /**
-   * 🎨 RENDU
-   */
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center p-6">
-        <div className="text-center">
-          <Loader className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Chargement des informations...</p>
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center p-6">
+          <div className="text-center">
+            <Loader className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
+            <p className="text-white/60">Chargement des informations...</p>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* 🎯 HEADER */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                <Info className="w-8 h-8 text-purple-400" />
-                Informations Équipe
-              </h1>
-              <p className="text-white/60">
-                Partagez des informations importantes avec toute l'équipe
-              </p>
-            </div>
-
-            {/* Badge notifications */}
-            {unvalidatedCount > 0 && (
-              <div className="flex items-center gap-3 bg-orange-500/20 backdrop-blur-sm border border-orange-400/30 rounded-xl px-4 py-2">
-                <Bell className="w-5 h-5 text-orange-400 animate-pulse" />
-                <span className="text-white font-semibold">
-                  {unvalidatedCount} nouvelle{unvalidatedCount > 1 ? 's' : ''} info{unvalidatedCount > 1 ? 's' : ''}
-                </span>
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4 md:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center gap-3">
+                  <Info className="w-8 h-8 text-purple-400" />
+                  Informations Équipe
+                </h1>
+                <p className="text-white/60">
+                  Partagez des informations importantes avec toute l'équipe
+                </p>
               </div>
-            )}
 
-            {/* Bouton créer */}
-            <button
-              onClick={handleCreate}
-              className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-purple-500/50"
-            >
-              <Plus className="w-5 h-5" />
-              Nouvelle Info
-            </button>
-          </div>
-        </motion.div>
+              {unvalidatedCount > 0 && (
+                <div className="flex items-center gap-3 bg-orange-500/20 backdrop-blur-sm border border-orange-400/30 rounded-xl px-4 py-2">
+                  <Bell className="w-5 h-5 text-orange-400 animate-pulse" />
+                  <span className="text-white font-semibold">
+                    {unvalidatedCount} nouvelle{unvalidatedCount > 1 ? 's' : ''} info{unvalidatedCount > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
 
-        {/* 📋 LISTE DES INFOS */}
-        <div className="space-y-4">
-          <AnimatePresence mode="popLayout">
-            {infos.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-12 text-center"
+              <button
+                onClick={() => { setEditingInfo(null); setShowCreateModal(true); }}
+                className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-purple-500/50"
               >
-                <Info className="w-16 h-16 text-white/40 mx-auto mb-4" />
-                <p className="text-white/60 text-lg">
-                  Aucune information pour le moment
-                </p>
-                <p className="text-white/40 text-sm mt-2">
-                  Cliquez sur "Nouvelle Info" pour en créer une
-                </p>
-              </motion.div>
-            ) : (
-              infos.map((info) => (
-                <InfoCard
-                  key={info.id}
-                  info={info}
-                  user={user}
-                  isAdmin={isAdmin}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onValidate={handleValidate}
-                />
-              ))
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+                <Plus className="w-5 h-5" />
+                Nouvelle Info
+              </button>
+            </div>
+          </motion.div>
 
-      {/* 📝 MODAL CRÉATION/ÉDITION */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <CreateInfoModal
-            info={editingInfo}
-            user={user}
-            onClose={() => {
-              setShowCreateModal(false);
-              setEditingInfo(null);
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+          <div className="space-y-4">
+            <AnimatePresence mode="popLayout">
+              {infos.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-12 text-center"
+                >
+                  <Info className="w-16 h-16 text-white/40 mx-auto mb-4" />
+                  <p className="text-white/60 text-lg">Aucune information pour le moment</p>
+                </motion.div>
+              ) : (
+                infos.map((info) => (
+                  <InfoCard
+                    key={info.id}
+                    info={info}
+                    user={user}
+                    isAdmin={isAdmin}
+                    onEdit={(i) => { setEditingInfo(i); setShowCreateModal(true); }}
+                    onDelete={async (id) => {
+                      if (window.confirm('Supprimer cette information ?')) {
+                        await infosService.deleteInfo(id, user);
+                      }
+                    }}
+                    onValidate={async (id) => await infosService.validateInfo(id, user.uid)}
+                  />
+                ))
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {showCreateModal && (
+            <CreateInfoModal
+              info={editingInfo}
+              user={user}
+              onClose={() => { setShowCreateModal(false); setEditingInfo(null); }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </Layout>
   );
 };
 
-/**
- * 🎴 CARTE INFO
- */
 const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
   const isAuthor = info.authorId === user.uid;
   const isValidated = info.validatedBy?.[user.uid];
@@ -245,12 +150,9 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       className={`bg-white/10 backdrop-blur-sm border rounded-2xl p-6 transition-all duration-300 ${
-        isValidated 
-          ? 'border-white/20' 
-          : 'border-purple-400/50 shadow-lg shadow-purple-500/20'
+        isValidated ? 'border-white/20' : 'border-purple-400/50 shadow-lg shadow-purple-500/20'
       }`}
     >
-      {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -260,64 +162,38 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
             <p className="text-white font-semibold">{info.authorName}</p>
             <p className="text-white/40 text-sm">
               {info.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
               })}
             </p>
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2">
           {canEdit && (
-            <button
-              onClick={() => onEdit(info)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Modifier"
-            >
+            <button onClick={() => onEdit(info)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
               <Edit className="w-4 h-4 text-white/60" />
             </button>
           )}
           {canDelete && (
-            <button
-              onClick={() => onDelete(info.id)}
-              className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
-              title="Supprimer"
-            >
+            <button onClick={() => onDelete(info.id)} className="p-2 hover:bg-red-500/20 rounded-lg transition-colors">
               <Trash2 className="w-4 h-4 text-red-400" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Contenu */}
-      {info.text && (
-        <p className="text-white mb-4 whitespace-pre-wrap">{info.text}</p>
-      )}
+      {info.text && <p className="text-white mb-4 whitespace-pre-wrap">{info.text}</p>}
 
-      {/* Média */}
       {info.media && (
         <div className="mb-4 rounded-xl overflow-hidden">
           {info.media.type === 'image' ? (
-            <img
-              src={info.media.url}
-              alt="Image info"
-              className="w-full max-h-96 object-contain bg-black/20"
-            />
-          ) : info.media.type === 'video' ? (
-            <video
-              src={info.media.url}
-              controls
-              className="w-full max-h-96 bg-black/20"
-            />
-          ) : null}
+            <img src={info.media.url} alt="Image" className="w-full max-h-96 object-contain bg-black/20" />
+          ) : (
+            <video src={info.media.url} controls className="w-full max-h-96 bg-black/20" />
+          )}
         </div>
       )}
 
-      {/* Footer */}
       <div className="flex items-center justify-between pt-4 border-t border-white/10">
         <div className="flex items-center gap-2 text-white/60 text-sm">
           <Eye className="w-4 h-4" />
@@ -343,9 +219,6 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
   );
 };
 
-/**
- * 📝 MODAL CRÉATION/ÉDITION INFO
- */
 const CreateInfoModal = ({ info, user, onClose }) => {
   const [text, setText] = useState(info?.text || '');
   const [file, setFile] = useState(null);
@@ -355,11 +228,6 @@ const CreateInfoModal = ({ info, user, onClose }) => {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
-  const isEditing = !!info;
-
-  /**
-   * 📎 SÉLECTION FICHIER
-   */
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -382,15 +250,11 @@ const CreateInfoModal = ({ info, user, onClose }) => {
     setFileType(isVideo ? 'video' : 'image');
     setError('');
 
-    // Prévisualisation
     const reader = new FileReader();
     reader.onload = (e) => setFilePreview(e.target.result);
     reader.readAsDataURL(selectedFile);
   };
 
-  /**
-   * 📤 SOUMETTRE
-   */
   const handleSubmit = async () => {
     if (!text.trim() && !file && !info?.media) {
       setError('Veuillez ajouter du texte ou un fichier');
@@ -403,29 +267,19 @@ const CreateInfoModal = ({ info, user, onClose }) => {
 
       let mediaData = info?.media || null;
 
-      // Upload nouveau fichier si présent
       if (file) {
         mediaData = await infosService.uploadFile(file, user.uid);
       }
 
-      if (isEditing) {
-        // Mise à jour
-        await infosService.updateInfo(info.id, {
-          text: text.trim(),
-          media: mediaData
-        }, user);
+      if (info) {
+        await infosService.updateInfo(info.id, { text: text.trim(), media: mediaData }, user);
       } else {
-        // Création
-        await infosService.createInfo({
-          text: text.trim(),
-          media: mediaData
-        }, user);
+        await infosService.createInfo({ text: text.trim(), media: mediaData }, user);
       }
 
       onClose();
-
     } catch (error) {
-      console.error('❌ Erreur soumission:', error);
+      console.error('❌ Erreur:', error);
       setError(error.message || 'Erreur lors de la soumission');
     } finally {
       setUploading(false);
@@ -447,24 +301,17 @@ const CreateInfoModal = ({ info, user, onClose }) => {
         onClick={(e) => e.stopPropagation()}
         className="bg-gradient-to-br from-gray-900 to-purple-900 border border-white/20 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white">
-            {isEditing ? 'Modifier l\'information' : 'Nouvelle information'}
+            {info ? 'Modifier l\'information' : 'Nouvelle information'}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
             <X className="w-6 h-6 text-white/60" />
           </button>
         </div>
 
-        {/* Texte */}
         <div className="mb-6">
-          <label className="block text-white/80 mb-2 font-semibold">
-            Message
-          </label>
+          <label className="block text-white/80 mb-2 font-semibold">Message</label>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -474,27 +321,16 @@ const CreateInfoModal = ({ info, user, onClose }) => {
           />
         </div>
 
-        {/* Upload */}
         <div className="mb-6">
-          <label className="block text-white/80 mb-2 font-semibold">
-            Fichier (optionnel)
-          </label>
+          <label className="block text-white/80 mb-2 font-semibold">Fichier (optionnel)</label>
           
           {filePreview ? (
             <div className="relative rounded-xl overflow-hidden bg-black/20">
               {fileType === 'image' ? (
-                <img
-                  src={filePreview}
-                  alt="Preview"
-                  className="w-full max-h-64 object-contain"
-                />
-              ) : fileType === 'video' ? (
-                <video
-                  src={filePreview}
-                  controls
-                  className="w-full max-h-64"
-                />
-              ) : null}
+                <img src={filePreview} alt="Preview" className="w-full max-h-64 object-contain" />
+              ) : (
+                <video src={filePreview} controls className="w-full max-h-64" />
+              )}
               <button
                 onClick={() => {
                   setFile(null);
@@ -513,12 +349,8 @@ const CreateInfoModal = ({ info, user, onClose }) => {
               className="w-full bg-white/10 border-2 border-dashed border-white/30 hover:border-purple-400 rounded-xl p-8 flex flex-col items-center gap-3 transition-colors"
             >
               <Upload className="w-12 h-12 text-white/60" />
-              <p className="text-white/80 font-semibold">
-                Cliquez pour ajouter une image ou vidéo
-              </p>
-              <p className="text-white/40 text-sm">
-                Max: 10MB (images) / 100MB (vidéos)
-              </p>
+              <p className="text-white/80 font-semibold">Cliquez pour ajouter une image ou vidéo</p>
+              <p className="text-white/40 text-sm">Max: 10MB (images) / 100MB (vidéos)</p>
             </button>
           )}
 
@@ -531,7 +363,6 @@ const CreateInfoModal = ({ info, user, onClose }) => {
           />
         </div>
 
-        {/* Erreur */}
         {error && (
           <div className="mb-6 bg-red-500/20 border border-red-400/30 rounded-xl p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
@@ -539,7 +370,6 @@ const CreateInfoModal = ({ info, user, onClose }) => {
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -556,12 +386,12 @@ const CreateInfoModal = ({ info, user, onClose }) => {
             {uploading ? (
               <>
                 <Loader className="w-5 h-5 animate-spin" />
-                {isEditing ? 'Mise à jour...' : 'Création...'}
+                {info ? 'Mise à jour...' : 'Création...'}
               </>
             ) : (
               <>
                 <Send className="w-5 h-5" />
-                {isEditing ? 'Mettre à jour' : 'Publier'}
+                {info ? 'Mettre à jour' : 'Publier'}
               </>
             )}
           </button>
