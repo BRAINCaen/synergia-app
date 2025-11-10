@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/infosService.js
-// SERVICE COMPLET DE GESTION DES INFORMATIONS
+// SERVICE COMPLET DE GESTION DES INFORMATIONS - SANS LIMITES DE TAILLE
 // ==========================================
 
 import { 
@@ -51,13 +51,12 @@ class InfosService {
   }
 
   /**
-   * 📤 UPLOAD FICHIER (PHOTO/VIDÉO)
+   * 📤 UPLOAD FICHIER (PHOTO/VIDÉO) - SANS LIMITE DE TAILLE
    */
   async uploadFile(file, userId) {
     try {
-      console.log('📤 [INFOS] Upload fichier:', file.name);
+      console.log('📤 [INFOS] Upload fichier:', file.name, 'Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
       
-      // Validation
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/');
       
@@ -65,30 +64,30 @@ class InfosService {
         throw new Error('Seules les images et vidéos sont acceptées');
       }
 
-      // Taille max: 10MB pour images, 100MB pour vidéos
-      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (file.size > maxSize) {
-        throw new Error(`Fichier trop volumineux (max: ${isVideo ? '100MB' : '10MB'})`);
-      }
+      // ✅ AUCUNE LIMITE DE TAILLE - Upload de n'importe quelle taille accepté
+      console.log('✅ [INFOS] Aucune limite de taille - Upload autorisé');
 
-      // Upload vers Firebase Storage
       const timestamp = Date.now();
       const fileExtension = file.name.split('.').pop();
       const fileName = `${timestamp}_${userId}.${fileExtension}`;
       const storagePath = `${this.STORAGE_PATH}/${fileName}`;
       const storageRef = ref(storage, storagePath);
 
+      console.log('📤 [INFOS] Début upload vers Firebase Storage...');
+
       await uploadBytes(storageRef, file, {
         contentType: file.type,
         customMetadata: {
           uploadedBy: userId,
-          uploadedAt: new Date().toISOString()
+          uploadedAt: new Date().toISOString(),
+          originalSize: file.size.toString(),
+          originalName: file.name
         }
       });
 
       const downloadURL = await getDownloadURL(storageRef);
       
-      console.log('✅ [INFOS] Fichier uploadé:', downloadURL);
+      console.log('✅ [INFOS] Fichier uploadé avec succès:', downloadURL);
       
       return {
         url: downloadURL,
@@ -123,7 +122,7 @@ class InfosService {
         authorAvatar: user.photoURL || null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        validatedBy: {}, // { userId: timestamp }
+        validatedBy: {},
         validationCount: 0
       };
 
@@ -154,8 +153,6 @@ class InfosService {
       }
 
       const infoData = infoSnap.data();
-      
-      // Vérifier les permissions
       const canEdit = this.isAdmin(user) || infoData.authorId === user.uid;
       
       if (!canEdit) {
@@ -190,15 +187,12 @@ class InfosService {
       }
 
       const infoData = infoSnap.data();
-      
-      // Vérifier les permissions
       const canDelete = this.isAdmin(user) || infoData.authorId === user.uid;
       
       if (!canDelete) {
         throw new Error('Permission refusée');
       }
 
-      // Supprimer le fichier du Storage si présent
       if (infoData.media?.storagePath) {
         try {
           const fileRef = ref(storage, infoData.media.storagePath);
@@ -220,11 +214,11 @@ class InfosService {
   }
 
   /**
-   * ✅ VALIDER UNE INFO (marquer comme vue)
+   * ✅ VALIDER UNE INFO
    */
   async validateInfo(infoId, userId) {
     try {
-      console.log('✅ [INFOS] Validation info:', infoId, 'par user:', userId);
+      console.log('✅ [INFOS] Validation info:', infoId);
       
       const infoRef = doc(db, this.COLLECTION_NAME, infoId);
       const infoSnap = await getDoc(infoRef);
@@ -236,7 +230,6 @@ class InfosService {
       const infoData = infoSnap.data();
       const validatedBy = infoData.validatedBy || {};
       
-      // Ajouter l'utilisateur à la liste des validations
       validatedBy[userId] = new Date().toISOString();
 
       await updateDoc(infoRef, {
@@ -244,7 +237,7 @@ class InfosService {
         validationCount: Object.keys(validatedBy).length
       });
 
-      console.log('✅ [INFOS] Info validée par utilisateur');
+      console.log('✅ [INFOS] Info validée');
 
     } catch (error) {
       console.error('❌ [INFOS] Erreur validation:', error);
@@ -257,8 +250,6 @@ class InfosService {
    */
   async getAllInfos() {
     try {
-      console.log('📊 [INFOS] Récupération infos...');
-      
       const q = query(
         collection(db, this.COLLECTION_NAME),
         orderBy('createdAt', 'desc')
@@ -271,8 +262,6 @@ class InfosService {
         infos.push({ id: doc.id, ...doc.data() });
       });
 
-      console.log(`✅ [INFOS] ${infos.length} infos récupérées`);
-      
       return infos;
 
     } catch (error) {
@@ -282,7 +271,7 @@ class InfosService {
   }
 
   /**
-   * 🔔 COMPTER LES INFOS NON VALIDÉES PAR UN UTILISATEUR
+   * 🔔 COMPTER LES INFOS NON VALIDÉES
    */
   async getUnvalidatedCount(userId) {
     try {
@@ -296,12 +285,10 @@ class InfosService {
   }
 
   /**
-   * 🎧 ÉCOUTER LES CHANGEMENTS EN TEMPS RÉEL
+   * 🎧 ÉCOUTER EN TEMPS RÉEL
    */
   listenToInfos(callback) {
     try {
-      console.log('🎧 [INFOS] Écoute temps réel activée');
-      
       const q = query(
         collection(db, this.COLLECTION_NAME),
         orderBy('createdAt', 'desc')
@@ -313,7 +300,6 @@ class InfosService {
           snapshot.forEach(doc => {
             infos.push({ id: doc.id, ...doc.data() });
           });
-          
           callback(infos);
         },
         (error) => {
@@ -321,7 +307,6 @@ class InfosService {
         }
       );
 
-      // Stocker le listener
       const listenerId = Date.now().toString();
       this.listeners.set(listenerId, unsubscribe);
       
@@ -341,20 +326,17 @@ class InfosService {
     if (unsubscribe) {
       unsubscribe();
       this.listeners.delete(listenerId);
-      console.log('🛑 [INFOS] Listener arrêté');
     }
   }
 
   /**
-   * 🧹 NETTOYER TOUS LES LISTENERS
+   * 🧹 NETTOYER
    */
   cleanup() {
     this.listeners.forEach(unsubscribe => unsubscribe());
     this.listeners.clear();
-    console.log('🧹 [INFOS] Tous les listeners nettoyés');
   }
 }
 
-// Export instance
 const infosService = new InfosService();
 export default infosService;
