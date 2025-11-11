@@ -155,9 +155,19 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3 flex-1">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center text-white font-bold">
-            {info.authorName?.charAt(0) || '?'}
-          </div>
+          {/* ✅ AVATAR AVEC PHOTO DE PROFIL */}
+          {info.authorAvatar ? (
+            <img 
+              src={info.authorAvatar} 
+              alt={info.authorName}
+              className="w-10 h-10 rounded-full object-cover border-2 border-purple-500/50"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center text-white font-bold border-2 border-purple-500/50">
+              {info.authorName?.charAt(0) || '?'}
+            </div>
+          )}
+          
           <div>
             <p className="text-white font-semibold">{info.authorName}</p>
             <p className="text-white/40 text-sm">
