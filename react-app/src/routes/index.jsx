@@ -47,6 +47,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         {/* PRINCIPAL */}
         <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/infos" element={<InfosPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<CampaignsPage />} />
         <Route path="/projects/:id" element={<CampaignDetailPage />} />
