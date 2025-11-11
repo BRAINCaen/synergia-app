@@ -8,9 +8,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Pages principales
 import DashboardPage from '../pages/Dashboard.jsx';
-import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
+import CampaignDetailPage from '../pages/CampaignDetailPage.jsx';
 import AnalyticsPage from '../pages/AnalyticsPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
@@ -46,9 +46,11 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         {/* PRINCIPAL */}
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/infos" element={<InfosPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<CampaignsPage />} />
+        <Route path="/projects/:id" element={<CampaignDetailPage />} />
+        <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         
         {/* GAMIFICATION */}
@@ -59,30 +61,27 @@ const AppRoutes = () => {
         
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/settings" element={<ProfilePage />} />
         
         {/* OUTILS */}
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/timetrack" element={<TimeTrackPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        
+        {/* ADMIN - Routes protégées par AdminRoute */}
+        <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
+          <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
+          <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+          <Route path="/admin/settings" element={<AdminSettingsPage />} />
+          <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
+          <Route path="/admin/sync" element={<AdminSyncPage />} />
+        </Route>
+        
+        {/* Redirection par défaut vers le dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
-
-      {/* Routes admin - Nécessitent authentification + rôle admin */}
-      <Route element={<AdminRoute />}>
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
-        <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
-        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
-        <Route path="/admin/settings" element={<AdminSettingsPage />} />
-        <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
-        <Route path="/admin/sync" element={<AdminSyncPage />} />
-      </Route>
-
-      {/* Redirection par défaut */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      
-      {/* Route 404 - Page non trouvée */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };
