@@ -8,6 +8,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Pages principales
 import DashboardPage from '../pages/Dashboard.jsx';
+import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
 import CampaignDetailPage from '../pages/CampaignDetailPage.jsx';
