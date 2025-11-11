@@ -236,6 +236,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
   const [fileType, setFileType] = useState(info?.media?.type || null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
@@ -251,7 +252,11 @@ const CreateInfoModal = ({ info, user, onClose }) => {
       return;
     }
 
-    console.log('📤 Fichier sélectionné:', selectedFile.name, 'Taille:', (selectedFile.size / 1024 / 1024).toFixed(2), 'MB');
+    console.log('📤 Fichier sélectionné:', {
+      name: selectedFile.name,
+      type: selectedFile.type,
+      size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB'
+    });
 
     setFile(selectedFile);
     setFileType(isVideo ? 'video' : 'image');
@@ -271,34 +276,64 @@ const CreateInfoModal = ({ info, user, onClose }) => {
     try {
       setUploading(true);
       setUploadProgress(0);
+      setUploadStatus('');
       setError('');
+
+      console.log('🚀 [MODAL] Début de la soumission');
 
       let mediaData = info?.media || null;
 
+      // Upload du fichier si présent
       if (file) {
-        console.log('📤 Début upload du fichier...');
+        console.log('📤 [MODAL] Upload du fichier...');
+        setUploadStatus('Upload du fichier en cours...');
         
-        // Upload avec callback de progression
-        mediaData = await infosService.uploadFile(file, user.uid, (progress) => {
-          setUploadProgress(progress);
-        });
-        
-        console.log('✅ Upload terminé, création de l\'info...');
+        try {
+          mediaData = await infosService.uploadFile(file, user.uid, (progress) => {
+            console.log('📊 [MODAL] Progression:', progress.toFixed(1) + '%');
+            setUploadProgress(progress);
+          });
+          
+          console.log('✅ [MODAL] Upload terminé:', mediaData);
+          setUploadStatus('Fichier uploadé, création de l\'information...');
+        } catch (uploadError) {
+          console.error('❌ [MODAL] Erreur upload fichier:', uploadError);
+          throw new Error('Erreur lors de l\'upload du fichier: ' + uploadError.message);
+        }
       }
 
-      if (info) {
-        await infosService.updateInfo(info.id, { text: text.trim(), media: mediaData }, user);
-      } else {
-        await infosService.createInfo({ text: text.trim(), media: mediaData }, user);
+      // Création ou mise à jour de l'info
+      console.log('💾 [MODAL] Sauvegarde dans Firestore...');
+      setUploadStatus('Enregistrement de l\'information...');
+
+      try {
+        if (info) {
+          console.log('✏️ [MODAL] Mise à jour info:', info.id);
+          await infosService.updateInfo(info.id, { text: text.trim(), media: mediaData }, user);
+        } else {
+          console.log('➕ [MODAL] Création nouvelle info');
+          await infosService.createInfo({ text: text.trim(), media: mediaData }, user);
+        }
+        
+        console.log('✅ [MODAL] Information enregistrée avec succès');
+        setUploadStatus('Terminé !');
+        
+        // Petit délai pour montrer le succès
+        setTimeout(() => {
+          onClose();
+        }, 500);
+        
+      } catch (firestoreError) {
+        console.error('❌ [MODAL] Erreur Firestore:', firestoreError);
+        throw new Error('Erreur lors de l\'enregistrement: ' + firestoreError.message);
       }
 
-      onClose();
     } catch (error) {
-      console.error('❌ Erreur:', error);
+      console.error('❌ [MODAL] Erreur globale:', error);
       setError(error.message || 'Erreur lors de la soumission');
-    } finally {
       setUploading(false);
       setUploadProgress(0);
+      setUploadStatus('');
     }
   };
 
@@ -308,7 +343,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+      onClick={uploading ? undefined : onClose}
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
@@ -321,7 +356,11 @@ const CreateInfoModal = ({ info, user, onClose }) => {
           <h2 className="text-2xl font-bold text-white">
             {info ? 'Modifier l\'information' : 'Nouvelle information'}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors" disabled={uploading}>
+          <button 
+            onClick={onClose} 
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors" 
+            disabled={uploading}
+          >
             <X className="w-6 h-6 text-white/60" />
           </button>
         </div>
@@ -385,30 +424,42 @@ const CreateInfoModal = ({ info, user, onClose }) => {
         </div>
 
         {/* BARRE DE PROGRESSION */}
-        {uploading && uploadProgress > 0 && (
+        {uploading && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-white/80 text-sm font-semibold">Upload en cours...</span>
-              <span className="text-purple-400 text-sm font-bold">{Math.round(uploadProgress)}%</span>
+              <span className="text-white/80 text-sm font-semibold">{uploadStatus || 'Préparation...'}</span>
+              {uploadProgress > 0 && (
+                <span className="text-purple-400 text-sm font-bold">{Math.round(uploadProgress)}%</span>
+              )}
             </div>
-            <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${uploadProgress}%` }}
-                className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full"
-                transition={{ duration: 0.3 }}
-              />
+            
+            {uploadProgress > 0 && (
+              <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden mb-2">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${uploadProgress}%` }}
+                  className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full"
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2 text-white/60 text-xs">
+              <Loader className="w-4 h-4 animate-spin" />
+              <span>Ne fermez pas cette fenêtre...</span>
             </div>
-            <p className="text-white/60 text-xs mt-2">
-              {uploadProgress < 100 ? 'Ne fermez pas cette fenêtre...' : 'Finalisation...'}
-            </p>
           </div>
         )}
 
         {error && (
-          <div className="mb-6 bg-red-500/20 border border-red-400/30 rounded-xl p-4 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-            <p className="text-red-200 text-sm">{error}</p>
+          <div className="mb-6 bg-red-500/20 border border-red-400/30 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-red-200 text-sm font-semibold mb-1">Erreur</p>
+                <p className="text-red-200 text-sm">{error}</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -428,7 +479,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
             {uploading ? (
               <>
                 <Loader className="w-5 h-5 animate-spin" />
-                {uploadProgress > 0 && uploadProgress < 100 ? 'Upload...' : 'Finalisation...'}
+                En cours...
               </>
             ) : (
               <>
