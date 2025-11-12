@@ -135,7 +135,7 @@ export const NAVIGATION_STRUCTURE = {
       { path: ROUTES.TIMETRACK, label: 'Pointeuse', icon: '⏰', priority: 2 },
             { path: ROUTES.HR, label: 'Gestion RH', icon: '🏢', priority: 3 }, // ← NOUVELLE LIGNE
 
-      { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👨‍💼', priority: 3 },
+      { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👨‍💼', priority: 4 },
     ]
   },
   admin: {
