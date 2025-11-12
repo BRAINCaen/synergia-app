@@ -19,6 +19,7 @@ export const ROUTES = {
   // Gamification
   LEADERBOARD: '/leaderboard',
   BADGES: '/badges',
+  
   GAMIFICATION: '/gamification',
   REWARDS: '/rewards',
   
@@ -40,6 +41,8 @@ export const ROUTES = {
   // Fonctionnalités spécialisées
   ONBOARDING: '/onboarding',
   TIMETRACK: '/timetrack',
+    HR: '/hr', // ← NOUVELLE ROUTE RH
+
   
   // 🛡️ ROUTES ADMIN COMPLÈTES - TOUTES AJOUTÉES !
   ADMIN_TASK_VALIDATION: '/admin/task-validation',
@@ -82,6 +85,10 @@ export const FIREBASE_COLLECTIONS = {
   OBJECTIVE_CLAIMS: 'objectiveClaims',
   INTERVIEWS: 'interviews',
   SYSTEM_SETTINGS: 'systemSettings'
+      HR_EMPLOYEES: 'hr_employees', // ← NOUVELLE LIGNE
+  HR_SCHEDULES: 'hr_schedules', // ← NOUVELLE LIGNE
+  HR_TIMESHEETS: 'hr_timesheets', // ← NOUVELLE LIGNE
+  HR_DOCUMENTS: 'hr_documents' // ← NOUVELLE LIGNE
     INFOS: 'infos' // ← NOUVELLE COLLECTION AJOUTÉE
 
 };
@@ -127,6 +134,8 @@ export const NAVIGATION_STRUCTURE = {
     routes: [
       { path: ROUTES.ONBOARDING, label: 'Intégration', icon: '📚', priority: 1 },
       { path: ROUTES.TIMETRACK, label: 'Pointeuse', icon: '⏰', priority: 2 },
+            { path: ROUTES.HR, label: 'Gestion RH', icon: '🏢', priority: 3 }, // ← NOUVELLE LIGNE
+
       { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👨‍💼', priority: 3 },
     ]
   },
@@ -186,6 +195,8 @@ export const ROUTES_BY_CATEGORY = {
   TOOLS: [
     ROUTES.ONBOARDING,
     ROUTES.TIMETRACK,
+        ROUTES.HR, // ← NOUVELLE LIGNE
+
     ROUTES.PROFILE,
     ROUTES.SETTINGS
   ],
