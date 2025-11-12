@@ -21,6 +21,7 @@ import RewardsPage from '../pages/RewardsPage.jsx';
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
+import HRPage from '../pages/HRPage.jsx';
 import AdminPage from '../pages/AdminPage.jsx';
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx';
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx';
@@ -67,6 +68,7 @@ const AppRoutes = () => {
         {/* OUTILS */}
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/timetrack" element={<TimeTrackPage />} />
+                <Route path="/hr" element={<HRPage />} /> {/* ← NOUVELLE ROUTE */}
         <Route path="/profile" element={<ProfilePage />} />
         
         {/* ADMIN - Routes protégées par AdminRoute */}
