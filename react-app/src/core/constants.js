@@ -84,13 +84,12 @@ export const FIREBASE_COLLECTIONS = {
   TASK_VALIDATIONS: 'taskValidations',
   OBJECTIVE_CLAIMS: 'objectiveClaims',
   INTERVIEWS: 'interviews',
-  SYSTEM_SETTINGS: 'systemSettings'
-      HR_EMPLOYEES: 'hr_employees', // ← NOUVELLE LIGNE
-  HR_SCHEDULES: 'hr_schedules', // ← NOUVELLE LIGNE
-  HR_TIMESHEETS: 'hr_timesheets', // ← NOUVELLE LIGNE
-  HR_DOCUMENTS: 'hr_documents' // ← NOUVELLE LIGNE
-    INFOS: 'infos' // ← NOUVELLE COLLECTION AJOUTÉE
-
+  SYSTEM_SETTINGS: 'systemSettings',  // ← VIRGULE AJOUTÉE ICI !
+  HR_EMPLOYEES: 'hr_employees',
+  HR_SCHEDULES: 'hr_schedules',
+  HR_TIMESHEETS: 'hr_timesheets',
+  HR_DOCUMENTS: 'hr_documents',  // ← VIRGULE AJOUTÉE ICI !
+  INFOS: 'infos'
 };
 
 // 🗂️ STRUCTURE DE NAVIGATION COMPLÈTE - VERSION QUÊTES
