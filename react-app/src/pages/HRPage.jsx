@@ -277,161 +277,162 @@ const HRPage = () => {
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
         <div className="max-w-7xl mx-auto">
-        {/* HEADER */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                Gestion RH
-              </h1>
-              <p className="text-gray-400">Gestion du personnel et ressources humaines</p>
+          {/* HEADER */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                  Gestion RH
+                </h1>
+                <p className="text-gray-400">Gestion du personnel et ressources humaines</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleRefresh}
+                  className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Actualiser
+                </button>
+              </div>
             </div>
-            <div className="flex gap-3">
+
+            {/* STATISTIQUES */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <StatCard 
+                title="Total Salariés" 
+                value={stats.totalEmployees} 
+                icon={Users} 
+                color="blue"
+                subtitle={`${stats.activeEmployees} actifs`}
+              />
+              <StatCard 
+                title="Pointages en attente" 
+                value={stats.pendingTimeSheets} 
+                icon={Clock} 
+                color="orange"
+                subtitle="À valider"
+              />
+              <StatCard 
+                title="Heures du mois" 
+                value={stats.monthlyHours} 
+                icon={Activity} 
+                color="green"
+                subtitle={`${stats.overtime}h supplémentaires`}
+              />
+              <StatCard 
+                title="Congés en attente" 
+                value={stats.pendingLeaves} 
+                icon={Calendar} 
+                color="purple"
+                subtitle="Demandes"
+              />
+            </div>
+          </motion.div>
+
+          {/* ONGLETS */}
+          <div className="flex gap-2 mb-6 overflow-x-auto">
+            {tabs.map((tab) => (
               <button
-                onClick={handleRefresh}
-                className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                }`}
               >
-                <RefreshCw className="w-4 h-4" />
-                Actualiser
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
               </button>
-            </div>
+            ))}
           </div>
 
-          {/* STATISTIQUES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard 
-              title="Total Salariés" 
-              value={stats.totalEmployees} 
-              icon={Users} 
-              color="blue"
-              subtitle={`${stats.activeEmployees} actifs`}
-            />
-            <StatCard 
-              title="Pointages en attente" 
-              value={stats.pendingTimeSheets} 
-              icon={Clock} 
-              color="orange"
-              subtitle="À valider"
-            />
-            <StatCard 
-              title="Heures du mois" 
-              value={stats.monthlyHours} 
-              icon={Activity} 
-              color="green"
-              subtitle={`${stats.overtime}h supplémentaires`}
-            />
-            <StatCard 
-              title="Congés en attente" 
-              value={stats.pendingLeaves} 
-              icon={Calendar} 
-              color="purple"
-              subtitle="Demandes"
-            />
-          </div>
-        </motion.div>
+          {/* CONTENU DES ONGLETS */}
+          <AnimatePresence mode="wait">
+            {activeTab === 'employees' && (
+              <EmployeesTab 
+                employees={filteredEmployees}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                onAddEmployee={handleAddEmployee}
+                onViewEmployee={handleViewEmployee}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {activeTab === 'planning' && (
+              <PlanningTab 
+                schedules={schedules}
+                employees={employees}
+                onAddSchedule={handleAddSchedule}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {activeTab === 'timesheet' && (
+              <TimesheetTab 
+                timesheets={timesheets}
+                employees={employees}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {activeTab === 'documents' && (
+              <DocumentsTab 
+                documents={documents}
+                employees={employees}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {activeTab === 'payroll' && (
+              <PayrollTab 
+                employees={employees}
+                timesheets={timesheets}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {activeTab === 'settings' && <SettingsTab />}
+          </AnimatePresence>
 
-        {/* ONGLETS */}
-        <div className="flex gap-2 mb-6 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          ))}
+          {/* MODALS */}
+          {showNewEmployeeModal && (
+            <NewEmployeeModal 
+              onClose={() => setShowNewEmployeeModal(false)}
+              onSuccess={() => {
+                setShowNewEmployeeModal(false);
+                handleRefresh();
+              }}
+            />
+          )}
+
+          {showNewScheduleModal && (
+            <NewScheduleModal 
+              employees={employees}
+              onClose={() => setShowNewScheduleModal(false)}
+              onSuccess={() => {
+                setShowNewScheduleModal(false);
+                handleRefresh();
+              }}
+            />
+          )}
+
+          {showEmployeeDetailModal && selectedEmployee && (
+            <EmployeeDetailModal 
+              employee={selectedEmployee}
+              onClose={() => {
+                setShowEmployeeDetailModal(false);
+                setSelectedEmployee(null);
+              }}
+              onSuccess={() => {
+                setShowEmployeeDetailModal(false);
+                setSelectedEmployee(null);
+                handleRefresh();
+              }}
+            />
+          )}
         </div>
-
-        {/* CONTENU DES ONGLETS */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'employees' && (
-            <EmployeesTab 
-              employees={filteredEmployees}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              onAddEmployee={handleAddEmployee}
-              onViewEmployee={handleViewEmployee}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'planning' && (
-            <PlanningTab 
-              schedules={schedules}
-              employees={employees}
-              onAddSchedule={handleAddSchedule}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'timesheet' && (
-            <TimesheetTab 
-              timesheets={timesheets}
-              employees={employees}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'documents' && (
-            <DocumentsTab 
-              documents={documents}
-              employees={employees}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'payroll' && (
-            <PayrollTab 
-              employees={employees}
-              timesheets={timesheets}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {activeTab === 'settings' && <SettingsTab />}
-        </AnimatePresence>
-
-        {/* MODALS */}
-        {showNewEmployeeModal && (
-          <NewEmployeeModal 
-            onClose={() => setShowNewEmployeeModal(false)}
-            onSuccess={() => {
-              setShowNewEmployeeModal(false);
-              handleRefresh();
-            }}
-          />
-        )}
-
-        {showNewScheduleModal && (
-          <NewScheduleModal 
-            employees={employees}
-            onClose={() => setShowNewScheduleModal(false)}
-            onSuccess={() => {
-              setShowNewScheduleModal(false);
-              handleRefresh();
-            }}
-          />
-        )}
-
-        {showEmployeeDetailModal && selectedEmployee && (
-          <EmployeeDetailModal 
-            employee={selectedEmployee}
-            onClose={() => {
-              setShowEmployeeDetailModal(false);
-              setSelectedEmployee(null);
-            }}
-            onSuccess={() => {
-              setShowEmployeeDetailModal(false);
-              setSelectedEmployee(null);
-              handleRefresh();
-            }}
-          />
-        )}
       </div>
     </Layout>
   );
@@ -1255,6 +1256,9 @@ const TimesheetTab = ({ timesheets, employees, onRefresh }) => {
 };
 
 // 📋 CARTE POINTAGE
+const TimesheetCard = ({ timesheet, employees }) => {
+  const employee = employees.find(e => e.id === timesheet.employeeId);
+
   return (
     <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-all">
       <div className="flex items-center justify-between">
