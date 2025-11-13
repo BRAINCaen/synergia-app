@@ -198,14 +198,14 @@ const PlanningAdvancedPage = () => {
   };
 
   // ==========================================
-  // 🎨 DRAG & DROP
+  // 🎨 DRAG & DROP - COPIE AUTOMATIQUE
   // ==========================================
 
   const handleDragStart = (e, shift) => {
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = 'copy';
     setDraggedShift(shift);
     setIsDragging(true);
-    console.log('🎯 Drag start:', shift);
+    console.log('🎯 Drag start (copie):', shift);
   };
 
   const handleDragEnd = () => {
@@ -216,7 +216,7 @@ const PlanningAdvancedPage = () => {
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = 'copy';
   };
 
   const handleDragEnter = (employeeId, date) => {
@@ -241,17 +241,17 @@ const PlanningAdvancedPage = () => {
     }
     
     try {
-      // Déplacer le shift
-      await planningEnrichedService.moveShift(draggedShift.id, employeeId, date);
+      // COPIER le shift au lieu de le déplacer
+      await planningEnrichedService.copyShift(draggedShift.id, employeeId, date);
       
       // Notification succès
-      showNotification('✅ Shift déplacé avec succès', 'success');
+      showNotification('✅ Shift copié avec succès', 'success');
       
       // Rafraîchir les données
       await loadPlanningData();
     } catch (error) {
-      console.error('❌ Erreur drag & drop:', error);
-      showNotification('❌ Erreur lors du déplacement', 'error');
+      console.error('❌ Erreur copie shift:', error);
+      showNotification('❌ Erreur lors de la copie', 'error');
     }
     
     setDraggedShift(null);
@@ -767,7 +767,7 @@ const PlanningAdvancedPage = () => {
                 <div>
                   <p className="text-gray-400 text-sm mb-2">💡 Astuces :</p>
                   <ul className="text-gray-400 text-xs space-y-1">
-                    <li>• Glisser-déposer les shifts pour les déplacer</li>
+                    <li>• Glisser-déposer les shifts pour les COPIER vers une autre case</li>
                     <li>• Cliquer sur <Copy className="w-3 h-3 inline" /> pour copier un shift</li>
                     <li>• Double-cliquer sur une cellule vide pour coller</li>
                     <li>• Le compteur montre les heures planifiées vs contrat (35h par défaut)</li>
