@@ -10,8 +10,7 @@ export const ROUTES = {
   
   // Pages principales
   DASHBOARD: '/dashboard',
-    INFOS: '/infos', // ← NOUVELLE ROUTE AJOUTÉE
-
+  INFOS: '/infos',
   TASKS: '/tasks',
   PROJECTS: '/projects',
   ANALYTICS: '/analytics',
@@ -19,7 +18,6 @@ export const ROUTES = {
   // Gamification
   LEADERBOARD: '/leaderboard',
   BADGES: '/badges',
-  
   GAMIFICATION: '/gamification',
   REWARDS: '/rewards',
   
@@ -41,10 +39,9 @@ export const ROUTES = {
   // Fonctionnalités spécialisées
   ONBOARDING: '/onboarding',
   TIMETRACK: '/timetrack',
-    HR: '/hr', // ← NOUVELLE ROUTE RH
-
+  HR: '/hr',
   
-  // 🛡️ ROUTES ADMIN COMPLÈTES - TOUTES AJOUTÉES !
+  // 🛡️ ROUTES ADMIN COMPLÈTES
   ADMIN_TASK_VALIDATION: '/admin/task-validation',
   ADMIN_OBJECTIVE_VALIDATION: '/admin/objective-validation',
   ADMIN_COMPLETE_TEST: '/admin/complete-test',
@@ -84,11 +81,11 @@ export const FIREBASE_COLLECTIONS = {
   TASK_VALIDATIONS: 'taskValidations',
   OBJECTIVE_CLAIMS: 'objectiveClaims',
   INTERVIEWS: 'interviews',
-  SYSTEM_SETTINGS: 'systemSettings',  // ← VIRGULE AJOUTÉE ICI !
+  SYSTEM_SETTINGS: 'systemSettings',
   HR_EMPLOYEES: 'hr_employees',
   HR_SCHEDULES: 'hr_schedules',
   HR_TIMESHEETS: 'hr_timesheets',
-  HR_DOCUMENTS: 'hr_documents',  // ← VIRGULE AJOUTÉE ICI !
+  HR_DOCUMENTS: 'hr_documents',
   INFOS: 'infos'
 };
 
@@ -98,11 +95,10 @@ export const NAVIGATION_STRUCTURE = {
     label: 'Principal',
     routes: [
       { path: ROUTES.DASHBOARD, label: 'Tableau de bord', icon: '🏠', priority: 1 },
-            { path: ROUTES.INFOS, label: 'Infos', icon: '📢', priority: 2 }, // ← NOUVELLE LIGNE AJOUTÉE
-
-      { path: ROUTES.TASKS, label: 'Quêtes', icon: '⚔️', priority: 2 },
-      { path: ROUTES.PROJECTS, label: 'Projets', icon: '📁', priority: 3 },
-      { path: ROUTES.ANALYTICS, label: 'Analytics', icon: '📊', priority: 4 }
+      { path: ROUTES.INFOS, label: 'Infos', icon: '📢', priority: 2 },
+      { path: ROUTES.TASKS, label: 'Quêtes', icon: '⚔️', priority: 3 },
+      { path: ROUTES.PROJECTS, label: 'Projets', icon: '📁', priority: 4 },
+      { path: ROUTES.ANALYTICS, label: 'Analytics', icon: '📊', priority: 5 }
     ]
   },
   gamification: {
@@ -133,9 +129,8 @@ export const NAVIGATION_STRUCTURE = {
     routes: [
       { path: ROUTES.ONBOARDING, label: 'Intégration', icon: '📚', priority: 1 },
       { path: ROUTES.TIMETRACK, label: 'Pointeuse', icon: '⏰', priority: 2 },
-            { path: ROUTES.HR, label: 'Gestion RH', icon: '🏢', priority: 3 }, // ← NOUVELLE LIGNE
-
-      { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👨‍💼', priority: 4 },
+      { path: ROUTES.HR, label: 'Gestion RH', icon: '🏢', priority: 3 },
+      { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👨‍💼', priority: 4 }
     ]
   },
   admin: {
@@ -177,6 +172,7 @@ export const ADMIN_NAVIGATION = [
 export const ROUTES_BY_CATEGORY = {
   MAIN: [
     ROUTES.DASHBOARD,
+    ROUTES.INFOS,
     ROUTES.TASKS,
     ROUTES.PROJECTS,
     ROUTES.ANALYTICS
@@ -194,10 +190,8 @@ export const ROUTES_BY_CATEGORY = {
   TOOLS: [
     ROUTES.ONBOARDING,
     ROUTES.TIMETRACK,
-        ROUTES.HR, // ← NOUVELLE LIGNE
-
-    ROUTES.PROFILE,
-    ROUTES.SETTINGS
+    ROUTES.HR,
+    ROUTES.PROFILE
   ],
   ADMIN: [
     ROUTES.ADMIN_TASK_VALIDATION,
