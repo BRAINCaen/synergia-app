@@ -35,7 +35,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, currentPa
     ]},
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '🎯' },
-      { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' }
+      { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' },
         { path: '/hr', label: 'Gestion RH', icon: '🏢' }  // ← AJOUTEZ CETTE LIGNE !
     ]},
     { section: 'ADMIN', items: [
