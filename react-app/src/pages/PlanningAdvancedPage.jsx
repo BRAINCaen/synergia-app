@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningAdvancedPage.jsx
-// PAGE PLANNING AVANCÉE TYPE SKELLO
+// PAGE PLANNING AVANCÉE TYPE SKELLO AVEC CALENDRIER FRANÇAIS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -26,7 +26,8 @@ import {
   Minus,
   FileText,
   Printer,
-  Upload
+  Upload,
+  AlertTriangle
 } from 'lucide-react';
 
 // Layout
@@ -35,6 +36,7 @@ import Layout from '../components/layout/Layout.jsx';
 // Services
 import planningEnrichedService from '../core/services/planningEnrichedService.js';
 import planningExportService from '../core/services/planningExportService.js';
+import frenchCalendarService from '../core/services/frenchCalendarService.js';
 
 // Auth
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -69,6 +71,9 @@ const PlanningAdvancedPage = () => {
   // Navigation semaine
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [weekDates, setWeekDates] = useState([]);
+  
+  // Analyse calendrier
+  const [weekAnalysis, setWeekAnalysis] = useState(null);
   
   // Drag & Drop
   const [draggedShift, setDraggedShift] = useState(null);
@@ -123,6 +128,11 @@ const PlanningAdvancedPage = () => {
       // Générer les dates de la semaine
       const dates = planningEnrichedService.getWeekDates(weekStart.toISOString().split('T')[0]);
       setWeekDates(dates);
+
+      // Analyser le calendrier pour la semaine
+      const analysis = frenchCalendarService.analyzeWeekForPlanning(dates);
+      setWeekAnalysis(analysis);
+      console.log('📅 Analyse calendrier:', analysis);
 
       // Charger les employés
       const employeesList = await planningEnrichedService.getAllEmployees();
@@ -449,6 +459,31 @@ const PlanningAdvancedPage = () => {
     };
   };
 
+  const getDateAnalysis = (date) => {
+    if (!weekAnalysis) return null;
+    return weekAnalysis.dates.find(d => d.date === date);
+  };
+
+  const getDemandLevelColor = (level) => {
+    const colors = {
+      normal: 'bg-gray-600',
+      medium: 'bg-blue-600',
+      high: 'bg-orange-600',
+      very_high: 'bg-red-600'
+    };
+    return colors[level] || colors.normal;
+  };
+
+  const getDemandLevelText = (level) => {
+    const texts = {
+      normal: 'Demande normale',
+      medium: 'Demande moyenne',
+      high: 'Forte demande',
+      very_high: 'Très forte demande'
+    };
+    return texts[level] || texts.normal;
+  };
+
   // ==========================================
   // 🎨 RENDER LOADING
   // ==========================================
@@ -483,7 +518,7 @@ const PlanningAdvancedPage = () => {
                   📅 Planning Équipe
                 </h1>
                 <p className="text-gray-400">
-                  Gestion avancée des shifts et horaires
+                  Gestion avancée des shifts et horaires - Zone Normandie
                 </p>
               </div>
 
@@ -525,6 +560,38 @@ const PlanningAdvancedPage = () => {
               </div>
             </div>
           </div>
+
+          {/* ALERTE DEMANDE FORTE */}
+          {weekAnalysis && weekAnalysis.summary.hasHighDemand && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`mb-6 ${getDemandLevelColor(weekAnalysis.summary.demandLevel)} rounded-2xl p-6 border-2 border-white/20`}
+            >
+              <div className="flex items-center gap-4">
+                <AlertTriangle className="w-8 h-8 text-white flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-white font-bold text-lg mb-2">
+                    ⚠️ ATTENTION - {getDemandLevelText(weekAnalysis.summary.demandLevel).toUpperCase()}
+                  </h3>
+                  <div className="text-white/90 text-sm space-y-1">
+                    {weekAnalysis.summary.totalHolidays > 0 && (
+                      <p>🎊 {weekAnalysis.summary.totalHolidays} jour(s) férié(s) cette semaine</p>
+                    )}
+                    {weekAnalysis.summary.totalSchoolHolidays > 0 && (
+                      <p>🏫 Vacances scolaires Zone Normandie</p>
+                    )}
+                    {weekAnalysis.summary.totalBridges > 0 && (
+                      <p>🌉 {weekAnalysis.summary.totalBridges} pont(s) possible(s)</p>
+                    )}
+                    <p className="font-semibold mt-2">
+                      👥 Pensez à prévoir du personnel supplémentaire !
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* STATISTIQUES SEMAINE */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -621,14 +688,40 @@ const PlanningAdvancedPage = () => {
                     <th className="text-left p-4 text-gray-400 font-semibold sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10 min-w-[200px]">
                       Employé
                     </th>
-                    {weekDates.map((date, index) => (
-                      <th key={date} className="text-center p-4 text-gray-400 font-semibold min-w-[150px]">
-                        <div>
-                          <div className="text-xs text-gray-500 uppercase">{getDayName(date)}</div>
-                          <div className="text-lg text-white mt-1">{getDayNumber(date)}</div>
-                        </div>
-                      </th>
-                    ))}
+                    {weekDates.map((date, index) => {
+                      const dateAnalysis = getDateAnalysis(date);
+                      const hasAlerts = dateAnalysis && dateAnalysis.alerts.length > 0;
+                      
+                      return (
+                        <th key={date} className="text-center p-4 text-gray-400 font-semibold min-w-[150px] relative">
+                          <div>
+                            <div className="text-xs text-gray-500 uppercase">{getDayName(date)}</div>
+                            <div className="text-lg text-white mt-1">{getDayNumber(date)}</div>
+                            
+                            {/* BADGES JOURS SPÉCIAUX */}
+                            {hasAlerts && (
+                              <div className="mt-2 space-y-1">
+                                {dateAnalysis.alerts.map((alert, idx) => (
+                                  <div
+                                    key={idx}
+                                    className={`
+                                      px-2 py-1 rounded text-xs font-semibold
+                                      ${alert.color === 'red' ? 'bg-red-500/20 text-red-300 border border-red-500/50' : ''}
+                                      ${alert.color === 'orange' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50' : ''}
+                                      ${alert.color === 'blue' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50' : ''}
+                                      ${alert.color === 'yellow' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50' : ''}
+                                    `}
+                                    title={alert.message}
+                                  >
+                                    {alert.emoji}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
                     <th className="text-center p-4 text-gray-400 font-semibold min-w-[120px]">
                       Total/Contrat
                     </th>
@@ -657,12 +750,16 @@ const PlanningAdvancedPage = () => {
                         {weekDates.map(date => {
                           const shift = getShiftForCell(employee.id, date);
                           const isOver = dragOverCell?.employeeId === employee.id && dragOverCell?.date === date;
+                          const dateAnalysis = getDateAnalysis(date);
+                          const hasHighDemand = dateAnalysis && dateAnalysis.isSpecial;
                           
                           return (
                             <td 
                               key={date}
                               className={`p-2 transition-all ${
                                 isOver ? 'bg-purple-500/20 border-2 border-purple-500' : ''
+                              } ${
+                                hasHighDemand ? 'bg-orange-500/5' : ''
                               }`}
                               onDragOver={handleDragOver}
                               onDragEnter={() => handleDragEnter(employee.id, date)}
@@ -772,6 +869,28 @@ const PlanningAdvancedPage = () => {
                     <li>• Double-cliquer sur une cellule vide pour coller</li>
                     <li>• Le compteur montre les heures planifiées vs contrat (35h par défaut)</li>
                   </ul>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-gray-400 text-sm mb-2">📅 Légende calendrier :</p>
+                  <div className="flex flex-col gap-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-red-500/20 border border-red-500/50 rounded"></div>
+                      <span className="text-gray-400">Jour férié</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-orange-500/20 border border-orange-500/50 rounded"></div>
+                      <span className="text-gray-400">Pont possible</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-blue-500/20 border border-blue-500/50 rounded"></div>
+                      <span className="text-gray-400">Vacances scolaires</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-yellow-500/20 border border-yellow-500/50 rounded"></div>
+                      <span className="text-gray-400">Week-end</span>
+                    </div>
+                  </div>
                 </div>
 
                 {copiedShift && (
