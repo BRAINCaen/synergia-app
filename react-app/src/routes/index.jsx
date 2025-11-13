@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES - AVEC MODULE RH & PLANNING
+// ROUTES COMPLÈTES - MODULE RH & PLANNING
 // ==========================================
 
 import React from 'react';
@@ -20,10 +20,9 @@ import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
 
-// ✨ NOUVELLES PAGES RH & PLANNING
+// ✨ PAGES RH & PLANNING
 import HRPage from '../pages/HRPage.jsx';
 import PlanningPage from '../pages/PlanningPage.jsx';
-import PlanningAdvancedPage from './pages/PlanningAdvancedPage.jsx';
 
 // Pages admin
 import AdminPage from '../pages/AdminPage.jsx';
@@ -71,11 +70,10 @@ const AppRoutes = () => {
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/timetrack" element={<TimeTrackPage />} />
         
-        {/* ✨ NOUVEAUX MODULES RH & PLANNING */}
+        {/* ✨ MODULES RH & PLANNING */}
         <Route path="/hr" element={<HRPage />} />
         <Route path="/planning" element={<PlanningPage />} />
       </Route>
-      <Route path="/planning-advanced" element={<PlanningAdvancedPage />} />
 
       {/* Routes admin - Nécessitent authentification + rôle admin */}
       <Route element={<AdminRoute />}>
