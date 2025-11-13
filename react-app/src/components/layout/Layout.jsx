@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT AVEC MENU PREMIUM - PLANNING AJOUTÉ
+// LAYOUT AVEC MENU COMPLET - RH & PLANNING AJOUTÉS
 // ==========================================
 
 import React, { useState, memo, useRef, useCallback } from 'react';
@@ -34,6 +34,8 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '🎯' },
       { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' },
+      // 🆕 NOUVELLES ROUTES AJOUTÉES
+      { path: '/hr', label: 'RH', icon: '🏢' },
       { path: '/planning', label: 'Planning', icon: '📅' }
     ]},
     { section: 'ADMIN', items: [
@@ -57,111 +59,139 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
     <div 
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
+        inset: 0,
         zIndex: 999999,
-        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(88, 28, 135, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        animation: 'fadeIn 0.3s ease-out'
+        animation: 'fadeIn 0.2s ease-out'
       }}
-      onClick={onClose}
     >
-      {/* CONTENU MENU PREMIUM */}
+      {/* Overlay */}
+      <div 
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)'
+        }}
+      />
+
+      {/* Menu Panel */}
       <div 
         style={{
-          background: 'linear-gradient(135deg, rgba(31, 41, 55, 0.8) 0%, rgba(55, 65, 81, 0.8) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(156, 163, 175, 0.2)',
-          borderRadius: '24px',
-          width: '90%',
-          maxWidth: '700px',
-          maxHeight: '85vh',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: '400px',
+          maxWidth: '85vw',
+          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.95) 100%)',
+          borderRight: '1px solid rgba(139, 92, 246, 0.2)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.1)',
           overflowY: 'auto',
-          padding: '32px',
-          position: 'relative',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-          animation: 'slideUp 0.4s ease-out'
+          animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* HEADER PREMIUM */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '32px' 
+        {/* Header */}
+        <div style={{
+          padding: '32px 24px 24px',
+          borderBottom: '1px solid rgba(156, 163, 175, 0.1)',
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
         }}>
-          <div>
-            <h2 style={{ 
-              fontSize: '32px', 
-              fontWeight: '800',
-              background: 'linear-gradient(135deg, #60a5fa 0%, #a855f7 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              marginBottom: '8px'
-            }}>
-              Navigation
-            </h2>
-            <p style={{
-              color: '#9ca3af',
-              fontSize: '16px',
-              fontWeight: '400'
-            }}>
-              Explorez toutes les sections de Synergia
-            </p>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                borderRadius: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.4)',
+                fontSize: '24px'
+              }}>
+                🎮
+              </div>
+              <div>
+                <h2 style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  margin: 0,
+                  lineHeight: '1.2'
+                }}>
+                  Synergia
+                </h2>
+                <p style={{
+                  fontSize: '14px',
+                  color: 'rgba(156, 163, 175, 1)',
+                  margin: '4px 0 0 0'
+                }}>
+                  v3.5 - Menu Principal
+                </p>
+              </div>
+            </div>
+            
+            <button
+              onClick={onClose}
+              style={{
+                width: '40px',
+                height: '40px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                color: 'rgba(248, 113, 113, 1)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(239, 68, 68, 0.2)';
+                e.target.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(239, 68, 68, 0.1)';
+                e.target.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+              }}
+            >
+              <X style={{ width: '20px', height: '20px' }} />
+            </button>
           </div>
-          
-          {/* BOUTON FERMETURE */}
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '12px',
-              width: '48px',
-              height: '48px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              color: '#ef4444'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(239, 68, 68, 0.2)';
-              e.target.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(239, 68, 68, 0.1)';
-              e.target.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-            }}
-          >
-            <X style={{ width: '24px', height: '24px' }} />
-          </button>
         </div>
 
-        {/* SECTIONS MENU */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Menu Items */}
+        <div style={{ padding: '24px' }}>
           {menuItems.map((section, sectionIndex) => (
-            <div key={sectionIndex}>
+            <div 
+              key={sectionIndex}
+              style={{ 
+                marginBottom: '32px',
+                animation: `slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${sectionIndex * 0.05}s backwards`
+              }}
+            >
               <h3 style={{
-                fontSize: '14px',
-                fontWeight: '700',
-                color: '#9ca3af',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: 'rgba(139, 92, 246, 1)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '12px'
+                letterSpacing: '0.1em',
+                marginBottom: '12px',
+                paddingLeft: '12px'
               }}>
                 {section.section}
               </h3>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {section.items.map((item, itemIndex) => (
                   <button
                     key={itemIndex}
@@ -170,20 +200,21 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
-                      padding: '12px 16px',
+                      padding: '14px 16px',
                       background: 'rgba(55, 65, 81, 0.5)',
                       border: '1px solid rgba(156, 163, 175, 0.2)',
                       borderRadius: '12px',
                       color: 'white',
-                      fontSize: '16px',
+                      fontSize: '15px',
                       fontWeight: '500',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
+                      width: '100%',
                       textAlign: 'left',
-                      width: '100%'
+                      animation: `slideUp 0.3s ease ${(sectionIndex * 0.05) + (itemIndex * 0.03)}s backwards`
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)';
+                      e.target.style.background = 'rgba(139, 92, 246, 0.15)';
                       e.target.style.borderColor = 'rgba(139, 92, 246, 0.5)';
                       e.target.style.transform = 'translateX(8px)';
                     }}
