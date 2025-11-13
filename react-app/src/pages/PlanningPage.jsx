@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningPage.jsx
-// PLANNING AVANCÉ TYPE SKELLO - SÉLECTION EMPLOYÉ CORRIGÉE
+// PLANNING AVANCÉ TYPE SKELLO - CHARGEMENT EMPLOYÉS DEPUIS USERS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -149,12 +149,26 @@ const PlanningPage = () => {
     try {
       setLoading(true);
       
-      // Charger les employés
-      const employeesSnapshot = await getDocs(collection(db, 'hr_employees'));
-      const employeeData = employeesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // ✅ CORRECTION: Charger les employés depuis la collection 'users'
+      console.log('👥 Chargement des employés depuis users...');
+      const employeesSnapshot = await getDocs(
+        query(collection(db, 'users'), orderBy('createdAt', 'desc'))
+      );
+      
+      const employeeData = employeesSnapshot.docs.map(doc => {
+        const userData = doc.data();
+        return {
+          id: doc.id,
+          displayName: userData.displayName || userData.email?.split('@')[0] || 'Sans nom',
+          email: userData.email || '',
+          position: userData.synergiaRole || userData.profile?.role || 'Game Master',
+          status: 'active', // Tous les users sont considérés actifs
+          photoURL: userData.photoURL || '',
+          phone: userData.profile?.phone || userData.phone || ''
+        };
+      });
+      
+      console.log(`✅ ${employeeData.length} employés chargés depuis users`);
       setEmployees(employeeData);
       
       // Charger les schedules de la semaine
@@ -409,7 +423,7 @@ const PlanningPage = () => {
     const matchesSearch = emp.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          emp.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterPosition === 'all' || emp.position === filterPosition;
-    return matchesSearch && matchesFilter && emp.status === 'active';
+    return matchesSearch && matchesFilter;
   });
   
   // Statistiques
@@ -474,7 +488,7 @@ const PlanningPage = () => {
               
               <button
                 onClick={() => {
-                  setSelectedCell(null); // Réinitialiser pour permettre la sélection libre
+                  setSelectedCell(null);
                   setShowAddShiftModal(true);
                 }}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
@@ -796,7 +810,7 @@ const PlanningPage = () => {
 };
 
 // ==========================================
-// 📝 MODAL AJOUT SHIFT - SÉLECTION EMPLOYÉ FONCTIONNELLE
+// 📝 MODAL AJOUT SHIFT - SÉLECTION EMPLOYÉ CORRIGÉE
 // ==========================================
 const AddShiftModal = ({ employees, selectedCell, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -855,7 +869,7 @@ const AddShiftModal = ({ employees, selectedCell, onClose, onSave }) => {
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* ✅ SÉLECTION EMPLOYÉ FONCTIONNELLE */}
+          {/* ✅ SÉLECTION EMPLOYÉ SANS FILTRE RESTRICTIF */}
           <div>
             <label className="block text-gray-300 mb-2 text-sm">Employé *</label>
             <select
@@ -865,13 +879,11 @@ const AddShiftModal = ({ employees, selectedCell, onClose, onSave }) => {
               className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
             >
               <option value="">-- Sélectionner un employé --</option>
-              {employees
-                .filter(e => e.status === 'active')
-                .map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.displayName || employee.email} - {employee.position}
-                  </option>
-                ))}
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.displayName || employee.email} - {employee.position}
+                </option>
+              ))}
             </select>
           </div>
           
