@@ -10,7 +10,7 @@ import {
   signOut,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase.js';
 
 /**
@@ -25,6 +25,14 @@ class AuthService {
   static async signInWithEmail(email, password) {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Vérifier et corriger la structure utilisateur si nécessaire
+      await this.ensureCompleteUserStructure(result.user.uid, {
+        email: result.user.email,
+        displayName: result.user.displayName,
+        photoURL: result.user.photoURL
+      });
+      
       return { success: true, user: result.user, error: null };
     } catch (error) {
       console.error('Erreur connexion email:', error);
@@ -39,8 +47,8 @@ class AuthService {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Créer le profil utilisateur basique
-      await this.createBasicProfile(result.user.uid, {
+      // Créer le profil utilisateur COMPLET
+      await this.createCompleteProfile(result.user.uid, {
         email,
         displayName,
         photoURL: null
@@ -60,8 +68,10 @@ class AuthService {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       
-      // Créer le profil utilisateur basique s'il n'existe pas
-      await this.createBasicProfile(result.user.uid, {
+      console.log('🔗 Connexion Google réussie:', result.user.email);
+      
+      // Créer le profil utilisateur COMPLET s'il n'existe pas
+      await this.ensureCompleteUserStructure(result.user.uid, {
         email: result.user.email,
         displayName: result.user.displayName,
         photoURL: result.user.photoURL
@@ -101,43 +111,166 @@ class AuthService {
   }
 
   /**
-   * 👤 Créer un profil utilisateur basique
+   * 🔧 VÉRIFIER ET ASSURER LA STRUCTURE COMPLÈTE
+   * Vérifie si l'utilisateur existe et a la structure complète
    */
-  static async createBasicProfile(uid, userData) {
+  static async ensureCompleteUserStructure(uid, userData) {
     try {
       const userRef = doc(db, 'users', uid);
-      const defaultProfile = {
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const existingData = userSnap.data();
+        
+        // Vérifier si la structure gamification est complète
+        const hasCompleteGamification = 
+          existingData.gamification && 
+          typeof existingData.gamification.totalXp === 'number' &&
+          typeof existingData.gamification.level === 'number' &&
+          Array.isArray(existingData.gamification.badges);
+
+        if (!hasCompleteGamification) {
+          console.log('🔧 Correction structure utilisateur existant:', uid);
+          await this.createCompleteProfile(uid, userData, true);
+        } else {
+          console.log('✅ Structure utilisateur déjà complète:', uid);
+        }
+      } else {
+        console.log('🆕 Création nouvel utilisateur:', uid);
+        await this.createCompleteProfile(uid, userData);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur vérification structure:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 👤 CRÉER UN PROFIL UTILISATEUR COMPLET
+   * Structure conforme à firebaseDataSyncService.js
+   */
+  static async createCompleteProfile(uid, userData, merge = false) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const now = new Date().toISOString();
+      
+      const completeProfile = {
+        // Métadonnées
         uid,
         email: userData.email,
-        displayName: userData.displayName || userData.email,
+        displayName: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
         photoURL: userData.photoURL || null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+        
+        // Profil
         profile: {
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          department: userData.department || ''
+          displayName: userData.displayName || userData.email?.split('@')[0] || 'Utilisateur',
+          bio: userData.bio || 'Membre de l\'équipe Synergia',
+          department: userData.department || 'general',
+          role: userData.role || 'member',
+          timezone: 'Europe/Paris',
+          language: 'fr',
+          preferences: {
+            theme: 'dark',
+            notifications: {
+              email: true,
+              push: true,
+              inApp: true
+            },
+            privacy: {
+              profileVisible: true,
+              activityVisible: true
+            }
+          }
         },
+        
+        // Gamification COMPLÈTE
         gamification: {
-          xp: 0,
+          // XP et niveaux
           totalXp: 0,
+          weeklyXp: 0,
+          monthlyXp: 0,
           level: 1,
+          currentLevelXp: 0,
+          nextLevelXpRequired: 100,
+          
+          // Statistiques d'activité
+          tasksCompleted: 0,
+          tasksCreated: 0,
+          projectsCreated: 0,
+          projectsCompleted: 0,
+          commentsPosted: 0,
+          collaborations: 0,
+          
+          // Badges et achievements
           badges: [],
-          tasksCompleted: 0,
-          loginStreak: 0
+          achievements: [],
+          badgesUnlocked: 0,
+          totalBadgeXp: 0,
+          
+          // Streaks et engagement
+          loginStreak: 1,
+          currentStreak: 1,
+          maxStreak: 1,
+          lastLoginDate: now.split('T')[0],
+          lastActivityDate: now,
+          
+          // Historique
+          xpHistory: [],
+          levelUpHistory: [],
+          
+          // Métriques calculées
+          completionRate: 0,
+          averageTaskXp: 0,
+          productivity: 'starting',
+          weeklyProgress: 0,
+          monthlyProgress: 0
         },
-        stats: {
-          tasksCompleted: 0,
-          loginCount: 0,
-          lastActionAt: new Date()
+        
+        // Statistiques d'équipe
+        teamStats: {
+          teamsJoined: 0,
+          leadershipRoles: 0,
+          mentorships: 0,
+          collaborationScore: 0,
+          helpfulness: 0,
+          communicationRating: 0
         },
-        createdAt: new Date(),
-        lastLogin: new Date(),
-        updatedAt: new Date()
+        
+        // Préférences système
+        systemSettings: {
+          dashboardLayout: 'default',
+          sidebarCollapsed: false,
+          notificationSound: true,
+          autoSave: true,
+          darkMode: true
+        },
+        
+        // Métadonnées de synchronisation
+        syncMetadata: {
+          lastSyncAt: serverTimestamp(),
+          syncVersion: '1.0',
+          dataVersion: '3.5',
+          needsSync: false
+        },
+        
+        // Champs additionnels pour compatibilité
+        status: 'actif',
+        isOnline: true
       };
       
-      await setDoc(userRef, defaultProfile, { merge: true });
+      await setDoc(userRef, completeProfile, { merge });
+      
+      console.log('✅ Profil utilisateur COMPLET créé/mis à jour:', uid);
+      console.log('📊 Structure gamification:', completeProfile.gamification);
+      
       return { success: true, error: null };
     } catch (error) {
-      console.error('Erreur création profil:', error);
+      console.error('❌ Erreur création profil complet:', error);
       return { success: false, error: error.message };
     }
   }
@@ -188,4 +321,4 @@ class AuthService {
 export default AuthService;
 export { AuthService };
 
-console.log('✅ AuthService chargé - Extension .js corrigée');
+console.log('✅ AuthService chargé - Structure COMPLÈTE gamification activée');
