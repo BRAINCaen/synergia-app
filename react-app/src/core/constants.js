@@ -35,6 +35,8 @@ export const ROUTES = {
   // 🆕 MODULE RH & PLANNING
   HR: '/hr',
   PLANNING: '/planning',
+  PLANNING_ADVANCED: '/planning-advanced',
+
   
   // 🛡️ ROUTES ADMIN
   ADMIN: '/admin',
@@ -125,6 +127,13 @@ export const NAVIGATION_STRUCTURE = {
       // 🆕 ROUTE RH AJOUTÉE ICI
       { path: ROUTES.HR, label: 'RH', icon: '🏢', priority: 3 },
       { path: ROUTES.PLANNING, label: 'Planning', icon: '📅', priority: 4 },
+      // Dans tools.routes
+{
+  path: ROUTES.PLANNING_ADVANCED,
+  label: 'Planning Avancé',
+  icon: 'Calendar',
+  description: 'Gestion avancée des plannings type Skello'
+},
       { path: ROUTES.PROFILE, label: 'Profil', icon: '👤', priority: 5 },
       { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 6 }
     ]
