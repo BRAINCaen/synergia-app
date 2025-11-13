@@ -1,9 +1,9 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningPage.jsx
-// PLANNING AVANCÉ TYPE SKELLO - TOUTES FONCTIONNALITÉS
+// PLANNING AVANCÉ TYPE SKELLO - SÉLECTION EMPLOYÉ CORRIGÉE
 // ==========================================
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar,
@@ -50,20 +50,10 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 
 /**
  * 📅 PAGE PLANNING AVANCÉE TYPE SKELLO
- * Fonctionnalités complètes :
- * - Grille hebdomadaire dynamique
- * - Drag & Drop pour déplacer les shifts
- * - Double-clic pour copier/coller
- * - Duplication de semaine
- * - Synchronisation temps réel
  */
 const PlanningPage = () => {
   const { user } = useAuthStore();
 
-  // ==========================================
-  // 📊 ÉTATS
-  // ==========================================
-  
   // États principaux
   const [employees, setEmployees] = useState([]);
   const [schedules, setSchedules] = useState([]);
@@ -250,13 +240,11 @@ const PlanningPage = () => {
     
     const dateKey = formatDateKey(date);
     
-    // Ne rien faire si c'est la même cellule
     if (draggedShift.employeeId === employeeId && draggedShift.date === dateKey) {
       return;
     }
     
     try {
-      // Créer un nouveau shift à la nouvelle position
       const newShiftData = {
         employeeId,
         date: dateKey,
@@ -270,11 +258,9 @@ const PlanningPage = () => {
       };
       
       await addDoc(collection(db, 'hr_schedules'), newShiftData);
-      
-      // Supprimer l'ancien shift
       await deleteDoc(doc(db, 'hr_schedules', draggedShift.id));
       
-      console.log('✅ Shift déplacé avec succès');
+      console.log('✅ Shift déplacé');
       
     } catch (error) {
       console.error('❌ Erreur drag & drop:', error);
@@ -290,9 +276,8 @@ const PlanningPage = () => {
     setCopiedShift(shift);
     console.log('📋 Shift copié:', shift);
     
-    // Feedback visuel
     const notification = document.createElement('div');
-    notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg z-50 animate-fade-in';
+    notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg z-50';
     notification.textContent = '📋 Shift copié !';
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 2000);
@@ -323,9 +308,8 @@ const PlanningPage = () => {
       
       console.log('✅ Shift collé');
       
-      // Feedback visuel
       const notification = document.createElement('div');
-      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50 animate-fade-in';
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50';
       notification.textContent = '✅ Shift collé !';
       document.body.appendChild(notification);
       setTimeout(() => notification.remove(), 2000);
@@ -369,13 +353,10 @@ const PlanningPage = () => {
       }
       
       console.log('✅ Semaine dupliquée');
-      
-      // Passer à la semaine suivante
       nextWeek();
       
-      // Feedback visuel
       const notification = document.createElement('div');
-      notification.className = 'fixed top-4 right-4 bg-purple-500 text-white px-4 py-2 rounded-lg z-50 animate-fade-in';
+      notification.className = 'fixed top-4 right-4 bg-purple-500 text-white px-4 py-2 rounded-lg z-50';
       notification.textContent = `✅ ${schedules.length} shifts dupliqués !`;
       document.body.appendChild(notification);
       setTimeout(() => notification.remove(), 3000);
@@ -463,12 +444,9 @@ const PlanningPage = () => {
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
         
-        {/* ==========================================
-            HEADER
-            ========================================== */}
+        {/* HEADER */}
         <div className="max-w-[1600px] mx-auto mb-6">
           
-          {/* Titre et actions principales */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-500/20 rounded-xl">
@@ -488,7 +466,7 @@ const PlanningPage = () => {
               <button
                 onClick={duplicateWeek}
                 disabled={loading || schedules.length === 0}
-                className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
               >
                 <Copy className="w-4 h-4" />
                 Dupliquer semaine
@@ -496,7 +474,7 @@ const PlanningPage = () => {
               
               <button
                 onClick={() => {
-                  setSelectedCell({ employeeId: filteredEmployees[0]?.id, date: getWeekDays()[0] });
+                  setSelectedCell(null); // Réinitialiser pour permettre la sélection libre
                   setShowAddShiftModal(true);
                 }}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
@@ -555,7 +533,6 @@ const PlanningPage = () => {
           {/* Navigation semaine et filtres */}
           <div className="flex items-center justify-between bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
             
-            {/* Navigation semaine */}
             <div className="flex items-center gap-3">
               <button
                 onClick={previousWeek}
@@ -588,7 +565,6 @@ const PlanningPage = () => {
               </button>
             </div>
             
-            {/* Filtres */}
             <div className="flex items-center gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -616,9 +592,7 @@ const PlanningPage = () => {
           </div>
         </div>
         
-        {/* ==========================================
-            GRILLE PLANNING
-            ========================================== */}
+        {/* GRILLE PLANNING */}
         <div className="max-w-[1600px] mx-auto">
           <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl overflow-hidden">
             
@@ -792,14 +766,15 @@ const PlanningPage = () => {
           </div>
         </div>
         
-        {/* ==========================================
-            MODALS (simplifié pour l'exemple)
-            ========================================== */}
+        {/* MODALS */}
         {showAddShiftModal && (
           <AddShiftModal
-            employee={filteredEmployees.find(e => e.id === selectedCell?.employeeId)}
-            date={selectedCell?.date}
-            onClose={() => setShowAddShiftModal(false)}
+            employees={employees}
+            selectedCell={selectedCell}
+            onClose={() => {
+              setShowAddShiftModal(false);
+              setSelectedCell(null);
+            }}
             onSave={loadPlanningData}
           />
         )}
@@ -807,6 +782,7 @@ const PlanningPage = () => {
         {showEditShiftModal && (
           <EditShiftModal
             shift={selectedShift}
+            employees={employees}
             onClose={() => {
               setShowEditShiftModal(false);
               setSelectedShift(null);
@@ -820,10 +796,12 @@ const PlanningPage = () => {
 };
 
 // ==========================================
-// 📝 MODAL AJOUT SHIFT (Simplifié)
+// 📝 MODAL AJOUT SHIFT - SÉLECTION EMPLOYÉ FONCTIONNELLE
 // ==========================================
-const AddShiftModal = ({ employee, date, onClose, onSave }) => {
+const AddShiftModal = ({ employees, selectedCell, onClose, onSave }) => {
   const [formData, setFormData] = useState({
+    employeeId: selectedCell?.employeeId || (employees.length > 0 ? employees[0].id : ''),
+    date: selectedCell?.date ? selectedCell.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     startTime: '09:00',
     endTime: '17:00',
     position: 'Game Master',
@@ -834,12 +812,16 @@ const AddShiftModal = ({ employee, date, onClose, onSave }) => {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.employeeId) {
+      alert('Veuillez sélectionner un employé');
+      return;
+    }
+    
     setLoading(true);
     
     try {
       await addDoc(collection(db, 'hr_schedules'), {
-        employeeId: employee.id,
-        date: formatDateKey(date),
         ...formData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -853,10 +835,6 @@ const AddShiftModal = ({ employee, date, onClose, onSave }) => {
     } finally {
       setLoading(false);
     }
-  };
-  
-  const formatDateKey = (date) => {
-    return date.toISOString().split('T')[0];
   };
   
   return (
@@ -877,23 +855,34 @@ const AddShiftModal = ({ employee, date, onClose, onSave }) => {
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ✅ SÉLECTION EMPLOYÉ FONCTIONNELLE */}
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Employé</label>
-            <input
-              type="text"
-              value={employee?.displayName || ''}
-              disabled
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-gray-400"
-            />
+            <label className="block text-gray-300 mb-2 text-sm">Employé *</label>
+            <select
+              required
+              value={formData.employeeId}
+              onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+            >
+              <option value="">-- Sélectionner un employé --</option>
+              {employees
+                .filter(e => e.status === 'active')
+                .map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.displayName || employee.email} - {employee.position}
+                  </option>
+                ))}
+            </select>
           </div>
           
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Date</label>
+            <label className="block text-gray-300 mb-2 text-sm">Date *</label>
             <input
-              type="text"
-              value={date?.toLocaleDateString('fr-FR') || ''}
-              disabled
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-gray-400"
+              type="date"
+              required
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
             />
           </div>
           
@@ -969,10 +958,12 @@ const AddShiftModal = ({ employee, date, onClose, onSave }) => {
 };
 
 // ==========================================
-// ✏️ MODAL ÉDITION SHIFT (Simplifié)
+// ✏️ MODAL ÉDITION SHIFT
 // ==========================================
-const EditShiftModal = ({ shift, onClose, onSave }) => {
+const EditShiftModal = ({ shift, employees, onClose, onSave }) => {
   const [formData, setFormData] = useState({
+    employeeId: shift?.employeeId || '',
+    date: shift?.date || '',
     startTime: shift?.startTime || '09:00',
     endTime: shift?.endTime || '17:00',
     position: shift?.position || 'Game Master',
@@ -1019,6 +1010,33 @@ const EditShiftModal = ({ shift, onClose, onSave }) => {
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-gray-300 mb-2 text-sm">Employé *</label>
+            <select
+              required
+              value={formData.employeeId}
+              onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+            >
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.displayName || employee.email} - {employee.position}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-gray-300 mb-2 text-sm">Date *</label>
+            <input
+              type="date"
+              required
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+            />
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-gray-300 mb-2 text-sm">Début *</label>
