@@ -1,684 +1,1087 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningPage.jsx
-// PLANNING TYPE SKELLO - VERSION CORRIGÉE
+// PLANNING AVANCÉ TYPE SKELLO - TOUTES FONCTIONNALITÉS
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar,
   ChevronLeft,
   ChevronRight,
   Plus,
   Copy,
-  Trash2,
+  Clipboard,
+  RefreshCw,
+  Download,
+  Upload,
   Edit,
-  Users,
+  Trash2,
   Clock,
-  AlertTriangle,
-  X,
+  Users,
+  Filter,
   Search,
-  RefreshCw
+  X,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 
-// Imports
+// Layout
 import Layout from '../components/layout/Layout.jsx';
-import { useAuthStore } from '../shared/stores/authStore.js';
 
 // Firebase
 import { 
   collection, 
-  getDocs, 
-  addDoc,
+  addDoc, 
   updateDoc,
   deleteDoc,
   doc,
+  getDocs,
   query,
   where,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
-/**
- * 📅 FONCTION HELPER - OBTENIR LES DATES DE LA SEMAINE
- */
-const getWeekDates = (date) => {
-  const curr = new Date(date);
-  const first = curr.getDate() - curr.getDay() + 1; // Lundi
-  
-  const week = [];
-  for (let i = 0; i < 7; i++) {
-    const day = new Date(curr);
-    day.setDate(first + i);
-    week.push({
-      date: day,
-      dateStr: day.toISOString().split('T')[0],
-      dayName: day.toLocaleDateString('fr-FR', { weekday: 'short' }),
-      dayNumber: day.getDate()
-    });
-  }
-  
-  return week;
-};
+// Auth
+import { useAuthStore } from '../shared/stores/authStore.js';
 
 /**
- * 📅 PAGE DE PLANNING TYPE SKELLO
+ * 📅 PAGE PLANNING AVANCÉE TYPE SKELLO
+ * Fonctionnalités complètes :
+ * - Grille hebdomadaire dynamique
+ * - Drag & Drop pour déplacer les shifts
+ * - Double-clic pour copier/coller
+ * - Duplication de semaine
+ * - Synchronisation temps réel
  */
 const PlanningPage = () => {
   const { user } = useAuthStore();
 
-  // États
+  // ==========================================
+  // 📊 ÉTATS
+  // ==========================================
+  
+  // États principaux
   const [employees, setEmployees] = useState([]);
-  const [shifts, setShifts] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentWeek, setCurrentWeek] = useState([]);
-  const [selectedShift, setSelectedShift] = useState(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  
+  // Navigation semaine
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  
+  // Drag & Drop
+  const [draggedShift, setDraggedShift] = useState(null);
+  const [dragOverCell, setDragOverCell] = useState(null);
+  
+  // Copier-coller
   const [copiedShift, setCopiedShift] = useState(null);
+  
+  // Modals
+  const [showAddShiftModal, setShowAddShiftModal] = useState(false);
+  const [showEditShiftModal, setShowEditShiftModal] = useState(false);
+  const [selectedShift, setSelectedShift] = useState(null);
+  const [selectedCell, setSelectedCell] = useState(null);
+  
+  // Filtres
+  const [filterPosition, setFilterPosition] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [stats, setStats] = useState({
-    totalHours: 0,
-    employeesScheduled: 0,
-    shiftsCount: 0,
-    coverage: 0
-  });
-
-  /**
-   * 📅 INITIALISER LA SEMAINE COURANTE
-   */
+  
+  // ==========================================
+  // 📅 UTILITAIRES DATES
+  // ==========================================
+  
+  const getWeekStart = (date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  };
+  
+  const getWeekEnd = (date) => {
+    const start = getWeekStart(date);
+    return new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+  };
+  
+  const getWeekDays = () => {
+    const start = getWeekStart(currentWeek);
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(start);
+      date.setDate(date.getDate() + i);
+      return date;
+    });
+  };
+  
+  const formatDateKey = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+  
+  const formatDateDisplay = (date) => {
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    });
+  };
+  
+  // ==========================================
+  // 🔄 CHARGEMENT DONNÉES
+  // ==========================================
+  
   useEffect(() => {
-    setCurrentWeek(getWeekDates(new Date()));
-  }, []);
-
-  /**
-   * 📊 CHARGER LES DONNÉES
-   */
-  useEffect(() => {
-    if (currentWeek.length > 0) {
-      loadData();
-    }
+    loadPlanningData();
+    
+    // Écoute temps réel des schedules
+    const startDate = formatDateKey(getWeekStart(currentWeek));
+    const endDate = formatDateKey(getWeekEnd(currentWeek));
+    
+    const q = query(
+      collection(db, 'hr_schedules'),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'asc')
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const scheduleData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setSchedules(scheduleData);
+    });
+    
+    return () => unsubscribe();
   }, [currentWeek]);
-
-  const loadData = async () => {
-    setLoading(true);
+  
+  const loadPlanningData = async () => {
     try {
-      await loadEmployees();
-      await loadShifts();
+      setLoading(true);
+      
+      // Charger les employés
+      const employeesSnapshot = await getDocs(collection(db, 'hr_employees'));
+      const employeeData = employeesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setEmployees(employeeData);
+      
+      // Charger les schedules de la semaine
+      const startDate = formatDateKey(getWeekStart(currentWeek));
+      const endDate = formatDateKey(getWeekEnd(currentWeek));
+      
+      const schedulesSnapshot = await getDocs(
+        query(
+          collection(db, 'hr_schedules'),
+          where('date', '>=', startDate),
+          where('date', '<=', endDate),
+          orderBy('date', 'asc')
+        )
+      );
+      
+      const scheduleData = schedulesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setSchedules(scheduleData);
+      
     } catch (error) {
-      console.error('❌ Erreur chargement:', error);
+      console.error('❌ Erreur chargement planning:', error);
     } finally {
       setLoading(false);
     }
   };
-
-  const loadEmployees = async () => {
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, orderBy('displayName', 'asc'));
-      const snapshot = await getDocs(q);
-      
-      const usersList = [];
-      snapshot.forEach((docSnap) => {
-        const userData = docSnap.data();
-        usersList.push({
-          id: docSnap.id,
-          name: userData.displayName || userData.email,
-          email: userData.email,
-          photoURL: userData.photoURL,
-          role: userData.synergiaRoles?.[0] || 'employee',
-          status: 'active'
-        });
-      });
-
-      setEmployees(usersList);
-      console.log(`✅ ${usersList.length} employés chargés`);
-    } catch (error) {
-      console.error('❌ Erreur chargement employés:', error);
+  
+  // ==========================================
+  // 🔄 NAVIGATION SEMAINE
+  // ==========================================
+  
+  const previousWeek = () => {
+    const newDate = new Date(currentWeek);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentWeek(newDate);
+  };
+  
+  const nextWeek = () => {
+    const newDate = new Date(currentWeek);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentWeek(newDate);
+  };
+  
+  const goToToday = () => {
+    setCurrentWeek(new Date());
+  };
+  
+  // ==========================================
+  // 🖱️ DRAG & DROP
+  // ==========================================
+  
+  const handleDragStart = (e, shift) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedShift(shift);
+    e.currentTarget.style.opacity = '0.4';
+  };
+  
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = '1';
+    setDraggedShift(null);
+    setDragOverCell(null);
+  };
+  
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  
+  const handleDragEnter = (employeeId, date) => {
+    setDragOverCell({ employeeId, date: formatDateKey(date) });
+  };
+  
+  const handleDragLeave = () => {
+    setDragOverCell(null);
+  };
+  
+  const handleDrop = async (e, employeeId, date) => {
+    e.preventDefault();
+    setDragOverCell(null);
+    
+    if (!draggedShift) return;
+    
+    const dateKey = formatDateKey(date);
+    
+    // Ne rien faire si c'est la même cellule
+    if (draggedShift.employeeId === employeeId && draggedShift.date === dateKey) {
+      return;
     }
-  };
-
-  const loadShifts = async () => {
-    if (currentWeek.length === 0) return;
-
+    
     try {
-      const shiftsRef = collection(db, 'shifts');
-      const startDate = currentWeek[0].dateStr;
-      const endDate = currentWeek[6].dateStr;
-      
-      const q = query(
-        shiftsRef,
-        where('date', '>=', startDate),
-        where('date', '<=', endDate),
-        orderBy('date', 'asc')
-      );
-      
-      const snapshot = await getDocs(q);
-      const shiftsList = [];
-      snapshot.forEach((docSnap) => {
-        shiftsList.push({
-          id: docSnap.id,
-          ...docSnap.data()
-        });
-      });
-
-      setShifts(shiftsList);
-      console.log(`✅ ${shiftsList.length} shifts chargés`);
-      calculateStats(shiftsList);
-    } catch (error) {
-      console.error('❌ Erreur chargement shifts:', error);
-    }
-  };
-
-  const calculateStats = (shiftsList) => {
-    const totalHours = shiftsList.reduce((acc, shift) => {
-      const start = new Date(`2000-01-01T${shift.startTime}`);
-      const end = new Date(`2000-01-01T${shift.endTime}`);
-      return acc + (end - start) / (1000 * 60 * 60);
-    }, 0);
-
-    const uniqueEmployees = new Set(shiftsList.map(s => s.employeeId)).size;
-    const coverage = employees.length > 0 ? (shiftsList.length / (employees.length * 7)) * 100 : 0;
-
-    setStats({
-      totalHours: Math.round(totalHours),
-      employeesScheduled: uniqueEmployees,
-      shiftsCount: shiftsList.length,
-      coverage: Math.round(coverage)
-    });
-  };
-
-  const handleAddShift = async (shiftData) => {
-    try {
-      await addDoc(collection(db, 'shifts'), {
-        ...shiftData,
-        createdBy: user.uid,
-        createdAt: serverTimestamp()
-      });
-      await loadShifts();
-      setShowAddModal(false);
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-      alert('Erreur lors de l\'ajout');
-    }
-  };
-
-  const handleEditShift = async (shiftId, updateData) => {
-    try {
-      await updateDoc(doc(db, 'shifts', shiftId), {
-        ...updateData,
-        updatedAt: serverTimestamp()
-      });
-      await loadShifts();
-      setSelectedShift(null);
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-    }
-  };
-
-  const handleDeleteShift = async (shiftId) => {
-    if (!confirm('Supprimer ce shift ?')) return;
-    try {
-      await deleteDoc(doc(db, 'shifts', shiftId));
-      await loadShifts();
-    } catch (error) {
-      console.error('❌ Erreur:', error);
-    }
-  };
-
-  const handleCopyShift = (shift) => {
-    setCopiedShift(shift);
-    alert('✅ Shift copié !');
-  };
-
-  const handlePasteShift = async (employeeId, date) => {
-    if (!copiedShift) return;
-    try {
-      await addDoc(collection(db, 'shifts'), {
+      // Créer un nouveau shift à la nouvelle position
+      const newShiftData = {
         employeeId,
-        date,
+        date: dateKey,
+        startTime: draggedShift.startTime,
+        endTime: draggedShift.endTime,
+        position: draggedShift.position,
+        notes: draggedShift.notes || '',
+        color: draggedShift.color || '#8B5CF6',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      await addDoc(collection(db, 'hr_schedules'), newShiftData);
+      
+      // Supprimer l'ancien shift
+      await deleteDoc(doc(db, 'hr_schedules', draggedShift.id));
+      
+      console.log('✅ Shift déplacé avec succès');
+      
+    } catch (error) {
+      console.error('❌ Erreur drag & drop:', error);
+      alert('Erreur lors du déplacement du shift');
+    }
+  };
+  
+  // ==========================================
+  // 📋 COPIER-COLLER
+  // ==========================================
+  
+  const copyShift = (shift) => {
+    setCopiedShift(shift);
+    console.log('📋 Shift copié:', shift);
+    
+    // Feedback visuel
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg z-50 animate-fade-in';
+    notification.textContent = '📋 Shift copié !';
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 2000);
+  };
+  
+  const pasteShift = async (employeeId, date) => {
+    if (!copiedShift) {
+      alert('Aucun shift copié');
+      return;
+    }
+    
+    const dateKey = formatDateKey(date);
+    
+    try {
+      const newShiftData = {
+        employeeId,
+        date: dateKey,
         startTime: copiedShift.startTime,
         endTime: copiedShift.endTime,
         position: copiedShift.position,
-        color: copiedShift.color,
-        notes: copiedShift.notes,
-        createdBy: user.uid,
-        createdAt: serverTimestamp()
-      });
-      await loadShifts();
-      setCopiedShift(null);
-      alert('✅ Shift collé !');
+        notes: copiedShift.notes || '',
+        color: copiedShift.color || '#8B5CF6',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      await addDoc(collection(db, 'hr_schedules'), newShiftData);
+      
+      console.log('✅ Shift collé');
+      
+      // Feedback visuel
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50 animate-fade-in';
+      notification.textContent = '✅ Shift collé !';
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 2000);
+      
     } catch (error) {
-      console.error('❌ Erreur:', error);
+      console.error('❌ Erreur coller shift:', error);
+      alert('Erreur lors du collage du shift');
     }
   };
-
-  const getShiftsForCell = (employeeId, dateStr) => {
-    return shifts.filter(s => s.employeeId === employeeId && s.date === dateStr);
+  
+  // ==========================================
+  // 🔄 DUPLICATION DE SEMAINE
+  // ==========================================
+  
+  const duplicateWeek = async () => {
+    if (!window.confirm('Dupliquer cette semaine sur la semaine suivante ?')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      for (const shift of schedules) {
+        const shiftDate = new Date(shift.date);
+        const newDate = new Date(shiftDate);
+        newDate.setDate(newDate.getDate() + 7);
+        
+        const newShiftData = {
+          employeeId: shift.employeeId,
+          date: formatDateKey(newDate),
+          startTime: shift.startTime,
+          endTime: shift.endTime,
+          position: shift.position,
+          notes: shift.notes || '',
+          color: shift.color || '#8B5CF6',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+        
+        await addDoc(collection(db, 'hr_schedules'), newShiftData);
+      }
+      
+      console.log('✅ Semaine dupliquée');
+      
+      // Passer à la semaine suivante
+      nextWeek();
+      
+      // Feedback visuel
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-purple-500 text-white px-4 py-2 rounded-lg z-50 animate-fade-in';
+      notification.textContent = `✅ ${schedules.length} shifts dupliqués !`;
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 3000);
+      
+    } catch (error) {
+      console.error('❌ Erreur duplication:', error);
+      alert('Erreur lors de la duplication de la semaine');
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const getPositionColor = (position) => {
-    const colors = {
-      'Game Master': 'bg-blue-500',
-      'Accueil': 'bg-green-500',
-      'Maintenance': 'bg-orange-500',
-      'Manager': 'bg-purple-500',
-      'Formateur': 'bg-yellow-500'
-    };
-    return colors[position] || 'bg-gray-500';
+  
+  // ==========================================
+  // 🗑️ SUPPRESSION SHIFT
+  // ==========================================
+  
+  const deleteShift = async (shiftId) => {
+    if (!window.confirm('Supprimer ce shift ?')) {
+      return;
+    }
+    
+    try {
+      await deleteDoc(doc(db, 'hr_schedules', shiftId));
+      console.log('✅ Shift supprimé');
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error);
+      alert('Erreur lors de la suppression du shift');
+    }
   };
-
-  const goToPreviousWeek = () => {
-    if (currentWeek.length === 0) return;
-    const prevWeek = new Date(currentWeek[0].date);
-    prevWeek.setDate(prevWeek.getDate() - 7);
-    setCurrentWeek(getWeekDates(prevWeek));
+  
+  // ==========================================
+  // 📊 UTILITAIRES GRILLE
+  // ==========================================
+  
+  const getShiftForCell = (employeeId, date) => {
+    const dateKey = formatDateKey(date);
+    return schedules.find(
+      s => s.employeeId === employeeId && s.date === dateKey
+    );
   };
-
-  const goToNextWeek = () => {
-    if (currentWeek.length === 0) return;
-    const nextWeek = new Date(currentWeek[0].date);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    setCurrentWeek(getWeekDates(nextWeek));
+  
+  const isCellHighlighted = (employeeId, date) => {
+    if (!dragOverCell) return false;
+    const dateKey = formatDateKey(date);
+    return dragOverCell.employeeId === employeeId && dragOverCell.date === dateKey;
   };
-
-  const goToToday = () => {
-    setCurrentWeek(getWeekDates(new Date()));
-  };
-
-  const filteredEmployees = employees.filter(emp =>
-    emp.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading || currentWeek.length === 0) {
+  
+  // Filtrer les employés
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = emp.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         emp.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterPosition === 'all' || emp.position === filterPosition;
+    return matchesSearch && matchesFilter && emp.status === 'active';
+  });
+  
+  // Statistiques
+  const totalShiftsThisWeek = schedules.length;
+  const uniqueEmployees = new Set(schedules.map(s => s.employeeId)).size;
+  const totalHours = schedules.reduce((sum, shift) => {
+    const start = shift.startTime.split(':');
+    const end = shift.endTime.split(':');
+    const hours = (parseInt(end[0]) - parseInt(start[0])) + 
+                  (parseInt(end[1]) - parseInt(start[1])) / 60;
+    return sum + hours;
+  }, 0);
+  
+  // ==========================================
+  // 🎨 RENDER
+  // ==========================================
+  
+  if (loading) {
     return (
       <Layout>
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-white">Chargement du planning...</p>
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mb-4"></div>
+            <p className="text-gray-400 text-lg">Chargement du planning...</p>
           </div>
         </div>
       </Layout>
     );
   }
-
+  
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
-        <div className="max-w-[1600px] mx-auto">
+        
+        {/* ==========================================
+            HEADER
+            ========================================== */}
+        <div className="max-w-[1600px] mx-auto mb-6">
           
-          {/* HEADER */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+          {/* Titre et actions principales */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-500/20 rounded-xl">
+                <Calendar className="w-8 h-8 text-purple-400" />
+              </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                  📅 Planning Équipe
+                <h1 className="text-3xl font-bold text-white">
+                  📅 Planning Type Skello
                 </h1>
-                <p className="text-gray-400 text-lg">
-                  Gestion visuelle des horaires
+                <p className="text-gray-400 mt-1">
+                  Glisser-déposer • Copier-coller • Duplication
                 </p>
               </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={loadData}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 text-white rounded-lg border border-gray-700/50 hover:bg-gray-700/50 transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Actualiser
-                </button>
-                
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Ajouter
-                </button>
-              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={duplicateWeek}
+                disabled={loading || schedules.length === 0}
+                className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Copy className="w-4 h-4" />
+                Dupliquer semaine
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSelectedCell({ employeeId: filteredEmployees[0]?.id, date: getWeekDays()[0] });
+                  setShowAddShiftModal(true);
+                }}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter shift
+              </button>
             </div>
           </div>
-
-          {/* STATS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-6 text-white">
-              <div className="flex items-center gap-3 mb-2">
-                <Clock className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Heures totales</h3>
-              </div>
-              <div className="text-3xl font-bold">{stats.totalHours}h</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-6 text-white">
-              <div className="flex items-center gap-3 mb-2">
-                <Users className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Employés</h3>
-              </div>
-              <div className="text-3xl font-bold">{stats.employeesScheduled}/{employees.length}</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white">
-              <div className="flex items-center gap-3 mb-2">
-                <Calendar className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Shifts</h3>
-              </div>
-              <div className="text-3xl font-bold">{stats.shiftsCount}</div>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl p-6 text-white">
-              <div className="flex items-center gap-3 mb-2">
-                <AlertTriangle className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Couverture</h3>
-              </div>
-              <div className="text-3xl font-bold">{stats.coverage}%</div>
-            </div>
-          </div>
-
-          {/* NAVIGATION */}
-          <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button onClick={goToPreviousWeek} className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button onClick={goToToday} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                  Aujourd'hui
-                </button>
-                <button onClick={goToNextWeek} className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-                <div className="text-white font-semibold ml-4">
-                  Semaine du {currentWeek[0].date.toLocaleDateString('fr-FR')} au {currentWeek[6].date.toLocaleDateString('fr-FR')}
+          
+          {/* Statistiques */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Shifts</p>
+                  <p className="text-white text-2xl font-bold">{totalShiftsThisWeek}</p>
                 </div>
+                <Calendar className="w-8 h-8 text-purple-400" />
               </div>
-
+            </div>
+            
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Employés actifs</p>
+                  <p className="text-white text-2xl font-bold">{uniqueEmployees}</p>
+                </div>
+                <Users className="w-8 h-8 text-blue-400" />
+              </div>
+            </div>
+            
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Total heures</p>
+                  <p className="text-white text-2xl font-bold">{totalHours.toFixed(1)}h</p>
+                </div>
+                <Clock className="w-8 h-8 text-green-400" />
+              </div>
+            </div>
+            
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Shift copié</p>
+                  <p className="text-white text-lg font-semibold">
+                    {copiedShift ? '📋 Oui' : '❌ Non'}
+                  </p>
+                </div>
+                <Clipboard className="w-8 h-8 text-yellow-400" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Navigation semaine et filtres */}
+          <div className="flex items-center justify-between bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+            
+            {/* Navigation semaine */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={previousWeek}
+                className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              
+              <div className="text-center min-w-[200px]">
+                <p className="text-white font-semibold text-lg">
+                  {formatDateDisplay(getWeekStart(currentWeek))} - {formatDateDisplay(getWeekEnd(currentWeek))}
+                </p>
+                <p className="text-gray-400 text-sm">
+                  Semaine {Math.ceil((currentWeek - new Date(currentWeek.getFullYear(), 0, 1)) / 604800000)}
+                </p>
+              </div>
+              
+              <button
+                onClick={nextWeek}
+                className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              
+              <button
+                onClick={goToToday}
+                className="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-sm transition-colors"
+              >
+                Aujourd'hui
+              </button>
+            </div>
+            
+            {/* Filtres */}
+            <div className="flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Rechercher..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500/50"
                 />
+              </div>
+              
+              <select
+                value={filterPosition}
+                onChange={(e) => setFilterPosition(e.target.value)}
+                className="px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="all">Tous les postes</option>
+                <option value="Game Master">Game Master</option>
+                <option value="Accueil">Accueil</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Manager">Manager</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        {/* ==========================================
+            GRILLE PLANNING
+            ========================================== */}
+        <div className="max-w-[1600px] mx-auto">
+          <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl overflow-hidden">
+            
+            {/* En-têtes jours */}
+            <div className="grid grid-cols-8 bg-gray-800/80 border-b border-gray-700">
+              <div className="p-4 border-r border-gray-700">
+                <p className="text-gray-400 text-sm font-medium">Employé</p>
+              </div>
+              {getWeekDays().map((day, index) => (
+                <div key={index} className="p-4 text-center border-r border-gray-700 last:border-r-0">
+                  <p className="text-white font-semibold">
+                    {day.toLocaleDateString('fr-FR', { weekday: 'short' })}
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    {day.getDate()}/{day.getMonth() + 1}
+                  </p>
+                </div>
+              ))}
+            </div>
+            
+            {/* Lignes employés */}
+            {filteredEmployees.length === 0 ? (
+              <div className="p-12 text-center">
+                <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 text-lg">Aucun employé trouvé</p>
+              </div>
+            ) : (
+              filteredEmployees.map((employee) => (
+                <div 
+                  key={employee.id}
+                  className="grid grid-cols-8 border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors"
+                >
+                  {/* Colonne employé */}
+                  <div className="p-4 border-r border-gray-700 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                      {employee.displayName?.charAt(0) || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium truncate">
+                        {employee.displayName || 'Sans nom'}
+                      </p>
+                      <p className="text-gray-400 text-sm truncate">
+                        {employee.position}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Cellules jours */}
+                  {getWeekDays().map((day, dayIndex) => {
+                    const shift = getShiftForCell(employee.id, day);
+                    const isHighlighted = isCellHighlighted(employee.id, day);
+                    
+                    return (
+                      <div
+                        key={dayIndex}
+                        className={`p-2 border-r border-gray-700 last:border-r-0 min-h-[100px] transition-colors ${
+                          isHighlighted ? 'bg-purple-500/20 border-purple-500' : ''
+                        }`}
+                        onDragOver={handleDragOver}
+                        onDragEnter={() => handleDragEnter(employee.id, day)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, employee.id, day)}
+                        onDoubleClick={() => pasteShift(employee.id, day)}
+                      >
+                        {shift ? (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, shift)}
+                            onDragEnd={handleDragEnd}
+                            className="bg-purple-500/30 border border-purple-500/50 rounded-lg p-2 cursor-move hover:bg-purple-500/40 transition-colors group"
+                          >
+                            <div className="flex items-start justify-between mb-1">
+                              <div className="flex items-center gap-1 text-purple-300 text-xs">
+                                <Clock className="w-3 h-3" />
+                                <span className="font-medium">
+                                  {shift.startTime} - {shift.endTime}
+                                </span>
+                              </div>
+                              
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyShift(shift);
+                                  }}
+                                  className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded"
+                                  title="Copier"
+                                >
+                                  <Copy className="w-3 h-3 text-blue-300" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedShift(shift);
+                                    setShowEditShiftModal(true);
+                                  }}
+                                  className="p-1 bg-green-500/20 hover:bg-green-500/40 rounded"
+                                  title="Modifier"
+                                >
+                                  <Edit className="w-3 h-3 text-green-300" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteShift(shift.id);
+                                  }}
+                                  className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-3 h-3 text-red-300" />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <p className="text-white text-sm font-medium truncate">
+                              {shift.position}
+                            </p>
+                            
+                            {shift.notes && (
+                              <p className="text-gray-300 text-xs truncate mt-1">
+                                {shift.notes}
+                              </p>
+                            )}
+                          </motion.div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedCell({ employeeId: employee.id, date: day });
+                              setShowAddShiftModal(true);
+                            }}
+                            className="w-full h-full min-h-[80px] flex items-center justify-center text-gray-600 hover:text-gray-400 hover:bg-gray-700/30 rounded-lg transition-colors"
+                          >
+                            <Plus className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        
+        {/* Légende */}
+        <div className="max-w-[1600px] mx-auto mt-6">
+          <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+            <p className="text-gray-400 text-sm mb-2 font-medium">💡 Aide :</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400">🖱️</span>
+                <p className="text-gray-300 text-sm">
+                  <span className="font-medium">Glisser-déposer</span> : Cliquez et faites glisser un shift vers une autre cellule
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400">📋</span>
+                <p className="text-gray-300 text-sm">
+                  <span className="font-medium">Copier-coller</span> : Cliquez sur le bouton copier, puis double-cliquez sur une cellule vide
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400">🔄</span>
+                <p className="text-gray-300 text-sm">
+                  <span className="font-medium">Dupliquer</span> : Utilisez le bouton "Dupliquer semaine" pour répliquer tout le planning
+                </p>
               </div>
             </div>
           </div>
-
-          {/* GRILLE */}
-          <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-900/50">
-                  <tr>
-                    <th className="sticky left-0 z-10 bg-gray-900/50 p-4 text-left text-white font-semibold w-48">
-                      Employé
-                    </th>
-                    {currentWeek.map((day, index) => (
-                      <th key={index} className="p-4 text-center text-white font-semibold min-w-[150px]">
-                        <div className="text-sm opacity-70">{day.dayName}</div>
-                        <div className="text-lg">{day.dayNumber}</div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredEmployees.map((employee) => (
-                    <tr key={employee.id} className="border-t border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                      <td className="sticky left-0 z-10 bg-gray-800/80 backdrop-blur-sm p-4 border-r border-gray-700/50">
-                        <div className="flex items-center gap-3">
-                          {employee.photoURL ? (
-                            <img src={employee.photoURL} alt={employee.name} className="w-10 h-10 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                              {employee.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <div className="text-white font-medium">{employee.name}</div>
-                            <div className="text-xs text-gray-400">{employee.role}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {currentWeek.map((day) => {
-                        const cellShifts = getShiftsForCell(employee.id, day.dateStr);
-                        
-                        return (
-                          <td
-                            key={day.dateStr}
-                            className="p-2 border-r border-gray-700/50 cursor-pointer hover:bg-gray-700/20 transition-colors min-h-[100px] align-top"
-                            onClick={() => copiedShift && handlePasteShift(employee.id, day.dateStr)}
-                          >
-                            <div className="space-y-2">
-                              {cellShifts.map((shift) => (
-                                <motion.div
-                                  key={shift.id}
-                                  initial={{ opacity: 0, scale: 0.9 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  className={`${getPositionColor(shift.position)} text-white p-2 rounded-lg text-xs group relative`}
-                                >
-                                  <div className="font-semibold">{shift.position}</div>
-                                  <div className="opacity-90">{shift.startTime} - {shift.endTime}</div>
-                                  
-                                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleCopyShift(shift);
-                                      }}
-                                      className="p-1 bg-black/30 hover:bg-black/50 rounded"
-                                    >
-                                      <Copy className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedShift(shift);
-                                      }}
-                                      className="p-1 bg-black/30 hover:bg-black/50 rounded"
-                                    >
-                                      <Edit className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteShift(shift.id);
-                                      }}
-                                      className="p-1 bg-black/30 hover:bg-black/50 rounded"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </motion.div>
-                              ))}
-                              
-                              {cellShifts.length === 0 && (
-                                <div className="text-center text-gray-500 text-xs py-4">+</div>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {copiedShift && (
-            <div className="fixed bottom-6 right-6 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
-              <Copy className="w-5 h-5" />
-              <span>Shift copié - Cliquez pour coller</span>
-              <button onClick={() => setCopiedShift(null)} className="ml-2 p-1 hover:bg-white/20 rounded">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
         </div>
+        
+        {/* ==========================================
+            MODALS (simplifié pour l'exemple)
+            ========================================== */}
+        {showAddShiftModal && (
+          <AddShiftModal
+            employee={filteredEmployees.find(e => e.id === selectedCell?.employeeId)}
+            date={selectedCell?.date}
+            onClose={() => setShowAddShiftModal(false)}
+            onSave={loadPlanningData}
+          />
+        )}
+        
+        {showEditShiftModal && (
+          <EditShiftModal
+            shift={selectedShift}
+            onClose={() => {
+              setShowEditShiftModal(false);
+              setSelectedShift(null);
+            }}
+            onSave={loadPlanningData}
+          />
+        )}
       </div>
-
-      {showAddModal && (
-        <ShiftModal
-          employees={employees}
-          currentWeek={currentWeek}
-          onClose={() => setShowAddModal(false)}
-          onSave={handleAddShift}
-        />
-      )}
-
-      {selectedShift && (
-        <ShiftModal
-          employees={employees}
-          currentWeek={currentWeek}
-          shift={selectedShift}
-          onClose={() => setSelectedShift(null)}
-          onSave={(data) => handleEditShift(selectedShift.id, data)}
-        />
-      )}
     </Layout>
   );
 };
 
-const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) => {
+// ==========================================
+// 📝 MODAL AJOUT SHIFT (Simplifié)
+// ==========================================
+const AddShiftModal = ({ employee, date, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    employeeId: shift?.employeeId || '',
-    date: shift?.date || (currentWeek[0]?.dateStr || ''),
-    startTime: shift?.startTime || '09:00',
-    endTime: shift?.endTime || '17:00',
-    position: shift?.position || 'Game Master',
-    color: shift?.color || '#3B82F6',
-    notes: shift?.notes || ''
+    startTime: '09:00',
+    endTime: '17:00',
+    position: 'Game Master',
+    notes: '',
+    color: '#8B5CF6'
   });
-
   const [loading, setLoading] = useState(false);
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      await onSave(formData);
+      await addDoc(collection(db, 'hr_schedules'), {
+        employeeId: employee.id,
+        date: formatDateKey(date),
+        ...formData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      onSave();
+      onClose();
+    } catch (error) {
+      console.error('❌ Erreur ajout shift:', error);
+      alert('Erreur lors de l\'ajout du shift');
     } finally {
       setLoading(false);
     }
   };
-
+  
+  const formatDateKey = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+  
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md"
+        className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">
-            {shift ? '✏️ Modifier' : '➕ Ajouter'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <X className="w-6 h-6" />
+          <h3 className="text-xl font-bold text-white">Ajouter un shift</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-300 mb-2 text-sm font-medium">Employé *</label>
-            <select
-              required
-              value={formData.employeeId}
-              onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Sélectionner</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>{emp.name}</option>
-              ))}
-            </select>
+            <label className="block text-gray-300 mb-2 text-sm">Employé</label>
+            <input
+              type="text"
+              value={employee?.displayName || ''}
+              disabled
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-gray-400"
+            />
           </div>
-
+          
           <div>
-            <label className="block text-gray-300 mb-2 text-sm font-medium">Date *</label>
-            <select
-              required
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {currentWeek.map((day) => (
-                <option key={day.dateStr} value={day.dateStr}>
-                  {day.dayName} {day.dayNumber}
-                </option>
-              ))}
-            </select>
+            <label className="block text-gray-300 mb-2 text-sm">Date</label>
+            <input
+              type="text"
+              value={date?.toLocaleDateString('fr-FR') || ''}
+              disabled
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-gray-400"
+            />
           </div>
-
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-300 mb-2 text-sm font-medium">Début *</label>
+              <label className="block text-gray-300 mb-2 text-sm">Début *</label>
               <input
                 type="time"
                 required
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
               />
             </div>
             <div>
-              <label className="block text-gray-300 mb-2 text-sm font-medium">Fin *</label>
+              <label className="block text-gray-300 mb-2 text-sm">Fin *</label>
               <input
                 type="time"
                 required
                 value={formData.endTime}
                 onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
               />
             </div>
           </div>
-
+          
           <div>
-            <label className="block text-gray-300 mb-2 text-sm font-medium">Poste *</label>
+            <label className="block text-gray-300 mb-2 text-sm">Poste *</label>
             <select
               required
               value={formData.position}
               onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
             >
               <option value="Game Master">Game Master</option>
               <option value="Accueil">Accueil</option>
               <option value="Maintenance">Maintenance</option>
               <option value="Manager">Manager</option>
-              <option value="Formateur">Formateur</option>
             </select>
           </div>
-
+          
           <div>
-            <label className="block text-gray-300 mb-2 text-sm font-medium">Notes</label>
+            <label className="block text-gray-300 mb-2 text-sm">Notes</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Notes..."
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500 resize-none"
+              rows="3"
+              placeholder="Notes optionnelles..."
             />
           </div>
-
+          
           <div className="flex gap-3 pt-4 border-t border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg"
+              className="flex-1 px-4 py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors"
             >
-              {loading ? 'En cours...' : shift ? 'Modifier' : 'Ajouter'}
+              {loading ? 'En cours...' : 'Ajouter'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+// ==========================================
+// ✏️ MODAL ÉDITION SHIFT (Simplifié)
+// ==========================================
+const EditShiftModal = ({ shift, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    startTime: shift?.startTime || '09:00',
+    endTime: shift?.endTime || '17:00',
+    position: shift?.position || 'Game Master',
+    notes: shift?.notes || '',
+    color: shift?.color || '#8B5CF6'
+  });
+  const [loading, setLoading] = useState(false);
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      await updateDoc(doc(db, 'hr_schedules', shift.id), {
+        ...formData,
+        updatedAt: serverTimestamp()
+      });
+      
+      onSave();
+      onClose();
+    } catch (error) {
+      console.error('❌ Erreur mise à jour shift:', error);
+      alert('Erreur lors de la mise à jour du shift');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-white">Modifier le shift</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-300 mb-2 text-sm">Début *</label>
+              <input
+                type="time"
+                required
+                value={formData.startTime}
+                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-300 mb-2 text-sm">Fin *</label>
+              <input
+                type="time"
+                required
+                value={formData.endTime}
+                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-gray-300 mb-2 text-sm">Poste *</label>
+            <select
+              required
+              value={formData.position}
+              onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+            >
+              <option value="Game Master">Game Master</option>
+              <option value="Accueil">Accueil</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Manager">Manager</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-gray-300 mb-2 text-sm">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500 resize-none"
+              rows="3"
+              placeholder="Notes optionnelles..."
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'En cours...' : 'Modifier'}
             </button>
           </div>
         </form>
