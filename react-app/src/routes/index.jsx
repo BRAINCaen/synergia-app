@@ -22,7 +22,7 @@ import TimeTrackPage from '../pages/TimeTrackPage.jsx';
 
 // ✨ PAGES RH & PLANNING
 import HRPage from '../pages/HRPage.jsx';
-import PlanningPage from '../pages/PlanningPage.jsx';
+import PlanningAdvancedPage from '../pages/PlanningAdvancedPage.jsx';
 
 // Pages admin
 import AdminPage from '../pages/AdminPage.jsx';
@@ -72,7 +72,8 @@ const AppRoutes = () => {
         
         {/* ✨ MODULES RH & PLANNING */}
         <Route path="/hr" element={<HRPage />} />
-        <Route path="/planning" element={<PlanningPage />} />
+        <Route path="/planning" element={<PlanningAdvancedPage />} />
+        <Route path="/planning-advanced" element={<PlanningAdvancedPage />} />
       </Route>
 
       {/* Routes admin - Nécessitent authentification + rôle admin */}
