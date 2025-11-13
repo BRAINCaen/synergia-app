@@ -87,6 +87,7 @@ const PlanningAdvancedPage = () => {
   // Modals
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
+  const [showEditShiftModal, setShowEditShiftModal] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
   
   // Formulaire nouveau shift
@@ -1136,10 +1137,13 @@ const PlanningAdvancedPage = () => {
     <X className="w-3 h-3 text-white" />
   </button>
 </div>
+                                  </div>
                                   
                                   <div className="text-white text-xs opacity-90">
                                     {shift.position}
                                   </div>
+                                  
+                                  
                                   
                                   {shift.duration && (
                                     <div className="text-white text-xs font-semibold mt-1">
