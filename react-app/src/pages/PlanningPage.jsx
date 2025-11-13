@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningPage.jsx
-// PLANNING TYPE SKELLO - SYNC AUTOMATIQUE USERS
+// PLANNING TYPE SKELLO - VERSION CORRIGÉE
 // ==========================================
 
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Calendar,
   ChevronLeft,
@@ -13,15 +13,10 @@ import {
   Copy,
   Trash2,
   Edit,
-  Download,
-  Upload,
   Users,
   Clock,
   AlertTriangle,
-  Check,
   X,
-  MoreVertical,
-  Filter,
   Search,
   RefreshCw
 } from 'lucide-react';
@@ -46,8 +41,29 @@ import {
 import { db } from '../core/firebase.js';
 
 /**
+ * 📅 FONCTION HELPER - OBTENIR LES DATES DE LA SEMAINE
+ */
+const getWeekDates = (date) => {
+  const curr = new Date(date);
+  const first = curr.getDate() - curr.getDay() + 1; // Lundi
+  
+  const week = [];
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(curr);
+    day.setDate(first + i);
+    week.push({
+      date: day,
+      dateStr: day.toISOString().split('T')[0],
+      dayName: day.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      dayNumber: day.getDate()
+    });
+  }
+  
+  return week;
+};
+
+/**
  * 📅 PAGE DE PLANNING TYPE SKELLO
- * Synchronisation automatique avec les utilisateurs Firebase
  */
 const PlanningPage = () => {
   const { user } = useAuthStore();
@@ -56,13 +72,11 @@ const PlanningPage = () => {
   const [employees, setEmployees] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentWeek, setCurrentWeek] = useState(getWeekDates(new Date()));
+  const [currentWeek, setCurrentWeek] = useState([]);
   const [selectedShift, setSelectedShift] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [copiedShift, setCopiedShift] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Statistiques
   const [stats, setStats] = useState({
     totalHours: 0,
     employeesScheduled: 0,
@@ -71,54 +85,33 @@ const PlanningPage = () => {
   });
 
   /**
-   * 📅 OBTENIR LES DATES DE LA SEMAINE
+   * 📅 INITIALISER LA SEMAINE COURANTE
    */
-  function getWeekDates(date) {
-    const curr = new Date(date);
-    const first = curr.getDate() - curr.getDay() + 1; // Lundi
-    
-    const week = [];
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(curr.setDate(first + i));
-      week.push({
-        date: day,
-        dateStr: day.toISOString().split('T')[0],
-        dayName: day.toLocaleDateString('fr-FR', { weekday: 'short' }),
-        dayNumber: day.getDate()
-      });
-    }
-    
-    return week;
-  }
+  useEffect(() => {
+    setCurrentWeek(getWeekDates(new Date()));
+  }, []);
 
   /**
    * 📊 CHARGER LES DONNÉES
    */
   useEffect(() => {
-    loadData();
+    if (currentWeek.length > 0) {
+      loadData();
+    }
   }, [currentWeek]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // 1. Charger les utilisateurs (= employés)
       await loadEmployees();
-      
-      // 2. Charger les shifts de la semaine
       await loadShifts();
-      
-      // 3. Calculer les statistiques
-      calculateStats();
     } catch (error) {
-      console.error('❌ Erreur chargement données:', error);
+      console.error('❌ Erreur chargement:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * 👥 CHARGER LES UTILISATEURS (EMPLOYÉS)
-   */
   const loadEmployees = async () => {
     try {
       const usersRef = collection(db, 'users');
@@ -126,10 +119,10 @@ const PlanningPage = () => {
       const snapshot = await getDocs(q);
       
       const usersList = [];
-      snapshot.forEach((doc) => {
-        const userData = doc.data();
+      snapshot.forEach((docSnap) => {
+        const userData = docSnap.data();
         usersList.push({
-          id: doc.id,
+          id: docSnap.id,
           name: userData.displayName || userData.email,
           email: userData.email,
           photoURL: userData.photoURL,
@@ -139,17 +132,15 @@ const PlanningPage = () => {
       });
 
       setEmployees(usersList);
-      console.log(`✅ ${usersList.length} employés chargés depuis users`);
+      console.log(`✅ ${usersList.length} employés chargés`);
     } catch (error) {
       console.error('❌ Erreur chargement employés:', error);
-      setEmployees([]);
     }
   };
 
-  /**
-   * 📅 CHARGER LES SHIFTS DE LA SEMAINE
-   */
   const loadShifts = async () => {
+    if (currentWeek.length === 0) return;
+
     try {
       const shiftsRef = collection(db, 'shifts');
       const startDate = currentWeek[0].dateStr;
@@ -163,48 +154,40 @@ const PlanningPage = () => {
       );
       
       const snapshot = await getDocs(q);
-      
       const shiftsList = [];
-      snapshot.forEach((doc) => {
+      snapshot.forEach((docSnap) => {
         shiftsList.push({
-          id: doc.id,
-          ...doc.data()
+          id: docSnap.id,
+          ...docSnap.data()
         });
       });
 
       setShifts(shiftsList);
       console.log(`✅ ${shiftsList.length} shifts chargés`);
+      calculateStats(shiftsList);
     } catch (error) {
       console.error('❌ Erreur chargement shifts:', error);
-      setShifts([]);
     }
   };
 
-  /**
-   * 📊 CALCULER LES STATISTIQUES
-   */
-  const calculateStats = () => {
-    const totalHours = shifts.reduce((acc, shift) => {
+  const calculateStats = (shiftsList) => {
+    const totalHours = shiftsList.reduce((acc, shift) => {
       const start = new Date(`2000-01-01T${shift.startTime}`);
       const end = new Date(`2000-01-01T${shift.endTime}`);
-      const hours = (end - start) / (1000 * 60 * 60);
-      return acc + hours;
+      return acc + (end - start) / (1000 * 60 * 60);
     }, 0);
 
-    const uniqueEmployees = new Set(shifts.map(s => s.employeeId)).size;
-    const coverage = (shifts.length / (employees.length * 7)) * 100;
+    const uniqueEmployees = new Set(shiftsList.map(s => s.employeeId)).size;
+    const coverage = employees.length > 0 ? (shiftsList.length / (employees.length * 7)) * 100 : 0;
 
     setStats({
       totalHours: Math.round(totalHours),
       employeesScheduled: uniqueEmployees,
-      shiftsCount: shifts.length,
+      shiftsCount: shiftsList.length,
       coverage: Math.round(coverage)
     });
   };
 
-  /**
-   * ➕ AJOUTER UN SHIFT
-   */
   const handleAddShift = async (shiftData) => {
     try {
       await addDoc(collection(db, 'shifts'), {
@@ -212,70 +195,44 @@ const PlanningPage = () => {
         createdBy: user.uid,
         createdAt: serverTimestamp()
       });
-
       await loadShifts();
-      calculateStats();
       setShowAddModal(false);
     } catch (error) {
-      console.error('❌ Erreur ajout shift:', error);
-      alert('Erreur lors de l\'ajout du shift');
+      console.error('❌ Erreur:', error);
+      alert('Erreur lors de l\'ajout');
     }
   };
 
-  /**
-   * ✏️ MODIFIER UN SHIFT
-   */
   const handleEditShift = async (shiftId, updateData) => {
     try {
-      const shiftRef = doc(db, 'shifts', shiftId);
-      await updateDoc(shiftRef, {
+      await updateDoc(doc(db, 'shifts', shiftId), {
         ...updateData,
-        updatedBy: user.uid,
         updatedAt: serverTimestamp()
       });
-
       await loadShifts();
-      calculateStats();
       setSelectedShift(null);
     } catch (error) {
-      console.error('❌ Erreur modification shift:', error);
-      alert('Erreur lors de la modification');
+      console.error('❌ Erreur:', error);
     }
   };
 
-  /**
-   * 🗑️ SUPPRIMER UN SHIFT
-   */
   const handleDeleteShift = async (shiftId) => {
     if (!confirm('Supprimer ce shift ?')) return;
-
     try {
       await deleteDoc(doc(db, 'shifts', shiftId));
       await loadShifts();
-      calculateStats();
     } catch (error) {
-      console.error('❌ Erreur suppression shift:', error);
-      alert('Erreur lors de la suppression');
+      console.error('❌ Erreur:', error);
     }
   };
 
-  /**
-   * 📋 COPIER UN SHIFT
-   */
   const handleCopyShift = (shift) => {
     setCopiedShift(shift);
-    alert('✅ Shift copié ! Cliquez sur une case pour le coller.');
+    alert('✅ Shift copié !');
   };
 
-  /**
-   * 📌 COLLER UN SHIFT
-   */
   const handlePasteShift = async (employeeId, date) => {
-    if (!copiedShift) {
-      alert('Aucun shift copié');
-      return;
-    }
-
+    if (!copiedShift) return;
     try {
       await addDoc(collection(db, 'shifts'), {
         employeeId,
@@ -288,27 +245,18 @@ const PlanningPage = () => {
         createdBy: user.uid,
         createdAt: serverTimestamp()
       });
-
       await loadShifts();
-      calculateStats();
       setCopiedShift(null);
       alert('✅ Shift collé !');
     } catch (error) {
-      console.error('❌ Erreur collage shift:', error);
-      alert('Erreur lors du collage');
+      console.error('❌ Erreur:', error);
     }
   };
 
-  /**
-   * 🔍 OBTENIR LES SHIFTS D'UN EMPLOYÉ POUR UN JOUR
-   */
   const getShiftsForCell = (employeeId, dateStr) => {
     return shifts.filter(s => s.employeeId === employeeId && s.date === dateStr);
   };
 
-  /**
-   * 🎨 COULEURS PAR TYPE DE POSTE
-   */
   const getPositionColor = (position) => {
     const colors = {
       'Game Master': 'bg-blue-500',
@@ -320,16 +268,15 @@ const PlanningPage = () => {
     return colors[position] || 'bg-gray-500';
   };
 
-  /**
-   * ⏮️⏭️ NAVIGATION SEMAINE
-   */
   const goToPreviousWeek = () => {
+    if (currentWeek.length === 0) return;
     const prevWeek = new Date(currentWeek[0].date);
     prevWeek.setDate(prevWeek.getDate() - 7);
     setCurrentWeek(getWeekDates(prevWeek));
   };
 
   const goToNextWeek = () => {
+    if (currentWeek.length === 0) return;
     const nextWeek = new Date(currentWeek[0].date);
     nextWeek.setDate(nextWeek.getDate() + 7);
     setCurrentWeek(getWeekDates(nextWeek));
@@ -339,13 +286,11 @@ const PlanningPage = () => {
     setCurrentWeek(getWeekDates(new Date()));
   };
 
-  // Filtrer les employés par recherche
   const filteredEmployees = employees.filter(emp =>
-    emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.email.toLowerCase().includes(searchTerm.toLowerCase())
+    emp.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
+  if (loading || currentWeek.length === 0) {
     return (
       <Layout>
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -371,13 +316,13 @@ const PlanningPage = () => {
                   📅 Planning Équipe
                 </h1>
                 <p className="text-gray-400 text-lg">
-                  Gestion visuelle des horaires - Type Skello
+                  Gestion visuelle des horaires
                 </p>
               </div>
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => loadData()}
+                  onClick={loadData}
                   className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 text-white rounded-lg border border-gray-700/50 hover:bg-gray-700/50 transition-colors"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -389,13 +334,13 @@ const PlanningPage = () => {
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  Ajouter un shift
+                  Ajouter
                 </button>
               </div>
             </div>
           </div>
 
-          {/* STATISTIQUES */}
+          {/* STATS */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-6 text-white">
               <div className="flex items-center gap-3 mb-2">
@@ -408,7 +353,7 @@ const PlanningPage = () => {
             <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-6 text-white">
               <div className="flex items-center gap-3 mb-2">
                 <Users className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Employés planifiés</h3>
+                <h3 className="text-sm font-medium opacity-90">Employés</h3>
               </div>
               <div className="text-3xl font-bold">{stats.employeesScheduled}/{employees.length}</div>
             </div>
@@ -416,7 +361,7 @@ const PlanningPage = () => {
             <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white">
               <div className="flex items-center gap-3 mb-2">
                 <Calendar className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Shifts total</h3>
+                <h3 className="text-sm font-medium opacity-90">Shifts</h3>
               </div>
               <div className="text-3xl font-bold">{stats.shiftsCount}</div>
             </div>
@@ -430,58 +375,41 @@ const PlanningPage = () => {
             </div>
           </div>
 
-          {/* CONTRÔLES DE NAVIGATION */}
+          {/* NAVIGATION */}
           <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between">
-              {/* Navigation semaine */}
               <div className="flex items-center gap-3">
-                <button
-                  onClick={goToPreviousWeek}
-                  className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
-                >
+                <button onClick={goToPreviousWeek} className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-
-                <button
-                  onClick={goToToday}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
+                <button onClick={goToToday} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
                   Aujourd'hui
                 </button>
-
-                <button
-                  onClick={goToNextWeek}
-                  className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
-                >
+                <button onClick={goToNextWeek} className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg">
                   <ChevronRight className="w-5 h-5" />
                 </button>
-
                 <div className="text-white font-semibold ml-4">
                   Semaine du {currentWeek[0].date.toLocaleDateString('fr-FR')} au {currentWeek[6].date.toLocaleDateString('fr-FR')}
                 </div>
               </div>
 
-              {/* Recherche employé */}
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un employé..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
             </div>
           </div>
 
-          {/* GRILLE DE PLANNING TYPE SKELLO */}
+          {/* GRILLE */}
           <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                {/* EN-TÊTE DES JOURS */}
                 <thead className="bg-gray-900/50">
                   <tr>
                     <th className="sticky left-0 z-10 bg-gray-900/50 p-4 text-left text-white font-semibold w-48">
@@ -496,19 +424,13 @@ const PlanningPage = () => {
                   </tr>
                 </thead>
 
-                {/* LIGNES DES EMPLOYÉS */}
                 <tbody>
                   {filteredEmployees.map((employee) => (
                     <tr key={employee.id} className="border-t border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                      {/* NOM DE L'EMPLOYÉ */}
                       <td className="sticky left-0 z-10 bg-gray-800/80 backdrop-blur-sm p-4 border-r border-gray-700/50">
                         <div className="flex items-center gap-3">
                           {employee.photoURL ? (
-                            <img
-                              src={employee.photoURL}
-                              alt={employee.name}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
+                            <img src={employee.photoURL} alt={employee.name} className="w-10 h-10 rounded-full object-cover" />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
                               {employee.name.charAt(0).toUpperCase()}
@@ -521,7 +443,6 @@ const PlanningPage = () => {
                         </div>
                       </td>
 
-                      {/* CELLULES DES JOURS */}
                       {currentWeek.map((day) => {
                         const cellShifts = getShiftsForCell(employee.id, day.dateStr);
                         
@@ -529,14 +450,7 @@ const PlanningPage = () => {
                           <td
                             key={day.dateStr}
                             className="p-2 border-r border-gray-700/50 cursor-pointer hover:bg-gray-700/20 transition-colors min-h-[100px] align-top"
-                            onClick={() => {
-                              if (copiedShift) {
-                                handlePasteShift(employee.id, day.dateStr);
-                              } else {
-                                setShowAddModal(true);
-                                // Pré-remplir avec l'employé et la date
-                              }
-                            }}
+                            onClick={() => copiedShift && handlePasteShift(employee.id, day.dateStr)}
                           >
                             <div className="space-y-2">
                               {cellShifts.map((shift) => (
@@ -545,17 +459,10 @@ const PlanningPage = () => {
                                   initial={{ opacity: 0, scale: 0.9 }}
                                   animate={{ opacity: 1, scale: 1 }}
                                   className={`${getPositionColor(shift.position)} text-white p-2 rounded-lg text-xs group relative`}
-                                  draggable
-                                  onDragStart={(e) => {
-                                    e.dataTransfer.setData('shiftId', shift.id);
-                                  }}
                                 >
                                   <div className="font-semibold">{shift.position}</div>
-                                  <div className="opacity-90">
-                                    {shift.startTime} - {shift.endTime}
-                                  </div>
+                                  <div className="opacity-90">{shift.startTime} - {shift.endTime}</div>
                                   
-                                  {/* Actions au survol */}
                                   <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                                     <button
                                       onClick={(e) => {
@@ -588,11 +495,8 @@ const PlanningPage = () => {
                                 </motion.div>
                               ))}
                               
-                              {/* Bouton d'ajout si aucun shift */}
                               {cellShifts.length === 0 && (
-                                <div className="text-center text-gray-500 text-xs py-4">
-                                  +
-                                </div>
+                                <div className="text-center text-gray-500 text-xs py-4">+</div>
                               )}
                             </div>
                           </td>
@@ -605,15 +509,11 @@ const PlanningPage = () => {
             </div>
           </div>
 
-          {/* AIDE COPIER-COLLER */}
           {copiedShift && (
             <div className="fixed bottom-6 right-6 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
               <Copy className="w-5 h-5" />
-              <span>Shift copié - Cliquez sur une case pour coller</span>
-              <button
-                onClick={() => setCopiedShift(null)}
-                className="ml-2 p-1 hover:bg-white/20 rounded"
-              >
+              <span>Shift copié - Cliquez pour coller</span>
+              <button onClick={() => setCopiedShift(null)} className="ml-2 p-1 hover:bg-white/20 rounded">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -622,7 +522,6 @@ const PlanningPage = () => {
         </div>
       </div>
 
-      {/* MODAL AJOUT/ÉDITION DE SHIFT */}
       {showAddModal && (
         <ShiftModal
           employees={employees}
@@ -632,7 +531,6 @@ const PlanningPage = () => {
         />
       )}
 
-      {/* MODAL ÉDITION */}
       {selectedShift && (
         <ShiftModal
           employees={employees}
@@ -646,13 +544,10 @@ const PlanningPage = () => {
   );
 };
 
-/**
- * 📝 MODAL D'AJOUT/ÉDITION DE SHIFT
- */
 const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     employeeId: shift?.employeeId || '',
-    date: shift?.date || currentWeek[0].dateStr,
+    date: shift?.date || (currentWeek[0]?.dateStr || ''),
     startTime: shift?.startTime || '09:00',
     endTime: shift?.endTime || '17:00',
     position: shift?.position || 'Game Master',
@@ -665,11 +560,8 @@ const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) =
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       await onSave(formData);
-    } catch (error) {
-      console.error('❌ Erreur:', error);
     } finally {
       setLoading(false);
     }
@@ -684,12 +576,9 @@ const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) =
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white">
-            {shift ? '✏️ Modifier le shift' : '➕ Ajouter un shift'}
+            {shift ? '✏️ Modifier' : '➕ Ajouter'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -703,11 +592,9 @@ const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) =
               onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
               className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Sélectionner un employé</option>
+              <option value="">Sélectionner</option>
               {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.name} - {emp.role}
-                </option>
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
             </select>
           </div>
@@ -722,7 +609,7 @@ const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) =
             >
               {currentWeek.map((day) => (
                 <option key={day.dateStr} value={day.dateStr}>
-                  {day.dayName} {day.dayNumber} {day.date.toLocaleDateString('fr-FR', { month: 'long' })}
+                  {day.dayName} {day.dayNumber}
                 </option>
               ))}
             </select>
@@ -774,7 +661,7 @@ const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) =
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Notes optionnelles..."
+              placeholder="Notes..."
             />
           </div>
 
@@ -782,16 +669,16 @@ const ShiftModal = ({ employees, currentWeek, shift = null, onClose, onSave }) =
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
+              className="flex-1 px-4 py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
             >
-              {loading ? 'Enregistrement...' : shift ? 'Modifier' : 'Ajouter'}
+              {loading ? 'En cours...' : shift ? 'Modifier' : 'Ajouter'}
             </button>
           </div>
         </form>
