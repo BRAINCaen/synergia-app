@@ -85,10 +85,16 @@ const PlanningAdvancedPage = () => {
   
   // Modals
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
-  const [showEditShiftModal, setShowEditShiftModal] = useState(false);
-  const [showComparisonModal, setShowComparisonModal] = useState(false);
-  const [selectedShift, setSelectedShift] = useState(null);
   const [selectedCell, setSelectedCell] = useState(null);
+  
+  // Formulaire nouveau shift
+  const [newShift, setNewShift] = useState({
+    startTime: '09:00',
+    endTime: '17:00',
+    position: 'Game master',
+    color: '#8B5CF6',
+    notes: ''
+  });
   
   // Compteurs heures contrat
   const [weeklyHoursComparison, setWeeklyHoursComparison] = useState([]);
@@ -100,10 +106,6 @@ const PlanningAdvancedPage = () => {
     employeesScheduled: 0,
     coverage: 0
   });
-  
-  // Filtres
-  const [filterPosition, setFilterPosition] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
   
   // Export
   const [exporting, setExporting] = useState(false);
@@ -120,39 +122,31 @@ const PlanningAdvancedPage = () => {
     try {
       setLoading(true);
 
-      // Calculer les dates de la semaine
       const weekStart = getWeekStart(currentWeek);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
 
-      // Générer les dates de la semaine
       const dates = planningEnrichedService.getWeekDates(weekStart.toISOString().split('T')[0]);
       setWeekDates(dates);
 
-      // Analyser le calendrier pour la semaine
       const analysis = frenchCalendarService.analyzeWeekForPlanning(dates);
       setWeekAnalysis(analysis);
-      console.log('📅 Analyse calendrier:', analysis);
 
-      // Charger les employés
       const employeesList = await planningEnrichedService.getAllEmployees();
       setEmployees(employeesList);
 
-      // Charger les shifts de la semaine
       const shiftsList = await planningEnrichedService.getShifts({
         startDate: weekStart.toISOString().split('T')[0],
         endDate: weekEnd.toISOString().split('T')[0]
       });
       setShifts(shiftsList);
 
-      // Calculer les statistiques
       const weekStats = await planningEnrichedService.getStats(
         weekStart.toISOString().split('T')[0],
         weekEnd.toISOString().split('T')[0]
       );
       setStats(weekStats);
 
-      // Calculer les compteurs heures contrat pour tous les employés
       const hoursComparison = await planningEnrichedService.getAllEmployeesWeeklyHours(
         weekStart.toISOString().split('T')[0]
       );
@@ -166,12 +160,6 @@ const PlanningAdvancedPage = () => {
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadPlanningData();
-    setRefreshing(false);
-  };
-
   // ==========================================
   // 📅 NAVIGATION SEMAINE
   // ==========================================
@@ -179,7 +167,7 @@ const PlanningAdvancedPage = () => {
   const getWeekStart = (date) => {
     const d = new Date(date);
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Lundi
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(d.setDate(diff));
   };
 
@@ -208,14 +196,59 @@ const PlanningAdvancedPage = () => {
   };
 
   // ==========================================
-  // 🎨 DRAG & DROP - COPIE AUTOMATIQUE
+  // ➕ CRÉATION DE SHIFT
+  // ==========================================
+
+  const openAddShiftModal = (employeeId, date) => {
+    setSelectedCell({ employeeId, date });
+    setNewShift({
+      startTime: '09:00',
+      endTime: '17:00',
+      position: 'Game master',
+      color: '#8B5CF6',
+      notes: ''
+    });
+    setShowAddShiftModal(true);
+  };
+
+  const closeAddShiftModal = () => {
+    setShowAddShiftModal(false);
+    setSelectedCell(null);
+  };
+
+  const handleCreateShift = async () => {
+    if (!selectedCell) return;
+
+    try {
+      const shiftData = {
+        employeeId: selectedCell.employeeId,
+        date: selectedCell.date,
+        startTime: newShift.startTime,
+        endTime: newShift.endTime,
+        position: newShift.position,
+        color: newShift.color,
+        notes: newShift.notes,
+        createdBy: user.uid
+      };
+
+      await planningEnrichedService.createShift(shiftData);
+      showNotification('✅ Shift créé avec succès', 'success');
+      closeAddShiftModal();
+      await loadPlanningData();
+    } catch (error) {
+      console.error('❌ Erreur création shift:', error);
+      showNotification('❌ Erreur lors de la création', 'error');
+    }
+  };
+
+  // ==========================================
+  // 🎨 DRAG & DROP
   // ==========================================
 
   const handleDragStart = (e, shift) => {
     e.dataTransfer.effectAllowed = 'copy';
     setDraggedShift(shift);
     setIsDragging(true);
-    console.log('🎯 Drag start (copie):', shift);
   };
 
   const handleDragEnd = () => {
@@ -243,21 +276,14 @@ const PlanningAdvancedPage = () => {
     setIsDragging(false);
     
     if (!draggedShift) return;
-    
-    // Ne rien faire si on drop sur la même cellule
     if (draggedShift.employeeId === employeeId && draggedShift.date === date) {
       setDraggedShift(null);
       return;
     }
     
     try {
-      // COPIER le shift au lieu de le déplacer
       await planningEnrichedService.copyShift(draggedShift.id, employeeId, date);
-      
-      // Notification succès
       showNotification('✅ Shift copié avec succès', 'success');
-      
-      // Rafraîchir les données
       await loadPlanningData();
     } catch (error) {
       console.error('❌ Erreur copie shift:', error);
@@ -351,13 +377,11 @@ const PlanningAdvancedPage = () => {
       monthEnd.setMonth(monthEnd.getMonth() + 1);
       monthEnd.setDate(0);
 
-      // Charger les shifts du mois
       const monthShifts = await planningEnrichedService.getShifts({
         startDate: monthStart.toISOString().split('T')[0],
         endDate: monthEnd.toISOString().split('T')[0]
       });
 
-      // Calculer les stats mensuelles
       const monthStats = await planningEnrichedService.getStats(
         monthStart.toISOString().split('T')[0],
         monthEnd.toISOString().split('T')[0]
@@ -400,8 +424,6 @@ const PlanningAdvancedPage = () => {
       );
 
       showNotification('✅ Semaine dupliquée !', 'success');
-      
-      // Aller à la semaine suivante
       nextWeek();
     } catch (error) {
       console.error('❌ Erreur duplication:', error);
@@ -433,7 +455,7 @@ const PlanningAdvancedPage = () => {
   };
 
   // ==========================================
-  // 🎨 UTILITAIRES VISUELS
+  // 🎨 UTILITAIRES
   // ==========================================
 
   const getShiftForCell = (employeeId, date) => {
@@ -484,6 +506,10 @@ const PlanningAdvancedPage = () => {
     return texts[level] || texts.normal;
   };
 
+  const getEmployeeName = (employeeId) => {
+    const employee = employees.find(e => e.id === employeeId);
+    return employee ? employee.name : 'Employé';
+  };
   // ==========================================
   // 🎨 RENDER LOADING
   // ==========================================
@@ -524,7 +550,7 @@ const PlanningAdvancedPage = () => {
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={handleRefresh}
+                  onClick={() => loadPlanningData()}
                   disabled={refreshing}
                   className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
                 >
@@ -619,7 +645,7 @@ const PlanningAdvancedPage = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 text-sm mb-1">Employés Planifiés</p>
-                  <p className="text-2xl font-bold text-white">{stats.employeesScheduled}/{stats.totalEmployees}</p>
+                  <p className="text-2xl font-bold text-white">{stats.employeesScheduled}/{employees.length}</p>
                 </div>
                 <Users className="w-8 h-8 text-green-400" />
               </div>
@@ -666,19 +692,140 @@ const PlanningAdvancedPage = () => {
               >
                 Aujourd'hui
               </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowComparisonModal(true)}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  Comparer Planning/Badges
-                </button>
-              </div>
             </div>
           </GlassCard>
 
+          {/* MODAL CRÉATION SHIFT */}
+          <AnimatePresence>
+            {showAddShiftModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={closeAddShiftModal}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-white">➕ Nouveau Shift</h2>
+                    <button
+                      onClick={closeAddShiftModal}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {selectedCell && (
+                    <div className="mb-4 p-3 bg-purple-500/20 rounded-lg border border-purple-500/50">
+                      <p className="text-purple-300 text-sm">
+                        <strong>{getEmployeeName(selectedCell.employeeId)}</strong> - {new Date(selectedCell.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {/* Horaires */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure début</label>
+                        <input
+                          type="time"
+                          value={newShift.startTime}
+                          onChange={(e) => setNewShift({ ...newShift, startTime: e.target.value })}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure fin</label>
+                        <input
+                          type="time"
+                          value={newShift.endTime}
+                          onChange={(e) => setNewShift({ ...newShift, endTime: e.target.value })}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Position */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Poste</label>
+                      <select
+                        value={newShift.position}
+                        onChange={(e) => setNewShift({ ...newShift, position: e.target.value })}
+                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                      >
+                        <option value="Game master">Game master</option>
+                        <option value="Repos hebdomadaire">Repos hebdomadaire</option>
+                        <option value="École - CFA">École - CFA</option>
+                        <option value="Journée">Journée</option>
+                        <option value="Congés">Congés</option>
+                        <option value="Maladie">Maladie</option>
+                      </select>
+                    </div>
+
+                    {/* Couleur */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
+                      <div className="flex gap-2">
+                        {[
+                          { color: '#8B5CF6', label: 'Violet' },
+                          { color: '#3B82F6', label: 'Bleu' },
+                          { color: '#10B981', label: 'Vert' },
+                          { color: '#F59E0B', label: 'Orange' },
+                          { color: '#EF4444', label: 'Rouge' },
+                          { color: '#6B7280', label: 'Gris' }
+                        ].map(({ color, label }) => (
+                          <button
+                            key={color}
+                            onClick={() => setNewShift({ ...newShift, color })}
+                            className={`w-10 h-10 rounded-lg transition-all ${
+                              newShift.color === color ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
+                      <textarea
+                        value={newShift.notes}
+                        onChange={(e) => setNewShift({ ...newShift, notes: e.target.value })}
+                        placeholder="Ajouter une note..."
+                        rows={3}
+                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={closeAddShiftModal}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleCreateShift}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Créer le shift
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* PLANNING TABLE */}
           <GlassCard>
             <div className="overflow-x-auto">
@@ -818,8 +965,11 @@ const PlanningAdvancedPage = () => {
                                   )}
                                 </motion.div>
                               ) : (
-                                <div className="min-h-[80px] flex items-center justify-center text-gray-600 hover:bg-gray-700/20 rounded-lg transition-colors cursor-pointer">
-                                  <Plus className="w-4 h-4" />
+                                <div 
+                                  onClick={() => openAddShiftModal(employee.id, date)}
+                                  className="min-h-[80px] flex items-center justify-center text-gray-600 hover:bg-gray-700/20 hover:text-purple-400 rounded-lg transition-colors cursor-pointer group"
+                                >
+                                  <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                 </div>
                               )}
                             </td>
@@ -864,6 +1014,7 @@ const PlanningAdvancedPage = () => {
                 <div>
                   <p className="text-gray-400 text-sm mb-2">💡 Astuces :</p>
                   <ul className="text-gray-400 text-xs space-y-1">
+                    <li>• Cliquer sur <Plus className="w-3 h-3 inline" /> pour créer un nouveau shift</li>
                     <li>• Glisser-déposer les shifts pour les COPIER vers une autre case</li>
                     <li>• Cliquer sur <Copy className="w-3 h-3 inline" /> pour copier un shift</li>
                     <li>• Double-cliquer sur une cellule vide pour coller</li>
