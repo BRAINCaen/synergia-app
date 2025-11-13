@@ -275,7 +275,8 @@ const HRPage = () => {
 
   return (
     <Layout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+        <div className="max-w-7xl mx-auto">
         {/* HEADER */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -533,7 +534,7 @@ const EmployeeCard = ({ employee, onViewEmployee, onRefresh }) => {
   };
 
   return (
-    <div className="bg-gray-700/30 border border-gray-600/50 rounded-lg p-4 hover:bg-gray-700/50 transition-all">
+    <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-all">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           {employee.photoURL ? (
@@ -1254,11 +1255,8 @@ const TimesheetTab = ({ timesheets, employees, onRefresh }) => {
 };
 
 // 📋 CARTE POINTAGE
-const TimesheetCard = ({ timesheet, employees }) => {
-  const employee = employees.find(e => e.id === timesheet.employeeId);
-  
   return (
-    <div className="bg-gray-700/30 border border-gray-600/50 rounded-lg p-4">
+    <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-all">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
