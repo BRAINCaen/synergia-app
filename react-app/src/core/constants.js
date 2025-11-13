@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js
-// CONSTANTS AVEC TOUTES LES ROUTES - VERSION QUÊTES
+// CONSTANTS AVEC TOUTES LES ROUTES - VERSION AVEC HR & PLANNING
 // ==========================================
 
 export const ROUTES = {
@@ -10,7 +10,6 @@ export const ROUTES = {
   
   // Pages principales
   DASHBOARD: '/dashboard',
-  INFOS: '/infos',
   TASKS: '/tasks',
   PROJECTS: '/projects',
   ANALYTICS: '/analytics',
@@ -35,11 +34,15 @@ export const ROUTES = {
   
   // Profil & Paramètres
   PROFILE: '/profile',
+  SETTINGS: '/settings',
   
   // Fonctionnalités spécialisées
   ONBOARDING: '/onboarding',
   TIMETRACK: '/timetrack',
+  
+  // ✨ NOUVEAUX MODULES RH & PLANNING
   HR: '/hr',
+  PLANNING: '/planning',
   
   // 🛡️ ROUTES ADMIN COMPLÈTES
   ADMIN_TASK_VALIDATION: '/admin/task-validation',
@@ -81,12 +84,7 @@ export const FIREBASE_COLLECTIONS = {
   TASK_VALIDATIONS: 'taskValidations',
   OBJECTIVE_CLAIMS: 'objectiveClaims',
   INTERVIEWS: 'interviews',
-  SYSTEM_SETTINGS: 'systemSettings',
-  HR_EMPLOYEES: 'hr_employees',
-  HR_SCHEDULES: 'hr_schedules',
-  HR_TIMESHEETS: 'hr_timesheets',
-  HR_DOCUMENTS: 'hr_documents',
-  INFOS: 'infos'
+  SYSTEM_SETTINGS: 'systemSettings'
 };
 
 // 🗂️ STRUCTURE DE NAVIGATION COMPLÈTE - VERSION QUÊTES
@@ -95,10 +93,9 @@ export const NAVIGATION_STRUCTURE = {
     label: 'Principal',
     routes: [
       { path: ROUTES.DASHBOARD, label: 'Tableau de bord', icon: '🏠', priority: 1 },
-      { path: ROUTES.INFOS, label: 'Infos', icon: '📢', priority: 2 },
-      { path: ROUTES.TASKS, label: 'Quêtes', icon: '⚔️', priority: 3 },
-      { path: ROUTES.PROJECTS, label: 'Projets', icon: '📁', priority: 4 },
-      { path: ROUTES.ANALYTICS, label: 'Analytics', icon: '📊', priority: 5 }
+      { path: ROUTES.TASKS, label: 'Quêtes', icon: '⚔️', priority: 2 },
+      { path: ROUTES.PROJECTS, label: 'Projets', icon: '📁', priority: 3 },
+      { path: ROUTES.ANALYTICS, label: 'Analytics', icon: '📊', priority: 4 }
     ]
   },
   gamification: {
@@ -129,8 +126,10 @@ export const NAVIGATION_STRUCTURE = {
     routes: [
       { path: ROUTES.ONBOARDING, label: 'Intégration', icon: '📚', priority: 1 },
       { path: ROUTES.TIMETRACK, label: 'Pointeuse', icon: '⏰', priority: 2 },
-      { path: ROUTES.HR, label: 'Gestion RH', icon: '🏢', priority: 3 },
-      { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👨‍💼', priority: 4 }
+      { path: ROUTES.HR, label: 'Ressources Humaines', icon: '👨‍💼', priority: 3 },
+      { path: ROUTES.PLANNING, label: 'Planning', icon: '📅', priority: 4 },
+      { path: ROUTES.PROFILE, label: 'Mon Profil', icon: '👤', priority: 5 },
+      { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 6 }
     ]
   },
   admin: {
@@ -172,7 +171,6 @@ export const ADMIN_NAVIGATION = [
 export const ROUTES_BY_CATEGORY = {
   MAIN: [
     ROUTES.DASHBOARD,
-    ROUTES.INFOS,
     ROUTES.TASKS,
     ROUTES.PROJECTS,
     ROUTES.ANALYTICS
@@ -191,7 +189,9 @@ export const ROUTES_BY_CATEGORY = {
     ROUTES.ONBOARDING,
     ROUTES.TIMETRACK,
     ROUTES.HR,
-    ROUTES.PROFILE
+    ROUTES.PLANNING,
+    ROUTES.PROFILE,
+    ROUTES.SETTINGS
   ],
   ADMIN: [
     ROUTES.ADMIN_TASK_VALIDATION,
