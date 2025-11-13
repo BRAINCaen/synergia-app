@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Plus,
   Copy,
+    Edit,
   Clipboard,
   RefreshCw,
   Download,
@@ -85,6 +86,7 @@ const PlanningAdvancedPage = () => {
   
   // Modals
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
+  const [editingShift, setEditingShift] = useState(null);
   const [selectedCell, setSelectedCell] = useState(null);
   
   // Formulaire nouveau shift
@@ -241,6 +243,49 @@ const PlanningAdvancedPage = () => {
     }
   };
 
+  // ==========================================
+  // ✏️ ÉDITION DE SHIFT
+  // ==========================================
+
+  const openEditShiftModal = (shift) => {
+    setEditingShift(shift);
+    setNewShift({
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      position: shift.position,
+      color: shift.color || '#8B5CF6',
+      notes: shift.notes || ''
+    });
+    setShowEditShiftModal(true);
+  };
+
+  const closeEditShiftModal = () => {
+    setShowEditShiftModal(false);
+    setEditingShift(null);
+  };
+
+  const handleUpdateShift = async () => {
+    if (!editingShift) return;
+
+    try {
+      const updateData = {
+        startTime: newShift.startTime,
+        endTime: newShift.endTime,
+        position: newShift.position,
+        color: newShift.color,
+        notes: newShift.notes
+      };
+
+      await planningEnrichedService.updateShift(editingShift.id, updateData);
+      showNotification('✅ Shift modifié avec succès', 'success');
+      closeEditShiftModal();
+      await loadPlanningData();
+    } catch (error) {
+      console.error('❌ Erreur modification shift:', error);
+      showNotification('❌ Erreur lors de la modification', 'error');
+    }
+  };
+  
   // ==========================================
   // 🎨 DRAG & DROP
   // ==========================================
@@ -826,6 +871,135 @@ const PlanningAdvancedPage = () => {
               </motion.div>
             )}
           </AnimatePresence>
+          {/* MODAL ÉDITION SHIFT */}
+          <AnimatePresence>
+            {showEditShiftModal && editingShift && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={closeEditShiftModal}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-white">✏️ Modifier Shift</h2>
+                    <button
+                      onClick={closeEditShiftModal}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-blue-500/20 rounded-lg border border-blue-500/50">
+                    <p className="text-blue-300 text-sm">
+                      <strong>{getEmployeeName(editingShift.employeeId)}</strong> - {new Date(editingShift.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Horaires */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure début</label>
+                        <input
+                          type="time"
+                          value={newShift.startTime}
+                          onChange={(e) => setNewShift({ ...newShift, startTime: e.target.value })}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure fin</label>
+                        <input
+                          type="time"
+                          value={newShift.endTime}
+                          onChange={(e) => setNewShift({ ...newShift, endTime: e.target.value })}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Position */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Poste</label>
+                      <select
+                        value={newShift.position}
+                        onChange={(e) => setNewShift({ ...newShift, position: e.target.value })}
+                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="Game master">Game master</option>
+                        <option value="Repos hebdomadaire">Repos hebdomadaire</option>
+                        <option value="École - CFA">École - CFA</option>
+                        <option value="Journée">Journée</option>
+                        <option value="Congés">Congés</option>
+                        <option value="Maladie">Maladie</option>
+                      </select>
+                    </div>
+
+                    {/* Couleur */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
+                      <div className="flex gap-2">
+                        {[
+                          { color: '#8B5CF6', label: 'Violet' },
+                          { color: '#3B82F6', label: 'Bleu' },
+                          { color: '#10B981', label: 'Vert' },
+                          { color: '#F59E0B', label: 'Orange' },
+                          { color: '#EF4444', label: 'Rouge' },
+                          { color: '#6B7280', label: 'Gris' }
+                        ].map(({ color, label }) => (
+                          <button
+                            key={color}
+                            onClick={() => setNewShift({ ...newShift, color })}
+                            className={`w-10 h-10 rounded-lg transition-all ${
+                              newShift.color === color ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
+                      <textarea
+                        value={newShift.notes}
+                        onChange={(e) => setNewShift({ ...newShift, notes: e.target.value })}
+                        placeholder="Ajouter une note..."
+                        rows={3}
+                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={closeEditShiftModal}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleUpdateShift}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Modifier le shift
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* PLANNING TABLE */}
           <GlassCard>
             <div className="overflow-x-auto">
@@ -930,29 +1104,38 @@ const PlanningAdvancedPage = () => {
                                       <span>{shift.startTime} - {shift.endTime}</span>
                                     </div>
                                     
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          copyShift(shift);
-                                        }}
-                                        className="p-1 bg-white/20 hover:bg-white/40 rounded"
-                                        title="Copier"
-                                      >
-                                        <Copy className="w-3 h-3 text-white" />
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteShift(shift.id);
-                                        }}
-                                        className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded"
-                                        title="Supprimer"
-                                      >
-                                        <X className="w-3 h-3 text-white" />
-                                      </button>
-                                    </div>
-                                  </div>
+<div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      openEditShiftModal(shift);
+    }}
+    className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded"
+    title="Éditer"
+  >
+    <Edit className="w-3 h-3 text-white" />
+  </button>
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      copyShift(shift);
+    }}
+    className="p-1 bg-white/20 hover:bg-white/40 rounded"
+    title="Copier"
+  >
+    <Copy className="w-3 h-3 text-white" />
+  </button>
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      deleteShift(shift.id);
+    }}
+    className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded"
+    title="Supprimer"
+  >
+    <X className="w-3 h-3 text-white" />
+  </button>
+</div>
                                   
                                   <div className="text-white text-xs opacity-90">
                                     {shift.position}
