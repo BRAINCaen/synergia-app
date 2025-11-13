@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/HRPage.jsx
-// PAGE RH COMPLÈTE - MODULE GESTION DU PERSONNEL
+// PAGE RH COMPLÈTE - MODULE GESTION DU PERSONNEL - VERSION CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -146,10 +146,34 @@ const HRPage = () => {
     try {
       setLoading(true);
 
-      // Charger les employés
-      const employeesQuery = query(collection(db, 'hr_employees'), orderBy('createdAt', 'desc'));
+      // ✅ CORRECTION: Utiliser la collection 'users' existante
+      console.log('👥 Chargement des salariés depuis la collection users...');
+      const employeesQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
       const employeesSnapshot = await getDocs(employeesQuery);
-      const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Mapper les données users vers le format RH
+      const employeesData = employeesSnapshot.docs.map(doc => {
+        const userData = doc.data();
+        return {
+          id: doc.id,
+          // Mapping des champs users → RH
+          firstName: userData.displayName?.split(' ')[0] || userData.profile?.firstName || 'Prénom',
+          lastName: userData.displayName?.split(' ').slice(1).join(' ') || userData.profile?.lastName || 'Nom',
+          email: userData.email || '',
+          phone: userData.profile?.phone || userData.phone || '',
+          position: userData.profile?.role || userData.role || 'Employé',
+          department: userData.profile?.department || 'Non assigné',
+          startDate: userData.createdAt ? new Date(userData.createdAt.seconds * 1000).toLocaleDateString() : 'N/A',
+          status: userData.isActive !== false ? 'active' : 'inactive',
+          photoURL: userData.photoURL || null,
+          // Données supplémentaires
+          level: userData.gamification?.level || 1,
+          totalXP: userData.gamification?.totalXp || 0,
+          createdAt: userData.createdAt
+        };
+      });
+      
+      console.log(`✅ ${employeesData.length} salariés chargés depuis users`);
       setEmployees(employeesData);
 
       // Charger les plannings
@@ -465,9 +489,17 @@ const EmployeeCard = ({ employee, onRefresh }) => {
     <div className="bg-gray-700/30 border border-gray-600/50 rounded-lg p-4 hover:bg-gray-700/50 transition-all">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-            {employee.firstName?.[0]}{employee.lastName?.[0]}
-          </div>
+          {employee.photoURL ? (
+            <img 
+              src={employee.photoURL} 
+              alt={`${employee.firstName} ${employee.lastName}`}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+              {employee.firstName?.[0]}{employee.lastName?.[0]}
+            </div>
+          )}
           <div>
             <h3 className="text-white font-semibold">
               {employee.firstName} {employee.lastName}
@@ -863,8 +895,23 @@ const NewEmployeeModal = ({ onClose, onSuccess }) => {
     setLoading(true);
 
     try {
-      await addDoc(collection(db, 'hr_employees'), {
-        ...formData,
+      // ✅ CORRECTION: Créer un nouvel utilisateur dans la collection 'users'
+      await addDoc(collection(db, 'users'), {
+        displayName: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        profile: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          role: formData.position,
+          department: formData.department
+        },
+        isActive: formData.status === 'active',
+        gamification: {
+          level: 1,
+          totalXp: 0,
+          tasksCompleted: 0
+        },
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
