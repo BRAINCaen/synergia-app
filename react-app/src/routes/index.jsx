@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES - AJOUT PAGE INFO
+// ROUTES COMPLÈTES - AVEC INFOS + PLANNING AVANCÉ
 // ==========================================
 
 import React from 'react';
@@ -8,7 +8,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Pages principales
 import DashboardPage from '../pages/Dashboard.jsx';
-import InfosPage from '../pages/InfosPage.jsx'; // ✅ AJOUT IMPORT
+import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
 import AnalyticsPage from '../pages/AnalyticsPage.jsx';
@@ -23,7 +23,7 @@ import TimeTrackPage from '../pages/TimeTrackPage.jsx';
 
 // ✨ PAGES RH & PLANNING
 import HRPage from '../pages/HRPage.jsx';
-import PlanningPage from '../pages/PlanningPage.jsx';
+import PlanningAdvancedPage from '../pages/PlanningAdvancedPage.jsx';
 
 // Pages admin
 import AdminPage from '../pages/AdminPage.jsx';
@@ -52,7 +52,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         {/* PRINCIPAL */}
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/infos" element={<InfosPage />} /> {/* ✅ AJOUT ROUTE INFO */}
+        <Route path="/infos" element={<InfosPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/projects" element={<CampaignsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
@@ -74,7 +74,7 @@ const AppRoutes = () => {
         
         {/* ✨ MODULES RH & PLANNING */}
         <Route path="/hr" element={<HRPage />} />
-        <Route path="/planning" element={<PlanningPage />} />
+        <Route path="/planning" element={<PlanningAdvancedPage />} />
       </Route>
 
       {/* Routes admin - Nécessitent authentification + rôle admin */}
