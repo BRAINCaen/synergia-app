@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT AVEC MENU COMPLET - RH & PLANNING AJOUTÉS
+// LAYOUT AVEC MENU COMPLET - CORRECTION ROUTE INFO
 // ==========================================
 
 import React, { useState, memo, useRef, useCallback } from 'react';
@@ -16,7 +16,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-          { path: '/info', label: 'Info', icon: 'ℹ️' },
+      { path: '/infos', label: 'Info', icon: 'ℹ️' }, // ✅ CORRECTION: /info → /infos
       { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
       { path: '/projects', label: 'Campagnes', icon: '🎯' },
       { path: '/analytics', label: 'Analytics', icon: '📊' }
@@ -35,7 +35,6 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '🎯' },
       { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' },
-      // 🆕 NOUVELLES ROUTES AJOUTÉES
       { path: '/hr', label: 'RH', icon: '🏢' },
       { path: '/planning', label: 'Planning', icon: '📅' }
     ]},
