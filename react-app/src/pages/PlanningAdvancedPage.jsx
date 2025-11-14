@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningAdvancedPage.jsx  
-// PAGE PLANNING AVANCÉE - SYNCHRONISATION COMPLÈTE HR SETTINGS
+// PAGE PLANNING AVANCÉE COMPLÈTE - AVEC TOUS LES MODALS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -44,7 +44,7 @@ import frenchCalendarService from '../core/services/frenchCalendarService.js';
 // Auth
 import { useAuthStore } from '../shared/stores/authStore.js';
 
-// 🔥 FIREBASE
+// Firebase
 import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -63,10 +63,6 @@ const GlassCard = ({ children, className = '' }) => (
   </motion.div>
 );
 
-/**
- * 📅 PAGE PLANNING AVANCÉE TYPE SKELLO
- * ✅ SYNCHRONISATION COMPLÈTE AVEC HR_SETTINGS
- */
 const PlanningAdvancedPage = () => {
   const { user } = useAuthStore();
 
@@ -139,7 +135,7 @@ const PlanningAdvancedPage = () => {
   const [exporting, setExporting] = useState(false);
 
   // ==========================================
-  // 🔄 CHARGEMENT INITIAL
+  // CHARGEMENT INITIAL
   // ==========================================
 
   useEffect(() => {
@@ -1170,9 +1166,317 @@ const PlanningAdvancedPage = () => {
             </div>
           </GlassCard>
 
-          {/* MODAL CRÉATION SHIFT - Suite du code tronquée pour limite de caractères */}
-          {/* La partie des modals reste identique à la version précédente */}
-          {/* Je vais te donner uniquement la partie de la TABLE qui change */}
+          {/* 🆕 MODAL CRÉATION SHIFT - VOICI CE QUI MANQUAIT ! */}
+          <AnimatePresence>
+            {showAddShiftModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={closeAddShiftModal}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-white">➕ Nouveau Shift</h2>
+                    <button
+                      onClick={closeAddShiftModal}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {selectedCell && (
+                    <div className="mb-4 p-3 bg-purple-500/20 rounded-lg border border-purple-500/50">
+                      <p className="text-purple-300 text-sm">
+                        <strong>{getEmployeeName(selectedCell.employeeId)}</strong> - {new Date(selectedCell.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ALERTES DE CONFORMITÉ */}
+                  {complianceAlerts.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      {complianceAlerts.map((alert, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-3 rounded-lg border ${
+                            alert.type === 'error' ? 'bg-red-500/10 border-red-500/50' : 'bg-yellow-500/10 border-yellow-500/50'
+                          }`}
+                        >
+                          <p className={`text-sm ${
+                            alert.type === 'error' ? 'text-red-300' : 'text-yellow-300'
+                          }`}>
+                            {alert.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {/* Horaires */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure début</label>
+                        <input
+                          type="time"
+                          value={newShift.startTime}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, startTime: e.target.value });
+                            if (selectedCell) {
+                              const alerts = checkShiftCompliance(
+                                { ...newShift, startTime: e.target.value },
+                                selectedCell.employeeId,
+                                selectedCell.date
+                              );
+                              setComplianceAlerts(alerts);
+                            }
+                          }}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure fin</label>
+                        <input
+                          type="time"
+                          value={newShift.endTime}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, endTime: e.target.value });
+                            if (selectedCell) {
+                              const alerts = checkShiftCompliance(
+                                { ...newShift, endTime: e.target.value },
+                                selectedCell.employeeId,
+                                selectedCell.date
+                              );
+                              setComplianceAlerts(alerts);
+                            }
+                          }}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Position/Absence - POSTES DEPUIS HR_SETTINGS */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Poste / Absence</label>
+                      {getAllShiftTypes().length > 0 ? (
+                        <select
+                          value={newShift.position}
+                          onChange={(e) => handleShiftTypeChange(e.target.value)}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                        >
+                          {getAllShiftTypes().map((type) => (
+                            <option key={type.id} value={type.name}>
+                              {type.isAbsence ? '🏖️ ' : '📌 '}{type.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-red-400 text-sm">⚠️ Aucun poste configuré dans HR Settings</p>
+                      )}
+                    </div>
+
+                    {/* Couleur - Aperçu */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
+                      <div 
+                        className="w-full h-10 rounded-lg border-2 border-gray-600"
+                        style={{ backgroundColor: newShift.color }}
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
+                      <textarea
+                        value={newShift.notes}
+                        onChange={(e) => setNewShift({ ...newShift, notes: e.target.value })}
+                        placeholder="Ajouter une note..."
+                        rows={3}
+                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={closeAddShiftModal}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleCreateShift}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Créer le shift
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 🆕 MODAL ÉDITION SHIFT - VOICI CE QUI MANQUAIT AUSSI ! */}
+          <AnimatePresence>
+            {showEditShiftModal && editingShift && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={closeEditShiftModal}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-white">✏️ Modifier Shift</h2>
+                    <button
+                      onClick={closeEditShiftModal}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-blue-500/20 rounded-lg border border-blue-500/50">
+                    <p className="text-blue-300 text-sm">
+                      <strong>{getEmployeeName(editingShift.employeeId)}</strong> - {new Date(editingShift.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </p>
+                  </div>
+
+                  {/* ALERTES DE CONFORMITÉ */}
+                  {complianceAlerts.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      {complianceAlerts.map((alert, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-3 rounded-lg border ${
+                            alert.type === 'error' ? 'bg-red-500/10 border-red-500/50' : 'bg-yellow-500/10 border-yellow-500/50'
+                          }`}
+                        >
+                          <p className={`text-sm ${
+                            alert.type === 'error' ? 'text-red-300' : 'text-yellow-300'
+                          }`}>
+                            {alert.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {/* Horaires */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure début</label>
+                        <input
+                          type="time"
+                          value={newShift.startTime}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, startTime: e.target.value });
+                            const alerts = checkShiftCompliance(
+                              { ...newShift, startTime: e.target.value },
+                              editingShift.employeeId,
+                              editingShift.date
+                            );
+                            setComplianceAlerts(alerts);
+                          }}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Heure fin</label>
+                        <input
+                          type="time"
+                          value={newShift.endTime}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, endTime: e.target.value });
+                            const alerts = checkShiftCompliance(
+                              { ...newShift, endTime: e.target.value },
+                              editingShift.employeeId,
+                              editingShift.date
+                            );
+                            setComplianceAlerts(alerts);
+                          }}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Position */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Poste / Absence</label>
+                      {getAllShiftTypes().length > 0 ? (
+                        <select
+                          value={newShift.position}
+                          onChange={(e) => handleShiftTypeChange(e.target.value)}
+                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        >
+                          {getAllShiftTypes().map((type) => (
+                            <option key={type.id} value={type.name}>
+                              {type.isAbsence ? '🏖️ ' : '📌 '}{type.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-red-400 text-sm">⚠️ Aucun poste configuré dans HR Settings</p>
+                      )}
+                    </div>
+
+                    {/* Couleur */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
+                      <div 
+                        className="w-full h-10 rounded-lg border-2 border-gray-600"
+                        style={{ backgroundColor: newShift.color }}
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
+                      <textarea
+                        value={newShift.notes}
+                        onChange={(e) => setNewShift({ ...newShift, notes: e.target.value })}
+                        placeholder="Ajouter une note..."
+                        rows={3}
+                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={closeEditShiftModal}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleUpdateShift}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
+                    >
+                      Modifier le shift
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* PLANNING TABLE */}
           <GlassCard>
@@ -1227,10 +1531,9 @@ const PlanningAdvancedPage = () => {
                     
                     return (
                       <tr key={employee.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors">
-                        {/* 🆕 COLONNE EMPLOYÉ AVEC PHOTO */}
+                        {/* COLONNE EMPLOYÉ AVEC PHOTO */}
                         <td className="p-4 sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10">
                           <div className="flex items-center gap-3">
-                            {/* 🆕 AFFICHAGE PHOTO OU INITIALE */}
                             {employee.photoURL ? (
                               <img 
                                 src={employee.photoURL} 
