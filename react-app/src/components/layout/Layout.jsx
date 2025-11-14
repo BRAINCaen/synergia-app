@@ -16,7 +16,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction }) => {
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-          { path: '/info', label: 'Info', icon: 'ℹ️' }
+          { path: '/info', label: 'Info', icon: 'ℹ️' },
       { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
       { path: '/projects', label: 'Campagnes', icon: '🎯' },
       { path: '/analytics', label: 'Analytics', icon: '📊' }
