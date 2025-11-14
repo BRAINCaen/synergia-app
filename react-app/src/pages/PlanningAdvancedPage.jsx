@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningAdvancedPage.jsx
-// PAGE PLANNING AVANCÉE TYPE SKELLO AVEC CALENDRIER FRANÇAIS
+// PAGE PLANNING AVANCÉE TYPE SKELLO AVEC SYNCHRONISATION HR SETTINGS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Plus,
   Copy,
-    Edit,
+  Edit,
   Clipboard,
   RefreshCw,
   Download,
@@ -42,6 +42,10 @@ import frenchCalendarService from '../core/services/frenchCalendarService.js';
 // Auth
 import { useAuthStore } from '../shared/stores/authStore.js';
 
+// 🔥 FIREBASE pour charger hr_settings
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
+
 // Composants UI
 const GlassCard = ({ children, className = '' }) => (
   <motion.div
@@ -59,6 +63,7 @@ const GlassCard = ({ children, className = '' }) => (
 
 /**
  * 📅 PAGE PLANNING AVANCÉE TYPE SKELLO
+ * ✅ SYNCHRONISÉ AVEC HR_SETTINGS
  */
 const PlanningAdvancedPage = () => {
   const { user } = useAuthStore();
@@ -68,6 +73,14 @@ const PlanningAdvancedPage = () => {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // 🆕 PARAMÈTRES RH SYNCHRONISÉS
+  const [hrSettings, setHrSettings] = useState({
+    positions: [],
+    rules: {},
+    alerts: [],
+    loaded: false
+  });
   
   // Navigation semaine
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -99,6 +112,9 @@ const PlanningAdvancedPage = () => {
     notes: ''
   });
   
+  // 🆕 ALERTES DE CONFORMITÉ
+  const [complianceAlerts, setComplianceAlerts] = useState([]);
+  
   // Compteurs heures contrat
   const [weeklyHoursComparison, setWeeklyHoursComparison] = useState([]);
   
@@ -114,12 +130,88 @@ const PlanningAdvancedPage = () => {
   const [exporting, setExporting] = useState(false);
 
   // ==========================================
-  // 🔄 CHARGEMENT INITIAL
+  // 🔄 CHARGEMENT INITIAL + HR SETTINGS
   // ==========================================
 
   useEffect(() => {
-    loadPlanningData();
-  }, [currentWeek]);
+    loadHRSettings();
+  }, []);
+
+  useEffect(() => {
+    if (hrSettings.loaded) {
+      loadPlanningData();
+    }
+  }, [currentWeek, hrSettings.loaded]);
+
+  /**
+   * 🆕 CHARGER LES PARAMÈTRES RH
+   */
+  const loadHRSettings = async () => {
+    try {
+      console.log('📋 Chargement des paramètres RH...');
+      
+      const settingsRef = doc(db, 'hr_settings', 'main');
+      const settingsSnap = await getDoc(settingsRef);
+      
+      if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
+        
+        setHrSettings({
+          positions: data.positions || [
+            { id: 'game_master', name: 'Game master', color: '#8B5CF6', breakTime: 20 },
+            { id: 'repos', name: 'Repos hebdomadaire', color: '#6B7280', breakTime: 0 },
+            { id: 'ecole', name: 'École - CFA', color: '#3B82F6', breakTime: 0 },
+            { id: 'journee', name: 'Journée', color: '#10B981', breakTime: 30 },
+            { id: 'conges', name: 'Congés', color: '#F59E0B', breakTime: 0 },
+            { id: 'maladie', name: 'Maladie', color: '#EF4444', breakTime: 0 }
+          ],
+          rules: data.rules || {
+            conventionCollective: 'IDCC 1790 - Espaces de loisirs, d\'attractions et culturels',
+            workHoursBeforeBreak: 6,
+            breakDuration: 20,
+            chargesRate: 43
+          },
+          alerts: data.alerts || [],
+          loaded: true
+        });
+        
+        console.log('✅ Paramètres RH chargés:', data.positions?.length || 0, 'positions');
+      } else {
+        // Paramètres par défaut si non configurés
+        setHrSettings({
+          positions: [
+            { id: 'game_master', name: 'Game master', color: '#8B5CF6', breakTime: 20 },
+            { id: 'repos', name: 'Repos hebdomadaire', color: '#6B7280', breakTime: 0 },
+            { id: 'ecole', name: 'École - CFA', color: '#3B82F6', breakTime: 0 },
+            { id: 'journee', name: 'Journée', color: '#10B981', breakTime: 30 },
+            { id: 'conges', name: 'Congés', color: '#F59E0B', breakTime: 0 },
+            { id: 'maladie', name: 'Maladie', color: '#EF4444', breakTime: 0 }
+          ],
+          rules: {
+            conventionCollective: 'IDCC 1790',
+            workHoursBeforeBreak: 6,
+            breakDuration: 20,
+            chargesRate: 43
+          },
+          alerts: [],
+          loaded: true
+        });
+        
+        console.log('📝 Paramètres RH par défaut utilisés');
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement paramètres RH:', error);
+      // Utiliser paramètres par défaut en cas d'erreur
+      setHrSettings({
+        positions: [
+          { id: 'game_master', name: 'Game master', color: '#8B5CF6', breakTime: 20 }
+        ],
+        rules: {},
+        alerts: [],
+        loaded: true
+      });
+    }
+  };
 
   const loadPlanningData = async () => {
     try {
@@ -199,28 +291,171 @@ const PlanningAdvancedPage = () => {
   };
 
   // ==========================================
+  // 🆕 VÉRIFICATION DE CONFORMITÉ
+  // ==========================================
+
+  /**
+   * Vérifier la conformité d'un shift avec les règles RH
+   */
+  const checkShiftCompliance = (shiftData, employeeId, date) => {
+    const alerts = [];
+    
+    if (!hrSettings.alerts || hrSettings.alerts.length === 0) {
+      return alerts;
+    }
+
+    // Récupérer les shifts existants de l'employé pour la semaine
+    const weekStart = getWeekStart(new Date(date));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    const employeeShifts = shifts.filter(s => 
+      s.employeeId === employeeId &&
+      new Date(s.date) >= weekStart &&
+      new Date(s.date) <= weekEnd
+    );
+
+    // Vérifier chaque alerte active
+    hrSettings.alerts.forEach(alert => {
+      if (!alert.active) return;
+
+      switch (alert.id) {
+        case 'daily_hours':
+          // Vérifier durée journalière
+          const dailyShifts = shifts.filter(s => s.employeeId === employeeId && s.date === date);
+          const dailyHours = dailyShifts.reduce((sum, s) => sum + (s.duration || 0), 0);
+          const newDuration = calculateDuration(shiftData.startTime, shiftData.endTime);
+          
+          if (dailyHours + newDuration > (alert.value || 10)) {
+            alerts.push({
+              type: 'error',
+              message: `⚠️ Dépassement durée journalière : ${(dailyHours + newDuration).toFixed(1)}h / ${alert.value}h max`,
+              blocking: alert.blocking
+            });
+          }
+          break;
+
+        case 'break':
+          // Vérifier pause obligatoire
+          const duration = calculateDuration(shiftData.startTime, shiftData.endTime);
+          const requiredBreak = hrSettings.rules.workHoursBeforeBreak || 6;
+          
+          if (duration >= requiredBreak) {
+            const position = hrSettings.positions.find(p => p.name === shiftData.position);
+            if (!position || position.breakTime < (alert.value || 20)) {
+              alerts.push({
+                type: 'warning',
+                message: `💡 Pause obligatoire : ce shift nécessite une pause de ${alert.value || 20} minutes`,
+                blocking: false
+              });
+            }
+          }
+          break;
+
+        case 'consecutive_days':
+          // Vérifier jours consécutifs
+          const consecutiveDays = calculateConsecutiveDays(employeeShifts, date);
+          if (consecutiveDays >= (alert.value || 6)) {
+            alerts.push({
+              type: 'error',
+              message: `⚠️ Trop de jours consécutifs : ${consecutiveDays + 1} jours (max ${alert.value})`,
+              blocking: alert.blocking
+            });
+          }
+          break;
+
+        case 'weekly_hours':
+          // Vérifier heures hebdomadaires
+          const weeklyHours = employeeShifts.reduce((sum, s) => sum + (s.duration || 0), 0);
+          const newShiftDuration = calculateDuration(shiftData.startTime, shiftData.endTime);
+          
+          if (weeklyHours + newShiftDuration > (alert.value || 48)) {
+            alerts.push({
+              type: 'error',
+              message: `⚠️ Dépassement heures hebdomadaires : ${(weeklyHours + newShiftDuration).toFixed(1)}h / ${alert.value}h max`,
+              blocking: alert.blocking
+            });
+          }
+          break;
+      }
+    });
+
+    return alerts;
+  };
+
+  const calculateDuration = (startTime, endTime) => {
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    return (endH * 60 + endM - startH * 60 - startM) / 60;
+  };
+
+  const calculateConsecutiveDays = (employeeShifts, newDate) => {
+    const sortedShifts = [...employeeShifts].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let consecutive = 0;
+    let lastDate = null;
+
+    for (const shift of sortedShifts) {
+      const shiftDate = new Date(shift.date);
+      if (lastDate) {
+        const daysDiff = (shiftDate - lastDate) / (1000 * 60 * 60 * 24);
+        if (daysDiff === 1) {
+          consecutive++;
+        } else if (daysDiff > 1) {
+          consecutive = 0;
+        }
+      }
+      lastDate = shiftDate;
+    }
+
+    return consecutive;
+  };
+
+  // ==========================================
   // ➕ CRÉATION DE SHIFT
   // ==========================================
 
   const openAddShiftModal = (employeeId, date) => {
     setSelectedCell({ employeeId, date });
+    
+    // 🆕 Utiliser la première position des paramètres RH
+    const defaultPosition = hrSettings.positions[0] || { name: 'Game master', color: '#8B5CF6' };
+    
     setNewShift({
       startTime: '09:00',
       endTime: '17:00',
-      position: 'Game master',
-      color: '#8B5CF6',
+      position: defaultPosition.name,
+      color: defaultPosition.color,
       notes: ''
     });
+    
+    // Vérifier la conformité
+    const alerts = checkShiftCompliance(
+      { startTime: '09:00', endTime: '17:00', position: defaultPosition.name },
+      employeeId,
+      date
+    );
+    setComplianceAlerts(alerts);
+    
     setShowAddShiftModal(true);
   };
 
   const closeAddShiftModal = () => {
     setShowAddShiftModal(false);
     setSelectedCell(null);
+    setComplianceAlerts([]);
   };
 
   const handleCreateShift = async () => {
     if (!selectedCell) return;
+
+    // Vérifier les alertes bloquantes
+    const blockingAlerts = complianceAlerts.filter(a => a.blocking);
+    if (blockingAlerts.length > 0) {
+      const confirmCreate = confirm(
+        `⚠️ ALERTES BLOQUANTES DÉTECTÉES :\n\n${blockingAlerts.map(a => a.message).join('\n')}\n\nVoulez-vous quand même créer ce shift ?`
+      );
+      if (!confirmCreate) return;
+    }
 
     try {
       const shiftData = {
@@ -257,16 +492,35 @@ const PlanningAdvancedPage = () => {
       color: shift.color || '#8B5CF6',
       notes: shift.notes || ''
     });
+    
+    // Vérifier la conformité
+    const alerts = checkShiftCompliance(
+      { startTime: shift.startTime, endTime: shift.endTime, position: shift.position },
+      shift.employeeId,
+      shift.date
+    );
+    setComplianceAlerts(alerts);
+    
     setShowEditShiftModal(true);
   };
 
   const closeEditShiftModal = () => {
     setShowEditShiftModal(false);
     setEditingShift(null);
+    setComplianceAlerts([]);
   };
 
   const handleUpdateShift = async () => {
     if (!editingShift) return;
+
+    // Vérifier les alertes bloquantes
+    const blockingAlerts = complianceAlerts.filter(a => a.blocking);
+    if (blockingAlerts.length > 0) {
+      const confirmUpdate = confirm(
+        `⚠️ ALERTES BLOQUANTES DÉTECTÉES :\n\n${blockingAlerts.map(a => a.message).join('\n')}\n\nVoulez-vous quand même modifier ce shift ?`
+      );
+      if (!confirmUpdate) return;
+    }
 
     try {
       const updateData = {
@@ -284,6 +538,28 @@ const PlanningAdvancedPage = () => {
     } catch (error) {
       console.error('❌ Erreur modification shift:', error);
       showNotification('❌ Erreur lors de la modification', 'error');
+    }
+  };
+  
+  // 🆕 Handler pour changement de position (met à jour la couleur automatiquement)
+  const handlePositionChange = (positionName) => {
+    const position = hrSettings.positions.find(p => p.name === positionName);
+    if (position) {
+      setNewShift({
+        ...newShift,
+        position: positionName,
+        color: position.color
+      });
+      
+      // Revérifier la conformité
+      if (selectedCell) {
+        const alerts = checkShiftCompliance(
+          { ...newShift, position: positionName },
+          selectedCell.employeeId,
+          selectedCell.date
+        );
+        setComplianceAlerts(alerts);
+      }
     }
   };
   
@@ -556,17 +832,18 @@ const PlanningAdvancedPage = () => {
     const employee = employees.find(e => e.id === employeeId);
     return employee ? employee.name : 'Employé';
   };
+
   // ==========================================
   // 🎨 RENDER LOADING
   // ==========================================
 
-  if (loading) {
+  if (loading || !hrSettings.loaded) {
     return (
       <Layout>
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement du planning...</p>
+            <p className="text-gray-400">Chargement du planning et des paramètres RH...</p>
           </div>
         </div>
       </Layout>
@@ -592,6 +869,11 @@ const PlanningAdvancedPage = () => {
                 <p className="text-gray-400">
                   Gestion avancée des shifts et horaires - Zone Normandie
                 </p>
+                {hrSettings.rules.conventionCollective && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    📋 {hrSettings.rules.conventionCollective}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -776,6 +1058,26 @@ const PlanningAdvancedPage = () => {
                     </div>
                   )}
 
+                  {/* 🆕 ALERTES DE CONFORMITÉ */}
+                  {complianceAlerts.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      {complianceAlerts.map((alert, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-3 rounded-lg border ${
+                            alert.type === 'error' ? 'bg-red-500/10 border-red-500/50' : 'bg-yellow-500/10 border-yellow-500/50'
+                          }`}
+                        >
+                          <p className={`text-sm ${
+                            alert.type === 'error' ? 'text-red-300' : 'text-yellow-300'
+                          }`}>
+                            {alert.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                     {/* Horaires */}
                     <div className="grid grid-cols-2 gap-4">
@@ -784,7 +1086,17 @@ const PlanningAdvancedPage = () => {
                         <input
                           type="time"
                           value={newShift.startTime}
-                          onChange={(e) => setNewShift({ ...newShift, startTime: e.target.value })}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, startTime: e.target.value });
+                            if (selectedCell) {
+                              const alerts = checkShiftCompliance(
+                                { ...newShift, startTime: e.target.value },
+                                selectedCell.employeeId,
+                                selectedCell.date
+                              );
+                              setComplianceAlerts(alerts);
+                            }
+                          }}
                           className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
                         />
                       </div>
@@ -793,52 +1105,45 @@ const PlanningAdvancedPage = () => {
                         <input
                           type="time"
                           value={newShift.endTime}
-                          onChange={(e) => setNewShift({ ...newShift, endTime: e.target.value })}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, endTime: e.target.value });
+                            if (selectedCell) {
+                              const alerts = checkShiftCompliance(
+                                { ...newShift, endTime: e.target.value },
+                                selectedCell.employeeId,
+                                selectedCell.date
+                              );
+                              setComplianceAlerts(alerts);
+                            }
+                          }}
                           className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
                         />
                       </div>
                     </div>
 
-                    {/* Position */}
+                    {/* Position - 🆕 Utilise les positions de hr_settings */}
                     <div>
                       <label className="block text-gray-400 text-sm mb-2">Poste</label>
                       <select
                         value={newShift.position}
-                        onChange={(e) => setNewShift({ ...newShift, position: e.target.value })}
+                        onChange={(e) => handlePositionChange(e.target.value)}
                         className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
                       >
-                        <option value="Game master">Game master</option>
-                        <option value="Repos hebdomadaire">Repos hebdomadaire</option>
-                        <option value="École - CFA">École - CFA</option>
-                        <option value="Journée">Journée</option>
-                        <option value="Congés">Congés</option>
-                        <option value="Maladie">Maladie</option>
+                        {hrSettings.positions.map((position) => (
+                          <option key={position.id} value={position.name}>
+                            {position.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
-                    {/* Couleur */}
+                    {/* Couleur - 🆕 Aperçu de la couleur du poste */}
                     <div>
-                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
-                      <div className="flex gap-2">
-                        {[
-                          { color: '#8B5CF6', label: 'Violet' },
-                          { color: '#3B82F6', label: 'Bleu' },
-                          { color: '#10B981', label: 'Vert' },
-                          { color: '#F59E0B', label: 'Orange' },
-                          { color: '#EF4444', label: 'Rouge' },
-                          { color: '#6B7280', label: 'Gris' }
-                        ].map(({ color, label }) => (
-                          <button
-                            key={color}
-                            onClick={() => setNewShift({ ...newShift, color })}
-                            className={`w-10 h-10 rounded-lg transition-all ${
-                              newShift.color === color ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'
-                            }`}
-                            style={{ backgroundColor: color }}
-                            title={label}
-                          />
-                        ))}
-                      </div>
+                      <label className="block text-gray-400 text-sm mb-2">Couleur du poste</label>
+                      <div 
+                        className="w-full h-10 rounded-lg border-2 border-gray-600"
+                        style={{ backgroundColor: newShift.color }}
+                      />
                     </div>
 
                     {/* Notes */}
@@ -872,6 +1177,7 @@ const PlanningAdvancedPage = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
           {/* MODAL ÉDITION SHIFT */}
           <AnimatePresence>
             {showEditShiftModal && editingShift && (
@@ -905,6 +1211,26 @@ const PlanningAdvancedPage = () => {
                     </p>
                   </div>
 
+                  {/* ALERTES DE CONFORMITÉ */}
+                  {complianceAlerts.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      {complianceAlerts.map((alert, idx) => (
+                        <div 
+                          key={idx}
+                          className={`p-3 rounded-lg border ${
+                            alert.type === 'error' ? 'bg-red-500/10 border-red-500/50' : 'bg-yellow-500/10 border-yellow-500/50'
+                          }`}
+                        >
+                          <p className={`text-sm ${
+                            alert.type === 'error' ? 'text-red-300' : 'text-yellow-300'
+                          }`}>
+                            {alert.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                     {/* Horaires */}
                     <div className="grid grid-cols-2 gap-4">
@@ -913,7 +1239,15 @@ const PlanningAdvancedPage = () => {
                         <input
                           type="time"
                           value={newShift.startTime}
-                          onChange={(e) => setNewShift({ ...newShift, startTime: e.target.value })}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, startTime: e.target.value });
+                            const alerts = checkShiftCompliance(
+                              { ...newShift, startTime: e.target.value },
+                              editingShift.employeeId,
+                              editingShift.date
+                            );
+                            setComplianceAlerts(alerts);
+                          }}
                           className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
                         />
                       </div>
@@ -922,7 +1256,15 @@ const PlanningAdvancedPage = () => {
                         <input
                           type="time"
                           value={newShift.endTime}
-                          onChange={(e) => setNewShift({ ...newShift, endTime: e.target.value })}
+                          onChange={(e) => {
+                            setNewShift({ ...newShift, endTime: e.target.value });
+                            const alerts = checkShiftCompliance(
+                              { ...newShift, endTime: e.target.value },
+                              editingShift.employeeId,
+                              editingShift.date
+                            );
+                            setComplianceAlerts(alerts);
+                          }}
                           className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
                         />
                       </div>
@@ -933,41 +1275,24 @@ const PlanningAdvancedPage = () => {
                       <label className="block text-gray-400 text-sm mb-2">Poste</label>
                       <select
                         value={newShift.position}
-                        onChange={(e) => setNewShift({ ...newShift, position: e.target.value })}
+                        onChange={(e) => handlePositionChange(e.target.value)}
                         className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
                       >
-                        <option value="Game master">Game master</option>
-                        <option value="Repos hebdomadaire">Repos hebdomadaire</option>
-                        <option value="École - CFA">École - CFA</option>
-                        <option value="Journée">Journée</option>
-                        <option value="Congés">Congés</option>
-                        <option value="Maladie">Maladie</option>
+                        {hrSettings.positions.map((position) => (
+                          <option key={position.id} value={position.name}>
+                            {position.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
                     {/* Couleur */}
                     <div>
-                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
-                      <div className="flex gap-2">
-                        {[
-                          { color: '#8B5CF6', label: 'Violet' },
-                          { color: '#3B82F6', label: 'Bleu' },
-                          { color: '#10B981', label: 'Vert' },
-                          { color: '#F59E0B', label: 'Orange' },
-                          { color: '#EF4444', label: 'Rouge' },
-                          { color: '#6B7280', label: 'Gris' }
-                        ].map(({ color, label }) => (
-                          <button
-                            key={color}
-                            onClick={() => setNewShift({ ...newShift, color })}
-                            className={`w-10 h-10 rounded-lg transition-all ${
-                              newShift.color === color ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'
-                            }`}
-                            style={{ backgroundColor: color }}
-                            title={label}
-                          />
-                        ))}
-                      </div>
+                      <label className="block text-gray-400 text-sm mb-2">Couleur du poste</label>
+                      <div 
+                        className="w-full h-10 rounded-lg border-2 border-gray-600"
+                        style={{ backgroundColor: newShift.color }}
+                      />
                     </div>
 
                     {/* Notes */}
@@ -1001,6 +1326,7 @@ const PlanningAdvancedPage = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
           {/* PLANNING TABLE */}
           <GlassCard>
             <div className="overflow-x-auto">
@@ -1105,45 +1431,43 @@ const PlanningAdvancedPage = () => {
                                       <span>{shift.startTime} - {shift.endTime}</span>
                                     </div>
                                     
-<div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      openEditShiftModal(shift);
-    }}
-    className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded"
-    title="Éditer"
-  >
-    <Edit className="w-3 h-3 text-white" />
-  </button>
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      copyShift(shift);
-    }}
-    className="p-1 bg-white/20 hover:bg-white/40 rounded"
-    title="Copier"
-  >
-    <Copy className="w-3 h-3 text-white" />
-  </button>
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      deleteShift(shift.id);
-    }}
-    className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded"
-    title="Supprimer"
-  >
-    <X className="w-3 h-3 text-white" />
-  </button>
-</div>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openEditShiftModal(shift);
+                                        }}
+                                        className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded"
+                                        title="Éditer"
+                                      >
+                                        <Edit className="w-3 h-3 text-white" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyShift(shift);
+                                        }}
+                                        className="p-1 bg-white/20 hover:bg-white/40 rounded"
+                                        title="Copier"
+                                      >
+                                        <Copy className="w-3 h-3 text-white" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteShift(shift.id);
+                                        }}
+                                        className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded"
+                                        title="Supprimer"
+                                      >
+                                        <X className="w-3 h-3 text-white" />
+                                      </button>
+                                    </div>
                                   </div>
                                   
                                   <div className="text-white text-xs opacity-90">
                                     {shift.position}
                                   </div>
-                                  
-                                  
                                   
                                   {shift.duration && (
                                     <div className="text-white text-xs font-semibold mt-1">
@@ -1206,6 +1530,7 @@ const PlanningAdvancedPage = () => {
                     <li>• Cliquer sur <Copy className="w-3 h-3 inline" /> pour copier un shift</li>
                     <li>• Double-cliquer sur une cellule vide pour coller</li>
                     <li>• Le compteur montre les heures planifiées vs contrat (35h par défaut)</li>
+                    <li>• Les alertes de conformité s'affichent automatiquement selon vos paramètres RH</li>
                   </ul>
                 </div>
 
