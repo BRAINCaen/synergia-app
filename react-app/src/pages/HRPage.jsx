@@ -1383,7 +1383,7 @@ const SettingsTab = () => {
 
   // États pour les paramètres
   const [rules, setRules] = useState({
-    conventionCollective: 'IDCC 1790 - Espaces de loisirs, d'attractions et culturels',
+    conventionCollective: "IDCC 1790 - Espaces de loisirs, d'attractions et culturels",
     workHoursBeforeBreak: 6,
     breakDuration: 20,
     payBreaks: false,
