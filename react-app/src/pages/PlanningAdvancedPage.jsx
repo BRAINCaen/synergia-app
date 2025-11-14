@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/PlanningAdvancedPage.jsx  
-// PAGE PLANNING AVANCÉE COMPLÈTE - AVEC TOUS LES MODALS
+// PAGE PLANNING AVANCÉE COMPLÈTE - SANS POPUPS
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -494,14 +494,6 @@ const PlanningAdvancedPage = () => {
   const handleCreateShift = async () => {
     if (!selectedCell) return;
 
-    const blockingAlerts = complianceAlerts.filter(a => a.blocking);
-    if (blockingAlerts.length > 0) {
-      const confirmCreate = confirm(
-        `⚠️ ALERTES BLOQUANTES :\n\n${blockingAlerts.map(a => a.message).join('\n')}\n\nCréer quand même ?`
-      );
-      if (!confirmCreate) return;
-    }
-
     try {
       const shiftData = {
         employeeId: selectedCell.employeeId,
@@ -563,14 +555,6 @@ const PlanningAdvancedPage = () => {
 
   const handleUpdateShift = async () => {
     if (!editingShift) return;
-
-    const blockingAlerts = complianceAlerts.filter(a => a.blocking);
-    if (blockingAlerts.length > 0) {
-      const confirmUpdate = confirm(
-        `⚠️ ALERTES BLOQUANTES :\n\n${blockingAlerts.map(a => a.message).join('\n')}\n\nModifier quand même ?`
-      );
-      if (!confirmUpdate) return;
-    }
 
     try {
       const updateData = {
@@ -698,8 +682,6 @@ const PlanningAdvancedPage = () => {
   // ==========================================
 
   const deleteShift = async (shiftId) => {
-    if (!confirm('Supprimer ce shift ?')) return;
-    
     try {
       await planningEnrichedService.deleteShift(shiftId);
       showNotification('✅ Shift supprimé', 'success');
@@ -742,8 +724,6 @@ const PlanningAdvancedPage = () => {
   };
 
   const duplicateWeek = async () => {
-    if (!confirm('Dupliquer sur semaine suivante ?')) return;
-    
     try {
       const weekStart = getWeekStart(currentWeek);
       const nextWeekStart = new Date(weekStart);
@@ -1166,7 +1146,7 @@ const PlanningAdvancedPage = () => {
             </div>
           </GlassCard>
 
-          {/* 🆕 MODAL CRÉATION SHIFT - VOICI CE QUI MANQUAIT ! */}
+          {/* MODAL CRÉATION SHIFT */}
           <AnimatePresence>
             {showAddShiftModal && (
               <motion.div
@@ -1201,7 +1181,6 @@ const PlanningAdvancedPage = () => {
                     </div>
                   )}
 
-                  {/* ALERTES DE CONFORMITÉ */}
                   {complianceAlerts.length > 0 && (
                     <div className="mb-4 space-y-2">
                       {complianceAlerts.map((alert, idx) => (
@@ -1222,7 +1201,6 @@ const PlanningAdvancedPage = () => {
                   )}
 
                   <div className="space-y-4">
-                    {/* Horaires */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-gray-400 text-sm mb-2">Heure début</label>
@@ -1264,7 +1242,6 @@ const PlanningAdvancedPage = () => {
                       </div>
                     </div>
 
-                    {/* Position/Absence - POSTES DEPUIS HR_SETTINGS */}
                     <div>
                       <label className="block text-gray-400 text-sm mb-2">Poste / Absence</label>
                       {getAllShiftTypes().length > 0 ? (
@@ -1284,7 +1261,6 @@ const PlanningAdvancedPage = () => {
                       )}
                     </div>
 
-                    {/* Couleur - Aperçu */}
                     <div>
                       <label className="block text-gray-400 text-sm mb-2">Couleur</label>
                       <div 
@@ -1293,7 +1269,6 @@ const PlanningAdvancedPage = () => {
                       />
                     </div>
 
-                    {/* Notes */}
                     <div>
                       <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
                       <textarea
@@ -1325,7 +1300,7 @@ const PlanningAdvancedPage = () => {
             )}
           </AnimatePresence>
 
-          {/* 🆕 MODAL ÉDITION SHIFT - VOICI CE QUI MANQUAIT AUSSI ! */}
+          {/* MODAL ÉDITION SHIFT */}
           <AnimatePresence>
             {showEditShiftModal && editingShift && (
               <motion.div
@@ -1358,7 +1333,6 @@ const PlanningAdvancedPage = () => {
                     </p>
                   </div>
 
-                  {/* ALERTES DE CONFORMITÉ */}
                   {complianceAlerts.length > 0 && (
                     <div className="mb-4 space-y-2">
                       {complianceAlerts.map((alert, idx) => (
@@ -1379,7 +1353,6 @@ const PlanningAdvancedPage = () => {
                   )}
 
                   <div className="space-y-4">
-                    {/* Horaires */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-gray-400 text-sm mb-2">Heure début</label>
@@ -1417,7 +1390,6 @@ const PlanningAdvancedPage = () => {
                       </div>
                     </div>
 
-                    {/* Position */}
                     <div>
                       <label className="block text-gray-400 text-sm mb-2">Poste / Absence</label>
                       {getAllShiftTypes().length > 0 ? (
@@ -1437,7 +1409,6 @@ const PlanningAdvancedPage = () => {
                       )}
                     </div>
 
-                    {/* Couleur */}
                     <div>
                       <label className="block text-gray-400 text-sm mb-2">Couleur</label>
                       <div 
@@ -1446,7 +1417,6 @@ const PlanningAdvancedPage = () => {
                       />
                     </div>
 
-                    {/* Notes */}
                     <div>
                       <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
                       <textarea
@@ -1531,7 +1501,6 @@ const PlanningAdvancedPage = () => {
                     
                     return (
                       <tr key={employee.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors">
-                        {/* COLONNE EMPLOYÉ AVEC PHOTO */}
                         <td className="p-4 sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10">
                           <div className="flex items-center gap-3">
                             {employee.photoURL ? (
@@ -1552,7 +1521,6 @@ const PlanningAdvancedPage = () => {
                           </div>
                         </td>
 
-                        {/* CELLULES SHIFTS */}
                         {weekDates.map(date => {
                           const shift = getShiftForCell(employee.id, date);
                           const isOver = dragOverCell?.employeeId === employee.id && dragOverCell?.date === date;
@@ -1645,7 +1613,6 @@ const PlanningAdvancedPage = () => {
                           );
                         })}
 
-                        {/* COLONNE COMPTEUR HEURES */}
                         <td className="p-4 text-center">
                           <div className="space-y-1">
                             <div className="text-white font-semibold">
