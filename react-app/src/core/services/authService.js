@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/authService.js
-// Service d'authentification PROPRE - Extension .js corrigée
+// Service d'authentification PROPRE - IMPORT CENTRALISÉ
 // ==========================================
 
 import { 
@@ -220,71 +220,30 @@ class AuthService {
           lastActivityDate: now,
           
           // Historique
-          xpHistory: [],
-          levelUpHistory: [],
-          
-          // Métriques calculées
-          completionRate: 0,
-          averageTaskXp: 0,
-          productivity: 'starting',
-          weeklyProgress: 0,
-          monthlyProgress: 0
-        },
-        
-        // Statistiques d'équipe
-        teamStats: {
-          teamsJoined: 0,
-          leadershipRoles: 0,
-          mentorships: 0,
-          collaborationScore: 0,
-          helpfulness: 0,
-          communicationRating: 0
-        },
-        
-        // Préférences système
-        systemSettings: {
-          dashboardLayout: 'default',
-          sidebarCollapsed: false,
-          notificationSound: true,
-          autoSave: true,
-          darkMode: true
-        },
-        
-        // Métadonnées de synchronisation
-        syncMetadata: {
-          lastSyncAt: serverTimestamp(),
-          syncVersion: '1.0',
-          dataVersion: '3.5',
-          needsSync: false
-        },
-        
-        // Champs additionnels pour compatibilité
-        status: 'actif',
-        isOnline: true
+          xpHistory: []
+        }
       };
-      
+
       await setDoc(userRef, completeProfile, { merge });
+      console.log('✅ Profil utilisateur complet créé/mis à jour:', uid);
       
-      console.log('✅ Profil utilisateur COMPLET créé/mis à jour:', uid);
-      console.log('📊 Structure gamification:', completeProfile.gamification);
-      
-      return { success: true, error: null };
+      return completeProfile;
     } catch (error) {
-      console.error('❌ Erreur création profil complet:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Erreur création profil:', error);
+      throw error;
     }
   }
 
   /**
-   * ⚠️ Formater les erreurs d'authentification
+   * 🔤 FORMATER LES ERREURS D'AUTHENTIFICATION
    */
   static formatAuthError(error) {
     const errorMessages = {
-      'auth/user-not-found': 'Aucun utilisateur trouvé avec cette adresse email.',
+      'auth/user-not-found': 'Aucun utilisateur trouvé avec cet email.',
       'auth/wrong-password': 'Mot de passe incorrect.',
-      'auth/email-already-in-use': 'Cette adresse email est déjà utilisée.',
+      'auth/email-already-in-use': 'Cet email est déjà utilisé.',
       'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractères.',
-      'auth/invalid-email': 'Adresse email invalide.',
+      'auth/invalid-email': 'Email invalide.',
       'auth/too-many-requests': 'Trop de tentatives. Veuillez réessayer plus tard.',
       'auth/popup-closed-by-user': 'Connexion annulée par l\'utilisateur.',
       'auth/cancelled-popup-request': 'Connexion annulée.',
