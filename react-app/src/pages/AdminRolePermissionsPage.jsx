@@ -210,6 +210,12 @@ const AdminRolePermissionsPage = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [activeTab, setActiveTab] = useState('roles');
+  
+  // 🆕 NOUVEAUX ÉTATS POUR GESTION DES RÔLES UTILISATEURS
+  const [editingMember, setEditingMember] = useState(null);
+  const [showEditRolesModal, setShowEditRolesModal] = useState(false);
+  const [memberRolesEditing, setMemberRolesEditing] = useState([]);
+  const [savingMemberRoles, setSavingMemberRoles] = useState(false);
 
   /**
    * 📊 CHARGER LES DONNÉES
@@ -296,6 +302,93 @@ const AdminRolePermissionsPage = () => {
     } catch (error) {
       console.error('❌ Erreur sauvegarde permissions:', error);
       showNotification('Erreur lors de la sauvegarde', 'error');
+    }
+  };
+
+  /**
+   * 🆕 OUVRIR MODAL GESTION RÔLES UTILISATEUR
+   */
+  const openEditMemberRoles = (member) => {
+    setEditingMember(member);
+    // Initialiser avec les rôles actuels (juste les IDs)
+    const currentRoleIds = (member.synergiaRoles || []).map(role => role.roleId);
+    setMemberRolesEditing(currentRoleIds);
+    setShowEditRolesModal(true);
+  };
+
+  /**
+   * 🆕 TOGGLE UN RÔLE POUR UN MEMBRE
+   */
+  const toggleMemberRole = (roleId) => {
+    setMemberRolesEditing(prev => {
+      if (prev.includes(roleId)) {
+        return prev.filter(id => id !== roleId);
+      } else {
+        return [...prev, roleId];
+      }
+    });
+  };
+
+  /**
+   * 🆕 SAUVEGARDER LES RÔLES D'UN MEMBRE
+   */
+  const saveMemberRoles = async () => {
+    if (!editingMember) return;
+    
+    try {
+      setSavingMemberRoles(true);
+      
+      // Construire le nouveau tableau de rôles
+      const newSynergiaRoles = memberRolesEditing.map(roleId => {
+        // Vérifier si le rôle existait déjà
+        const existingRole = editingMember.synergiaRoles?.find(r => r.roleId === roleId);
+        
+        if (existingRole) {
+          // Conserver les données existantes
+          return existingRole;
+        } else {
+          // Créer un nouveau rôle
+          const roleData = SYNERGIA_ROLES[roleId];
+          return {
+            roleId: roleId,
+            roleName: roleData.name,
+            assignedAt: new Date().toISOString(),
+            assignedBy: user.uid,
+            xpInRole: 0,
+            tasksCompleted: 0,
+            level: 'débutant',
+            permissions: roleData.defaultPermissions || [],
+            lastActivity: new Date().toISOString(),
+            isActive: true,
+            roleIcon: roleData.icon,
+            roleColor: roleData.color
+          };
+        }
+      });
+      
+      // Mettre à jour dans Firebase
+      const userRef = doc(db, 'users', editingMember.id);
+      await updateDoc(userRef, {
+        synergiaRoles: newSynergiaRoles,
+        lastRoleUpdate: new Date().toISOString()
+      });
+      
+      // Mettre à jour l'état local
+      setMembers(prev => prev.map(m => 
+        m.id === editingMember.id 
+          ? { ...m, synergiaRoles: newSynergiaRoles }
+          : m
+      ));
+      
+      showNotification('Rôles mis à jour avec succès', 'success');
+      setShowEditRolesModal(false);
+      setEditingMember(null);
+      
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde rôles membre:', error);
+      showNotification('Erreur lors de la sauvegarde des rôles', 'error');
+    } finally {
+      setSavingMemberRoles(false);
     }
   };
 
@@ -584,20 +677,31 @@ const AdminRolePermissionsPage = () => {
                             </div>
                           </div>
                           
-                          <button
-                            onClick={() => {
-                              setSelectedMember(member);
-                              setShowMemberModal(true);
-                            }}
-                            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                            <span>Détails</span>
-                          </button>
+                          <div className="flex space-x-2">
+                            {/* 🆕 BOUTON GÉRER LES RÔLES */}
+                            <button
+                              onClick={() => openEditMemberRoles(member)}
+                              className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                            >
+                              <Settings className="w-4 h-4" />
+                              <span>Gérer rôles</span>
+                            </button>
+                            
+                            <button
+                              onClick={() => {
+                                setSelectedMember(member);
+                                setShowMemberModal(true);
+                              }}
+                              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>Détails</span>
+                            </button>
+                          </div>
                         </div>
                         
                         {/* Rôles du membre */}
-                        {memberRoles.length > 0 && (
+                        {memberRoles.length > 0 ? (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {memberRoles.map(memberRole => {
                               const roleData = SYNERGIA_ROLES[memberRole.roleId];
@@ -611,6 +715,10 @@ const AdminRolePermissionsPage = () => {
                               );
                             })}
                           </div>
+                        ) : (
+                          <div className="mt-3 text-gray-500 text-sm italic">
+                            Aucun rôle assigné
+                          </div>
                         )}
                       </div>
                     );
@@ -619,6 +727,109 @@ const AdminRolePermissionsPage = () => {
               </div>
             </div>
           )}
+
+          {/* 🆕 MODAL GESTION DES RÔLES D'UN MEMBRE */}
+          <AnimatePresence>
+            {showEditRolesModal && editingMember && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-gray-800 rounded-lg p-6 w-full max-w-3xl max-h-[80vh] overflow-y-auto border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">
+                        Gérer les rôles de {editingMember.displayName || editingMember.email}
+                      </h3>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Cochez les rôles à assigner à ce membre
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowEditRolesModal(false)}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+
+                  {/* Liste des rôles disponibles */}
+                  <div className="space-y-3 mb-6">
+                    {Object.entries(SYNERGIA_ROLES)
+                      .sort(([,a], [,b]) => a.priority - b.priority)
+                      .map(([roleId, roleData]) => {
+                        const isChecked = memberRolesEditing.includes(roleId);
+                        
+                        return (
+                          <label
+                            key={roleId}
+                            className={`flex items-center space-x-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                              isChecked
+                                ? 'border-blue-500 bg-blue-500 bg-opacity-10'
+                                : 'border-gray-700 hover:border-gray-600'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleMemberRole(roleId)}
+                              className="w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-2xl">{roleData.icon}</span>
+                            <div className="flex-1">
+                              <h4 className="text-white font-medium">{roleData.name}</h4>
+                              <p className="text-gray-400 text-sm">{roleData.description}</p>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {roleData.adminSections.map(section => (
+                                  <span key={section} className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
+                                    {section}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                  </div>
+
+                  {/* Boutons d'action */}
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setShowEditRolesModal(false)}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                      disabled={savingMemberRoles}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={saveMemberRoles}
+                      disabled={savingMemberRoles}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {savingMemberRoles ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Sauvegarde...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Sauvegarder</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 🔍 Modal détails membre */}
           <AnimatePresence>
@@ -648,54 +859,57 @@ const AdminRolePermissionsPage = () => {
                   </div>
 
                   <div className="space-y-4">
-                    {selectedMember.synergiaRoles?.map(memberRole => {
-                      const roleData = SYNERGIA_ROLES[memberRole.roleId];
-                      const rolePermissionData = rolePermissions[memberRole.roleId];
-                      
-                      if (!roleData) return null;
-                      
-                      return (
-                        <div key={memberRole.roleId} className="bg-gray-700 rounded-lg p-4">
-                          <div className="flex items-center space-x-3 mb-3">
-                            <span className="text-2xl">{roleData.icon}</span>
-                            <div>
-                              <h4 className="text-white font-medium">{roleData.name}</h4>
-                              <p className="text-gray-400 text-sm">
-                                Assigné le {new Date(memberRole.assignedAt).toLocaleDateString('fr-FR')}
-                              </p>
+                    {selectedMember.synergiaRoles && selectedMember.synergiaRoles.length > 0 ? (
+                      selectedMember.synergiaRoles.map(memberRole => {
+                        const roleData = SYNERGIA_ROLES[memberRole.roleId];
+                        const rolePermissionData = rolePermissions[memberRole.roleId];
+                        
+                        if (!roleData) return null;
+                        
+                        return (
+                          <div key={memberRole.roleId} className="bg-gray-700 rounded-lg p-4">
+                            <div className="flex items-center space-x-3 mb-3">
+                              <span className="text-2xl">{roleData.icon}</span>
+                              <div>
+                                <h4 className="text-white font-medium">{roleData.name}</h4>
+                                <p className="text-gray-400 text-sm">
+                                  Assigné le {memberRole.assignedAt ? new Date(memberRole.assignedAt).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                          
-                          {/* Sections accessibles */}
-                          <div className="space-y-2">
-                            <h5 className="text-gray-300 text-sm font-medium">Sections accessibles:</h5>
-                            <div className="grid grid-cols-2 gap-2">
-                              {roleData.adminSections.map(section => (
-                                <div key={section} className="bg-gray-600 rounded px-3 py-2">
-                                  <span className="text-gray-300 text-sm">{section}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          {/* Permissions détaillées */}
-                          {rolePermissionData?.permissions && (
-                            <div className="mt-3 space-y-2">
-                              <h5 className="text-gray-300 text-sm font-medium">Permissions:</h5>
-                              <div className="flex flex-wrap gap-1">
-                                {rolePermissionData.permissions.map(permission => (
-                                  <span key={permission} className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
-                                    {permission.replace('_', ' ')}
-                                  </span>
+                            
+                            {/* Sections accessibles */}
+                            <div className="space-y-2">
+                              <h5 className="text-gray-300 text-sm font-medium">Sections accessibles:</h5>
+                              <div className="grid grid-cols-2 gap-2">
+                                {roleData.adminSections.map(section => (
+                                  <div key={section} className="bg-gray-600 rounded px-3 py-2">
+                                    <span className="text-gray-300 text-sm">{section}</span>
+                                  </div>
                                 ))}
                               </div>
                             </div>
-                          )}
-                        </div>
-                      );
-                    }) || (
-                      <div className="text-center text-gray-500 py-4">
-                        Aucun rôle assigné
+                            
+                            {/* Permissions détaillées */}
+                            {rolePermissionData?.permissions && (
+                              <div className="mt-3 space-y-2">
+                                <h5 className="text-gray-300 text-sm font-medium">Permissions:</h5>
+                                <div className="flex flex-wrap gap-1">
+                                  {rolePermissionData.permissions.map(permission => (
+                                    <span key={permission} className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                                      {permission.replace(/_/g, ' ')}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>Aucun rôle assigné à ce membre</p>
                       </div>
                     )}
                   </div>
