@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// AUTH STORE AVEC PERSISTENCE LOCALE UNIQUEMENT (NO SESSIONSTORAGE)
+// AUTH STORE AVEC PERSISTENCE LOCALE ET CRÉATION AUTO PROFIL FIRESTORE
 // ==========================================
 
 import { create } from 'zustand';
@@ -16,6 +16,9 @@ import {
   browserLocalPersistence
 } from 'firebase/auth';
 import { auth } from '../../core/firebase.js';
+
+// 🔑 IMPORT AUTHSERVICE POUR CRÉATION PROFIL FIRESTORE
+import AuthService from '../../core/services/authService.js';
 
 // Provider Google avec configuration
 const googleProvider = new GoogleAuthProvider();
@@ -56,7 +59,7 @@ export const useAuthStore = create(
       lastLoginTime: null,
       sessionExpiry: null,
       
-      // 🔐 CONNEXION GOOGLE
+      // 🔐 CONNEXION GOOGLE - CORRIGÉE AVEC CRÉATION PROFIL FIRESTORE
       signInWithGoogle: async () => {
         try {
           set({ loading: true, error: null });
@@ -70,6 +73,15 @@ export const useAuthStore = create(
           const user = result.user;
           
           console.log('✅ Connexion Google réussie:', user.email);
+          
+          // 🎯 CRÉATION AUTOMATIQUE DU PROFIL FIRESTORE
+          console.log('🔄 Création/Vérification profil Firestore pour:', user.uid);
+          await AuthService.ensureCompleteUserStructure(user.uid, {
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+          });
+          console.log('✅ Profil Firestore créé/vérifié avec succès !');
           
           // Calculer expiration de session (24h)
           const now = Date.now();
@@ -104,7 +116,7 @@ export const useAuthStore = create(
         }
       },
 
-      // 📧 CONNEXION EMAIL/PASSWORD
+      // 📧 CONNEXION EMAIL/PASSWORD - CORRIGÉE AVEC CRÉATION PROFIL
       signInWithEmail: async (email, password) => {
         try {
           set({ loading: true, error: null });
@@ -117,6 +129,15 @@ export const useAuthStore = create(
           const user = result.user;
           
           console.log('✅ Connexion email réussie:', user.email);
+          
+          // 🎯 VÉRIFIER/CRÉER PROFIL FIRESTORE
+          console.log('🔄 Vérification profil Firestore pour:', user.uid);
+          await AuthService.ensureCompleteUserStructure(user.uid, {
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+          });
+          console.log('✅ Profil Firestore vérifié !');
           
           // Calculer expiration de session (24h)
           const now = Date.now();
@@ -151,7 +172,7 @@ export const useAuthStore = create(
         }
       },
 
-      // 📝 INSCRIPTION
+      // 📝 INSCRIPTION - CORRIGÉE AVEC CRÉATION PROFIL
       signUpWithEmail: async (email, password, displayName) => {
         try {
           set({ loading: true, error: null });
@@ -164,6 +185,15 @@ export const useAuthStore = create(
           const user = result.user;
           
           console.log('✅ Inscription réussie:', user.email);
+          
+          // 🎯 CRÉATION PROFIL FIRESTORE COMPLET
+          console.log('🔄 Création profil Firestore pour nouvel utilisateur:', user.uid);
+          await AuthService.createCompleteProfile(user.uid, {
+            email: user.email,
+            displayName: displayName || user.displayName,
+            photoURL: user.photoURL
+          });
+          console.log('✅ Profil Firestore complet créé !');
           
           // Calculer expiration de session (24h)
           const now = Date.now();
@@ -273,10 +303,23 @@ export const useAuthStore = create(
         setupFirebaseAuth();
         
         // Observer les changements d'état UNE SEULE FOIS
-        unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+        unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
           console.log('🔔 Auth state changed:', user ? user.email : 'déconnecté');
           
           if (user) {
+            // 🎯 VÉRIFIER/CRÉER PROFIL FIRESTORE SI NÉCESSAIRE
+            console.log('🔄 Vérification profil Firestore au changement auth...');
+            try {
+              await AuthService.ensureCompleteUserStructure(user.uid, {
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL
+              });
+              console.log('✅ Profil Firestore synchronisé');
+            } catch (error) {
+              console.error('❌ Erreur sync profil:', error);
+            }
+            
             const now = Date.now();
             const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 heures
             
@@ -345,4 +388,4 @@ if (typeof window !== 'undefined') {
 // ✅ EXPORTS
 export default useAuthStore;
 
-console.log('✅ Auth Store chargé avec persistence localStorage uniquement');
+console.log('✅ Auth Store chargé avec CRÉATION AUTO PROFIL FIRESTORE activée');
