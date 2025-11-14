@@ -1,10 +1,10 @@
 // ==========================================
 // 📁 react-app/src/core/firebase.js
-// CONFIGURATION FIREBASE AVEC STORAGE
+// CONFIGURATION FIREBASE COMPLÈTE AVEC GOOGLEPROVIDER
 // ==========================================
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -25,11 +25,17 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+// 🔑 GOOGLE AUTH PROVIDER CENTRALISÉ
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
 // Configuration de la persistance
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error('❌ [FIREBASE] Erreur persistance auth:', error);
 });
 
-console.log('✅ [FIREBASE] Firebase initialisé avec Storage');
+console.log('✅ [FIREBASE] Firebase initialisé avec Storage et GoogleProvider');
 
 export default app;
