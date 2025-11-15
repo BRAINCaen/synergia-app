@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/GodModPage.jsx
-// 🛡️ PAGE GODMOD - CONTRÔLE TOTAL SYSTÈME
+// 🛡️ PAGE GODMOD - CONTRÔLE TOTAL SYSTÈME + HISTORIQUE COMPLET
 // Accessible UNIQUEMENT par alan.boehme61@gmail.com
 // ==========================================
 
@@ -27,7 +27,14 @@ import {
   Calendar,
   Clock,
   Database,
-  Activity
+  Activity,
+  FileText,
+  Download,
+  Eye,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -42,7 +49,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  increment
+  increment,
+  limit as firestoreLimit
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -62,6 +70,12 @@ const GodModPage = () => {
   const [validations, setValidations] = useState([]);
   const [objectiveClaims, setObjectiveClaims] = useState([]);
   const [rewardRequests, setRewardRequests] = useState([]);
+  const [historyEvents, setHistoryEvents] = useState([]);
+  
+  // Filtres Historique
+  const [historyFilter, setHistoryFilter] = useState('all');
+  const [historyDateFilter, setHistoryDateFilter] = useState('all');
+  const [historyUserFilter, setHistoryUserFilter] = useState('all');
   
   // Modals
   const [showXpModal, setShowXpModal] = useState(false);
@@ -74,7 +88,8 @@ const GodModPage = () => {
     totalValidations: 0,
     pendingValidations: 0,
     totalXpDistributed: 0,
-    totalUsers: 0
+    totalUsers: 0,
+    totalHistoryEvents: 0
   });
 
   /**
@@ -137,6 +152,9 @@ const GodModPage = () => {
       }));
       setRewardRequests(rewardsData);
 
+      // 📜 CHARGER L'HISTORIQUE COMPLET
+      await loadCompleteHistory(usersData);
+
       // Calculer les stats
       calculateStats(validationsData, objectivesData, usersData);
 
@@ -155,6 +173,268 @@ const GodModPage = () => {
     }
   };
 
+  /**
+   * 📜 CHARGER L'HISTORIQUE COMPLET DE TOUT SYNERGIA
+   */
+  const loadCompleteHistory = async (usersData) => {
+    try {
+      console.log('📜 [HISTORIQUE] Chargement historique complet...');
+      const events = [];
+
+      // 1. HISTORIQUE DES VALIDATIONS DE QUÊTES
+      const validationsSnapshot = await getDocs(
+        query(collection(db, 'task_validations'), orderBy('submittedAt', 'desc'), firestoreLimit(200))
+      );
+      validationsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        events.push({
+          id: `validation-${doc.id}`,
+          type: 'task_validation',
+          category: 'Validation',
+          action: data.status === 'approved' ? 'Quête Validée' : 
+                  data.status === 'rejected' ? 'Quête Rejetée' : 
+                  data.status === 'pending' ? 'Quête en Attente' : 
+                  'Quête Annulée',
+          user: data.userName || 'Utilisateur inconnu',
+          userId: data.userId,
+          details: `${data.taskTitle || 'Sans titre'} - ${data.xpAmount || 0} XP`,
+          timestamp: data.submittedAt || data.createdAt || new Date(),
+          status: data.status,
+          icon: data.status === 'approved' ? CheckCircle : 
+                data.status === 'rejected' ? XCircle : 
+                data.status === 'pending' ? Clock : AlertCircle,
+          color: data.status === 'approved' ? 'green' : 
+                 data.status === 'rejected' ? 'red' : 
+                 data.status === 'pending' ? 'yellow' : 'gray'
+        });
+      });
+
+      // 2. HISTORIQUE DES OBJECTIFS
+      const objectivesSnapshot = await getDocs(
+        query(collection(db, 'objective_claims'), orderBy('claimedAt', 'desc'), firestoreLimit(200))
+      );
+      objectivesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        events.push({
+          id: `objective-${doc.id}`,
+          type: 'objective_claim',
+          category: 'Objectif',
+          action: data.status === 'approved' ? 'Objectif Validé' : 
+                  data.status === 'rejected' ? 'Objectif Rejeté' : 
+                  'Objectif Réclamé',
+          user: data.userName || 'Utilisateur inconnu',
+          userId: data.userId,
+          details: `${data.objectiveName || 'Sans nom'} - ${data.xpReward || 0} XP`,
+          timestamp: data.claimedAt || new Date(),
+          status: data.status,
+          icon: Target,
+          color: data.status === 'approved' ? 'green' : 
+                 data.status === 'rejected' ? 'red' : 'blue'
+        });
+      });
+
+      // 3. HISTORIQUE DES RÉCOMPENSES
+      const rewardsSnapshot = await getDocs(
+        query(collection(db, 'reward_requests'), orderBy('requestedAt', 'desc'), firestoreLimit(200))
+      );
+      rewardsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        events.push({
+          id: `reward-${doc.id}`,
+          type: 'reward_request',
+          category: 'Récompense',
+          action: data.status === 'approved' ? 'Récompense Obtenue' : 
+                  data.status === 'rejected' ? 'Récompense Refusée' : 
+                  'Récompense Demandée',
+          user: data.userName || 'Utilisateur inconnu',
+          userId: data.userId,
+          details: `${data.rewardName || 'Sans nom'} - ${data.xpCost || 0} XP`,
+          timestamp: data.requestedAt || new Date(),
+          status: data.status,
+          icon: Gift,
+          color: data.status === 'approved' ? 'green' : 
+                 data.status === 'rejected' ? 'red' : 'purple'
+        });
+      });
+
+      // 4. HISTORIQUE DES TÂCHES (task_history si existe)
+      try {
+        const taskHistorySnapshot = await getDocs(
+          query(collection(db, 'task_history'), orderBy('completedAt', 'desc'), firestoreLimit(200))
+        );
+        taskHistorySnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          events.push({
+            id: `task-history-${doc.id}`,
+            type: 'task_completed',
+            category: 'Quête',
+            action: 'Quête Terminée',
+            user: data.completedByName || 'Utilisateur inconnu',
+            userId: data.completedBy,
+            details: `${data.title || 'Sans titre'} - ${data.xpEarned || 0} XP`,
+            timestamp: data.completedAt || new Date(),
+            status: 'completed',
+            icon: CheckCircle,
+            color: 'green'
+          });
+        });
+      } catch (error) {
+        console.log('ℹ️ Collection task_history non disponible');
+      }
+
+      // 5. HISTORIQUE DES RÔLES (roleHistory si existe)
+      try {
+        const roleHistorySnapshot = await getDocs(
+          query(collection(db, 'roleHistory'), orderBy('timestamp', 'desc'), firestoreLimit(200))
+        );
+        roleHistorySnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          events.push({
+            id: `role-${doc.id}`,
+            type: 'role_change',
+            category: 'Rôle',
+            action: 'Changement de Rôle',
+            user: data.userName || 'Utilisateur inconnu',
+            userId: data.userId,
+            details: `${data.oldRole || 'Aucun'} → ${data.newRole || 'Aucun'}`,
+            timestamp: data.timestamp || new Date(),
+            status: 'changed',
+            icon: Users,
+            color: 'blue'
+          });
+        });
+      } catch (error) {
+        console.log('ℹ️ Collection roleHistory non disponible');
+      }
+
+      // 6. HISTORIQUE DES LOGS VOLONTARIAT (volunteer_logs si existe)
+      try {
+        const volunteerLogsSnapshot = await getDocs(
+          query(collection(db, 'volunteer_logs'), orderBy('timestamp', 'desc'), firestoreLimit(200))
+        );
+        volunteerLogsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          events.push({
+            id: `volunteer-${doc.id}`,
+            type: 'volunteer_action',
+            category: 'Volontariat',
+            action: data.action || 'Action Volontaire',
+            user: data.userName || 'Utilisateur inconnu',
+            userId: data.userId,
+            details: data.taskTitle || 'Sans titre',
+            timestamp: data.timestamp || new Date(),
+            status: data.status || 'info',
+            icon: Users,
+            color: 'cyan'
+          });
+        });
+      } catch (error) {
+        console.log('ℹ️ Collection volunteer_logs non disponible');
+      }
+
+      // 7. HISTORIQUE GODMOD (depuis les users)
+      usersData.forEach(userData => {
+        if (userData.godModHistory && Array.isArray(userData.godModHistory)) {
+          userData.godModHistory.forEach((entry, idx) => {
+            events.push({
+              id: `godmod-${userData.id}-${idx}`,
+              type: 'godmod_action',
+              category: 'GODMOD',
+              action: entry.type === 'xp_modification' ? 'Modification XP GODMOD' : 'Action GODMOD',
+              user: userData.displayName || 'Utilisateur inconnu',
+              userId: userData.id,
+              details: `${entry.amount > 0 ? '+' : ''}${entry.amount} XP - ${entry.reason}`,
+              timestamp: new Date(entry.adjustedAt),
+              status: 'godmod',
+              icon: Crown,
+              color: 'yellow'
+            });
+          });
+        }
+      });
+
+      // 8. CRÉATIONS DE QUÊTES
+      const tasksSnapshot = await getDocs(
+        query(collection(db, 'tasks'), orderBy('createdAt', 'desc'), firestoreLimit(200))
+      );
+      tasksSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        events.push({
+          id: `task-created-${doc.id}`,
+          type: 'task_created',
+          category: 'Quête',
+          action: 'Quête Créée',
+          user: data.createdByName || 'Utilisateur inconnu',
+          userId: data.createdBy,
+          details: `${data.title || 'Sans titre'} - ${data.difficulty || 'normal'}`,
+          timestamp: data.createdAt || new Date(),
+          status: 'created',
+          icon: FileText,
+          color: 'blue'
+        });
+      });
+
+      // 9. CRÉATIONS DE PROJETS
+      const projectsSnapshot = await getDocs(
+        query(collection(db, 'projects'), orderBy('createdAt', 'desc'), firestoreLimit(200))
+      );
+      projectsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        events.push({
+          id: `project-created-${doc.id}`,
+          type: 'project_created',
+          category: 'Projet',
+          action: 'Projet Créé',
+          user: data.createdByName || 'Utilisateur inconnu',
+          userId: data.createdBy,
+          details: data.title || 'Sans titre',
+          timestamp: data.createdAt || new Date(),
+          status: 'created',
+          icon: Target,
+          color: 'purple'
+        });
+      });
+
+      // 10. CRÉATIONS D'UTILISATEURS
+      usersData.forEach(userData => {
+        if (userData.createdAt) {
+          events.push({
+            id: `user-created-${userData.id}`,
+            type: 'user_created',
+            category: 'Utilisateur',
+            action: 'Utilisateur Créé',
+            user: userData.displayName || 'Utilisateur inconnu',
+            userId: userData.id,
+            details: userData.email || 'Sans email',
+            timestamp: userData.createdAt,
+            status: 'created',
+            icon: Users,
+            color: 'green'
+          });
+        }
+      });
+
+      // Trier tous les événements par date (plus récent en premier)
+      events.sort((a, b) => {
+        const timeA = a.timestamp?.toDate?.() || a.timestamp || new Date(0);
+        const timeB = b.timestamp?.toDate?.() || b.timestamp || new Date(0);
+        return timeB - timeA;
+      });
+
+      setHistoryEvents(events);
+      console.log(`📜 [HISTORIQUE] ${events.length} événements chargés`);
+
+      // Mettre à jour les stats
+      setStats(prev => ({
+        ...prev,
+        totalHistoryEvents: events.length
+      }));
+
+    } catch (error) {
+      console.error('❌ [HISTORIQUE] Erreur chargement:', error);
+    }
+  };
+
   const calculateStats = (validationsData, objectivesData, usersData) => {
     const totalValidations = validationsData.length + objectivesData.length;
     const pendingValidations = validationsData.filter(v => v.status === 'pending').length +
@@ -167,12 +447,13 @@ const GodModPage = () => {
       .filter(o => o.status === 'approved')
       .reduce((sum, o) => sum + (o.xpReward || 0), 0);
 
-    setStats({
+    setStats(prev => ({
+      ...prev,
       totalValidations,
       pendingValidations,
       totalXpDistributed,
       totalUsers: usersData.length
-    });
+    }));
   };
 
   /**
@@ -400,6 +681,31 @@ const GodModPage = () => {
     }
   };
 
+  /**
+   * 📥 EXPORTER L'HISTORIQUE
+   */
+  const exportHistory = () => {
+    const dataToExport = historyEvents.map(event => ({
+      date: event.timestamp?.toDate?.()?.toLocaleString() || new Date(event.timestamp).toLocaleString(),
+      category: event.category,
+      action: event.action,
+      user: event.user,
+      details: event.details,
+      status: event.status
+    }));
+
+    const dataStr = JSON.stringify(dataToExport, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `synergia-historique-complet-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+  };
+
   // 🚫 ACCÈS REFUSÉ
   if (!isGodMode) {
     return (
@@ -451,6 +757,43 @@ const GodModPage = () => {
     v.userName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Filtrer l'historique
+  let filteredHistory = historyEvents;
+
+  if (historyFilter !== 'all') {
+    filteredHistory = filteredHistory.filter(e => e.type === historyFilter);
+  }
+
+  if (historyUserFilter !== 'all') {
+    filteredHistory = filteredHistory.filter(e => e.userId === historyUserFilter);
+  }
+
+  if (historyDateFilter !== 'all') {
+    const now = new Date();
+    const filterDate = new Date();
+    
+    if (historyDateFilter === 'today') {
+      filterDate.setHours(0, 0, 0, 0);
+    } else if (historyDateFilter === 'week') {
+      filterDate.setDate(filterDate.getDate() - 7);
+    } else if (historyDateFilter === 'month') {
+      filterDate.setMonth(filterDate.getMonth() - 1);
+    }
+
+    filteredHistory = filteredHistory.filter(e => {
+      const eventDate = e.timestamp?.toDate?.() || new Date(e.timestamp);
+      return eventDate >= filterDate;
+    });
+  }
+
+  if (searchTerm) {
+    filteredHistory = filteredHistory.filter(e =>
+      e.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.user?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.details?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-gray-900 to-black p-6">
@@ -493,6 +836,10 @@ const GodModPage = () => {
                   <div className="text-2xl font-bold text-yellow-500">{stats.totalXpDistributed.toLocaleString()}</div>
                   <div className="text-gray-400 text-sm">XP Total</div>
                 </div>
+                <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                  <div className="text-2xl font-bold text-cyan-500">{stats.totalHistoryEvents}</div>
+                  <div className="text-gray-400 text-sm">Événements</div>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -511,7 +858,7 @@ const GodModPage = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Rechercher utilisateurs, quêtes, badges..."
+                  placeholder="Rechercher utilisateurs, quêtes, badges, événements..."
                   className="w-full bg-gray-900/50 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                 />
               </div>
@@ -532,16 +879,17 @@ const GodModPage = () => {
             transition={{ delay: 0.2 }}
             className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-xl mb-6"
           >
-            <div className="flex border-b border-gray-700">
+            <div className="flex border-b border-gray-700 overflow-x-auto">
               {[
                 { id: 'validations', label: 'Validations', icon: Check, count: validations.length },
                 { id: 'users', label: 'Utilisateurs', icon: Users, count: allUsers.length },
+                { id: 'historique', label: 'Historique', icon: Clock, count: historyEvents.length },
                 { id: 'corrections', label: 'Corrections', icon: Edit, count: 0 }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 px-6 py-4 font-semibold transition-all flex items-center justify-center gap-3 ${
+                  className={`flex-1 px-6 py-4 font-semibold transition-all flex items-center justify-center gap-3 min-w-[200px] ${
                     activeTab === tab.id
                       ? 'bg-purple-600 text-white border-b-4 border-purple-400'
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -756,6 +1104,165 @@ const GodModPage = () => {
                         </motion.div>
                       ))}
                     </div>
+                  </motion.div>
+                )}
+
+                {/* 📜 ONGLET HISTORIQUE COMPLET */}
+                {activeTab === 'historique' && (
+                  <motion.div
+                    key="historique"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-4"
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                        <Clock className="w-6 h-6 text-cyan-500" />
+                        Historique Complet Synergia
+                      </h2>
+                      <button
+                        onClick={exportHistory}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Exporter
+                      </button>
+                    </div>
+
+                    {/* Filtres */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      {/* Filtre par type */}
+                      <div>
+                        <label className="block text-gray-400 text-sm font-semibold mb-2">
+                          Type d'événement
+                        </label>
+                        <select
+                          value={historyFilter}
+                          onChange={(e) => setHistoryFilter(e.target.value)}
+                          className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                        >
+                          <option value="all">Tous les événements</option>
+                          <option value="task_validation">Validations Quêtes</option>
+                          <option value="objective_claim">Objectifs</option>
+                          <option value="reward_request">Récompenses</option>
+                          <option value="task_created">Créations Quêtes</option>
+                          <option value="project_created">Créations Projets</option>
+                          <option value="user_created">Nouveaux Utilisateurs</option>
+                          <option value="role_change">Changements Rôles</option>
+                          <option value="godmod_action">Actions GODMOD</option>
+                          <option value="volunteer_action">Volontariat</option>
+                        </select>
+                      </div>
+
+                      {/* Filtre par date */}
+                      <div>
+                        <label className="block text-gray-400 text-sm font-semibold mb-2">
+                          Période
+                        </label>
+                        <select
+                          value={historyDateFilter}
+                          onChange={(e) => setHistoryDateFilter(e.target.value)}
+                          className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                        >
+                          <option value="all">Tout l'historique</option>
+                          <option value="today">Aujourd'hui</option>
+                          <option value="week">7 derniers jours</option>
+                          <option value="month">30 derniers jours</option>
+                        </select>
+                      </div>
+
+                      {/* Filtre par utilisateur */}
+                      <div>
+                        <label className="block text-gray-400 text-sm font-semibold mb-2">
+                          Utilisateur
+                        </label>
+                        <select
+                          value={historyUserFilter}
+                          onChange={(e) => setHistoryUserFilter(e.target.value)}
+                          className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-4 py-2 text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                        >
+                          <option value="all">Tous les utilisateurs</option>
+                          {allUsers.map(u => (
+                            <option key={u.id} value={u.id}>
+                              {u.displayName || u.email}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Nombre de résultats */}
+                    <div className="text-gray-400 text-sm mb-4">
+                      {filteredHistory.length} événement{filteredHistory.length > 1 ? 's' : ''} trouvé{filteredHistory.length > 1 ? 's' : ''}
+                    </div>
+
+                    {/* Liste des événements */}
+                    {filteredHistory.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Clock className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                        <p className="text-gray-400">Aucun événement trouvé</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                        {filteredHistory.map(event => {
+                          const EventIcon = event.icon;
+                          const colorClasses = {
+                            green: 'bg-green-500/20 text-green-400 border-green-500/30',
+                            red: 'bg-red-500/20 text-red-400 border-red-500/30',
+                            blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                            yellow: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                            purple: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+                            cyan: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+                            gray: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                          };
+
+                          return (
+                            <motion.div
+                              key={event.id}
+                              layout
+                              className="bg-gray-900/50 rounded-xl p-4 border border-gray-700 hover:border-cyan-500/50 transition-all"
+                            >
+                              <div className="flex items-start gap-4">
+                                {/* Icône */}
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${colorClasses[event.color] || colorClasses.gray}`}>
+                                  <EventIcon className="w-5 h-5" />
+                                </div>
+
+                                {/* Contenu */}
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-1">
+                                    <span className={`px-2 py-1 rounded-md text-xs font-semibold ${colorClasses[event.color] || colorClasses.gray}`}>
+                                      {event.category}
+                                    </span>
+                                    <span className="text-gray-500 text-xs">
+                                      {event.timestamp?.toDate?.()?.toLocaleString() || new Date(event.timestamp).toLocaleString()}
+                                    </span>
+                                  </div>
+
+                                  <h4 className="text-white font-semibold mb-1">
+                                    {event.action}
+                                  </h4>
+
+                                  <div className="flex items-center gap-4 text-sm text-gray-400">
+                                    <div className="flex items-center gap-2">
+                                      <Users className="w-4 h-4" />
+                                      {event.user}
+                                    </div>
+                                    {event.details && (
+                                      <div className="flex items-center gap-2">
+                                        <Info className="w-4 h-4" />
+                                        {event.details}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
