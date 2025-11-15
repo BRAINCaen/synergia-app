@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminRewardsPage.jsx
-// PAGE ADMIN RÉCOMPENSES - VISUELS PREMIUM + XP ÉQUIPE
+// PAGE ADMIN RÉCOMPENSES - POOL ÉQUIPE CORRECT
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -104,7 +104,7 @@ const DEFAULT_TEAM_REWARDS = [
 ];
 
 /**
- * 👑 PAGE ADMIN RÉCOMPENSES AVEC VISUELS PREMIUM + XP ÉQUIPE
+ * 👑 PAGE ADMIN RÉCOMPENSES - POOL ÉQUIPE CORRECT
  */
 const AdminRewardsPage = () => {
   const { user } = useAuthStore();
@@ -118,7 +118,7 @@ const AdminRewardsPage = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [firebaseRewards, setFirebaseRewards] = useState([]);
-  const [teamTotalXP, setTeamTotalXP] = useState(0); // ✅ XP TOTAL ÉQUIPE
+  const [teamPoolXP, setTeamPoolXP] = useState(0); // ✅ XP DU POOL ÉQUIPE
 
   // Statistiques réelles
   const [stats, setStats] = useState({
@@ -128,24 +128,29 @@ const AdminRewardsPage = () => {
     totalXpDistributed: 0
   });
 
-  // 🔥 CALCULER LE XP TOTAL DE L'ÉQUIPE
+  // ✅ ÉCOUTER LE POOL D'ÉQUIPE EN TEMPS RÉEL
   useEffect(() => {
-    const calculateTeamXP = async () => {
-      try {
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        let totalXP = 0;
-        usersSnapshot.forEach((doc) => {
-          const userData = doc.data();
-          totalXP += userData.gamification?.totalXp || 0;
-        });
-        setTeamTotalXP(totalXP);
-        console.log('✅ XP total équipe calculé:', totalXP);
-      } catch (error) {
-        console.error('❌ Erreur calcul XP équipe:', error);
+    console.log('🔄 Écoute du pool d\'équipe...');
+    
+    const poolRef = doc(db, 'teamPool', 'main');
+    
+    const unsubscribe = onSnapshot(poolRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const poolData = docSnapshot.data();
+        const poolXP = poolData.totalXP || 0;
+        setTeamPoolXP(poolXP);
+        console.log('✅ XP Pool Équipe:', poolXP);
+      } else {
+        console.log('⚠️ Pool équipe non initialisé, création...');
+        // Initialiser le pool si nécessaire
+        setTeamPoolXP(0);
       }
-    };
+    }, (error) => {
+      console.error('❌ Erreur écoute pool:', error);
+      setTeamPoolXP(0);
+    });
 
-    calculateTeamXP();
+    return () => unsubscribe();
   }, []);
 
   // 🔥 CHARGER LES RÉCOMPENSES FIREBASE
@@ -168,10 +173,10 @@ const AdminRewardsPage = () => {
   }, []);
 
   /**
-   * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE (VERSION AMÉLIORÉE)
+   * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE
    */
   const getRewardDetails = (rewardId, rewardName, rewardIcon, rewardType) => {
-    // 1. Chercher dans Firebase d'abord
+    // 1. Chercher dans Firebase
     const firebaseReward = firebaseRewards.find(r => r.id === rewardId);
     if (firebaseReward) {
       return {
@@ -184,38 +189,26 @@ const AdminRewardsPage = () => {
       };
     }
 
-    // 2. Chercher dans les catalogues par défaut
+    // 2. Chercher dans catalogues par défaut
     const allDefaultRewards = [...DEFAULT_INDIVIDUAL_REWARDS, ...DEFAULT_TEAM_REWARDS];
     const defaultReward = allDefaultRewards.find(r => r.id === rewardId);
     if (defaultReward) {
       return defaultReward;
     }
 
-    // 3. Utiliser les données de la demande si disponibles
-    if (rewardName && rewardIcon) {
-      return {
-        name: rewardName,
-        description: 'Récompense personnalisée',
-        xpCost: 0,
-        icon: rewardIcon,
-        category: 'Custom',
-        type: rewardType || 'individual'
-      };
-    }
-
-    // 4. Fallback par défaut
+    // 3. Fallback
     return { 
-      name: rewardId || 'Récompense inconnue', 
+      name: rewardName || rewardId || 'Récompense inconnue', 
       description: '',
       xpCost: 0, 
-      icon: '🎁',
+      icon: rewardIcon || '🎁',
       category: 'Inconnue',
-      type: 'individual'
+      type: rewardType || 'individual'
     };
   };
 
   /**
-   * 🎨 COULEUR PAR COÛT XP (comme RewardsPage)
+   * 🎨 COULEUR PAR COÛT XP
    */
   const getRewardColor = (reward) => {
     if (reward.type === 'team') return 'from-purple-600 to-indigo-600';
@@ -233,11 +226,11 @@ const AdminRewardsPage = () => {
     return 'from-yellow-500 to-amber-500';
   };
 
-  // 🔥 ÉCOUTE FIREBASE EN TEMPS RÉEL DES DEMANDES DE RÉCOMPENSES
+  // 🔥 ÉCOUTE FIREBASE DES DEMANDES
   useEffect(() => {
     if (!user?.uid) return;
 
-    console.log('🔄 AdminRewards - Écoute Firebase des demandes...');
+    console.log('🔄 Écoute Firebase des demandes...');
     
     const rewardRequestsQuery = query(
       collection(db, 'rewardRequests'),
@@ -268,14 +261,6 @@ const AdminRewardsPage = () => {
           });
         } catch (error) {
           console.error('❌ Erreur récupération utilisateur:', error);
-          requestsWithUserData.push({
-            id: requestDoc.id,
-            ...requestData,
-            userData: null,
-            userName: 'Utilisateur inconnu',
-            userEmail: 'Email inconnu',
-            userXP: 0
-          });
         }
       }
       
@@ -295,7 +280,7 @@ const AdminRewardsPage = () => {
     return () => unsubscribe();
   }, [user?.uid]);
 
-  // 🔥 ÉCOUTE FIREBASE POUR LES STATISTIQUES GÉNÉRALES
+  // 🔥 ÉCOUTE STATISTIQUES
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -315,10 +300,8 @@ const AdminRewardsPage = () => {
 
       const approvedToday = allRequests.filter(req => {
         if (req.status !== 'approved' || !req.approvedAt) return false;
-        
         const approvedDate = req.approvedAt.toDate ? req.approvedAt.toDate() : new Date(req.approvedAt);
         approvedDate.setHours(0, 0, 0, 0);
-        
         return approvedDate.getTime() === today.getTime();
       }).length;
 
@@ -338,23 +321,30 @@ const AdminRewardsPage = () => {
   }, [user?.uid]);
 
   /**
-   * ✅ APPROUVER UNE DEMANDE FIREBASE
+   * ✅ APPROUVER UNE DEMANDE
    */
   const handleApprove = async (request) => {
     try {
-      console.log('✅ Approbation Firebase de la demande:', request.id);
+      console.log('✅ Approbation de la demande:', request.id);
       
       const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon, request.type);
       
       // ✅ VÉRIFICATION SELON LE TYPE
-      const requiredXP = rewardDetails.type === 'team' ? teamTotalXP : request.userXP;
-      
-      if (requiredXP < rewardDetails.xpCost) {
-        const xpType = rewardDetails.type === 'team' ? 'L\'équipe n\'a' : 'L\'utilisateur n\'a';
-        alert(`❌ ${xpType} plus assez d\'XP pour cette récompense.`);
-        return;
+      if (rewardDetails.type === 'team') {
+        // Récompense ÉQUIPE → vérifier le POOL
+        if (teamPoolXP < rewardDetails.xpCost) {
+          alert(`❌ Pool équipe insuffisant !\nDisponible: ${teamPoolXP} XP\nRequis: ${rewardDetails.xpCost} XP`);
+          return;
+        }
+      } else {
+        // Récompense INDIVIDUELLE → vérifier XP utilisateur
+        if (request.userXP < rewardDetails.xpCost) {
+          alert(`❌ XP utilisateur insuffisants !\nDisponible: ${request.userXP} XP\nRequis: ${rewardDetails.xpCost} XP`);
+          return;
+        }
       }
 
+      // Mettre à jour la demande
       const requestRef = doc(db, 'rewardRequests', request.id);
       await updateDoc(requestRef, {
         status: 'approved',
@@ -363,24 +353,18 @@ const AdminRewardsPage = () => {
         adminEmail: user.email
       });
 
-      // ✅ DÉDUIRE LES XP
+      // ✅ DÉDUIRE LES XP DU BON ENDROIT
       if (rewardDetails.type === 'team') {
-        // Pour récompense d'équipe: déduire proportionnellement de tous les membres
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        const totalMembers = usersSnapshot.size;
-        const xpPerMember = Math.floor(rewardDetails.xpCost / totalMembers);
-        
-        console.log(`🎯 Récompense ÉQUIPE: ${rewardDetails.xpCost} XP / ${totalMembers} membres = ${xpPerMember} XP par membre`);
-        
-        for (const userDoc of usersSnapshot.docs) {
-          const userRef = doc(db, 'users', userDoc.id);
-          await updateDoc(userRef, {
-            'gamification.totalXp': increment(-xpPerMember),
-            lastActivity: serverTimestamp()
-          });
-        }
+        // RÉCOMPENSE ÉQUIPE → Déduire du POOL collectif
+        console.log(`💰 Déduction POOL ÉQUIPE: -${rewardDetails.xpCost} XP`);
+        const poolRef = doc(db, 'teamPool', 'main');
+        await updateDoc(poolRef, {
+          totalXP: increment(-rewardDetails.xpCost),
+          updatedAt: serverTimestamp()
+        });
       } else {
-        // Pour récompense individuelle: déduire de l'utilisateur uniquement
+        // RÉCOMPENSE INDIVIDUELLE → Déduire de l'utilisateur SEULEMENT
+        console.log(`👤 Déduction XP INDIVIDUEL: -${rewardDetails.xpCost} XP pour ${request.userName}`);
         const userRef = doc(db, 'users', request.userId);
         await updateDoc(userRef, {
           'gamification.totalXp': increment(-rewardDetails.xpCost),
@@ -393,27 +377,21 @@ const AdminRewardsPage = () => {
       setShowModal(false);
       setSelectedRequest(null);
       
-      const typeText = rewardDetails.type === 'team' ? '(ÉQUIPE)' : '(INDIVIDUELLE)';
-      console.log(`✅ Récompense ${typeText} "${rewardDetails.name}" approuvée pour ${request.userName}`);
-      alert(`✅ Récompense ${typeText} approuvée !\n\n"${rewardDetails.name}" pour ${request.userName}\n${rewardDetails.xpCost} XP déduits.`);
-      
-      // Recalculer le XP d'équipe
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      let newTotalXP = 0;
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data();
-        newTotalXP += userData.gamification?.totalXp || 0;
-      });
-      setTeamTotalXP(newTotalXP);
+      const typeText = rewardDetails.type === 'team' ? '👥 ÉQUIPE' : '👤 INDIVIDUELLE';
+      const sourceText = rewardDetails.type === 'team' 
+        ? `Pool équipe: ${teamPoolXP} → ${teamPoolXP - rewardDetails.xpCost} XP`
+        : `XP utilisateur: ${request.userXP} → ${request.userXP - rewardDetails.xpCost} XP`;
+        
+      alert(`✅ Récompense ${typeText} approuvée !\n\n"${rewardDetails.name}"\nPour: ${request.userName}\n\n${sourceText}`);
       
     } catch (error) {
-      console.error('❌ Erreur approbation Firebase:', error);
+      console.error('❌ Erreur approbation:', error);
       alert('❌ Erreur lors de l\'approbation : ' + error.message);
     }
   };
 
   /**
-   * ❌ REJETER UNE DEMANDE FIREBASE
+   * ❌ REJETER UNE DEMANDE
    */
   const handleReject = async (request) => {
     if (!rejectionReason.trim()) {
@@ -422,8 +400,6 @@ const AdminRewardsPage = () => {
     }
 
     try {
-      console.log('❌ Rejet Firebase de la demande:', request.id, 'Raison:', rejectionReason);
-      
       const requestRef = doc(db, 'rewardRequests', request.id);
       await updateDoc(requestRef, {
         status: 'rejected',
@@ -437,38 +413,27 @@ const AdminRewardsPage = () => {
       setSelectedRequest(null);
       setRejectionReason('');
       
-      console.log(`❌ Récompense rejetée pour ${request.userName}: ${rejectionReason}`);
       alert(`❌ Demande rejetée.\n\nRaison: ${rejectionReason}`);
       
     } catch (error) {
-      console.error('❌ Erreur rejet Firebase:', error);
+      console.error('❌ Erreur rejet:', error);
       alert('❌ Erreur lors du rejet : ' + error.message);
     }
   };
 
   /**
-   * 🔄 RAFRAÎCHIR LES DONNÉES
+   * 🔄 RAFRAÎCHIR
    */
   const handleRefresh = async () => {
     setRefreshing(true);
-    
-    // Recalculer le XP d'équipe
-    const usersSnapshot = await getDocs(collection(db, 'users'));
-    let newTotalXP = 0;
-    usersSnapshot.forEach((doc) => {
-      const userData = doc.data();
-      newTotalXP += userData.gamification?.totalXp || 0;
-    });
-    setTeamTotalXP(newTotalXP);
-    
     setTimeout(() => {
       setRefreshing(false);
-      console.log('🔄 Données rafraîchies - XP équipe:', newTotalXP);
+      console.log('🔄 Données rafraîchies');
     }, 1000);
   };
 
   /**
-   * 👁️ OUVRIR LE MODAL
+   * 👁️ OUVRIR MODAL
    */
   const openModal = (request, type = 'view') => {
     const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon, request.type);
@@ -481,11 +446,10 @@ const AdminRewardsPage = () => {
   };
 
   /**
-   * 📊 FORMATER UNE DATE
+   * 📊 FORMATER DATE
    */
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Date inconnue';
-    
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString('fr-FR', {
@@ -505,13 +469,11 @@ const AdminRewardsPage = () => {
    */
   const getRelativeTime = (timestamp) => {
     if (!timestamp) return 'Date inconnue';
-    
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       const now = new Date();
       const diff = now - date;
       const hours = Math.floor(diff / (1000 * 60 * 60));
-      
       if (hours < 1) return 'Il y a moins d\'1h';
       if (hours < 24) return `Il y a ${hours}h`;
       return `Il y a ${Math.floor(hours / 24)} jour(s)`;
@@ -539,7 +501,7 @@ const AdminRewardsPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          {/* En-tête admin */}
+          {/* En-tête */}
           <motion.div 
             className="mb-8"
             initial={{ opacity: 0, y: -20 }}
@@ -552,7 +514,7 @@ const AdminRewardsPage = () => {
                   Administration des Récompenses
                 </h1>
                 <p className="text-gray-400 text-lg mt-2">
-                  Gérer les demandes en temps réel via Firebase
+                  Validation des demandes - Pool équipe sécurisé
                 </p>
               </div>
               
@@ -576,7 +538,7 @@ const AdminRewardsPage = () => {
               </div>
             </div>
 
-            {/* Statistiques Firebase temps réel + XP ÉQUIPE */}
+            {/* Statistiques */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="bg-white/10 backdrop-blur-lg border border-yellow-400/30 rounded-xl p-6">
                 <div className="flex items-center justify-between">
@@ -622,13 +584,13 @@ const AdminRewardsPage = () => {
                 </div>
               </div>
 
-              {/* ✅ XP TOTAL ÉQUIPE */}
+              {/* ✅ POOL ÉQUIPE */}
               <div className="bg-white/10 backdrop-blur-lg border border-pink-400/30 rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-pink-400 text-sm font-medium">XP Équipe</p>
-                    <p className="text-3xl font-bold text-white">{teamTotalXP.toLocaleString()}</p>
-                    <p className="text-pink-400/70 text-xs mt-1">Total collectif</p>
+                    <p className="text-pink-400 text-sm font-medium">Pool Équipe</p>
+                    <p className="text-3xl font-bold text-white">{teamPoolXP.toLocaleString()}</p>
+                    <p className="text-pink-400/70 text-xs mt-1">XP collectif</p>
                   </div>
                   <Users className="w-8 h-8 text-pink-400" />
                 </div>
@@ -636,7 +598,7 @@ const AdminRewardsPage = () => {
             </div>
           </motion.div>
 
-          {/* Liste des demandes avec visuels premium */}
+          {/* Liste des demandes */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -647,15 +609,12 @@ const AdminRewardsPage = () => {
                 <CheckCircle className="w-20 h-20 text-green-400 mx-auto mb-4" />
                 <h3 className="text-2xl font-semibold text-white mb-2">Aucune demande en attente</h3>
                 <p className="text-gray-400 text-lg">Toutes les demandes ont été traitées ! 🎉</p>
-                <p className="text-gray-500 text-sm mt-2">
-                  Les nouvelles demandes apparaîtront automatiquement via Firebase
-                </p>
               </div>
             ) : (
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
                   <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                  Demandes en attente ({requests.length}) - Temps réel
+                  Demandes en attente ({requests.length})
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -663,7 +622,7 @@ const AdminRewardsPage = () => {
                     const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon, request.type);
                     
                     // ✅ VÉRIFICATION SELON LE TYPE
-                    const requiredXP = rewardDetails.type === 'team' ? teamTotalXP : request.userXP;
+                    const requiredXP = rewardDetails.type === 'team' ? teamPoolXP : request.userXP;
                     const canAfford = requiredXP >= rewardDetails.xpCost;
 
                     return (
@@ -673,11 +632,10 @@ const AdminRewardsPage = () => {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                       >
-                        {/* Gradient Header avec VRAIE icône */}
+                        {/* Header avec icône */}
                         <div className={`h-32 bg-gradient-to-r ${getRewardColor(rewardDetails)} flex items-center justify-center relative`}>
                           <span className="text-6xl">{rewardDetails.icon}</span>
                           
-                          {/* Badge Type */}
                           {rewardDetails.type === 'team' && (
                             <div className="absolute top-2 right-2 bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
                               <Users className="w-3 h-3" />
@@ -716,7 +674,7 @@ const AdminRewardsPage = () => {
                             </div>
                           </div>
 
-                          {/* XP disponibles - AFFICHAGE SELON TYPE */}
+                          {/* XP Source */}
                           <div className={`border rounded-lg p-2 mb-4 ${
                             rewardDetails.type === 'team' 
                               ? 'bg-purple-500/10 border-purple-400/30' 
@@ -724,7 +682,7 @@ const AdminRewardsPage = () => {
                           }`}>
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-gray-400">
-                                {rewardDetails.type === 'team' ? 'XP équipe:' : 'XP utilisateur:'}
+                                {rewardDetails.type === 'team' ? '💰 Pool équipe:' : '👤 XP utilisateur:'}
                               </span>
                               <span className={`font-bold ${
                                 rewardDetails.type === 'team' ? 'text-purple-400' : 'text-blue-400'
@@ -734,13 +692,11 @@ const AdminRewardsPage = () => {
                             </div>
                           </div>
 
-                          {/* Alerte si pas assez d'XP */}
+                          {/* Alerte */}
                           {!canAfford && (
                             <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-3 mb-4 flex items-center gap-2">
                               <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                              <span className="text-red-400 text-xs">
-                                {rewardDetails.type === 'team' ? 'XP équipe insuffisants' : 'XP insuffisants'}
-                              </span>
+                              <span className="text-red-400 text-xs">XP insuffisants</span>
                             </div>
                           )}
 
@@ -749,7 +705,6 @@ const AdminRewardsPage = () => {
                             <button
                               onClick={() => openModal(request, 'view')}
                               className="flex-1 bg-white/5 border border-white/20 text-white py-2 px-3 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center gap-1"
-                              title="Voir les détails"
                             >
                               <Eye className="w-4 h-4" />
                               Détails
@@ -759,7 +714,6 @@ const AdminRewardsPage = () => {
                               onClick={() => openModal(request, 'approve')}
                               disabled={!canAfford}
                               className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                              title="Approuver"
                             >
                               <CheckCircle className="w-4 h-4" />
                               Valider
@@ -768,7 +722,6 @@ const AdminRewardsPage = () => {
                             <button
                               onClick={() => openModal(request, 'reject')}
                               className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1"
-                              title="Rejeter"
                             >
                               <X className="w-4 h-4" />
                               Refuser
@@ -783,7 +736,7 @@ const AdminRewardsPage = () => {
             )}
           </motion.div>
 
-          {/* Modal d'action */}
+          {/* Modal */}
           {showModal && selectedRequest && (
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <motion.div
@@ -793,26 +746,22 @@ const AdminRewardsPage = () => {
               >
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-2xl font-bold text-white">
-                    {modalType === 'view' && '📋 Détails de la demande'}
-                    {modalType === 'approve' && '✅ Approuver la demande'}
-                    {modalType === 'reject' && '❌ Rejeter la demande'}
+                    {modalType === 'view' && '📋 Détails'}
+                    {modalType === 'approve' && '✅ Approuver'}
+                    {modalType === 'reject' && '❌ Rejeter'}
                   </h3>
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
+                  <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white">
                     <X className="w-6 h-6" />
                   </button>
                 </div>
 
-                {/* Aperçu visuel de la récompense */}
+                {/* Aperçu */}
                 <div className={`h-40 bg-gradient-to-r ${getRewardColor(selectedRequest.rewardDetails)} rounded-xl flex items-center justify-center mb-6`}>
                   <span className="text-8xl">{selectedRequest.rewardDetails.icon}</span>
                 </div>
 
-                {/* Détails */}
                 <div className="space-y-4">
-                  {/* Nom récompense */}
+                  {/* Nom */}
                   <div className="bg-white/5 border border-white/20 rounded-lg p-4">
                     <h4 className="text-lg font-bold text-white mb-2">{selectedRequest.rewardDetails.name}</h4>
                     <p className="text-gray-400 text-sm">{selectedRequest.rewardDetails.description}</p>
@@ -834,7 +783,7 @@ const AdminRewardsPage = () => {
                     </div>
                   </div>
 
-                  {/* Infos utilisateur */}
+                  {/* Utilisateur */}
                   <div className="bg-white/5 border border-white/20 rounded-lg p-4">
                     <h4 className="font-semibold text-white mb-3">👤 Utilisateur</h4>
                     <div className="grid grid-cols-2 gap-3 text-sm">
@@ -851,8 +800,8 @@ const AdminRewardsPage = () => {
                         <p className="text-blue-400 font-bold">{selectedRequest.userXP} XP</p>
                       </div>
                       <div>
-                        <span className="text-gray-400">XP équipe:</span>
-                        <p className="text-purple-400 font-bold">{teamTotalXP.toLocaleString()} XP</p>
+                        <span className="text-gray-400">Pool équipe:</span>
+                        <p className="text-purple-400 font-bold">{teamPoolXP.toLocaleString()} XP</p>
                       </div>
                       <div className="col-span-2">
                         <span className="text-gray-400">Demandée le:</span>
@@ -867,7 +816,7 @@ const AdminRewardsPage = () => {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         {(selectedRequest.rewardDetails.type === 'team' 
-                          ? teamTotalXP >= selectedRequest.rewardDetails.xpCost
+                          ? teamPoolXP >= selectedRequest.rewardDetails.xpCost
                           : selectedRequest.userXP >= selectedRequest.rewardDetails.xpCost
                         ) ? (
                           <CheckCircle className="w-5 h-5 text-green-400" />
@@ -876,32 +825,28 @@ const AdminRewardsPage = () => {
                         )}
                         <span className="text-sm text-gray-300">
                           {selectedRequest.rewardDetails.type === 'team' 
-                            ? `XP équipe suffisants (${teamTotalXP.toLocaleString()} / ${selectedRequest.rewardDetails.xpCost})`
-                            : `XP utilisateur suffisants (${selectedRequest.userXP} / ${selectedRequest.rewardDetails.xpCost})`
+                            ? `Pool équipe: ${teamPoolXP.toLocaleString()} / ${selectedRequest.rewardDetails.xpCost} XP`
+                            : `XP utilisateur: ${selectedRequest.userXP} / ${selectedRequest.rewardDetails.xpCost} XP`
                           }
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-400" />
-                        <span className="text-sm text-gray-300">Données Firebase synchronisées</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Zone de rejet */}
+                  {/* Rejet */}
                   {modalType === 'reject' && (
                     <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-4">
                       <h4 className="font-semibold text-red-400 mb-3">💬 Raison du rejet</h4>
                       <textarea
                         value={rejectionReason}
                         onChange={(e) => setRejectionReason(e.target.value)}
-                        placeholder="Expliquez pourquoi cette demande est rejetée..."
+                        placeholder="Expliquez pourquoi..."
                         className="w-full h-24 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
                       />
                     </div>
                   )}
 
-                  {/* Boutons d'action */}
+                  {/* Boutons */}
                   <div className="flex justify-end gap-3 pt-4">
                     <button
                       onClick={() => setShowModal(false)}
@@ -915,7 +860,7 @@ const AdminRewardsPage = () => {
                         onClick={() => handleApprove(selectedRequest)}
                         disabled={
                           selectedRequest.rewardDetails.type === 'team' 
-                            ? teamTotalXP < selectedRequest.rewardDetails.xpCost
+                            ? teamPoolXP < selectedRequest.rewardDetails.xpCost
                             : selectedRequest.userXP < selectedRequest.rewardDetails.xpCost
                         }
                         className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
