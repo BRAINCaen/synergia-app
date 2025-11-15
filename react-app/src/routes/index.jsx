@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES - AVEC ADMIN REWARDS
+// ROUTES COMPLÈTES - AVEC GODMOD AJOUTÉ
 // ==========================================
 
 import React from 'react';
@@ -25,6 +25,9 @@ import TimeTrackPage from '../pages/TimeTrackPage.jsx';
 import HRPage from '../pages/HRPage.jsx';
 import PlanningAdvancedPage from '../pages/PlanningAdvancedPage.jsx';
 
+// 👑 PAGE GODMOD
+import GodModPage from '../pages/GodModPage.jsx';
+
 // Pages admin
 import AdminPage from '../pages/AdminPage.jsx';
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx';
@@ -33,7 +36,6 @@ import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
 import AdminSyncPage from '../pages/AdminSyncPage.jsx';
-import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUT
 import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
@@ -66,8 +68,6 @@ const AppRoutes = () => {
         
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
-        
-        {/* PROFIL */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<ProfilePage />} />
         
@@ -78,6 +78,9 @@ const AppRoutes = () => {
         {/* ✨ MODULES RH & PLANNING */}
         <Route path="/hr" element={<HRPage />} />
         <Route path="/planning" element={<PlanningAdvancedPage />} />
+
+        {/* 👑 GODMOD - ACCÈS SPÉCIAL (accessible à tous connectés, mais contenu restreint) */}
+        <Route path="/godmod" element={<GodModPage />} />
       </Route>
 
       {/* Routes admin - Nécessitent authentification + rôle admin */}
@@ -89,7 +92,6 @@ const AppRoutes = () => {
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
         <Route path="/admin/sync" element={<AdminSyncPage />} />
-        <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUT */}
       </Route>
 
       {/* Redirection par défaut */}
