@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminRewardsPage.jsx
-// PAGE ADMIN RÉCOMPENSES AVEC VRAIES DONNÉES FIREBASE
+// PAGE ADMIN RÉCOMPENSES - VISUELS PREMIUM + FIREBASE
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -18,8 +18,15 @@ import {
   Gift, 
   Coins,
   Clock4,
-  MessageSquare
+  MessageSquare,
+  Zap,
+  Users,
+  Crown,
+  Star
 } from 'lucide-react';
+
+// 🎯 IMPORT DU LAYOUT
+import Layout from '../components/layout/Layout.jsx';
 
 // Firebase imports
 import { 
@@ -32,6 +39,7 @@ import {
   updateDoc, 
   deleteDoc, 
   getDoc,
+  getDocs,
   increment,
   serverTimestamp 
 } from 'firebase/firestore';
@@ -40,8 +48,63 @@ import { db } from '../core/firebase.js';
 // Stores
 import { useAuthStore } from '../shared/stores/authStore.js';
 
+// ==========================================
+// 📊 CATALOGUES COMPLETS DES RÉCOMPENSES
+// ==========================================
+
+const DEFAULT_INDIVIDUAL_REWARDS = [
+  // Mini-plaisirs (50-100 XP)
+  { id: 'snack', name: 'Goûter surprise', description: 'Un goûter de ton choix', xpCost: 50, icon: '🍪', category: 'Mini-plaisirs', type: 'individual' },
+  { id: 'coffee', name: 'Café premium', description: 'Un café de spécialité', xpCost: 75, icon: '☕', category: 'Mini-plaisirs', type: 'individual' },
+  { id: 'tea', name: 'Thé premium', description: 'Une sélection de thés fins', xpCost: 80, icon: '🍵', category: 'Mini-plaisirs', type: 'individual' },
+  
+  // Petits avantages (100-200 XP)
+  { id: 'earlyLeave', name: 'Sortie anticipée', description: 'Partir 30 min plus tôt', xpCost: 150, icon: '🏃', category: 'Petits avantages', type: 'individual' },
+  { id: 'parking', name: 'Place de parking', description: 'Place réservée pour une semaine', xpCost: 180, icon: '🅿️', category: 'Petits avantages', type: 'individual' },
+  
+  // Plaisirs utiles (200-400 XP)
+  { id: 'headphones', name: 'Écouteurs', description: 'Écouteurs sans fil', xpCost: 300, icon: '🎧', category: 'Plaisirs utiles', type: 'individual' },
+  { id: 'powerbank', name: 'Batterie externe', description: 'Power bank haute capacité', xpCost: 250, icon: '🔋', category: 'Plaisirs utiles', type: 'individual' },
+  
+  // Food & cadeaux (400-700 XP)
+  { id: 'restaurant', name: 'Restaurant', description: 'Bon pour un restaurant', xpCost: 500, icon: '🍽️', category: 'Food & cadeaux', type: 'individual' },
+  { id: 'giftCard', name: 'Carte cadeau 30€', description: 'Utilisable en magasin', xpCost: 600, icon: '🎁', category: 'Food & cadeaux', type: 'individual' },
+  
+  // Bien-être (700-1000 XP)
+  { id: 'massage', name: 'Massage', description: 'Séance de massage professionnel', xpCost: 800, icon: '💆', category: 'Bien-être', type: 'individual' },
+  { id: 'ergonomic', name: 'Accessoire ergonomique', description: 'Fauteuil ou coussin ergonomique', xpCost: 900, icon: '🪑', category: 'Bien-être', type: 'individual' },
+  
+  // Loisirs (1000-1500 XP)
+  { id: 'cinema', name: 'Pack cinéma', description: '2 places de cinéma + popcorn', xpCost: 1200, icon: '🎬', category: 'Loisirs', type: 'individual' },
+  { id: 'concert', name: 'Concert', description: 'Billet pour un concert', xpCost: 1400, icon: '🎵', category: 'Loisirs', type: 'individual' },
+  
+  // Lifestyle (1500-2500 XP)
+  { id: 'gadget', name: 'Gadget tech', description: 'Objet technologique au choix', xpCost: 2000, icon: '📺', category: 'Lifestyle', type: 'individual' },
+  { id: 'sport', name: 'Équipement sportif', description: 'Matériel pour ton sport préféré', xpCost: 2300, icon: '⚽', category: 'Lifestyle', type: 'individual' },
+  
+  // Temps offert (2500-4000 XP)
+  { id: 'halfDay', name: 'Demi-journée congé', description: 'Une demi-journée de repos supplémentaire', xpCost: 2800, icon: '🌅', category: 'Temps offert', type: 'individual' },
+  { id: 'fullDay', name: 'Jour de congé bonus', description: 'Un jour de congé supplémentaire', xpCost: 3500, icon: '🏖️', category: 'Temps offert', type: 'individual' },
+  
+  // Grands plaisirs (4000-6000 XP)
+  { id: 'weekend', name: 'Week-end découverte', description: 'Un week-end dans un lieu touristique', xpCost: 5000, icon: '🗺️', category: 'Grands plaisirs', type: 'individual' },
+  { id: 'spa', name: 'Journée spa', description: 'Une journée complète dans un spa', xpCost: 4500, icon: '🧖', category: 'Grands plaisirs', type: 'individual' },
+  
+  // Premium (6000+ XP)
+  { id: 'vacation', name: 'Semaine de vacances offerte', description: 'Une semaine de vacances payée', xpCost: 12500, icon: '✈️', category: 'Premium', type: 'individual' },
+  { id: 'laptop', name: 'Ordinateur portable', description: 'Un laptop pour usage personnel', xpCost: 15000, icon: '💻', category: 'Premium', type: 'individual' }
+];
+
+const DEFAULT_TEAM_REWARDS = [
+  { id: 'teamSnack', name: 'Goûter d\'équipe', description: 'Goûter pour toute l\'équipe', xpCost: 500, icon: '🍰', category: 'Team', type: 'team' },
+  { id: 'teamLunch', name: 'Déjeuner d\'équipe', description: 'Restaurant pour l\'équipe', xpCost: 1500, icon: '🍴', category: 'Team', type: 'team' },
+  { id: 'teamActivity', name: 'Activité team building', description: 'Sortie ou activité collective', xpCost: 3000, icon: '🎯', category: 'Team', type: 'team' },
+  { id: 'teamOuting', name: 'Sortie d\'équipe', description: 'Journée découverte en équipe', xpCost: 5000, icon: '🚀', category: 'Team', type: 'team' },
+  { id: 'teamWeekend', name: 'Week-end d\'équipe', description: 'Week-end team building complet', xpCost: 10000, icon: '🏕️', category: 'Team', type: 'team' }
+];
+
 /**
- * 👑 PAGE ADMIN RÉCOMPENSES AVEC VRAIES DONNÉES FIREBASE
+ * 👑 PAGE ADMIN RÉCOMPENSES AVEC VISUELS PREMIUM
  */
 const AdminRewardsPage = () => {
   const { user } = useAuthStore();
@@ -54,6 +117,7 @@ const AdminRewardsPage = () => {
   const [modalType, setModalType] = useState('view');
   const [rejectionReason, setRejectionReason] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [firebaseRewards, setFirebaseRewards] = useState([]);
 
   // Statistiques réelles
   const [stats, setStats] = useState({
@@ -63,13 +127,97 @@ const AdminRewardsPage = () => {
     totalXpDistributed: 0
   });
 
+  // 🔥 CHARGER LES RÉCOMPENSES FIREBASE
+  useEffect(() => {
+    const loadFirebaseRewards = async () => {
+      try {
+        const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
+        const rewards = rewardsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setFirebaseRewards(rewards);
+        console.log('✅ Récompenses Firebase chargées:', rewards.length);
+      } catch (error) {
+        console.error('❌ Erreur chargement récompenses Firebase:', error);
+      }
+    };
+    
+    loadFirebaseRewards();
+  }, []);
+
+  /**
+   * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE (VERSION AMÉLIORÉE)
+   */
+  const getRewardDetails = (rewardId, rewardName, rewardIcon) => {
+    // 1. Chercher dans Firebase d'abord
+    const firebaseReward = firebaseRewards.find(r => r.id === rewardId);
+    if (firebaseReward) {
+      return {
+        name: firebaseReward.name,
+        description: firebaseReward.description || '',
+        xpCost: firebaseReward.xpCost,
+        icon: firebaseReward.icon || '🎁',
+        category: firebaseReward.category || 'Personnalisée',
+        type: firebaseReward.type || 'individual'
+      };
+    }
+
+    // 2. Chercher dans les catalogues par défaut
+    const allDefaultRewards = [...DEFAULT_INDIVIDUAL_REWARDS, ...DEFAULT_TEAM_REWARDS];
+    const defaultReward = allDefaultRewards.find(r => r.id === rewardId);
+    if (defaultReward) {
+      return defaultReward;
+    }
+
+    // 3. Utiliser les données de la demande si disponibles
+    if (rewardName && rewardIcon) {
+      return {
+        name: rewardName,
+        description: 'Récompense personnalisée',
+        xpCost: 0,
+        icon: rewardIcon,
+        category: 'Custom',
+        type: 'individual'
+      };
+    }
+
+    // 4. Fallback par défaut
+    return { 
+      name: rewardId || 'Récompense inconnue', 
+      description: '',
+      xpCost: 0, 
+      icon: '🎁',
+      category: 'Inconnue',
+      type: 'individual'
+    };
+  };
+
+  /**
+   * 🎨 COULEUR PAR COÛT XP (comme RewardsPage)
+   */
+  const getRewardColor = (reward) => {
+    if (reward.type === 'team') return 'from-purple-600 to-indigo-600';
+    
+    const xp = reward.xpCost;
+    if (xp <= 100) return 'from-green-600 to-emerald-600';
+    if (xp <= 200) return 'from-blue-600 to-cyan-600';
+    if (xp <= 400) return 'from-yellow-600 to-orange-600';
+    if (xp <= 700) return 'from-red-600 to-pink-600';
+    if (xp <= 1000) return 'from-purple-600 to-violet-600';
+    if (xp <= 1500) return 'from-indigo-600 to-blue-600';
+    if (xp <= 2500) return 'from-pink-600 to-rose-600';
+    if (xp <= 4000) return 'from-orange-600 to-red-600';
+    if (xp <= 6000) return 'from-violet-600 to-purple-600';
+    return 'from-yellow-500 to-amber-500';
+  };
+
   // 🔥 ÉCOUTE FIREBASE EN TEMPS RÉEL DES DEMANDES DE RÉCOMPENSES
   useEffect(() => {
     if (!user?.uid) return;
 
     console.log('🔄 AdminRewards - Écoute Firebase des demandes...');
     
-    // Query pour les demandes de récompenses en attente
     const rewardRequestsQuery = query(
       collection(db, 'rewardRequests'),
       where('status', '==', 'pending'),
@@ -85,7 +233,6 @@ const AdminRewardsPage = () => {
         const requestData = requestDoc.data();
         
         try {
-          // Récupérer les données utilisateur
           const userRef = doc(db, 'users', requestData.userId);
           const userDoc = await getDoc(userRef);
           const userData = userDoc.exists() ? userDoc.data() : null;
@@ -114,7 +261,6 @@ const AdminRewardsPage = () => {
       setRequests(requestsWithUserData);
       setLoading(false);
       
-      // Mettre à jour les stats
       setStats(prev => ({
         ...prev,
         pendingRequests: requestsWithUserData.length
@@ -132,7 +278,6 @@ const AdminRewardsPage = () => {
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Écouter toutes les demandes pour les statistiques
     const allRequestsQuery = query(
       collection(db, 'rewardRequests'),
       orderBy('requestedAt', 'desc')
@@ -144,7 +289,6 @@ const AdminRewardsPage = () => {
         ...doc.data()
       }));
 
-      // Calculer les statistiques
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -157,7 +301,6 @@ const AdminRewardsPage = () => {
         return approvedDate.getTime() === today.getTime();
       }).length;
 
-      // Calculer XP total distribué (estimation basée sur les demandes approuvées)
       const totalXpDistributed = allRequests
         .filter(req => req.status === 'approved')
         .reduce((sum, req) => sum + (req.xpCost || 0), 0);
@@ -174,51 +317,19 @@ const AdminRewardsPage = () => {
   }, [user?.uid]);
 
   /**
-   * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE
-   */
-  const getRewardDetails = (rewardId) => {
-    const rewardMap = {
-      'snack_personal': { name: 'Goûter personnalisé', xpCost: 50, category: 'Mini-plaisirs' },
-      'mini_game': { name: 'Mini-jeu de bureau', xpCost: 80, category: 'Mini-plaisirs' },
-      'unlimited_break': { name: 'Pause illimitée', xpCost: 100, category: 'Mini-plaisirs' },
-      'time_off_15min': { name: '15 min off', xpCost: 120, category: 'Petits avantages' },
-      'nap_authorized': { name: 'Pause sieste autorisée', xpCost: 150, category: 'Petits avantages' },
-      'light_shift': { name: 'Shift "super light"', xpCost: 180, category: 'Petits avantages' },
-      'action_voucher': { name: 'Bon "action"', xpCost: 220, category: 'Plaisirs utiles' },
-      'breakfast_surprise': { name: 'Petit-déj surprise', xpCost: 280, category: 'Plaisirs utiles' },
-      'book_choice': { name: 'Livre au choix', xpCost: 320, category: 'Plaisirs utiles' },
-      'pizza_lunch': { name: 'Pizza du midi', xpCost: 380, category: 'Plaisirs utiles' },
-      'restaurant_voucher': { name: 'Bon d\'achat "restauration"', xpCost: 450, category: 'Plaisirs food & cadeaux' },
-      'poke_bowl': { name: 'Poke bowl/burger livré', xpCost: 520, category: 'Plaisirs food & cadeaux' },
-      'gift_voucher': { name: 'Bon cadeau magasins', xpCost: 600, category: 'Plaisirs food & cadeaux' },
-      'board_game': { name: 'Jeu de société offert', xpCost: 680, category: 'Plaisirs food & cadeaux' },
-      'cinema_tickets': { name: '2 places de cinéma', xpCost: 1100, category: 'Loisirs & sorties' },
-      'escape_game': { name: 'Place d\'escape game', xpCost: 1200, category: 'Loisirs & sorties' },
-      'discovery_activity': { name: 'Initiation/découverte', xpCost: 1350, category: 'Loisirs & sorties' },
-      'premium_card': { name: 'Carte cadeau premium', xpCost: 6500, category: 'Premium' },
-      'hotel_night': { name: '1 nuit d\'hôtel pour 2', xpCost: 8000, category: 'Premium' },
-      'spa_day': { name: 'Journée spa', xpCost: 12500, category: 'Premium' }
-    };
-    
-    return rewardMap[rewardId] || { name: rewardId, xpCost: 0, category: 'Inconnue' };
-  };
-
-  /**
    * ✅ APPROUVER UNE DEMANDE FIREBASE
    */
   const handleApprove = async (request) => {
     try {
       console.log('✅ Approbation Firebase de la demande:', request.id);
       
-      const rewardDetails = getRewardDetails(request.rewardId);
+      const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon);
       
-      // Vérifier si l'utilisateur a encore assez d'XP
       if (request.userXP < rewardDetails.xpCost) {
         alert('❌ L\'utilisateur n\'a plus assez d\'XP pour cette récompense.');
         return;
       }
 
-      // Mettre à jour la demande dans Firebase
       const requestRef = doc(db, 'rewardRequests', request.id);
       await updateDoc(requestRef, {
         status: 'approved',
@@ -227,7 +338,6 @@ const AdminRewardsPage = () => {
         adminEmail: user.email
       });
 
-      // Déduire les XP de l'utilisateur
       const userRef = doc(db, 'users', request.userId);
       await updateDoc(userRef, {
         'gamification.totalXp': increment(-rewardDetails.xpCost),
@@ -260,7 +370,6 @@ const AdminRewardsPage = () => {
     try {
       console.log('❌ Rejet Firebase de la demande:', request.id, 'Raison:', rejectionReason);
       
-      // Mettre à jour la demande dans Firebase
       const requestRef = doc(db, 'rewardRequests', request.id);
       await updateDoc(requestRef, {
         status: 'rejected',
@@ -288,9 +397,6 @@ const AdminRewardsPage = () => {
    */
   const handleRefresh = async () => {
     setRefreshing(true);
-    
-    // Les données se rafraîchissent automatiquement via onSnapshot
-    // Simulation d'un délai pour l'UX
     setTimeout(() => {
       setRefreshing(false);
       console.log('🔄 Données rafraîchies automatiquement via Firebase');
@@ -301,7 +407,7 @@ const AdminRewardsPage = () => {
    * 👁️ OUVRIR LE MODAL
    */
   const openModal = (request, type = 'view') => {
-    const rewardDetails = getRewardDetails(request.rewardId);
+    const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon);
     setSelectedRequest({
       ...request,
       rewardDetails
@@ -352,363 +458,378 @@ const AdminRewardsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-white">Chargement administration...</h2>
-          <p className="text-gray-400 mt-2">Synchronisation Firebase en cours</p>
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-white">Chargement administration...</h2>
+            <p className="text-gray-400 mt-2">Synchronisation Firebase en cours</p>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* En-tête admin */}
-        <motion.div 
-          className="mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-red-400 to-purple-400 bg-clip-text text-transparent flex items-center">
-                <Shield className="w-10 h-10 mr-4 text-red-400" />
-                Administration des Récompenses
-              </h1>
-              <p className="text-gray-400 text-lg mt-2">
-                Gérer les demandes en temps réel via Firebase
-              </p>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>Actualiser</span>
-              </button>
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          
+          {/* En-tête admin */}
+          <motion.div 
+            className="mb-8"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-red-400 bg-clip-text text-transparent flex items-center gap-3">
+                  <Shield className="w-10 h-10 text-purple-400" />
+                  Administration des Récompenses
+                </h1>
+                <p className="text-gray-400 text-lg mt-2">
+                  Gérer les demandes en temps réel via Firebase
+                </p>
+              </div>
               
-              <a
-                href="/rewards"
-                className="flex items-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <Gift className="w-4 h-4" />
-                <span>Page utilisateur</span>
-              </a>
-            </div>
-          </div>
-
-          {/* Statistiques Firebase temps réel */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-yellow-600/20 border border-yellow-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-400 text-sm font-medium">En attente</p>
-                  <p className="text-2xl font-bold text-yellow-300">{stats.pendingRequests}</p>
-                  <p className="text-yellow-500 text-xs">Temps réel Firebase</p>
-                </div>
-                <Clock4 className="w-6 h-6 text-yellow-400" />
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  <span>Actualiser</span>
+                </button>
+                
+                <a
+                  href="/rewards"
+                  className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Gift className="w-4 h-4" />
+                  <span>Page utilisateur</span>
+                </a>
               </div>
             </div>
 
-            <div className="bg-blue-600/20 border border-blue-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-400 text-sm font-medium">Total demandes</p>
-                  <p className="text-2xl font-bold text-blue-300">{stats.totalRequests}</p>
-                  <p className="text-blue-500 text-xs">Depuis le début</p>
+            {/* Statistiques Firebase temps réel */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white/10 backdrop-blur-lg border border-yellow-400/30 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-yellow-400 text-sm font-medium">En attente</p>
+                    <p className="text-3xl font-bold text-white">{stats.pendingRequests}</p>
+                    <p className="text-yellow-400/70 text-xs mt-1">Temps réel Firebase</p>
+                  </div>
+                  <Clock4 className="w-8 h-8 text-yellow-400" />
                 </div>
-                <BarChart3 className="w-6 h-6 text-blue-400" />
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-lg border border-blue-400/30 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-400 text-sm font-medium">Total demandes</p>
+                    <p className="text-3xl font-bold text-white">{stats.totalRequests}</p>
+                    <p className="text-blue-400/70 text-xs mt-1">Depuis le début</p>
+                  </div>
+                  <BarChart3 className="w-8 h-8 text-blue-400" />
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-lg border border-green-400/30 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-400 text-sm font-medium">Approuvées aujourd'hui</p>
+                    <p className="text-3xl font-bold text-white">{stats.approvedToday}</p>
+                    <p className="text-green-400/70 text-xs mt-1">Depuis 00h00</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-400" />
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-lg border border-purple-400/30 rounded-xl p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-400 text-sm font-medium">XP distribués</p>
+                    <p className="text-3xl font-bold text-white">{stats.totalXpDistributed.toLocaleString()}</p>
+                    <p className="text-purple-400/70 text-xs mt-1">Total approuvé</p>
+                  </div>
+                  <Coins className="w-8 h-8 text-purple-400" />
+                </div>
               </div>
             </div>
+          </motion.div>
 
-            <div className="bg-green-600/20 border border-green-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-400 text-sm font-medium">Approuvées aujourd'hui</p>
-                  <p className="text-2xl font-bold text-green-300">{stats.approvedToday}</p>
-                  <p className="text-green-500 text-xs">Depuis 00h00</p>
-                </div>
-                <CheckCircle className="w-6 h-6 text-green-400" />
+          {/* Liste des demandes avec visuels premium */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            {requests.length === 0 ? (
+              <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-12 text-center">
+                <CheckCircle className="w-20 h-20 text-green-400 mx-auto mb-4" />
+                <h3 className="text-2xl font-semibold text-white mb-2">Aucune demande en attente</h3>
+                <p className="text-gray-400 text-lg">Toutes les demandes ont été traitées ! 🎉</p>
+                <p className="text-gray-500 text-sm mt-2">
+                  Les nouvelles demandes apparaîtront automatiquement via Firebase
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                  Demandes en attente ({requests.length}) - Temps réel
+                </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {requests.map((request) => {
+                    const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon);
+                    const canAfford = request.userXP >= rewardDetails.xpCost;
 
-            <div className="bg-purple-600/20 border border-purple-500/50 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-400 text-sm font-medium">XP distribués</p>
-                  <p className="text-2xl font-bold text-purple-300">{stats.totalXpDistributed.toLocaleString()}</p>
-                  <p className="text-purple-500 text-xs">Total approuvé</p>
-                </div>
-                <Coins className="w-6 h-6 text-purple-400" />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Liste des demandes Firebase */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          {requests.length === 0 ? (
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Aucune demande en attente</h3>
-              <p className="text-gray-400">Toutes les demandes ont été traitées ! 🎉</p>
-              <p className="text-gray-500 text-sm mt-2">
-                Les nouvelles demandes apparaîtront automatiquement via Firebase
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
-                <div className="w-3 h-3 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                Demandes en attente ({requests.length}) - Temps réel
-              </h2>
-              
-              {requests.map((request) => {
-                const rewardDetails = getRewardDetails(request.rewardId);
-                const canAfford = request.userXP >= rewardDetails.xpCost;
-
-                return (
-                  <motion.div
-                    key={request.id}
-                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-purple-500/50 transition-colors"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                          <Gift className="w-6 h-6 text-white" />
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h4 className="font-semibold text-white text-lg">{rewardDetails.name}</h4>
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${
-                              canAfford ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-                            }`}>
-                              {rewardDetails.xpCost} XP
-                            </span>
-                            <span className="px-2 py-1 bg-gray-600 text-gray-200 rounded text-xs">
-                              {rewardDetails.category}
-                            </span>
-                          </div>
+                    return (
+                      <motion.div
+                        key={request.id}
+                        className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                      >
+                        {/* Gradient Header avec VRAIE icône */}
+                        <div className={`h-32 bg-gradient-to-r ${getRewardColor(rewardDetails)} flex items-center justify-center relative`}>
+                          <span className="text-6xl">{rewardDetails.icon}</span>
                           
-                          <div className="flex items-center space-x-4 text-sm text-gray-400">
-                            <div className="flex items-center space-x-1">
-                              <User className="w-4 h-4" />
-                              <span>{request.userName}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="w-4 h-4" />
-                              <span>{getRelativeTime(request.requestedAt)}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Coins className="w-4 h-4" />
-                              <span>{request.userXP} XP disponibles</span>
-                            </div>
-                          </div>
-
-                          {!canAfford && (
-                            <div className="mt-2 flex items-center space-x-2 text-red-400 text-sm">
-                              <AlertCircle className="w-4 h-4" />
-                              <span>⚠️ Utilisateur n'a pas assez d'XP ({request.userXP}/{rewardDetails.xpCost})</span>
+                          {/* Badge Type */}
+                          {rewardDetails.type === 'team' && (
+                            <div className="absolute top-2 right-2 bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              Équipe
                             </div>
                           )}
                         </div>
-                      </div>
 
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => openModal(request, 'view')}
-                          className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                          title="Voir les détails"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => openModal(request, 'approve')}
-                          disabled={!canAfford}
-                          className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Approuver"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => openModal(request, 'reject')}
-                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                          title="Rejeter"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </motion.div>
+                        {/* Content */}
+                        <div className="p-6">
+                          <h3 className="text-xl font-bold text-white mb-2">{rewardDetails.name}</h3>
+                          <p className="text-gray-400 text-sm mb-4">{rewardDetails.description || 'Récompense personnalisée'}</p>
+                          
+                          {/* Utilisateur */}
+                          <div className="bg-white/5 rounded-lg p-3 mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <User className="w-4 h-4 text-blue-400" />
+                              <span className="text-white font-semibold">{request.userName}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <Calendar className="w-4 h-4" />
+                              <span>{getRelativeTime(request.requestedAt)}</span>
+                            </div>
+                          </div>
 
-        {/* Modal d'action */}
-        {showModal && selectedRequest && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">
-                  {modalType === 'view' && 'Détails de la demande Firebase'}
-                  {modalType === 'approve' && 'Approuver la demande'}
-                  {modalType === 'reject' && 'Rejeter la demande'}
-                </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                          {/* XP Info */}
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-xs bg-white/10 text-gray-300 px-3 py-1 rounded-full">
+                              {rewardDetails.category}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <Zap className={`w-4 h-4 ${canAfford ? 'text-yellow-400' : 'text-red-400'}`} />
+                              <span className={`font-bold ${canAfford ? 'text-yellow-400' : 'text-red-400'}`}>
+                                {rewardDetails.xpCost} XP
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* XP disponibles utilisateur */}
+                          <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-2 mb-4">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400">XP utilisateur:</span>
+                              <span className="text-blue-400 font-bold">{request.userXP} XP</span>
+                            </div>
+                          </div>
+
+                          {/* Alerte si pas assez d'XP */}
+                          {!canAfford && (
+                            <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-3 mb-4 flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                              <span className="text-red-400 text-xs">XP insuffisants</span>
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openModal(request, 'view')}
+                              className="flex-1 bg-white/5 border border-white/20 text-white py-2 px-3 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center gap-1"
+                              title="Voir les détails"
+                            >
+                              <Eye className="w-4 h-4" />
+                              Détails
+                            </button>
+                            
+                            <button
+                              onClick={() => openModal(request, 'approve')}
+                              disabled={!canAfford}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                              title="Approuver"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Valider
+                            </button>
+                            
+                            <button
+                              onClick={() => openModal(request, 'reject')}
+                              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1"
+                              title="Rejeter"
+                            >
+                              <X className="w-4 h-4" />
+                              Refuser
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
+            )}
+          </motion.div>
 
-              {/* Détails de la demande */}
-              <div className="space-y-6">
-                {/* ID Firebase */}
-                <div className="bg-blue-900/20 border border-blue-500/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-400 mb-2">ID Firebase</h4>
-                  <p className="text-blue-300 text-sm font-mono">{selectedRequest.id}</p>
-                </div>
-
-                {/* Informations utilisateur */}
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-white mb-3">Informations utilisateur</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-400">Nom:</span>
-                      <span className="text-white ml-2">{selectedRequest.userName}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Email:</span>
-                      <span className="text-white ml-2">{selectedRequest.userEmail}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">XP actuels:</span>
-                      <span className="text-blue-400 ml-2 font-bold">{selectedRequest.userXP} XP</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Demandée le:</span>
-                      <span className="text-white ml-2">{formatDate(selectedRequest.requestedAt)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Détails de la récompense */}
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-white mb-3">Récompense demandée</h4>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-gray-400">Nom:</span>
-                      <span className="text-white ml-2">{selectedRequest.rewardDetails.name}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Coût:</span>
-                      <span className="text-yellow-400 ml-2 font-bold">{selectedRequest.rewardDetails.xpCost} XP</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Catégorie:</span>
-                      <span className="text-white ml-2">{selectedRequest.rewardDetails.category}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Type:</span>
-                      <span className="text-white ml-2">{selectedRequest.rewardType === 'individual' ? 'Individuelle' : 'Équipe'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vérifications */}
-                <div className="bg-gray-700/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-white mb-3">Vérifications Firebase</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      {selectedRequest.userXP >= selectedRequest.rewardDetails.xpCost ? (
-                        <CheckCircle className="w-5 h-5 text-green-400" />
-                      ) : (
-                        <X className="w-5 h-5 text-red-400" />
-                      )}
-                      <span className="text-sm text-gray-300">XP suffisants</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      <span className="text-sm text-gray-300">Données Firebase synchronisées</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      <span className="text-sm text-gray-300">Demande valide</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Zone de rejet */}
-                {modalType === 'reject' && (
-                  <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
-                    <h4 className="font-semibold text-red-400 mb-3">Raison du rejet</h4>
-                    <textarea
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Expliquez pourquoi cette demande est rejetée..."
-                      className="w-full h-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                    />
-                  </div>
-                )}
-
-                {/* Boutons d'action */}
-                <div className="flex justify-end space-x-3">
+          {/* Modal d'action */}
+          {showModal && selectedRequest && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <motion.div
+                className="bg-slate-800 border border-white/20 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-bold text-white">
+                    {modalType === 'view' && '📋 Détails de la demande'}
+                    {modalType === 'approve' && '✅ Approuver la demande'}
+                    {modalType === 'reject' && '❌ Rejeter la demande'}
+                  </h3>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    className="text-gray-400 hover:text-white transition-colors"
                   >
-                    Annuler
+                    <X className="w-6 h-6" />
                   </button>
-                  
-                  {modalType === 'approve' && (
-                    <button
-                      onClick={() => handleApprove(selectedRequest)}
-                      disabled={selectedRequest.userXP < selectedRequest.rewardDetails.xpCost}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Approuver dans Firebase</span>
-                    </button>
-                  )}
-                  
-                  {modalType === 'reject' && (
-                    <button
-                      onClick={() => handleReject(selectedRequest)}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center space-x-2"
-                    >
-                      <X className="w-4 h-4" />
-                      <span>Rejeter dans Firebase</span>
-                    </button>
-                  )}
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
+
+                {/* Aperçu visuel de la récompense */}
+                <div className={`h-40 bg-gradient-to-r ${getRewardColor(selectedRequest.rewardDetails)} rounded-xl flex items-center justify-center mb-6`}>
+                  <span className="text-8xl">{selectedRequest.rewardDetails.icon}</span>
+                </div>
+
+                {/* Détails */}
+                <div className="space-y-4">
+                  {/* Nom récompense */}
+                  <div className="bg-white/5 border border-white/20 rounded-lg p-4">
+                    <h4 className="text-lg font-bold text-white mb-2">{selectedRequest.rewardDetails.name}</h4>
+                    <p className="text-gray-400 text-sm">{selectedRequest.rewardDetails.description}</p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <span className="px-3 py-1 bg-white/10 text-gray-300 rounded-full text-xs">
+                        {selectedRequest.rewardDetails.category}
+                      </span>
+                      <div className="flex items-center gap-1 text-yellow-400">
+                        <Zap className="w-4 h-4" />
+                        <span className="font-bold">{selectedRequest.rewardDetails.xpCost} XP</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Infos utilisateur */}
+                  <div className="bg-white/5 border border-white/20 rounded-lg p-4">
+                    <h4 className="font-semibold text-white mb-3">👤 Utilisateur</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-400">Nom:</span>
+                        <p className="text-white font-semibold">{selectedRequest.userName}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Email:</span>
+                        <p className="text-white font-semibold">{selectedRequest.userEmail}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">XP actuels:</span>
+                        <p className="text-blue-400 font-bold">{selectedRequest.userXP} XP</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">Demandée le:</span>
+                        <p className="text-white">{formatDate(selectedRequest.requestedAt)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vérifications */}
+                  <div className="bg-white/5 border border-white/20 rounded-lg p-4">
+                    <h4 className="font-semibold text-white mb-3">🔍 Vérifications</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        {selectedRequest.userXP >= selectedRequest.rewardDetails.xpCost ? (
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                        ) : (
+                          <X className="w-5 h-5 text-red-400" />
+                        )}
+                        <span className="text-sm text-gray-300">
+                          XP suffisants ({selectedRequest.userXP} / {selectedRequest.rewardDetails.xpCost})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <span className="text-sm text-gray-300">Données Firebase synchronisées</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Zone de rejet */}
+                  {modalType === 'reject' && (
+                    <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-4">
+                      <h4 className="font-semibold text-red-400 mb-3">💬 Raison du rejet</h4>
+                      <textarea
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        placeholder="Expliquez pourquoi cette demande est rejetée..."
+                        className="w-full h-24 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* Boutons d'action */}
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      onClick={() => setShowModal(false)}
+                      className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    
+                    {modalType === 'approve' && (
+                      <button
+                        onClick={() => handleApprove(selectedRequest)}
+                        disabled={selectedRequest.userXP < selectedRequest.rewardDetails.xpCost}
+                        className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                        Approuver
+                      </button>
+                    )}
+                    
+                    {modalType === 'reject' && (
+                      <button
+                        onClick={() => handleReject(selectedRequest)}
+                        className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <X className="w-5 h-5" />
+                        Rejeter
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 
