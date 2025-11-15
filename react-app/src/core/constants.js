@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/constants.js  
-// CONSTANTS AVEC ROUTE RH DANS LE MENU
+// CONSTANTS AVEC ROUTE GODMOD AJOUTÉE
 // ==========================================
 
 export const ROUTES = {
@@ -37,6 +37,8 @@ export const ROUTES = {
   PLANNING: '/planning',
   PLANNING_ADVANCED: '/planning-advanced',
 
+  // 👑 GODMOD - ACCÈS EXCLUSIF ADMIN PRINCIPAL
+  GODMOD: '/godmod',
   
   // 🛡️ ROUTES ADMIN
   ADMIN: '/admin',
@@ -124,16 +126,8 @@ export const NAVIGATION_STRUCTURE = {
     routes: [
       { path: ROUTES.ONBOARDING, label: 'Formation', icon: '📚', priority: 1 },
       { path: ROUTES.TIMETRACK, label: 'Pointage', icon: '⏰', priority: 2 },
-      // 🆕 ROUTE RH AJOUTÉE ICI
       { path: ROUTES.HR, label: 'RH', icon: '🏢', priority: 3 },
       { path: ROUTES.PLANNING, label: 'Planning', icon: '📅', priority: 4 },
-      // Dans tools.routes
-{
-  path: ROUTES.PLANNING_ADVANCED,
-  label: 'Planning Avancé',
-  icon: 'Calendar',
-  description: 'Gestion avancée des plannings type Skello'
-},
       { path: ROUTES.PROFILE, label: 'Profil', icon: '👤', priority: 5 },
       { path: ROUTES.SETTINGS, label: 'Paramètres', icon: '⚙️', priority: 6 }
     ]
@@ -156,6 +150,13 @@ export const NAVIGATION_STRUCTURE = {
       { path: ROUTES.ADMIN_INTERVIEW, label: 'Gestion Entretiens', icon: '💼', priority: 13 },
       { path: ROUTES.ADMIN_DEMO_CLEANER, label: 'Nettoyage Données', icon: '🧹', priority: 14 }
     ]
+  },
+  // 👑 GODMOD - SECTION SPÉCIALE (visible uniquement pour alan.boehme61@gmail.com)
+  godmod: {
+    label: 'GODMOD',
+    routes: [
+      { path: ROUTES.GODMOD, label: 'GODMOD', icon: '👑', priority: 1, godModeOnly: true }
+    ]
   }
 };
 
@@ -171,6 +172,11 @@ export const MAIN_NAVIGATION = [
 // 🛡️ NAVIGATION ADMIN (ordre d'affichage)
 export const ADMIN_NAVIGATION = [
   ...NAVIGATION_STRUCTURE.admin.routes
+];
+
+// 👑 NAVIGATION GODMOD (ordre d'affichage - uniquement pour l'admin principal)
+export const GODMOD_NAVIGATION = [
+  ...NAVIGATION_STRUCTURE.godmod.routes
 ];
 
 // 📊 ROUTES PAR CATÉGORIE
@@ -215,6 +221,10 @@ export const ROUTES_BY_CATEGORY = {
     ROUTES.ADMIN_DASHBOARD_MANAGER,
     ROUTES.ADMIN_INTERVIEW,
     ROUTES.ADMIN_DEMO_CLEANER
+  ],
+  // 👑 GODMOD
+  GODMOD: [
+    ROUTES.GODMOD
   ]
 };
 
@@ -229,6 +239,10 @@ export const getNavigationByCategory = (category) => {
 
 export const isAdminRoute = (path) => {
   return path.startsWith('/admin/');
+};
+
+export const isGodModRoute = (path) => {
+  return path === '/godmod';
 };
 
 export const getRouteCategory = (path) => {
@@ -247,5 +261,6 @@ export default {
   NAVIGATION_STRUCTURE,
   MAIN_NAVIGATION,
   ADMIN_NAVIGATION,
+  GODMOD_NAVIGATION,
   ROUTES_BY_CATEGORY
 };
