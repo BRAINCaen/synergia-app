@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES - AVEC INFOS + PLANNING AVANCÉ
+// ROUTES COMPLÈTES - AVEC ADMIN REWARDS
 // ==========================================
 
 import React from 'react';
@@ -33,6 +33,7 @@ import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
 import AdminSyncPage from '../pages/AdminSyncPage.jsx';
+import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUT
 import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
@@ -65,6 +66,8 @@ const AppRoutes = () => {
         
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
+        
+        {/* PROFIL */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<ProfilePage />} />
         
@@ -86,6 +89,7 @@ const AppRoutes = () => {
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
         <Route path="/admin/sync" element={<AdminSyncPage />} />
+        <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUT */}
       </Route>
 
       {/* Redirection par défaut */}
