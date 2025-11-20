@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/shared/stores/authStore.js
-// AUTH STORE AVEC PERSISTENCE LOCALE ET CRÉATION AUTO PROFIL FIRESTORE
+// AUTH STORE AVEC PERSISTENCE LOCALE, CRÉATION AUTO PROFIL FIRESTORE ET TRACKING D'ACTIVITÉ
 // ==========================================
 
 import { create } from 'zustand';
@@ -19,6 +19,9 @@ import { auth } from '../../core/firebase.js';
 
 // 🔑 IMPORT AUTHSERVICE POUR CRÉATION PROFIL FIRESTORE
 import AuthService from '../../core/services/authService.js';
+
+// 🎯 IMPORT SERVICE DE TRACKING D'ACTIVITÉ
+import activityTrackingService from '../../core/services/activityTrackingService.js';
 
 // Provider Google avec configuration
 const googleProvider = new GoogleAuthProvider();
@@ -59,7 +62,7 @@ export const useAuthStore = create(
       lastLoginTime: null,
       sessionExpiry: null,
       
-      // 🔐 CONNEXION GOOGLE - CORRIGÉE AVEC CRÉATION PROFIL FIRESTORE
+      // 🔐 CONNEXION GOOGLE - AVEC TRACKING AUTOMATIQUE
       signInWithGoogle: async () => {
         try {
           set({ loading: true, error: null });
@@ -82,6 +85,14 @@ export const useAuthStore = create(
             photoURL: user.photoURL
           });
           console.log('✅ Profil Firestore créé/vérifié avec succès !');
+          
+          // 🎯 TRACKER LA CONNEXION
+          await activityTrackingService.logLogin(
+            user.uid,
+            user.displayName || 'Utilisateur',
+            user.email
+          );
+          console.log('📊 [TRACKING] Connexion Google trackée');
           
           // Calculer expiration de session (24h)
           const now = Date.now();
@@ -116,7 +127,7 @@ export const useAuthStore = create(
         }
       },
 
-      // 📧 CONNEXION EMAIL/PASSWORD - CORRIGÉE AVEC CRÉATION PROFIL
+      // 📧 CONNEXION EMAIL/PASSWORD - AVEC TRACKING AUTOMATIQUE
       signInWithEmail: async (email, password) => {
         try {
           set({ loading: true, error: null });
@@ -138,6 +149,14 @@ export const useAuthStore = create(
             photoURL: user.photoURL
           });
           console.log('✅ Profil Firestore vérifié !');
+          
+          // 🎯 TRACKER LA CONNEXION
+          await activityTrackingService.logLogin(
+            user.uid,
+            user.displayName || user.email,
+            user.email
+          );
+          console.log('📊 [TRACKING] Connexion email trackée');
           
           // Calculer expiration de session (24h)
           const now = Date.now();
@@ -172,7 +191,7 @@ export const useAuthStore = create(
         }
       },
 
-      // 📝 INSCRIPTION - CORRIGÉE AVEC CRÉATION PROFIL
+      // 📝 INSCRIPTION - AVEC TRACKING AUTOMATIQUE
       signUpWithEmail: async (email, password, displayName) => {
         try {
           set({ loading: true, error: null });
@@ -194,6 +213,19 @@ export const useAuthStore = create(
             photoURL: user.photoURL
           });
           console.log('✅ Profil Firestore complet créé !');
+          
+          // 🎯 TRACKER L'INSCRIPTION
+          await activityTrackingService.logActivity({
+            type: 'user_signup',
+            userId: user.uid,
+            userName: displayName || user.email,
+            userEmail: user.email,
+            category: 'Authentification',
+            action: 'Inscription',
+            details: 'Nouvel utilisateur créé',
+            status: 'success'
+          });
+          console.log('📊 [TRACKING] Inscription trackée');
           
           // Calculer expiration de session (24h)
           const now = Date.now();
@@ -228,10 +260,21 @@ export const useAuthStore = create(
         }
       },
 
-      // 🚪 DÉCONNEXION
+      // 🚪 DÉCONNEXION - AVEC TRACKING AUTOMATIQUE
       signOut: async () => {
         try {
           console.log('🔄 Déconnexion...');
+          
+          // 🎯 TRACKER LA DÉCONNEXION AVANT DE DÉCONNECTER
+          const currentUser = get().user;
+          if (currentUser) {
+            await activityTrackingService.logLogout(
+              currentUser.uid,
+              currentUser.displayName || 'Utilisateur',
+              currentUser.email
+            );
+            console.log('📊 [TRACKING] Déconnexion trackée');
+          }
           
           await firebaseSignOut(auth);
           
@@ -388,4 +431,4 @@ if (typeof window !== 'undefined') {
 // ✅ EXPORTS
 export default useAuthStore;
 
-console.log('✅ Auth Store chargé avec CRÉATION AUTO PROFIL FIRESTORE activée');
+console.log('✅ Auth Store chargé avec TRACKING D\'ACTIVITÉ AUTOMATIQUE activé');
