@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT AVEC MENU COMPLET + GODMOD
+// LAYOUT AVEC MENU COMPLET + GODMOD + ADMIN REWARDS
 // ==========================================
 
 import React, { useState, memo, useRef, useCallback } from 'react';
@@ -46,6 +46,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/admin', label: 'Dashboard Admin', icon: '👑' },
       { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
       { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
+      { path: '/admin/rewards', label: 'Validation Récompenses', icon: '🎁' }, // ✅ AJOUT
       { path: '/admin/analytics', label: 'Analytics Admin', icon: '📊' },
       { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
       { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
@@ -98,44 +99,41 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
           bottom: 0,
           width: '400px',
           maxWidth: '85vw',
-          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.95) 100%)',
-          borderRight: '1px solid rgba(139, 92, 246, 0.2)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.1)',
-          overflowY: 'auto',
-          animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)',
+          boxShadow: '4px 0 30px rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideIn 0.3s ease-out'
         }}
       >
         {/* Header */}
-        <div style={{
-          padding: '32px 24px 24px',
-          borderBottom: '1px solid rgba(156, 163, 175, 0.1)',
-          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div 
+          style={{
+            padding: '24px',
+            borderBottom: '1px solid rgba(75, 85, 99, 0.3)',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
-                width: '48px',
-                height: '48px',
+                width: '56px',
+                height: '56px',
                 background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                borderRadius: '14px',
+                borderRadius: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 10px 25px -5px rgba(59, 130, 246, 0.4)',
-                fontSize: '24px'
+                fontSize: '28px',
+                boxShadow: '0 8px 20px -4px rgba(59, 130, 246, 0.4)'
               }}>
                 🎮
               </div>
               <div>
                 <h2 style={{
                   fontSize: '24px',
-                  fontWeight: '700',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  fontWeight: '800',
+                  background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
@@ -184,7 +182,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
         </div>
 
         {/* Menu Items */}
-        <div style={{ padding: '24px' }}>
+        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
           {menuItems.map((section, sectionIndex) => (
             <div 
               key={sectionIndex}
@@ -238,49 +236,45 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
-                      color: item.isGodMode ? '#fbbf24' : 'rgba(243, 244, 246, 1)',
-                      fontSize: '15px',
-                      fontWeight: '500',
-                      textAlign: 'left'
+                      color: item.isGodMode ? '#fbbf24' : 'rgba(229, 231, 235, 1)',
+                      textAlign: 'left',
+                      width: '100%'
                     }}
                     onMouseEnter={(e) => {
                       if (item.isGodMode) {
                         e.target.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%)';
                         e.target.style.borderColor = 'rgba(251, 191, 36, 0.5)';
-                        e.target.style.boxShadow = '0 8px 25px -5px rgba(251, 191, 36, 0.3)';
+                        e.target.style.transform = 'translateX(8px)';
                       } else {
-                        e.target.style.background = 'rgba(55, 65, 81, 0.7)';
-                        e.target.style.borderColor = 'rgba(139, 92, 246, 0.4)';
-                        e.target.style.boxShadow = '0 4px 15px -3px rgba(139, 92, 246, 0.2)';
+                        e.target.style.background = 'rgba(55, 65, 81, 0.8)';
+                        e.target.style.borderColor = 'rgba(96, 165, 250, 0.5)';
+                        e.target.style.transform = 'translateX(8px)';
                       }
-                      e.target.style.transform = 'translateX(4px)';
                     }}
                     onMouseLeave={(e) => {
                       if (item.isGodMode) {
                         e.target.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)';
                         e.target.style.borderColor = 'rgba(251, 191, 36, 0.3)';
-                        e.target.style.boxShadow = 'none';
                       } else {
                         e.target.style.background = 'rgba(31, 41, 55, 0.5)';
                         e.target.style.borderColor = 'rgba(75, 85, 99, 0.3)';
-                        e.target.style.boxShadow = 'none';
                       }
                       e.target.style.transform = 'translateX(0)';
                     }}
                   >
-                    <span style={{ fontSize: '20px' }}>{item.icon}</span>
-                    <span>{item.label}</span>
-                    {item.isGodMode && (
-                      <span style={{
-                        marginLeft: 'auto',
-                        background: 'rgba(251, 191, 36, 0.2)',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '10px',
-                        fontWeight: '700',
-                        color: '#fbbf24'
-                      }}>GOD</span>
-                    )}
+                    <span style={{ 
+                      fontSize: '20px',
+                      width: '28px',
+                      textAlign: 'center'
+                    }}>
+                      {item.icon}
+                    </span>
+                    <span style={{ 
+                      fontSize: '15px',
+                      fontWeight: '500'
+                    }}>
+                      {item.label}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -288,43 +282,43 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
           ))}
         </div>
 
-        {/* STYLES D'ANIMATION */}
+        {/* Footer */}
+        <div style={{
+          padding: '16px 24px',
+          borderTop: '1px solid rgba(75, 85, 99, 0.3)',
+          background: 'rgba(17, 24, 39, 0.5)'
+        }}>
+          <p style={{
+            fontSize: '12px',
+            color: 'rgba(107, 114, 128, 1)',
+            margin: 0,
+            textAlign: 'center'
+          }}>
+            © 2025 Synergia - Brain Escape & Quiz Game
+          </p>
+        </div>
+
+        {/* Styles animations */}
         <style>{`
           @keyframes fadeIn {
-            from {
-              opacity: 0;
-            }
-            to {
-              opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
           }
-          
-          @keyframes slideUp {
-            from {
-              opacity: 0;
-              transform: translateY(30px) scale(0.95);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0) scale(1);
-            }
+          @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
           }
-          
-          /* Scrollbar personnalisée pour le menu */
           div::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
           }
-          
           div::-webkit-scrollbar-track {
-            background: rgba(55, 65, 81, 0.3);
+            background: rgba(31, 41, 55, 0.3);
             border-radius: 4px;
           }
-          
           div::-webkit-scrollbar-thumb {
             background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
             border-radius: 4px;
           }
-          
           div::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
           }
