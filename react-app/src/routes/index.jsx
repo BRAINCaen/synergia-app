@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES - AVEC GODMOD AJOUTÉ
+// ROUTES COMPLÈTES - AVEC ADMIN REWARDS AJOUTÉ
 // ==========================================
 
 import React from 'react';
@@ -36,6 +36,7 @@ import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
 import AdminSyncPage from '../pages/AdminSyncPage.jsx';
+import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUT - Validation Récompenses
 import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
@@ -92,6 +93,7 @@ const AppRoutes = () => {
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
         <Route path="/admin/sync" element={<AdminSyncPage />} />
+        <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUT - Validation Récompenses */}
       </Route>
 
       {/* Redirection par défaut */}
