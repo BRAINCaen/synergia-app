@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES - AVEC ADMIN REWARDS AJOUTÉ
+// ROUTES COMPLÈTES - AVEC ROUTE CAMPAIGNS DETAIL AJOUTÉE
 // ==========================================
 
 import React from 'react';
@@ -11,6 +11,7 @@ import DashboardPage from '../pages/Dashboard.jsx';
 import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
+import CampaignDetailPage from '../pages/CampaignDetailPage.jsx'; // ✅ AJOUTÉ
 import AnalyticsPage from '../pages/AnalyticsPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
@@ -36,7 +37,6 @@ import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
 import AdminSyncPage from '../pages/AdminSyncPage.jsx';
-import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUT - Validation Récompenses
 import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
@@ -58,7 +58,13 @@ const AppRoutes = () => {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/infos" element={<InfosPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        
+        {/* ✅ CAMPAGNES - LISTE ET DÉTAIL */}
         <Route path="/projects" element={<CampaignsPage />} />
+        <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
+        <Route path="/projects/:id" element={<CampaignDetailPage />} />
+        
         <Route path="/analytics" element={<AnalyticsPage />} />
         
         {/* GAMIFICATION */}
@@ -93,7 +99,6 @@ const AppRoutes = () => {
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
         <Route path="/admin/sync" element={<AdminSyncPage />} />
-        <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUT - Validation Récompenses */}
       </Route>
 
       {/* Redirection par défaut */}
