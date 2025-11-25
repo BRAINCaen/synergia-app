@@ -1,6 +1,6 @@
 // ==========================================
-// 📁 react-app/src/pages/Rewards.jsx
-// PAGE RÉCOMPENSES - CHARTE GRAPHIQUE DARK MODE + ADMIN COMPLET
+// 📁 react-app/src/pages/RewardsPage.jsx
+// PAGE RÉCOMPENSES - SYNCHRONISATION POOL ÉQUIPE CORRIGÉE
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -23,7 +23,7 @@ import { isAdmin } from '../core/services/adminService.js';
 // 📊 FIREBASE IMPORTS
 import { 
   collection, query, orderBy, where, getDocs, doc, getDoc,
-  addDoc, updateDoc, deleteDoc, serverTimestamp
+  addDoc, updateDoc, deleteDoc, serverTimestamp, onSnapshot
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -35,7 +35,7 @@ const RewardsPage = () => {
   const [userRewards, setUserRewards] = useState([]);
   const [allRewards, setAllRewards] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
-  const [teamTotalXP, setTeamTotalXP] = useState(0);
+  const [teamTotalXP, setTeamTotalXP] = useState(0); // ✅ XP DU POOL ÉQUIPE
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -114,6 +114,36 @@ const RewardsPage = () => {
   ];
 
   // ==========================================
+  // ✅ ÉCOUTER LE POOL D'ÉQUIPE EN TEMPS RÉEL
+  // ==========================================
+
+  useEffect(() => {
+    console.log('🔄 [RewardsPage] Écoute du pool d\'équipe...');
+    
+    const poolRef = doc(db, 'teamPool', 'main');
+    
+    const unsubscribe = onSnapshot(poolRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const poolData = docSnapshot.data();
+        const poolXP = poolData.totalXP || 0;
+        setTeamTotalXP(poolXP);
+        console.log('✅ [RewardsPage] XP Pool Équipe synchronisé:', poolXP);
+      } else {
+        console.log('⚠️ [RewardsPage] Pool équipe non initialisé');
+        setTeamTotalXP(0);
+      }
+    }, (error) => {
+      console.error('❌ [RewardsPage] Erreur écoute pool:', error);
+      setTeamTotalXP(0);
+    });
+
+    return () => {
+      console.log('🔌 [RewardsPage] Déconnexion listener pool équipe');
+      unsubscribe();
+    };
+  }, []);
+
+  // ==========================================
   // 🔥 CHARGEMENT DES DONNÉES
   // ==========================================
 
@@ -134,15 +164,9 @@ const RewardsPage = () => {
         console.log('✅ Profil utilisateur chargé');
       }
 
-      // Calculer le XP total d'équipe
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      let totalXP = 0;
-      usersSnapshot.forEach((doc) => {
-        const userData = doc.data();
-totalXP += userData.gamification?.totalXp || 0;
-      });
-      setTeamTotalXP(totalXP);
-      console.log('✅ XP équipe calculé:', totalXP);
+      // ✅ NE PLUS CALCULER LE POOL - IL EST DÉJÀ ÉCOUTÉ EN TEMPS RÉEL
+      // Le pool est maintenant géré par le listener ci-dessus
+      console.log('✅ Pool équipe géré par listener temps réel');
 
       // Charger les récompenses custom de Firebase
       const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
@@ -214,7 +238,7 @@ totalXP += userData.gamification?.totalXp || 0;
       return;
     }
 
-const userXP = userProfile?.gamification?.totalXp || 0;
+    const userXP = userProfile?.gamification?.totalXp || 0;
     const requiredXP = reward.type === 'team' ? teamTotalXP : userXP;
 
     if (requiredXP < reward.xpCost) {
@@ -450,7 +474,8 @@ const userXP = userProfile?.gamification?.totalXp || 0;
     );
   }
 
-const userXP = userProfile?.gamification?.totalXp || 0;
+  const userXP = userProfile?.gamification?.totalXp || 0;
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -473,7 +498,7 @@ const userXP = userProfile?.gamification?.totalXp || 0;
                 <User className="w-8 h-8 text-blue-400" />
                 <div>
                   <p className="text-gray-400 font-semibold">Mes XP</p>
-                  <p className="text-2xl font-bold text-white">{userXP}</p>
+                  <p className="text-2xl font-bold text-white">{userXP.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -482,8 +507,9 @@ const userXP = userProfile?.gamification?.totalXp || 0;
               <div className="flex items-center gap-3">
                 <Users className="w-8 h-8 text-purple-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">XP d'Équipe</p>
-                  <p className="text-2xl font-bold text-white">{teamTotalXP}</p>
+                  <p className="text-gray-400 font-semibold">Pool Équipe</p>
+                  <p className="text-2xl font-bold text-white">{teamTotalXP.toLocaleString()}</p>
+                  <p className="text-xs text-purple-400">🔄 Temps réel</p>
                 </div>
               </div>
             </div>
