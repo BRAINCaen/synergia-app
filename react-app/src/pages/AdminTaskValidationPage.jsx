@@ -413,21 +413,19 @@ const AdminTaskValidationPage = () => {
       console.log('✅ Événement userXPUpdated émis');
       
       // ✅ 5. CONTRIBUTION DIRECTE AU POOL ÉQUIPE (BACKUP)
-      try {
-        console.log('💰 Contribution directe au pool équipe...');
-        const poolResult = await teamPoolService.contributeToPool(
-          userId,
-          userEmail,
-          xpToAdd,
-          'task_validation',
-          false // contribution automatique
-        );
-        if (poolResult.success && poolResult.contributed > 0) {
-          console.log(`✅ Pool équipe: +${poolResult.contributed} XP (Total: ${poolResult.newPoolTotal})`);
-        }
-      } catch (poolError) {
-        console.warn('⚠️ Erreur contribution pool (non bloquante):', poolError);
-      }
+    try {
+  console.log('💰 Contribution directe au pool équipe...');
+  // Calculer manuellement 5% pour contourner le minimum de 50 XP
+  const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
+  console.log(`💰 Contribution calculée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+  
+  const poolResult = await teamPoolService.contributeToPool(
+    userId,
+    userEmail,
+    contributionAmount, // Montant déjà calculé à 5%
+    'task_validation',
+    true // FORCÉ = pas de minimum requis
+  );
       
       // 6. Fermer le modal et recharger
       setShowValidationModal(false);
@@ -625,14 +623,17 @@ const AdminTaskValidationPage = () => {
         window.dispatchEvent(xpUpdateEvent);
         
         // ✅ CONTRIBUTION AU POOL ÉQUIPE
-        try {
-          await teamPoolService.contributeToPool(
-            userId,
-            userEmail,
-            xpToAdd,
-            'admin_force_xp',
-            false
-          );
+       try {
+  const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
+  console.log(`💰 Contribution forcée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+  
+  await teamPoolService.contributeToPool(
+    userId,
+    userEmail,
+    contributionAmount, // Montant déjà calculé à 5%
+    'admin_force_xp',
+    true // FORCÉ = pas de minimum requis
+  );
         } catch (poolError) {
           console.warn('⚠️ Erreur contribution pool:', poolError);
         }
