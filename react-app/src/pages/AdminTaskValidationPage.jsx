@@ -51,7 +51,7 @@ import {
   doc,
   getDoc,
   updateDoc,
-  addDoc,  // ✅ AJOUTÉ pour créer les entrées task_validations
+  addDoc,
   serverTimestamp,
   onSnapshot
 } from 'firebase/firestore';
@@ -121,7 +121,7 @@ const AdminTaskValidationPage = () => {
   const [adminComment, setAdminComment] = useState('');
   const [processing, setProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' ou 'validated'
+  const [activeTab, setActiveTab] = useState('pending');
   const [editedXp, setEditedXp] = useState(0);
 
   /**
@@ -132,7 +132,6 @@ const AdminTaskValidationPage = () => {
       setLoading(true);
       console.log('📊 Chargement des quêtes en attente...');
 
-      // 1. Récupérer les quêtes avec status validation_pending
       const tasksQuery = query(
         collection(db, 'tasks'),
         where('status', '==', 'validation_pending'),
@@ -141,13 +140,11 @@ const AdminTaskValidationPage = () => {
       
       const tasksSnapshot = await getDocs(tasksQuery);
       
-      // 2. Enrichir avec les données utilisateur
       const questsData = [];
       
       for (const taskDoc of tasksSnapshot.docs) {
         const taskData = taskDoc.data();
         
-        // Récupérer les infos utilisateur
         let userData = { displayName: 'Utilisateur inconnu', email: '' };
         const userId = taskData.assignedTo?.[0] || taskData.createdBy;
         
@@ -180,7 +177,6 @@ const AdminTaskValidationPage = () => {
       
       setPendingQuests(questsData);
       
-      // 3. Calculer les stats
       const totalTasks = await getDocs(collection(db, 'tasks'));
       const validatedTasks = await getDocs(
         query(collection(db, 'tasks'), where('status', '==', 'completed'))
@@ -274,7 +270,6 @@ const AdminTaskValidationPage = () => {
       loadValidatedQuests();
     }
     
-    // Listener temps réel
     const unsubscribe = onSnapshot(
       query(
         collection(db, 'tasks'),
@@ -295,7 +290,6 @@ const AdminTaskValidationPage = () => {
 
   /**
    * ✅ VALIDER UNE QUÊTE
-   * ✅ MODIFIÉ : Ajout historique task_validations + pool équipe
    */
   const handleValidate = async () => {
     if (!selectedQuest) return;
@@ -412,20 +406,26 @@ const AdminTaskValidationPage = () => {
       window.dispatchEvent(xpUpdateEvent);
       console.log('✅ Événement userXPUpdated émis');
       
-      // ✅ 5. CONTRIBUTION DIRECTE AU POOL ÉQUIPE (BACKUP)
-    try {
-  console.log('💰 Contribution directe au pool équipe...');
-  // Calculer manuellement 5% pour contourner le minimum de 50 XP
-  const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
-  console.log(`💰 Contribution calculée: ${contributionAmount} XP (5% de ${xpToAdd})`);
-  
-  const poolResult = await teamPoolService.contributeToPool(
-    userId,
-    userEmail,
-    contributionAmount, // Montant déjà calculé à 5%
-    'task_validation',
-    true // FORCÉ = pas de minimum requis
-  );
+      // ✅ 5. CONTRIBUTION DIRECTE AU POOL ÉQUIPE
+      try {
+        console.log('💰 Contribution directe au pool équipe...');
+        const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
+        console.log(`💰 Contribution calculée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+        
+        const poolResult = await teamPoolService.contributeToPool(
+          userId,
+          userEmail,
+          contributionAmount,
+          'task_validation',
+          true
+        );
+        
+        if (poolResult.success && poolResult.contributed > 0) {
+          console.log(`✅ Pool équipe: +${poolResult.contributed} XP (Total: ${poolResult.newPoolTotal})`);
+        }
+      } catch (poolError) {
+        console.warn('⚠️ Erreur contribution pool (non bloquante):', poolError);
+      }
       
       // 6. Fermer le modal et recharger
       setShowValidationModal(false);
@@ -445,7 +445,6 @@ const AdminTaskValidationPage = () => {
 
   /**
    * ❌ REJETER UNE QUÊTE
-   * ✅ MODIFIÉ : Ajout historique task_validations
    */
   const handleReject = async () => {
     if (!selectedQuest) return;
@@ -500,7 +499,7 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
-   * 🔄 RÉACTIVER UNE QUÊTE (remettre en disponible)
+   * 🔄 RÉACTIVER UNE QUÊTE
    */
   const handleReactivate = async (quest) => {
     if (!confirm('Voulez-vous vraiment réactiver cette quête ? Elle sera remise en "disponible".')) {
@@ -533,7 +532,6 @@ const AdminTaskValidationPage = () => {
 
   /**
    * 💎 FORCER L'ATTRIBUTION DES XP
-   * ✅ MODIFIÉ : Ajout historique task_validations + pool équipe
    */
   const handleForceXp = async () => {
     if (!selectedQuest || !editedXp) return;
@@ -546,6 +544,7 @@ const AdminTaskValidationPage = () => {
       
       if (!userId) {
         alert('❌ Utilisateur introuvable pour cette quête');
+        setProcessing(false);
         return;
       }
       
@@ -582,7 +581,6 @@ const AdminTaskValidationPage = () => {
           updatedAt: serverTimestamp()
         });
         
-        // Mettre à jour la quête pour indiquer que les XP ont été forcés
         await updateDoc(doc(db, 'tasks', selectedQuest.id), {
           xpForcedAt: serverTimestamp(),
           xpForcedBy: user.uid,
@@ -623,17 +621,17 @@ const AdminTaskValidationPage = () => {
         window.dispatchEvent(xpUpdateEvent);
         
         // ✅ CONTRIBUTION AU POOL ÉQUIPE
-       try {
-  const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
-  console.log(`💰 Contribution forcée: ${contributionAmount} XP (5% de ${xpToAdd})`);
-  
-  await teamPoolService.contributeToPool(
-    userId,
-    userEmail,
-    contributionAmount, // Montant déjà calculé à 5%
-    'admin_force_xp',
-    true // FORCÉ = pas de minimum requis
-  );
+        try {
+          const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
+          console.log(`💰 Contribution forcée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+          
+          await teamPoolService.contributeToPool(
+            userId,
+            userEmail,
+            contributionAmount,
+            'admin_force_xp',
+            true
+          );
         } catch (poolError) {
           console.warn('⚠️ Erreur contribution pool:', poolError);
         }
