@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
 // VRAIE PAGE DE VALIDATION DES QUÊTES - FIREBASE + CHARTE SYNERGIA
-// ✅ CORRIGÉ : HISTORIQUE GODMOD + POOL ÉQUIPE
+// ✅ CORRIGÉ : HISTORIQUE GODMOD + POOL ÉQUIPE (SANS CHANGER LE DESIGN)
 // ==========================================
 
 console.log('🔄 [AdminValidationQuêtes] Rechargé à:', new Date().toLocaleTimeString());
@@ -106,77 +106,94 @@ const AdminTaskValidationPage = () => {
   const [pendingQuests, setPendingQuests] = useState([]);
   const [validatedQuests, setValidatedQuests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState('pending');
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Modal de validation
-  const [showValidationModal, setShowValidationModal] = useState(false);
-  const [selectedQuest, setSelectedQuest] = useState(null);
-  const [adminComment, setAdminComment] = useState('');
-  
-  // Modal Force XP
-  const [showForceXpModal, setShowForceXpModal] = useState(false);
-  const [editedXp, setEditedXp] = useState(0);
-  
-  // Stats
   const [stats, setStats] = useState({
     pending: 0,
     validated: 0,
     rejected: 0,
-    totalXpDistributed: 0
+    total: 0
   });
+  
+  // États UI
+  const [selectedQuest, setSelectedQuest] = useState(null);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showForceXpModal, setShowForceXpModal] = useState(false);
+  const [adminComment, setAdminComment] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' ou 'validated'
+  const [editedXp, setEditedXp] = useState(0);
 
   /**
-   * 🔄 CHARGER LES QUÊTES EN ATTENTE
+   * 📊 CHARGER LES QUÊTES EN ATTENTE
    */
   const loadPendingQuests = async () => {
     try {
       setLoading(true);
-      console.log('📋 Chargement quêtes en attente...');
-      
-      const q = query(
+      console.log('📊 Chargement des quêtes en attente...');
+
+      // 1. Récupérer les quêtes avec status validation_pending
+      const tasksQuery = query(
         collection(db, 'tasks'),
         where('status', '==', 'validation_pending'),
-        orderBy('createdAt', 'desc')
+        orderBy('updatedAt', 'desc')
       );
       
-      const snapshot = await getDocs(q);
-      const quests = [];
+      const tasksSnapshot = await getDocs(tasksQuery);
       
-      for (const docSnap of snapshot.docs) {
-        const data = docSnap.data();
+      // 2. Enrichir avec les données utilisateur
+      const questsData = [];
+      
+      for (const taskDoc of tasksSnapshot.docs) {
+        const taskData = taskDoc.data();
         
-        // Récupérer infos utilisateur
-        let userName = 'Utilisateur inconnu';
-        let userEmail = '';
-        const userId = data.assignedTo?.[0] || data.createdBy;
+        // Récupérer les infos utilisateur
+        let userData = { displayName: 'Utilisateur inconnu', email: '' };
+        const userId = taskData.assignedTo?.[0] || taskData.createdBy;
         
         if (userId) {
           try {
             const userDoc = await getDoc(doc(db, 'users', userId));
             if (userDoc.exists()) {
-              const userData = userDoc.data();
-              userName = userData.displayName || userData.name || userData.email || 'Utilisateur';
-              userEmail = userData.email || '';
+              userData = userDoc.data();
             }
-          } catch (e) {
-            console.warn('Erreur récupération user:', e);
+          } catch (err) {
+            console.warn('⚠️ Erreur récupération user:', err);
           }
         }
         
-        quests.push({
-          id: docSnap.id,
-          ...data,
-          userName,
-          userEmail,
-          userId
+        questsData.push({
+          id: taskDoc.id,
+          ...taskData,
+          userId,
+          userName: userData.displayName || userData.email || 'Anonyme',
+          userEmail: userData.email || '',
+          submittedAt: taskData.updatedAt || taskData.createdAt,
+          questTitle: taskData.title || 'Quête sans titre',
+          difficulty: taskData.difficulty || 'Normale',
+          xpReward: taskData.xpReward || 25,
+          comment: taskData.comment || '',
+          photoUrl: taskData.photoUrl || null,
+          videoUrl: taskData.videoUrl || null
         });
       }
       
-      setPendingQuests(quests);
-      setStats(prev => ({ ...prev, pending: quests.length }));
-      console.log(`✅ ${quests.length} quêtes en attente chargées`);
+      setPendingQuests(questsData);
+      
+      // 3. Calculer les stats
+      const totalTasks = await getDocs(collection(db, 'tasks'));
+      const validatedTasks = await getDocs(
+        query(collection(db, 'tasks'), where('status', '==', 'completed'))
+      );
+      
+      setStats({
+        pending: questsData.length,
+        validated: validatedTasks.size,
+        rejected: 0,
+        total: totalTasks.size
+      });
+      
+      console.log('✅ Quêtes chargées:', questsData.length);
       
     } catch (error) {
       console.error('❌ Erreur chargement quêtes:', error);
@@ -186,55 +203,59 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
-   * 🔄 CHARGER LES QUÊTES VALIDÉES
+   * 📊 CHARGER LES QUÊTES VALIDÉES
    */
   const loadValidatedQuests = async () => {
     try {
       setLoading(true);
-      console.log('📋 Chargement quêtes validées...');
-      
-      const q = query(
+      console.log('📊 Chargement des quêtes validées...');
+
+      const tasksQuery = query(
         collection(db, 'tasks'),
         where('status', '==', 'completed'),
         orderBy('validatedAt', 'desc')
       );
       
-      const snapshot = await getDocs(q);
-      const quests = [];
+      const tasksSnapshot = await getDocs(tasksQuery);
       
-      for (const docSnap of snapshot.docs) {
-        const data = docSnap.data();
+      const questsData = [];
+      
+      for (const taskDoc of tasksSnapshot.docs) {
+        const taskData = taskDoc.data();
         
-        // Récupérer infos utilisateur
-        let userName = 'Utilisateur inconnu';
-        let userEmail = '';
-        const userId = data.assignedTo?.[0] || data.createdBy;
+        let userData = { displayName: 'Utilisateur inconnu', email: '' };
+        const userId = taskData.assignedTo?.[0] || taskData.createdBy;
         
         if (userId) {
           try {
             const userDoc = await getDoc(doc(db, 'users', userId));
             if (userDoc.exists()) {
-              const userData = userDoc.data();
-              userName = userData.displayName || userData.name || userData.email || 'Utilisateur';
-              userEmail = userData.email || '';
+              userData = userDoc.data();
             }
-          } catch (e) {
-            console.warn('Erreur récupération user:', e);
+          } catch (err) {
+            console.warn('⚠️ Erreur récupération user:', err);
           }
         }
         
-        quests.push({
-          id: docSnap.id,
-          ...data,
-          userName,
-          userEmail,
-          userId
+        questsData.push({
+          id: taskDoc.id,
+          ...taskData,
+          userId,
+          userName: userData.displayName || userData.email || 'Anonyme',
+          userEmail: userData.email || '',
+          validatedAt: taskData.validatedAt,
+          questTitle: taskData.title || 'Quête sans titre',
+          difficulty: taskData.difficulty || 'Normale',
+          xpReward: taskData.xpReward || 25,
+          comment: taskData.comment || '',
+          adminComment: taskData.adminComment || '',
+          photoUrl: taskData.photoUrl || null,
+          videoUrl: taskData.videoUrl || null
         });
       }
       
-      setValidatedQuests(quests);
-      setStats(prev => ({ ...prev, validated: quests.length }));
-      console.log(`✅ ${quests.length} quêtes validées chargées`);
+      setValidatedQuests(questsData);
+      console.log('✅ Quêtes validées chargées:', questsData.length);
       
     } catch (error) {
       console.error('❌ Erreur chargement quêtes validées:', error);
@@ -243,17 +264,17 @@ const AdminTaskValidationPage = () => {
     }
   };
 
-  // Chargement initial
+  /**
+   * 🔄 ÉCOUTER LES MISES À JOUR TEMPS RÉEL
+   */
   useEffect(() => {
     if (activeTab === 'pending') {
       loadPendingQuests();
     } else {
       loadValidatedQuests();
     }
-  }, [activeTab]);
-
-  // Écoute temps réel
-  useEffect(() => {
+    
+    // Listener temps réel
     const unsubscribe = onSnapshot(
       query(
         collection(db, 'tasks'),
@@ -273,9 +294,8 @@ const AdminTaskValidationPage = () => {
   }, [activeTab]);
 
   /**
-   * ✅ VALIDER UNE QUÊTE - VERSION CORRIGÉE
-   * ✅ Crée l'entrée dans task_validations pour l'historique GodMod
-   * ✅ Émet les événements pour le pool équipe
+   * ✅ VALIDER UNE QUÊTE
+   * ✅ MODIFIÉ : Ajout historique task_validations + pool équipe
    */
   const handleValidate = async () => {
     if (!selectedQuest) return;
@@ -314,8 +334,6 @@ const AdminTaskValidationPage = () => {
           newTotalXP = currentXP + xpToAdd;
           newLevel = Math.floor(newTotalXP / 100) + 1;
           const currentTasksCompleted = gamification.tasksCompleted || 0;
-          const currentWeeklyXp = gamification.weeklyXp || 0;
-          const currentMonthlyXp = gamification.monthlyXp || 0;
           
           console.log(`🎯 Attribution XP:`, {
             userId,
@@ -329,8 +347,8 @@ const AdminTaskValidationPage = () => {
             'gamification.totalXp': newTotalXP,
             'gamification.level': newLevel,
             'gamification.tasksCompleted': currentTasksCompleted + 1,
-            'gamification.weeklyXp': currentWeeklyXp + xpToAdd,
-            'gamification.monthlyXp': currentMonthlyXp + xpToAdd,
+            'gamification.weeklyXp': (gamification.weeklyXp || 0) + xpToAdd,
+            'gamification.monthlyXp': (gamification.monthlyXp || 0) + xpToAdd,
             'gamification.lastActivityAt': serverTimestamp(),
             'gamification.lastXpGain': {
               amount: xpToAdd,
@@ -353,24 +371,28 @@ const AdminTaskValidationPage = () => {
       
       // ✅ 3. CRÉER L'ENTRÉE DANS task_validations POUR L'HISTORIQUE GODMOD
       console.log('📝 Création entrée task_validations pour historique...');
-      await addDoc(collection(db, 'task_validations'), {
-        taskId: selectedQuest.id,
-        taskTitle: selectedQuest.title || 'Sans titre',
-        userId: userId,
-        userName: selectedQuest.userName || 'Utilisateur inconnu',
-        userEmail: userEmail,
-        xpAmount: xpToAdd,
-        status: 'approved',
-        submittedAt: selectedQuest.createdAt || serverTimestamp(),
-        reviewedAt: serverTimestamp(),
-        reviewedBy: user.uid,
-        adminComment: adminComment || 'Quête validée',
-        type: 'standard',
-        difficulty: selectedQuest.difficulty || 'normal',
-        projectId: selectedQuest.projectId || null,
-        projectName: selectedQuest.projectName || null
-      });
-      console.log('✅ Entrée task_validations créée');
+      try {
+        await addDoc(collection(db, 'task_validations'), {
+          taskId: selectedQuest.id,
+          taskTitle: selectedQuest.title || selectedQuest.questTitle || 'Sans titre',
+          userId: userId,
+          userName: selectedQuest.userName || 'Utilisateur inconnu',
+          userEmail: userEmail,
+          xpAmount: xpToAdd,
+          status: 'approved',
+          submittedAt: selectedQuest.createdAt || serverTimestamp(),
+          reviewedAt: serverTimestamp(),
+          reviewedBy: user.uid,
+          adminComment: adminComment || 'Quête validée',
+          type: 'standard',
+          difficulty: selectedQuest.difficulty || 'normal',
+          projectId: selectedQuest.projectId || null,
+          projectName: selectedQuest.projectName || null
+        });
+        console.log('✅ Entrée task_validations créée');
+      } catch (taskValError) {
+        console.warn('⚠️ Erreur création task_validations (non bloquante):', taskValError);
+      }
       
       // ✅ 4. ÉMETTRE L'ÉVÉNEMENT userXPUpdated POUR LE POOL ÉQUIPE
       console.log('📢 Émission événement userXPUpdated pour pool équipe...');
@@ -382,8 +404,7 @@ const AdminTaskValidationPage = () => {
           userEmail: userEmail,
           gamificationData: {
             totalXp: newTotalXP,
-            level: newLevel,
-            tasksCompleted: (selectedQuest.gamification?.tasksCompleted || 0) + 1
+            level: newLevel
           },
           timestamp: new Date().toISOString()
         }
@@ -391,25 +412,7 @@ const AdminTaskValidationPage = () => {
       window.dispatchEvent(xpUpdateEvent);
       console.log('✅ Événement userXPUpdated émis');
       
-      // ✅ 5. ÉMETTRE L'ÉVÉNEMENT taskValidated POUR LE POOL ÉQUIPE
-      console.log('📢 Émission événement taskValidated...');
-      const taskValidatedEvent = new CustomEvent('taskValidated', {
-        detail: {
-          userId: userId,
-          taskData: {
-            id: selectedQuest.id,
-            title: selectedQuest.title,
-            xpReward: xpToAdd
-          },
-          xpAwarded: xpToAdd,
-          userEmail: userEmail,
-          timestamp: new Date().toISOString()
-        }
-      });
-      window.dispatchEvent(taskValidatedEvent);
-      console.log('✅ Événement taskValidated émis');
-      
-      // ✅ 6. CONTRIBUTION DIRECTE AU POOL ÉQUIPE (BACKUP)
+      // ✅ 5. CONTRIBUTION DIRECTE AU POOL ÉQUIPE (BACKUP)
       try {
         console.log('💰 Contribution directe au pool équipe...');
         const poolResult = await teamPoolService.contributeToPool(
@@ -426,32 +429,17 @@ const AdminTaskValidationPage = () => {
         console.warn('⚠️ Erreur contribution pool (non bloquante):', poolError);
       }
       
-      // ✅ 7. ÉMETTRE L'ÉVÉNEMENT DE SYNCHRONISATION GÉNÉRALE
-      const syncEvent = new CustomEvent('userDataSynced', {
-        detail: {
-          userId: userId,
-          gamificationData: {
-            totalXp: newTotalXP,
-            level: newLevel
-          },
-          source: 'admin_task_validation',
-          timestamp: new Date().toISOString()
-        }
-      });
-      window.dispatchEvent(syncEvent);
-      
-      // 8. Fermer le modal et recharger
+      // 6. Fermer le modal et recharger
       setShowValidationModal(false);
       setSelectedQuest(null);
       setAdminComment('');
       await loadPendingQuests();
       
       console.log('✅ Quête validée avec succès !');
-      alert(`✅ Quête validée !\n🏆 ${xpToAdd} XP attribués\n💰 Contribution au pool équipe effectuée`);
       
     } catch (error) {
       console.error('❌ Erreur validation:', error);
-      alert('Erreur lors de la validation: ' + error.message);
+      alert('Erreur lors de la validation');
     } finally {
       setProcessing(false);
     }
@@ -459,6 +447,7 @@ const AdminTaskValidationPage = () => {
 
   /**
    * ❌ REJETER UNE QUÊTE
+   * ✅ MODIFIÉ : Ajout historique task_validations
    */
   const handleReject = async () => {
     if (!selectedQuest) return;
@@ -469,7 +458,6 @@ const AdminTaskValidationPage = () => {
       
       const userId = selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
       
-      // Mettre à jour la tâche
       await updateDoc(doc(db, 'tasks', selectedQuest.id), {
         status: 'todo',
         validatedAt: serverTimestamp(),
@@ -479,19 +467,24 @@ const AdminTaskValidationPage = () => {
       });
       
       // ✅ CRÉER L'ENTRÉE DANS task_validations POUR L'HISTORIQUE
-      await addDoc(collection(db, 'task_validations'), {
-        taskId: selectedQuest.id,
-        taskTitle: selectedQuest.title || 'Sans titre',
-        userId: userId,
-        userName: selectedQuest.userName || 'Utilisateur inconnu',
-        xpAmount: selectedQuest.xpReward || 0,
-        status: 'rejected',
-        submittedAt: selectedQuest.createdAt || serverTimestamp(),
-        reviewedAt: serverTimestamp(),
-        reviewedBy: user.uid,
-        adminComment: adminComment || 'Quête rejetée',
-        type: 'standard'
-      });
+      try {
+        await addDoc(collection(db, 'task_validations'), {
+          taskId: selectedQuest.id,
+          taskTitle: selectedQuest.title || selectedQuest.questTitle || 'Sans titre',
+          userId: userId,
+          userName: selectedQuest.userName || 'Utilisateur inconnu',
+          xpAmount: 0,
+          status: 'rejected',
+          submittedAt: selectedQuest.createdAt || serverTimestamp(),
+          reviewedAt: serverTimestamp(),
+          reviewedBy: user.uid,
+          adminComment: adminComment || 'Quête rejetée',
+          type: 'standard'
+        });
+        console.log('✅ Entrée task_validations (rejet) créée');
+      } catch (taskValError) {
+        console.warn('⚠️ Erreur création task_validations (non bloquante):', taskValError);
+      }
       
       setShowValidationModal(false);
       setSelectedQuest(null);
@@ -541,7 +534,8 @@ const AdminTaskValidationPage = () => {
   };
 
   /**
-   * 💎 FORCER L'ATTRIBUTION DES XP - VERSION CORRIGÉE
+   * 💎 FORCER L'ATTRIBUTION DES XP
+   * ✅ MODIFIÉ : Ajout historique task_validations + pool équipe
    */
   const handleForceXp = async () => {
     if (!selectedQuest || !editedXp) return;
@@ -598,19 +592,25 @@ const AdminTaskValidationPage = () => {
         });
         
         // ✅ CRÉER L'ENTRÉE DANS task_validations
-        await addDoc(collection(db, 'task_validations'), {
-          taskId: selectedQuest.id,
-          taskTitle: selectedQuest.title || 'Sans titre',
-          userId: userId,
-          userName: selectedQuest.userName || userData.displayName || 'Utilisateur',
-          xpAmount: xpToAdd,
-          status: 'approved',
-          submittedAt: selectedQuest.validatedAt || serverTimestamp(),
-          reviewedAt: serverTimestamp(),
-          reviewedBy: user.uid,
-          adminComment: `XP forcés: ${xpToAdd}`,
-          type: 'force_xp'
-        });
+        try {
+          await addDoc(collection(db, 'task_validations'), {
+            taskId: selectedQuest.id,
+            taskTitle: selectedQuest.title || selectedQuest.questTitle || 'Sans titre',
+            userId: userId,
+            userName: selectedQuest.userName || userData.displayName || 'Utilisateur',
+            userEmail: userEmail,
+            xpAmount: xpToAdd,
+            status: 'approved',
+            submittedAt: selectedQuest.validatedAt || serverTimestamp(),
+            reviewedAt: serverTimestamp(),
+            reviewedBy: user.uid,
+            adminComment: `XP forcés: ${xpToAdd}`,
+            type: 'force_xp'
+          });
+          console.log('✅ Entrée task_validations (force XP) créée');
+        } catch (taskValError) {
+          console.warn('⚠️ Erreur création task_validations (non bloquante):', taskValError);
+        }
         
         // ✅ ÉMETTRE LES ÉVÉNEMENTS POUR LE POOL ÉQUIPE
         const xpUpdateEvent = new CustomEvent('userXPUpdated', {
@@ -675,398 +675,501 @@ const AdminTaskValidationPage = () => {
 
   // Filtrer les quêtes par recherche
   const filteredQuests = (activeTab === 'pending' ? pendingQuests : validatedQuests).filter(quest =>
-    quest.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    quest.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    quest.userEmail?.toLowerCase().includes(searchTerm.toLowerCase())
+    quest.questTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quest.userName.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Formatter la date
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Date inconnue';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Couleur selon la difficulté
-  const getDifficultyColor = (difficulty) => {
-    const colors = {
-      easy: 'bg-green-500/20 text-green-400 border-green-500/30',
-      normal: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      hard: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      expert: 'bg-red-500/20 text-red-400 border-red-500/30'
-    };
-    return colors[difficulty] || colors.normal;
-  };
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Shield className="w-8 h-8 text-purple-400" />
-              Validation des Quêtes
-            </h1>
-            <p className="text-gray-400 mt-2">
-              Validez les quêtes terminées et attribuez les XP aux membres de l'équipe
-            </p>
-          </div>
+          
+          {/* 🎯 HEADER */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                  🛡️ Validation des Quêtes
+                </h1>
+                <p className="text-gray-400 text-lg">
+                  Validez les quêtes terminées et attribuez les XP • Connecté en tant que <span className="text-white font-semibold">{user?.displayName || user?.email}</span>
+                </p>
+              </div>
+              
+              <button
+                onClick={() => activeTab === 'pending' ? loadPendingQuests() : loadValidatedQuests()}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-colors"
+              >
+                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                Actualiser
+              </button>
+            </div>
+          </motion.div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {/* 📊 STATISTIQUES */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          >
             <StatCard
-              title="En attente"
+              title="En Attente"
               value={stats.pending}
               icon={Clock}
               color="orange"
+              trend="Nécessitent validation"
             />
             <StatCard
               title="Validées"
               value={stats.validated}
               icon={CheckCircle}
               color="green"
+              trend="XP distribués"
             />
             <StatCard
-              title="Rejetées"
-              value={stats.rejected}
-              icon={XCircle}
-              color="purple"
-            />
-            <StatCard
-              title="XP distribués"
-              value={stats.totalXpDistributed}
-              icon={Trophy}
+              title="Quêtes Totales"
+              value={stats.total}
+              icon={Target}
               color="blue"
+              trend="Dans le système"
             />
-          </div>
+            <StatCard
+              title="Taux Validation"
+              value={stats.total > 0 ? Math.round((stats.validated / stats.total) * 100) + '%' : '0%'}
+              icon={TrendingUp}
+              color="purple"
+              trend="Performance globale"
+            />
+          </motion.div>
 
-          {/* Onglets */}
-          <div className="flex gap-2 mb-6">
-            <button
-              onClick={() => setActiveTab('pending')}
-              className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                activeTab === 'pending'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
-            >
-              <Clock className="w-5 h-5 inline mr-2" />
-              En attente ({pendingQuests.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('validated')}
-              className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                activeTab === 'validated'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
-            >
-              <CheckCircle className="w-5 h-5 inline mr-2" />
-              Validées ({validatedQuests.length})
-            </button>
-          </div>
+          {/* 🎯 ONGLETS */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mb-6"
+          >
+            <div className="flex items-center gap-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-2">
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                  activeTab === 'pending'
+                    ? 'bg-orange-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  En Attente ({stats.pending})
+                </div>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('validated')}
+                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                  activeTab === 'validated'
+                    ? 'bg-green-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <CheckCircle className="w-5 h-5" />
+                  Validées ({stats.validated})
+                </div>
+              </button>
+            </div>
+          </motion.div>
 
-          {/* Barre de recherche */}
-          <div className="mb-6">
+          {/* 🔍 BARRE DE RECHERCHE */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mb-6"
+          >
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
+                placeholder="Rechercher une quête ou un utilisateur..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Rechercher par titre, utilisateur..."
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
               />
             </div>
-          </div>
+          </motion.div>
 
-          {/* Liste des quêtes */}
+          {/* ⚠️ ALERTE SI AUCUNE QUÊTE */}
+          {!loading && filteredQuests.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-6 text-center"
+            >
+              <Shield className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+              <h3 className="text-xl font-bold text-white mb-2">
+                {activeTab === 'pending' ? 'Aucune quête en attente' : 'Aucune quête validée'}
+              </h3>
+              <p className="text-gray-400">
+                {activeTab === 'pending' 
+                  ? 'Toutes les quêtes ont été traitées ! Revenez plus tard.'
+                  : 'Aucune quête n\'a encore été validée.'}
+              </p>
+            </motion.div>
+          )}
+
+          {/* 📋 LISTE DES QUÊTES */}
           {loading ? (
-            <div className="text-center py-12">
-              <RefreshCw className="w-12 h-12 text-purple-400 mx-auto animate-spin" />
-              <p className="text-gray-400 mt-4">Chargement...</p>
-            </div>
-          ) : filteredQuests.length === 0 ? (
-            <div className="text-center py-12 bg-gray-800/50 rounded-xl border border-gray-700">
-              <AlertTriangle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">Aucune quête trouvée</p>
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-gray-400">Chargement des quêtes...</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredQuests.map((quest) => (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-4"
+            >
+              {filteredQuests.map((quest, index) => (
                 <GlassCard key={quest.id}>
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    {/* Icône */}
+                    <div className={`w-12 h-12 ${
+                      activeTab === 'pending' 
+                        ? 'bg-orange-500/20' 
+                        : 'bg-green-500/20'
+                    } rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      {activeTab === 'pending' ? (
+                        <Clock className="w-6 h-6 text-orange-400" />
+                      ) : (
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                      )}
+                    </div>
+                    
+                    {/* Contenu */}
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-white">
-                          {quest.title || 'Sans titre'}
-                        </h3>
-                        <span className={`px-2 py-1 rounded text-xs font-medium border ${getDifficultyColor(quest.difficulty)}`}>
-                          {quest.difficulty || 'normal'}
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h3 className="text-lg font-bold text-white mb-1">
+                            {quest.questTitle}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <User className="w-4 h-4" />
+                              {quest.userName}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {activeTab === 'pending'
+                                ? quest.submittedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'
+                                : quest.validatedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-400" />
+                              {quest.xpReward} XP
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              quest.difficulty === 'Facile' ? 'bg-green-500/20 text-green-400' :
+                              quest.difficulty === 'Normale' ? 'bg-blue-500/20 text-blue-400' :
+                              'bg-red-500/20 text-red-400'
+                            }`}>
+                              {quest.difficulty}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Badge statut */}
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${
+                          activeTab === 'pending'
+                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
+                            : 'bg-green-500/20 text-green-400 border-green-500/50'
+                        }`}>
+                          {activeTab === 'pending' ? 'En attente' : 'Validée'}
                         </span>
                       </div>
                       
-                      <p className="text-gray-400 text-sm mb-3">
-                        {quest.description || 'Pas de description'}
-                      </p>
-                      
-                      <div className="flex items-center gap-6 text-sm text-gray-500">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          {quest.userName}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          {formatDate(quest.createdAt)}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-yellow-500" />
-                          <span className="text-yellow-500 font-semibold">
-                            {quest.xpReward || 25} XP
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Actions */}
-                    <div className="flex gap-2 ml-4">
-                      {activeTab === 'pending' ? (
-                        <button
-                          onClick={() => openValidationModal(quest)}
-                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Examiner
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => openForceXpModal(quest)}
-                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                          >
-                            <Coins className="w-4 h-4" />
-                            XP
-                          </button>
-                          <button
-                            onClick={() => handleReactivate(quest)}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all flex items-center gap-2"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                            Réactiver
-                          </button>
-                        </>
+                      {/* Description/Commentaire */}
+                      {quest.comment && (
+                        <p className="text-gray-400 text-sm mb-3">
+                          💬 {quest.comment}
+                        </p>
                       )}
+                      
+                      {/* Commentaire admin (quêtes validées) */}
+                      {activeTab === 'validated' && quest.adminComment && (
+                        <p className="text-blue-400 text-sm mb-3 bg-blue-500/10 rounded-lg p-2 border border-blue-500/30">
+                          🛡️ Admin : {quest.adminComment}
+                        </p>
+                      )}
+                      
+                      {/* Médias */}
+                      <div className="flex items-center gap-2 mb-3">
+                        {quest.photoUrl && (
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <Camera className="w-3 h-3" />
+                            Photo jointe
+                          </span>
+                        )}
+                        {quest.videoUrl && (
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <Video className="w-3 h-3" />
+                            Vidéo jointe
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center gap-3">
+                        {activeTab === 'pending' ? (
+                          <button
+                            onClick={() => openValidationModal(quest)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Examiner
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleReactivate(quest)}
+                              disabled={processing}
+                              className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                              Réactiver
+                            </button>
+                            
+                            <button
+                              onClick={() => openForceXpModal(quest)}
+                              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                            >
+                              <Coins className="w-4 h-4" />
+                              Forcer XP
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </GlassCard>
               ))}
-            </div>
+            </motion.div>
           )}
-        </div>
 
-        {/* Modal de validation */}
-        <AnimatePresence>
-          {showValidationModal && selectedQuest && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              onClick={() => setShowValidationModal(false)}
-            >
+          {/* 🎭 MODAL DE VALIDATION */}
+          <AnimatePresence>
+            {showValidationModal && selectedQuest && (
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                onClick={() => !processing && setShowValidationModal(false)}
               >
-                {/* Header */}
-                <div className="p-6 border-b border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                      <Shield className="w-6 h-6 text-purple-400" />
-                      Validation de Quête
-                    </h2>
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                >
+                  {/* Header Modal */}
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-2">
+                        Validation de Quête
+                      </h2>
+                      <p className="text-gray-400">
+                        Examinez les détails et validez ou rejetez cette quête
+                      </p>
+                    </div>
                     <button
-                      onClick={() => setShowValidationModal(false)}
-                      className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                      onClick={() => !processing && setShowValidationModal(false)}
+                      className="text-gray-400 hover:text-white transition-colors"
                     >
-                      <CloseIcon className="w-5 h-5 text-gray-400" />
+                      <CloseIcon className="w-6 h-6" />
                     </button>
                   </div>
-                </div>
 
-                {/* Contenu */}
-                <div className="p-6 space-y-6">
-                  {/* Info quête */}
-                  <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                    <h3 className="text-lg font-semibold text-white mb-2">
-                      {selectedQuest.title}
-                    </h3>
-                    <p className="text-gray-400 text-sm mb-4">
-                      {selectedQuest.description || 'Pas de description'}
-                    </p>
+                  {/* Détails de la quête */}
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="text-sm text-gray-400 mb-1 block">Titre de la quête</label>
+                      <p className="text-lg font-bold text-white">{selectedQuest.questTitle}</p>
+                    </div>
                     
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <span className="text-gray-500">Utilisateur:</span>
-                        <span className="text-white ml-2">{selectedQuest.userName}</span>
+                        <label className="text-sm text-gray-400 mb-1 block">Utilisateur</label>
+                        <p className="text-white">{selectedQuest.userName}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">XP:</span>
-                        <span className="text-yellow-500 font-semibold ml-2">
-                          {selectedQuest.xpReward || 25} XP
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Difficulté:</span>
-                        <span className="text-white ml-2">{selectedQuest.difficulty || 'normal'}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Date:</span>
-                        <span className="text-white ml-2">{formatDate(selectedQuest.createdAt)}</span>
+                        <label className="text-sm text-gray-400 mb-1 block">Difficulté</label>
+                        <p className="text-white">{selectedQuest.difficulty}</p>
                       </div>
                     </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-gray-400 mb-1 block">Récompense XP</label>
+                        <p className="text-white font-bold text-xl">{selectedQuest.xpReward} XP</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-400 mb-1 block">Date soumission</label>
+                        <p className="text-white">
+                          {selectedQuest.submittedAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {selectedQuest.comment && (
+                      <div>
+                        <label className="text-sm text-gray-400 mb-1 block">Commentaire utilisateur</label>
+                        <p className="text-white bg-gray-900/50 rounded-lg p-3">
+                          {selectedQuest.comment}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Preuve photo/vidéo */}
-                  {(selectedQuest.validationPhoto || selectedQuest.validationVideo) && (
-                    <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                      <h4 className="text-white font-medium mb-3 flex items-center gap-2">
-                        <Camera className="w-4 h-4" />
-                        Preuves fournies
-                      </h4>
-                      {selectedQuest.validationPhoto && (
-                        <img
-                          src={selectedQuest.validationPhoto}
-                          alt="Preuve"
-                          className="w-full rounded-lg"
-                        />
-                      )}
-                    </div>
-                  )}
-
                   {/* Commentaire admin */}
-                  <div>
-                    <label className="block text-gray-400 text-sm font-medium mb-2">
-                      Commentaire (optionnel)
+                  <div className="mb-6">
+                    <label className="text-sm text-gray-400 mb-2 block">
+                      Commentaire admin (optionnel)
                     </label>
                     <textarea
                       value={adminComment}
                       onChange={(e) => setAdminComment(e.target.value)}
-                      placeholder="Ajouter un commentaire pour l'utilisateur..."
-                      rows={3}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 resize-none"
+                      placeholder="Ajoutez un commentaire pour l'utilisateur..."
+                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                      rows={4}
                     />
                   </div>
-                </div>
 
-                {/* Actions */}
-                <div className="p-6 border-t border-gray-700 flex gap-3">
-                  <button
-                    onClick={handleReject}
-                    disabled={processing}
-                    className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    Rejeter
-                  </button>
-                  <button
-                    onClick={handleValidate}
-                    disabled={processing}
-                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
-                  >
-                    {processing ? (
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                    ) : (
+                  {/* Actions */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleReject}
+                      disabled={processing}
+                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+                    >
+                      <XCircle className="w-5 h-5" />
+                      {processing ? 'Traitement...' : 'Rejeter'}
+                    </button>
+                    
+                    <button
+                      onClick={handleValidate}
+                      disabled={processing}
+                      className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+                    >
                       <CheckCircle className="w-5 h-5" />
-                    )}
-                    Valider (+{selectedQuest.xpReward || 25} XP)
-                  </button>
-                </div>
+                      {processing ? 'Traitement...' : 'Valider & Attribuer XP'}
+                    </button>
+                  </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
 
-        {/* Modal Force XP */}
-        <AnimatePresence>
-          {showForceXpModal && selectedQuest && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              onClick={() => setShowForceXpModal(false)}
-            >
+          {/* 💎 MODAL FORCE XP */}
+          <AnimatePresence>
+            {showForceXpModal && selectedQuest && (
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl max-w-md w-full p-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                onClick={() => !processing && setShowForceXpModal(false)}
               >
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-3">
-                  <Coins className="w-6 h-6 text-yellow-500" />
-                  Forcer Attribution XP
-                </h2>
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-lg w-full"
+                >
+                  {/* Header Modal */}
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-2">
+                        💎 Forcer l'Attribution d'XP
+                      </h2>
+                      <p className="text-gray-400">
+                        Attribuez manuellement des XP pour cette quête
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => !processing && setShowForceXpModal(false)}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <CloseIcon className="w-6 h-6" />
+                    </button>
+                  </div>
 
-                <div className="mb-4">
-                  <p className="text-gray-400 text-sm mb-2">
-                    Quête: <span className="text-white">{selectedQuest.title}</span>
-                  </p>
-                  <p className="text-gray-400 text-sm">
-                    Utilisateur: <span className="text-white">{selectedQuest.userName}</span>
-                  </p>
-                </div>
+                  {/* Détails */}
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="text-sm text-gray-400 mb-1 block">Quête</label>
+                      <p className="text-white font-bold">{selectedQuest.questTitle}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 mb-1 block">Utilisateur</label>
+                      <p className="text-white">{selectedQuest.userName}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm text-gray-400 mb-2 block">
+                        Montant d'XP à attribuer
+                      </label>
+                      <input
+                        type="number"
+                        value={editedXp}
+                        onChange={(e) => setEditedXp(e.target.value)}
+                        placeholder="25"
+                        min="1"
+                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        XP de base de la quête : {selectedQuest.xpReward} XP
+                      </p>
+                    </div>
+                  </div>
 
-                <div className="mb-6">
-                  <label className="block text-gray-400 text-sm font-medium mb-2">
-                    Montant XP à attribuer
-                  </label>
-                  <input
-                    type="number"
-                    value={editedXp}
-                    onChange={(e) => setEditedXp(e.target.value)}
-                    min="1"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/20"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowForceXpModal(false)}
-                    className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-all"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleForceXp}
-                    disabled={processing || !editedXp}
-                    className="flex-1 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2"
-                  >
-                    {processing ? (
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Zap className="w-5 h-5" />
-                        Attribuer {editedXp} XP
-                      </>
-                    )}
-                  </button>
-                </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => !processing && setShowForceXpModal(false)}
+                      disabled={processing}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    
+                    <button
+                      onClick={handleForceXp}
+                      disabled={processing || !editedXp}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+                    >
+                      <Coins className="w-5 h-5" />
+                      {processing ? 'Attribution...' : `Attribuer ${editedXp} XP`}
+                    </button>
+                  </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+
+        </div>
       </div>
     </Layout>
   );
