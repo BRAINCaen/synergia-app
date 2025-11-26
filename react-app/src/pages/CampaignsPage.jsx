@@ -160,6 +160,7 @@ const CampaignsPage = () => {
       }));
 
       console.log('⚔️ [CAMPAIGNS] Campagnes chargées depuis Firebase:', campaignsData.length);
+      console.log('⚔️ [CAMPAIGNS] IDs des campagnes:', campaignsData.map(c => c.id));
       setCampaigns(campaignsData);
       setLoading(false);
     }, (error) => {
@@ -184,6 +185,12 @@ const CampaignsPage = () => {
       }));
 
       console.log('⚔️ [QUESTS] Quêtes chargées pour stats:', questsData.length);
+      
+      // 🔍 DEBUG: Afficher les projectIds des quêtes
+      const questsWithProject = questsData.filter(q => q.projectId);
+      console.log('⚔️ [QUESTS] Quêtes avec projectId:', questsWithProject.length);
+      console.log('⚔️ [QUESTS] ProjectIds trouvés:', [...new Set(questsWithProject.map(q => q.projectId))]);
+      
       setQuests(questsData);
     });
 
@@ -193,7 +200,7 @@ const CampaignsPage = () => {
     };
   }, [user?.uid, sortBy, sortOrder]);
 
-  // 📊 CALCUL DES STATISTIQUES
+  // 📊 CALCUL DES STATISTIQUES GLOBALES
   const stats = useMemo(() => {
     if (!campaigns.length) {
       return {
@@ -213,6 +220,23 @@ const CampaignsPage = () => {
       planning: campaigns.filter(c => c.status === 'planning').length
     };
   }, [campaigns]);
+
+  // 🔗 FONCTION POUR OBTENIR LES QUÊTES D'UNE CAMPAGNE
+  const getQuestsForCampaign = useCallback((campaignId) => {
+    // 🔍 Comparaison robuste avec conversion en chaîne
+    const campaignQuests = quests.filter(quest => {
+      // Vérifier si projectId existe et correspond
+      if (!quest.projectId) return false;
+      
+      // Comparaison avec conversion explicite en chaîne
+      const questProjectId = String(quest.projectId).trim();
+      const targetCampaignId = String(campaignId).trim();
+      
+      return questProjectId === targetCampaignId;
+    });
+    
+    return campaignQuests;
+  }, [quests]);
 
   // 🔍 FILTRAGE ET TRI DES CAMPAGNES
   const filteredCampaigns = useMemo(() => {
@@ -604,7 +628,7 @@ const CampaignsPage = () => {
                   }}
                   onDelete={handleDeleteCampaign}
                   onStatusChange={handleStatusChange}
-                  quests={quests.filter(quest => quest.projectId === campaign.id)}
+                  quests={getQuestsForCampaign(campaign.id)}
                   index={index}
                 />
               ))}
@@ -637,13 +661,30 @@ const CampaignCard = ({ campaign, viewMode, navigate, onEdit, onDelete, onStatus
   const statusConfig = CAMPAIGN_STATUS[campaign.status] || CAMPAIGN_STATUS.active;
   const priorityConfig = CAMPAIGN_PRIORITY[campaign.priority] || CAMPAIGN_PRIORITY.medium;
   
+  // 🔍 DEBUG: Log des quêtes reçues
+  useEffect(() => {
+    console.log(`📊 [CARD] Campagne "${campaign.title}" (${campaign.id}):`, {
+      questsReceived: quests.length,
+      questStatuses: quests.map(q => q.status)
+    });
+  }, [campaign.id, campaign.title, quests]);
+  
   // Calcul des statistiques de la campagne
+  // 🔧 FIX: Gérer différents statuts possibles (todo, pending, etc.)
   const campaignStats = {
     totalQuests: quests.length,
-    completedQuests: quests.filter(q => q.status === 'completed').length,
-    inProgressQuests: quests.filter(q => q.status === 'in_progress').length,
-    todoQuests: quests.filter(q => q.status === 'todo').length,
-    progress: quests.length > 0 ? Math.round((quests.filter(q => q.status === 'completed').length / quests.length) * 100) : 0
+    completedQuests: quests.filter(q => q.status === 'completed' || q.status === 'done').length,
+    inProgressQuests: quests.filter(q => q.status === 'in_progress' || q.status === 'active').length,
+    todoQuests: quests.filter(q => 
+      q.status === 'todo' || 
+      q.status === 'pending' || 
+      q.status === 'open' ||
+      !q.status ||
+      (q.status !== 'completed' && q.status !== 'done' && q.status !== 'in_progress' && q.status !== 'active')
+    ).length,
+    progress: quests.length > 0 
+      ? Math.round((quests.filter(q => q.status === 'completed' || q.status === 'done').length / quests.length) * 100) 
+      : 0
   };
 
   const cardContent = (
