@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/routes/index.jsx
-// ROUTES COMPLÈTES - AVEC ROUTE CAMPAIGNS DETAIL AJOUTÉE
+// ROUTES COMPLÈTES - AVEC ROUTE ADMIN REWARDS AJOUTÉE
 // ==========================================
 
 import React from 'react';
@@ -11,7 +11,7 @@ import DashboardPage from '../pages/Dashboard.jsx';
 import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
-import CampaignDetailPage from '../pages/CampaignDetailPage.jsx'; // ✅ AJOUTÉ
+import CampaignDetailPage from '../pages/CampaignDetailPage.jsx';
 import AnalyticsPage from '../pages/AnalyticsPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
@@ -33,6 +33,7 @@ import GodModPage from '../pages/GodModPage.jsx';
 import AdminPage from '../pages/AdminPage.jsx';
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx';
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx';
+import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUTÉ
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
@@ -95,6 +96,7 @@ const AppRoutes = () => {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
+        <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUTÉ */}
         <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
