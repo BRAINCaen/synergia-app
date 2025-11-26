@@ -116,6 +116,33 @@ const CAMPAIGN_PRIORITY = {
   urgent: { label: 'Urgent', color: 'red', icon: '🔴', textColor: 'text-red-400' }
 };
 
+// 🔧 FONCTION UTILITAIRE: Extraire l'ID d'un projectId (string ou DocumentReference)
+const extractProjectId = (projectId) => {
+  if (!projectId) return null;
+  
+  // Si c'est déjà une chaîne
+  if (typeof projectId === 'string') {
+    return projectId.trim();
+  }
+  
+  // Si c'est un objet DocumentReference Firebase
+  if (typeof projectId === 'object') {
+    // DocumentReference a une propriété 'id'
+    if (projectId.id) {
+      return String(projectId.id).trim();
+    }
+    // Ou une propriété 'path' qui contient 'projects/ID'
+    if (projectId.path) {
+      const parts = projectId.path.split('/');
+      return parts[parts.length - 1].trim();
+    }
+    // Fallback: essayer de convertir en string
+    return String(projectId).trim();
+  }
+  
+  return String(projectId).trim();
+};
+
 const CampaignsPage = () => {
   // 🧭 NAVIGATION
   const navigate = useNavigate();
@@ -160,6 +187,7 @@ const CampaignsPage = () => {
       }));
 
       console.log('⚔️ [CAMPAIGNS] Campagnes chargées depuis Firebase:', campaignsData.length);
+      console.log('⚔️ [CAMPAIGNS] IDs des campagnes:', campaignsData.map(c => c.id));
       setCampaigns(campaignsData);
       setLoading(false);
     }, (error) => {
@@ -175,22 +203,37 @@ const CampaignsPage = () => {
     );
 
     const unsubscribeQuests = onSnapshot(questsQuery, (snapshot) => {
-      const questsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-        dueDate: doc.data().dueDate?.toDate()
-      }));
+      const questsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        
+        // 🔧 EXTRACTION ROBUSTE DU PROJECT ID
+        const rawProjectId = data.projectId;
+        const extractedProjectId = extractProjectId(rawProjectId);
+        
+        return {
+          id: doc.id,
+          ...data,
+          // Remplacer projectId par la version extraite (string)
+          projectId: extractedProjectId,
+          // Garder l'original pour debug
+          _rawProjectId: rawProjectId,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+          dueDate: data.dueDate?.toDate()
+        };
+      });
 
       console.log('⚔️ [QUESTS] Quêtes chargées pour stats:', questsData.length);
       
-      // 🔍 DEBUG: Afficher les projectIds des quêtes
+      // 🔍 DEBUG DÉTAILLÉ
       const questsWithProject = questsData.filter(q => q.projectId);
       console.log('⚔️ [QUESTS] Quêtes avec projectId:', questsWithProject.length);
+      
       if (questsWithProject.length > 0) {
-        console.log('⚔️ [QUESTS] Exemple de projectId:', questsWithProject[0].projectId);
-        console.log('⚔️ [QUESTS] Type de projectId:', typeof questsWithProject[0].projectId);
+        console.log('⚔️ [QUESTS] === DEBUG PROJECT IDS ===');
+        questsWithProject.forEach(q => {
+          console.log(`  - Quête "${q.title}": projectId="${q.projectId}" (raw: ${typeof q._rawProjectId} = ${JSON.stringify(q._rawProjectId)})`);
+        });
       }
       
       setQuests(questsData);
@@ -202,43 +245,48 @@ const CampaignsPage = () => {
     };
   }, [user?.uid, sortBy, sortOrder]);
 
-  // 📊 MAPPING DES QUÊTES PAR CAMPAGNE (useMemo pour recalculer quand quests change)
+  // 📊 MAPPING DES QUÊTES PAR CAMPAGNE
   const questsByCampaign = useMemo(() => {
     const mapping = {};
     
-    console.log('🔄 [MAPPING] Création du mapping quêtes par campagne...');
-    console.log('🔄 [MAPPING] Nombre total de quêtes:', quests.length);
+    console.log('🔄 [MAPPING] === Création du mapping quêtes par campagne ===');
+    console.log('🔄 [MAPPING] Campagnes:', campaigns.length);
+    console.log('🔄 [MAPPING] Quêtes:', quests.length);
     
     // Initialiser le mapping pour toutes les campagnes
     campaigns.forEach(campaign => {
       mapping[campaign.id] = [];
     });
     
+    // Liste des IDs de campagnes pour comparaison
+    const campaignIds = campaigns.map(c => c.id);
+    console.log('🔄 [MAPPING] IDs campagnes:', campaignIds);
+    
     // Assigner les quêtes aux campagnes
     quests.forEach(quest => {
       if (quest.projectId) {
         const projectIdStr = String(quest.projectId).trim();
         
-        // Vérifier si cette campagne existe dans notre mapping
-        if (mapping[projectIdStr] !== undefined) {
-          mapping[projectIdStr].push(quest);
+        // Chercher la campagne correspondante
+        const matchingCampaignId = campaignIds.find(campId => {
+          const campIdStr = String(campId).trim();
+          return campIdStr === projectIdStr;
+        });
+        
+        if (matchingCampaignId) {
+          mapping[matchingCampaignId].push(quest);
+          console.log(`✅ [MAPPING] Quête "${quest.title}" → Campagne ${matchingCampaignId}`);
         } else {
-          // Essayer de trouver une correspondance
-          const matchingCampaignId = Object.keys(mapping).find(
-            campId => String(campId).trim() === projectIdStr
-          );
-          if (matchingCampaignId) {
-            mapping[matchingCampaignId].push(quest);
-          }
+          console.warn(`⚠️ [MAPPING] Quête "${quest.title}" a projectId="${projectIdStr}" mais aucune campagne ne correspond`);
         }
       }
     });
     
-    // Log de debug
+    // Résumé du mapping
+    console.log('🔄 [MAPPING] === RÉSUMÉ ===');
     Object.entries(mapping).forEach(([campId, campQuests]) => {
-      if (campQuests.length > 0) {
-        console.log(`✅ [MAPPING] Campagne ${campId}: ${campQuests.length} quêtes`);
-      }
+      const campaign = campaigns.find(c => c.id === campId);
+      console.log(`  - "${campaign?.title || campId}": ${campQuests.length} quêtes`);
     });
     
     return mapping;
@@ -688,17 +736,7 @@ const CampaignCard = ({ campaign, viewMode, navigate, onEdit, onDelete, onStatus
   const statusConfig = CAMPAIGN_STATUS[campaign.status] || CAMPAIGN_STATUS.active;
   const priorityConfig = CAMPAIGN_PRIORITY[campaign.priority] || CAMPAIGN_PRIORITY.medium;
   
-  // 🔍 DEBUG: Log des quêtes reçues
-  useEffect(() => {
-    console.log(`📊 [CARD] Campagne "${campaign.title}" (${campaign.id}):`, {
-      questsReceived: quests.length,
-      questIds: quests.map(q => q.id),
-      questStatuses: quests.map(q => q.status)
-    });
-  }, [campaign.id, campaign.title, quests]);
-  
   // Calcul des statistiques de la campagne
-  // 🔧 FIX: Gérer différents statuts possibles (todo, pending, completed, done, etc.)
   const campaignStats = useMemo(() => {
     const total = quests.length;
     const completed = quests.filter(q => 
