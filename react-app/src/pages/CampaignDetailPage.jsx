@@ -731,9 +731,13 @@ const CampaignDetailPage = () => {
                       className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200"
                     />
                   </div>
+                  {/* Compteur de quêtes disponibles */}
+                  <p className="text-sm text-gray-400 mt-2">
+                    {availableQuests.length} quête(s) disponible(s)
+                  </p>
                 </div>
 
-                {/* Liste des quêtes disponibles */}
+                {/* Liste de TOUTES les quêtes disponibles */}
                 <div className="space-y-3">
                   {availableQuests.length === 0 ? (
                     <div className="text-center py-12">
@@ -746,7 +750,7 @@ const CampaignDetailPage = () => {
                       </p>
                     </div>
                   ) : (
-                    availableQuests.slice(0, 10).map((quest) => (
+                    availableQuests.map((quest) => (
                       <div
                         key={quest.id}
                         className="bg-gray-700/30 rounded-lg p-4 hover:bg-gray-700/50 transition-all duration-200 cursor-pointer"
@@ -767,12 +771,6 @@ const CampaignDetailPage = () => {
                     ))
                   )}
                 </div>
-
-                {availableQuests.length > 10 && (
-                  <p className="text-center text-sm text-gray-400 mt-4">
-                    Et {availableQuests.length - 10} autres quêtes... Affinez votre recherche
-                  </p>
-                )}
               </motion.div>
             </motion.div>
           )}
