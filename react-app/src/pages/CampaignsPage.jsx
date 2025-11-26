@@ -160,7 +160,6 @@ const CampaignsPage = () => {
       }));
 
       console.log('⚔️ [CAMPAIGNS] Campagnes chargées depuis Firebase:', campaignsData.length);
-      console.log('⚔️ [CAMPAIGNS] IDs des campagnes:', campaignsData.map(c => c.id));
       setCampaigns(campaignsData);
       setLoading(false);
     }, (error) => {
@@ -189,7 +188,10 @@ const CampaignsPage = () => {
       // 🔍 DEBUG: Afficher les projectIds des quêtes
       const questsWithProject = questsData.filter(q => q.projectId);
       console.log('⚔️ [QUESTS] Quêtes avec projectId:', questsWithProject.length);
-      console.log('⚔️ [QUESTS] ProjectIds trouvés:', [...new Set(questsWithProject.map(q => q.projectId))]);
+      if (questsWithProject.length > 0) {
+        console.log('⚔️ [QUESTS] Exemple de projectId:', questsWithProject[0].projectId);
+        console.log('⚔️ [QUESTS] Type de projectId:', typeof questsWithProject[0].projectId);
+      }
       
       setQuests(questsData);
     });
@@ -199,6 +201,48 @@ const CampaignsPage = () => {
       unsubscribeQuests();
     };
   }, [user?.uid, sortBy, sortOrder]);
+
+  // 📊 MAPPING DES QUÊTES PAR CAMPAGNE (useMemo pour recalculer quand quests change)
+  const questsByCampaign = useMemo(() => {
+    const mapping = {};
+    
+    console.log('🔄 [MAPPING] Création du mapping quêtes par campagne...');
+    console.log('🔄 [MAPPING] Nombre total de quêtes:', quests.length);
+    
+    // Initialiser le mapping pour toutes les campagnes
+    campaigns.forEach(campaign => {
+      mapping[campaign.id] = [];
+    });
+    
+    // Assigner les quêtes aux campagnes
+    quests.forEach(quest => {
+      if (quest.projectId) {
+        const projectIdStr = String(quest.projectId).trim();
+        
+        // Vérifier si cette campagne existe dans notre mapping
+        if (mapping[projectIdStr] !== undefined) {
+          mapping[projectIdStr].push(quest);
+        } else {
+          // Essayer de trouver une correspondance
+          const matchingCampaignId = Object.keys(mapping).find(
+            campId => String(campId).trim() === projectIdStr
+          );
+          if (matchingCampaignId) {
+            mapping[matchingCampaignId].push(quest);
+          }
+        }
+      }
+    });
+    
+    // Log de debug
+    Object.entries(mapping).forEach(([campId, campQuests]) => {
+      if (campQuests.length > 0) {
+        console.log(`✅ [MAPPING] Campagne ${campId}: ${campQuests.length} quêtes`);
+      }
+    });
+    
+    return mapping;
+  }, [campaigns, quests]);
 
   // 📊 CALCUL DES STATISTIQUES GLOBALES
   const stats = useMemo(() => {
@@ -220,23 +264,6 @@ const CampaignsPage = () => {
       planning: campaigns.filter(c => c.status === 'planning').length
     };
   }, [campaigns]);
-
-  // 🔗 FONCTION POUR OBTENIR LES QUÊTES D'UNE CAMPAGNE
-  const getQuestsForCampaign = useCallback((campaignId) => {
-    // 🔍 Comparaison robuste avec conversion en chaîne
-    const campaignQuests = quests.filter(quest => {
-      // Vérifier si projectId existe et correspond
-      if (!quest.projectId) return false;
-      
-      // Comparaison avec conversion explicite en chaîne
-      const questProjectId = String(quest.projectId).trim();
-      const targetCampaignId = String(campaignId).trim();
-      
-      return questProjectId === targetCampaignId;
-    });
-    
-    return campaignQuests;
-  }, [quests]);
 
   // 🔍 FILTRAGE ET TRI DES CAMPAGNES
   const filteredCampaigns = useMemo(() => {
@@ -628,7 +655,7 @@ const CampaignsPage = () => {
                   }}
                   onDelete={handleDeleteCampaign}
                   onStatusChange={handleStatusChange}
-                  quests={getQuestsForCampaign(campaign.id)}
+                  quests={questsByCampaign[campaign.id] || []}
                   index={index}
                 />
               ))}
@@ -665,27 +692,32 @@ const CampaignCard = ({ campaign, viewMode, navigate, onEdit, onDelete, onStatus
   useEffect(() => {
     console.log(`📊 [CARD] Campagne "${campaign.title}" (${campaign.id}):`, {
       questsReceived: quests.length,
+      questIds: quests.map(q => q.id),
       questStatuses: quests.map(q => q.status)
     });
   }, [campaign.id, campaign.title, quests]);
   
   // Calcul des statistiques de la campagne
-  // 🔧 FIX: Gérer différents statuts possibles (todo, pending, etc.)
-  const campaignStats = {
-    totalQuests: quests.length,
-    completedQuests: quests.filter(q => q.status === 'completed' || q.status === 'done').length,
-    inProgressQuests: quests.filter(q => q.status === 'in_progress' || q.status === 'active').length,
-    todoQuests: quests.filter(q => 
-      q.status === 'todo' || 
-      q.status === 'pending' || 
-      q.status === 'open' ||
-      !q.status ||
-      (q.status !== 'completed' && q.status !== 'done' && q.status !== 'in_progress' && q.status !== 'active')
-    ).length,
-    progress: quests.length > 0 
-      ? Math.round((quests.filter(q => q.status === 'completed' || q.status === 'done').length / quests.length) * 100) 
-      : 0
-  };
+  // 🔧 FIX: Gérer différents statuts possibles (todo, pending, completed, done, etc.)
+  const campaignStats = useMemo(() => {
+    const total = quests.length;
+    const completed = quests.filter(q => 
+      q.status === 'completed' || q.status === 'done' || q.status === 'validated'
+    ).length;
+    const inProgress = quests.filter(q => 
+      q.status === 'in_progress' || q.status === 'active' || q.status === 'in-progress'
+    ).length;
+    const todo = total - completed - inProgress;
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    return {
+      totalQuests: total,
+      completedQuests: completed,
+      inProgressQuests: inProgress,
+      todoQuests: Math.max(0, todo),
+      progress: progress
+    };
+  }, [quests]);
 
   const cardContent = (
     <>
