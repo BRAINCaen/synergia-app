@@ -1,7 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
 // VRAIE PAGE DE VALIDATION DES QUÊTES - FIREBASE + CHARTE SYNERGIA
-// ✅ CORRIGÉ : HISTORIQUE GODMOD + POOL ÉQUIPE (SANS CHANGER LE DESIGN)
+// ✅ CORRIGÉ : AFFICHAGE PREUVES (COMMENTAIRES, PHOTOS, VIDÉOS) DANS LE MODAL
 // ==========================================
 
 console.log('🔄 [AdminValidationQuêtes] Rechargé à:', new Date().toLocaleTimeString());
@@ -34,7 +34,9 @@ import {
   X as CloseIcon,
   RotateCcw,
   Edit,
-  Coins
+  Coins,
+  Maximize2,
+  Image as ImageIcon
 } from 'lucide-react';
 
 // 🎯 IMPORTS
@@ -118,6 +120,7 @@ const AdminTaskValidationPage = () => {
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showForceXpModal, setShowForceXpModal] = useState(false);
+  const [showImageFullscreen, setShowImageFullscreen] = useState(false);
   const [adminComment, setAdminComment] = useState('');
   const [processing, setProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -146,11 +149,11 @@ const AdminTaskValidationPage = () => {
         const taskData = taskDoc.data();
         
         let userData = { displayName: 'Utilisateur inconnu', email: '' };
-        const userId = taskData.assignedTo?.[0] || taskData.createdBy;
+        const odot = taskData.assignedTo?.[0] || taskData.createdBy;
         
-        if (userId) {
+        if (odot) {
           try {
-            const userDoc = await getDoc(doc(db, 'users', userId));
+            const userDoc = await getDoc(doc(db, 'users', odot));
             if (userDoc.exists()) {
               userData = userDoc.data();
             }
@@ -162,13 +165,17 @@ const AdminTaskValidationPage = () => {
         questsData.push({
           id: taskDoc.id,
           ...taskData,
-          userId,
+          odot,
           userName: userData.displayName || userData.email || 'Anonyme',
           userEmail: userData.email || '',
           submittedAt: taskData.updatedAt || taskData.createdAt,
           questTitle: taskData.title || 'Quête sans titre',
           difficulty: taskData.difficulty || 'Normale',
           xpReward: taskData.xpReward || 25,
+          // ✅ PREUVES DE VALIDATION
+          validationComment: taskData.validationComment || taskData.comment || '',
+          validationPhotoUrl: taskData.validationPhotoUrl || taskData.photoUrl || null,
+          validationVideoUrl: taskData.validationVideoUrl || taskData.videoUrl || null,
           comment: taskData.comment || '',
           photoUrl: taskData.photoUrl || null,
           videoUrl: taskData.videoUrl || null
@@ -220,11 +227,11 @@ const AdminTaskValidationPage = () => {
         const taskData = taskDoc.data();
         
         let userData = { displayName: 'Utilisateur inconnu', email: '' };
-        const userId = taskData.assignedTo?.[0] || taskData.createdBy;
+        const odot = taskData.assignedTo?.[0] || taskData.createdBy;
         
-        if (userId) {
+        if (odot) {
           try {
-            const userDoc = await getDoc(doc(db, 'users', userId));
+            const userDoc = await getDoc(doc(db, 'users', odot));
             if (userDoc.exists()) {
               userData = userDoc.data();
             }
@@ -236,13 +243,17 @@ const AdminTaskValidationPage = () => {
         questsData.push({
           id: taskDoc.id,
           ...taskData,
-          userId,
+          odot,
           userName: userData.displayName || userData.email || 'Anonyme',
           userEmail: userData.email || '',
           validatedAt: taskData.validatedAt,
           questTitle: taskData.title || 'Quête sans titre',
           difficulty: taskData.difficulty || 'Normale',
           xpReward: taskData.xpReward || 25,
+          // ✅ PREUVES DE VALIDATION
+          validationComment: taskData.validationComment || taskData.comment || '',
+          validationPhotoUrl: taskData.validationPhotoUrl || taskData.photoUrl || null,
+          validationVideoUrl: taskData.validationVideoUrl || taskData.videoUrl || null,
           comment: taskData.comment || '',
           adminComment: taskData.adminComment || '',
           photoUrl: taskData.photoUrl || null,
@@ -298,7 +309,7 @@ const AdminTaskValidationPage = () => {
     try {
       console.log('✅ Validation quête:', selectedQuest.id);
       
-      const userId = selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
+      const odot = selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
       const xpToAdd = selectedQuest.xpReward || 25;
       
       // 1. Mettre à jour le statut de la quête
@@ -315,8 +326,8 @@ const AdminTaskValidationPage = () => {
       let newLevel = 1;
       let userEmail = '';
       
-      if (userId) {
-        const userRef = doc(db, 'users', userId);
+      if (odot) {
+        const userRef = doc(db, 'users', odot);
         const userDoc = await getDoc(userRef);
         
         if (userDoc.exists()) {
@@ -330,7 +341,7 @@ const AdminTaskValidationPage = () => {
           const currentTasksCompleted = gamification.tasksCompleted || 0;
           
           console.log(`🎯 Attribution XP:`, {
-            userId,
+            odot,
             currentXP,
             xpToAdd,
             newTotalXP,
@@ -358,7 +369,7 @@ const AdminTaskValidationPage = () => {
             updatedAt: serverTimestamp()
           });
           
-          console.log(`💎 ${xpToAdd} XP attribués à ${userId}`);
+          console.log(`💎 ${xpToAdd} XP attribués à ${odot}`);
           console.log(`✅ Nouveau total: ${newTotalXP} XP (Niveau ${newLevel})`);
         }
       }
@@ -369,7 +380,7 @@ const AdminTaskValidationPage = () => {
         await addDoc(collection(db, 'task_validations'), {
           taskId: selectedQuest.id,
           taskTitle: selectedQuest.title || selectedQuest.questTitle || 'Sans titre',
-          userId: userId,
+          odot: odot,
           userName: selectedQuest.userName || 'Utilisateur inconnu',
           userEmail: userEmail,
           xpAmount: xpToAdd,
@@ -392,7 +403,7 @@ const AdminTaskValidationPage = () => {
       console.log('📢 Émission événement userXPUpdated pour pool équipe...');
       const xpUpdateEvent = new CustomEvent('userXPUpdated', {
         detail: {
-          userId: userId,
+          odot: odot,
           xpGained: xpToAdd,
           source: 'task_validation',
           userEmail: userEmail,
@@ -413,7 +424,7 @@ const AdminTaskValidationPage = () => {
         console.log(`💰 Contribution calculée: ${contributionAmount} XP (5% de ${xpToAdd})`);
         
         const poolResult = await teamPoolService.contributeToPool(
-          userId,
+          odot,
           userEmail,
           contributionAmount,
           'task_validation',
@@ -453,7 +464,7 @@ const AdminTaskValidationPage = () => {
     try {
       console.log('❌ Rejet quête:', selectedQuest.id);
       
-      const userId = selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
+      const odot = selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
       
       await updateDoc(doc(db, 'tasks', selectedQuest.id), {
         status: 'todo',
@@ -468,7 +479,7 @@ const AdminTaskValidationPage = () => {
         await addDoc(collection(db, 'task_validations'), {
           taskId: selectedQuest.id,
           taskTitle: selectedQuest.title || selectedQuest.questTitle || 'Sans titre',
-          userId: userId,
+          odot: odot,
           userName: selectedQuest.userName || 'Utilisateur inconnu',
           xpAmount: 0,
           status: 'rejected',
@@ -540,15 +551,15 @@ const AdminTaskValidationPage = () => {
     try {
       console.log('💎 Force attribution XP:', editedXp, 'pour quête:', selectedQuest.id);
       
-      const userId = selectedQuest.userId || selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
+      const odot = selectedQuest.odot || selectedQuest.assignedTo?.[0] || selectedQuest.createdBy;
       
-      if (!userId) {
+      if (!odot) {
         alert('❌ Utilisateur introuvable pour cette quête');
         setProcessing(false);
         return;
       }
       
-      const userRef = doc(db, 'users', userId);
+      const userRef = doc(db, 'users', odot);
       const userDoc = await getDoc(userRef);
       
       if (userDoc.exists()) {
@@ -562,7 +573,7 @@ const AdminTaskValidationPage = () => {
         const newLevel = Math.floor(newTotalXP / 100) + 1;
         
         console.log(`🎯 Force XP:`, {
-          userId,
+          odot,
           currentXP,
           xpToAdd,
           newTotalXP,
@@ -592,7 +603,7 @@ const AdminTaskValidationPage = () => {
           await addDoc(collection(db, 'task_validations'), {
             taskId: selectedQuest.id,
             taskTitle: selectedQuest.title || selectedQuest.questTitle || 'Sans titre',
-            userId: userId,
+            odot: odot,
             userName: selectedQuest.userName || userData.displayName || 'Utilisateur',
             userEmail: userEmail,
             xpAmount: xpToAdd,
@@ -611,7 +622,7 @@ const AdminTaskValidationPage = () => {
         // ✅ ÉMETTRE LES ÉVÉNEMENTS POUR LE POOL ÉQUIPE
         const xpUpdateEvent = new CustomEvent('userXPUpdated', {
           detail: {
-            userId: userId,
+            odot: odot,
             xpGained: xpToAdd,
             source: 'admin_force_xp',
             userEmail: userEmail,
@@ -626,7 +637,7 @@ const AdminTaskValidationPage = () => {
           console.log(`💰 Contribution forcée: ${contributionAmount} XP (5% de ${xpToAdd})`);
           
           await teamPoolService.contributeToPool(
-            userId,
+            odot,
             userEmail,
             contributionAmount,
             'admin_force_xp',
@@ -641,7 +652,7 @@ const AdminTaskValidationPage = () => {
         setEditedXp(0);
         await loadValidatedQuests();
         
-        console.log(`💎 ${xpToAdd} XP forcés pour ${userId}`);
+        console.log(`💎 ${xpToAdd} XP forcés pour ${odot}`);
       } else {
         alert('❌ Utilisateur introuvable');
       }
@@ -677,6 +688,16 @@ const AdminTaskValidationPage = () => {
     quest.questTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quest.userName.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // ✅ RÉCUPÉRER LES PREUVES DE VALIDATION
+  const getValidationProof = (quest) => {
+    return {
+      comment: quest.validationComment || quest.comment || null,
+      photoUrl: quest.validationPhotoUrl || quest.photoUrl || null,
+      videoUrl: quest.validationVideoUrl || quest.videoUrl || null,
+      hasProof: !!(quest.validationComment || quest.comment || quest.validationPhotoUrl || quest.photoUrl || quest.validationVideoUrl || quest.videoUrl)
+    };
+  };
 
   return (
     <Layout>
@@ -838,133 +859,167 @@ const AdminTaskValidationPage = () => {
               transition={{ delay: 0.3 }}
               className="space-y-4"
             >
-              {filteredQuests.map((quest, index) => (
-                <GlassCard key={quest.id}>
-                  <div className="flex items-start gap-4">
-                    {/* Icône */}
-                    <div className={`w-12 h-12 ${
-                      activeTab === 'pending' 
-                        ? 'bg-orange-500/20' 
-                        : 'bg-green-500/20'
-                    } rounded-xl flex items-center justify-center flex-shrink-0`}>
-                      {activeTab === 'pending' ? (
-                        <Clock className="w-6 h-6 text-orange-400" />
-                      ) : (
-                        <CheckCircle className="w-6 h-6 text-green-400" />
-                      )}
-                    </div>
-                    
-                    {/* Contenu */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="text-lg font-bold text-white mb-1">
-                            {quest.questTitle}
-                          </h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <User className="w-4 h-4" />
-                              {quest.userName}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {activeTab === 'pending'
-                                ? quest.submittedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'
-                                : quest.validatedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-400" />
-                              {quest.xpReward} XP
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              quest.difficulty === 'Facile' ? 'bg-green-500/20 text-green-400' :
-                              quest.difficulty === 'Normale' ? 'bg-blue-500/20 text-blue-400' :
-                              'bg-red-500/20 text-red-400'
+              {filteredQuests.map((quest, index) => {
+                const proof = getValidationProof(quest);
+                
+                return (
+                  <GlassCard key={quest.id}>
+                    <div className="flex items-start gap-4">
+                      {/* Icône */}
+                      <div className={`w-12 h-12 ${
+                        activeTab === 'pending' 
+                          ? 'bg-orange-500/20' 
+                          : 'bg-green-500/20'
+                      } rounded-xl flex items-center justify-center flex-shrink-0`}>
+                        {activeTab === 'pending' ? (
+                          <Clock className="w-6 h-6 text-orange-400" />
+                        ) : (
+                          <CheckCircle className="w-6 h-6 text-green-400" />
+                        )}
+                      </div>
+                      
+                      {/* Contenu */}
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-bold text-white mb-1">
+                              {quest.questTitle}
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <User className="w-4 h-4" />
+                                {quest.userName}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                {activeTab === 'pending'
+                                  ? quest.submittedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'
+                                  : quest.validatedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Star className="w-4 h-4 text-yellow-400" />
+                                {quest.xpReward} XP
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                quest.difficulty === 'Facile' || quest.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
+                                quest.difficulty === 'Normale' || quest.difficulty === 'medium' ? 'bg-blue-500/20 text-blue-400' :
+                                'bg-red-500/20 text-red-400'
+                              }`}>
+                                {quest.difficulty}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Badge statut + preuves */}
+                          <div className="flex items-center gap-2">
+                            {/* ✅ INDICATEURS DE PREUVES */}
+                            {proof.hasProof && (
+                              <div className="flex items-center gap-1">
+                                {proof.comment && (
+                                  <span className="p-1 bg-blue-500/20 rounded" title="Commentaire">
+                                    <MessageSquare className="w-4 h-4 text-blue-400" />
+                                  </span>
+                                )}
+                                {proof.photoUrl && (
+                                  <span className="p-1 bg-purple-500/20 rounded" title="Photo">
+                                    <Camera className="w-4 h-4 text-purple-400" />
+                                  </span>
+                                )}
+                                {proof.videoUrl && (
+                                  <span className="p-1 bg-pink-500/20 rounded" title="Vidéo">
+                                    <Video className="w-4 h-4 text-pink-400" />
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${
+                              activeTab === 'pending'
+                                ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
+                                : 'bg-green-500/20 text-green-400 border-green-500/50'
                             }`}>
-                              {quest.difficulty}
+                              {activeTab === 'pending' ? 'En attente' : 'Validée'}
                             </span>
                           </div>
                         </div>
                         
-                        {/* Badge statut */}
-                        <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${
-                          activeTab === 'pending'
-                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
-                            : 'bg-green-500/20 text-green-400 border-green-500/50'
-                        }`}>
-                          {activeTab === 'pending' ? 'En attente' : 'Validée'}
-                        </span>
-                      </div>
-                      
-                      {/* Description/Commentaire */}
-                      {quest.comment && (
-                        <p className="text-gray-400 text-sm mb-3">
-                          💬 {quest.comment}
-                        </p>
-                      )}
-                      
-                      {/* Commentaire admin (quêtes validées) */}
-                      {activeTab === 'validated' && quest.adminComment && (
-                        <p className="text-blue-400 text-sm mb-3 bg-blue-500/10 rounded-lg p-2 border border-blue-500/30">
-                          🛡️ Admin : {quest.adminComment}
-                        </p>
-                      )}
-                      
-                      {/* Médias */}
-                      <div className="flex items-center gap-2 mb-3">
-                        {quest.photoUrl && (
-                          <span className="flex items-center gap-1 text-xs text-gray-500">
-                            <Camera className="w-3 h-3" />
-                            Photo jointe
-                          </span>
+                        {/* Description/Commentaire */}
+                        {proof.comment && (
+                          <p className="text-gray-400 text-sm mb-3 bg-gray-900/30 rounded-lg p-2 border border-gray-700/50">
+                            💬 {proof.comment}
+                          </p>
                         )}
-                        {quest.videoUrl && (
-                          <span className="flex items-center gap-1 text-xs text-gray-500">
-                            <Video className="w-3 h-3" />
-                            Vidéo jointe
-                          </span>
+                        
+                        {/* Commentaire admin (quêtes validées) */}
+                        {activeTab === 'validated' && quest.adminComment && (
+                          <p className="text-blue-400 text-sm mb-3 bg-blue-500/10 rounded-lg p-2 border border-blue-500/30">
+                            🛡️ Admin : {quest.adminComment}
+                          </p>
                         )}
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="flex items-center gap-3">
-                        {activeTab === 'pending' ? (
-                          <button
-                            onClick={() => openValidationModal(quest)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                            Examiner
-                          </button>
-                        ) : (
-                          <>
+                        
+                        {/* ✅ APERÇU PHOTO */}
+                        {proof.photoUrl && (
+                          <div className="mb-3">
+                            <img 
+                              src={proof.photoUrl} 
+                              alt="Preuve photo"
+                              className="max-h-32 rounded-lg border border-gray-700/50 cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => window.open(proof.photoUrl, '_blank')}
+                            />
+                          </div>
+                        )}
+                        
+                        {/* ✅ APERÇU VIDÉO */}
+                        {proof.videoUrl && (
+                          <div className="mb-3">
+                            <video 
+                              src={proof.videoUrl} 
+                              controls
+                              className="max-h-32 rounded-lg border border-gray-700/50"
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Actions */}
+                        <div className="flex items-center gap-3">
+                          {activeTab === 'pending' ? (
                             <button
-                              onClick={() => handleReactivate(quest)}
-                              disabled={processing}
-                              className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                              onClick={() => openValidationModal(quest)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
                             >
-                              <RotateCcw className="w-4 h-4" />
-                              Réactiver
+                              <Eye className="w-4 h-4" />
+                              Examiner
                             </button>
-                            
-                            <button
-                              onClick={() => openForceXpModal(quest)}
-                              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-                            >
-                              <Coins className="w-4 h-4" />
-                              Forcer XP
-                            </button>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleReactivate(quest)}
+                                disabled={processing}
+                                className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                                Réactiver
+                              </button>
+                              
+                              <button
+                                onClick={() => openForceXpModal(quest)}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                              >
+                                <Coins className="w-4 h-4" />
+                                Forcer XP
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </GlassCard>
-              ))}
+                  </GlassCard>
+                );
+              })}
             </motion.div>
           )}
 
-          {/* 🎭 MODAL DE VALIDATION */}
+          {/* 🎭 MODAL DE VALIDATION - AVEC PREUVES */}
           <AnimatePresence>
             {showValidationModal && selectedQuest && (
               <motion.div
@@ -979,7 +1034,7 @@ const AdminTaskValidationPage = () => {
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
                   onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                  className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
                 >
                   {/* Header Modal */}
                   <div className="flex items-start justify-between mb-6">
@@ -1029,16 +1084,89 @@ const AdminTaskValidationPage = () => {
                         </p>
                       </div>
                     </div>
-                    
-                    {selectedQuest.comment && (
-                      <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Commentaire utilisateur</label>
-                        <p className="text-white bg-gray-900/50 rounded-lg p-3">
-                          {selectedQuest.comment}
-                        </p>
-                      </div>
-                    )}
                   </div>
+
+                  {/* ✅ SECTION PREUVES DE VALIDATION */}
+                  {(() => {
+                    const proof = getValidationProof(selectedQuest);
+                    
+                    if (proof.hasProof) {
+                      return (
+                        <div className="mb-6 bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-500/30 rounded-xl p-5">
+                          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-purple-400" />
+                            Preuves de validation de l'utilisateur
+                          </h3>
+                          
+                          {/* Commentaire utilisateur */}
+                          {proof.comment && (
+                            <div className="mb-4">
+                              <label className="text-sm text-purple-300 mb-2 block flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4" />
+                                Commentaire de l'utilisateur
+                              </label>
+                              <div className="bg-gray-900/60 border border-purple-500/20 rounded-lg p-4">
+                                <p className="text-white whitespace-pre-wrap">{proof.comment}</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Photo jointe */}
+                          {proof.photoUrl && (
+                            <div className="mb-4">
+                              <label className="text-sm text-purple-300 mb-2 block flex items-center gap-2">
+                                <Camera className="w-4 h-4" />
+                                Photo jointe
+                              </label>
+                              <div className="relative group">
+                                <img 
+                                  src={proof.photoUrl} 
+                                  alt="Preuve photo"
+                                  className="w-full max-h-80 object-contain rounded-lg border border-purple-500/30 bg-black/30 cursor-pointer"
+                                  onClick={() => setShowImageFullscreen(true)}
+                                />
+                                <button
+                                  onClick={() => setShowImageFullscreen(true)}
+                                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Maximize2 className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Vidéo jointe */}
+                          {proof.videoUrl && (
+                            <div className="mb-4">
+                              <label className="text-sm text-purple-300 mb-2 block flex items-center gap-2">
+                                <Video className="w-4 h-4" />
+                                Vidéo jointe
+                              </label>
+                              <video 
+                                src={proof.videoUrl} 
+                                controls
+                                className="w-full max-h-80 rounded-lg border border-purple-500/30 bg-black/30"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-5">
+                          <div className="flex items-center gap-3">
+                            <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                            <div>
+                              <h3 className="text-lg font-bold text-yellow-400">Aucune preuve fournie</h3>
+                              <p className="text-yellow-300/70 text-sm">
+                                L'utilisateur n'a pas ajouté de commentaire, photo ou vidéo pour cette validation.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                  })()}
 
                   {/* Commentaire admin */}
                   <div className="mb-6">
@@ -1050,7 +1178,7 @@ const AdminTaskValidationPage = () => {
                       onChange={(e) => setAdminComment(e.target.value)}
                       placeholder="Ajoutez un commentaire pour l'utilisateur..."
                       className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors resize-none"
-                      rows={4}
+                      rows={3}
                     />
                   </div>
 
@@ -1075,6 +1203,32 @@ const AdminTaskValidationPage = () => {
                     </button>
                   </div>
                 </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 🖼️ MODAL IMAGE PLEIN ÉCRAN */}
+          <AnimatePresence>
+            {showImageFullscreen && selectedQuest && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/95 flex items-center justify-center z-[60] p-4"
+                onClick={() => setShowImageFullscreen(false)}
+              >
+                <button
+                  onClick={() => setShowImageFullscreen(false)}
+                  className="absolute top-4 right-4 text-white/60 hover:text-white p-2 bg-black/50 rounded-lg transition-colors"
+                >
+                  <CloseIcon className="w-8 h-8" />
+                </button>
+                <img 
+                  src={getValidationProof(selectedQuest).photoUrl} 
+                  alt="Preuve photo plein écran"
+                  className="max-w-full max-h-full object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
               </motion.div>
             )}
           </AnimatePresence>
