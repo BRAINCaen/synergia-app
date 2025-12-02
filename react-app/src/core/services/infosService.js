@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/infosService.js
-// SERVICE COMPLET DE GESTION DES INFORMATIONS - AVEC PROGRESSION
+// SERVICE COMPLET DE GESTION DES INFORMATIONS - AVEC NOTIFICATIONS
 // ==========================================
 
 import { 
@@ -24,6 +24,7 @@ import {
   deleteObject 
 } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
+import notificationService from './notificationService.js';
 
 /**
  * 📢 SERVICE DE GESTION DES INFORMATIONS
@@ -185,6 +186,19 @@ class InfosService {
       const docRef = await addDoc(collection(db, this.COLLECTION_NAME), infoData);
       
       console.log('✅ [INFOS] Info créée:', docRef.id);
+
+      // 🔔 NOTIFIER TOUS LES UTILISATEURS DE LA NOUVELLE INFO
+      try {
+        await notificationService.notifyAllUsersNewInfo({
+          infoId: docRef.id,
+          infoText: data.text || '',
+          authorId: user.uid,
+          authorName: user.displayName || user.email
+        });
+        console.log('🔔 [INFOS] Tous les utilisateurs notifiés de la nouvelle info');
+      } catch (notifError) {
+        console.warn('⚠️ [INFOS] Erreur notification nouvelle info:', notifError);
+      }
       
       return { id: docRef.id, ...infoData };
 
@@ -270,11 +284,11 @@ class InfosService {
   }
 
   /**
-   * ✅ VALIDER UNE INFO
+   * ✅ VALIDER UNE INFO (AVEC NOM DU VALIDEUR)
    */
-  async validateInfo(infoId, userId) {
+  async validateInfo(infoId, userId, userName = null, userAvatar = null) {
     try {
-      console.log('✅ [INFOS] Validation info:', infoId);
+      console.log('✅ [INFOS] Validation info:', infoId, 'par', userId);
       
       const infoRef = doc(db, this.COLLECTION_NAME, infoId);
       const infoSnap = await getDoc(infoRef);
@@ -286,14 +300,19 @@ class InfosService {
       const infoData = infoSnap.data();
       const validatedBy = infoData.validatedBy || {};
       
-      validatedBy[userId] = new Date().toISOString();
+      // ✅ STOCKER PLUS D'INFOS SUR LE VALIDEUR
+      validatedBy[userId] = {
+        validatedAt: new Date().toISOString(),
+        userName: userName || 'Utilisateur',
+        userAvatar: userAvatar || null
+      };
 
       await updateDoc(infoRef, {
         validatedBy,
         validationCount: Object.keys(validatedBy).length
       });
 
-      console.log('✅ [INFOS] Info validée');
+      console.log('✅ [INFOS] Info validée par', userName || userId);
 
     } catch (error) {
       console.error('❌ [INFOS] Erreur validation:', error);
