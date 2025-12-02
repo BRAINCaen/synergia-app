@@ -24,7 +24,7 @@ import { db } from '../firebase.js';
 /**
  * 🔔 TYPES DE NOTIFICATIONS
  */
-export const NOTIFICATION_TYPES = {
+const NOTIFICATION_TYPES = {
   // Quêtes
   QUEST_VALIDATION_PENDING: 'quest_validation_pending',
   QUEST_APPROVED: 'quest_approved',
