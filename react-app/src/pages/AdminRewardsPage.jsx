@@ -418,7 +418,17 @@ try {
         rejectionReason: rejectionReason.trim(),
         adminEmail: user.email
       });
-
+// 🔔 NOTIFIER L'UTILISATEUR DU REJET
+try {
+  await notificationService.notifyRewardRejected(request.userId, {
+    rewardId: request.rewardId,
+    rewardName: request.rewardName,
+    reason: rejectionReason.trim()
+  });
+  console.log('🔔 [NOTIF] Utilisateur notifié du rejet de récompense');
+} catch (notifError) {
+  console.warn('⚠️ [NOTIF] Erreur notification:', notifError);
+}
       setShowModal(false);
       setSelectedRequest(null);
       setRejectionReason('');
