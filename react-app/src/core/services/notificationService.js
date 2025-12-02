@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/notificationService.js
-// SERVICE NOTIFICATIONS COMPLET - ADMIN + UTILISATEURS
+// SERVICE NOTIFICATIONS COMPLET - ADMIN + UTILISATEURS + INFOS
 // ==========================================
 
 import { 
@@ -52,7 +52,10 @@ const notificationService = {
     TASK_ASSIGNED: 'task_assigned',
     TASK_REMINDER: 'task_reminder',
     MENTION: 'mention',
-    SYSTEM: 'system'
+    SYSTEM: 'system',
+    
+    // Notifications infos équipe
+    NEW_INFO: 'new_info'
   },
 
   // ==========================================
@@ -136,6 +139,55 @@ const notificationService = {
       return { success: true, notifiedCount: adminIds.length };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification admins:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // ==========================================
+  // 📢 NOTIFIER TOUS LES UTILISATEURS (NOUVELLE INFO)
+  // ==========================================
+  async notifyAllUsersNewInfo(infoData) {
+    try {
+      console.log('📢 [NOTIF] Notification nouvelle info à tous les utilisateurs...');
+      
+      const { infoId, infoText, authorId, authorName } = infoData;
+      
+      // Récupérer TOUS les utilisateurs
+      const usersRef = collection(db, COLLECTIONS.USERS);
+      const usersSnapshot = await getDocs(usersRef);
+      
+      const batch = writeBatch(db);
+      const notificationsRef = collection(db, COLLECTIONS.NOTIFICATIONS);
+      let notifiedCount = 0;
+      
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        
+        // Ne pas notifier l'auteur de l'info
+        if (userId === authorId) continue;
+        
+        const notifRef = doc(notificationsRef);
+        batch.set(notifRef, {
+          userId: userId,
+          type: this.TYPES.NEW_INFO,
+          title: '📢 Nouvelle information',
+          message: `${authorName} a publié une nouvelle info${infoText ? ': ' + infoText.substring(0, 50) + (infoText.length > 50 ? '...' : '') : ''}`,
+          icon: '📢',
+          link: '/infos',
+          data: { infoId, authorId, authorName },
+          read: false,
+          createdAt: serverTimestamp()
+        });
+        notifiedCount++;
+      }
+      
+      await batch.commit();
+      console.log(`✅ [NOTIF] ${notifiedCount} utilisateurs notifiés de la nouvelle info`);
+      
+      return { success: true, notifiedCount };
+      
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification nouvelle info:', error);
       return { success: false, error: error.message };
     }
   },
