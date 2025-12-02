@@ -1,13 +1,13 @@
 // ==========================================
 // 📁 react-app/src/pages/InfosPage.jsx
-// PAGE INFORMATIONS ÉQUIPE AVEC LAYOUT
+// PAGE INFORMATIONS ÉQUIPE AVEC AFFICHAGE DES VALIDEURS
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Info, Plus, Upload, X, Edit, Trash2, Check, AlertCircle, 
-  Loader, Send, CheckCircle, Eye, Bell
+  Loader, Send, CheckCircle, Eye, Bell, Users, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
@@ -115,7 +115,12 @@ const InfosPage = () => {
                         await infosService.deleteInfo(id, user);
                       }
                     }}
-                    onValidate={async (id) => await infosService.validateInfo(id, user.uid)}
+                    onValidate={async (id) => await infosService.validateInfo(
+                      id, 
+                      user.uid, 
+                      user.displayName || user.email,
+                      user.photoURL
+                    )}
                   />
                 ))
               )}
@@ -142,6 +147,59 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
   const isValidated = info.validatedBy?.[user.uid];
   const canEdit = isAdmin || isAuthor;
   const canDelete = isAdmin || isAuthor;
+  
+  // ✅ ÉTAT POUR AFFICHER/MASQUER LA LISTE DES VALIDEURS
+  const [showValidators, setShowValidators] = useState(false);
+
+  // ✅ EXTRAIRE LA LISTE DES VALIDEURS
+  const getValidatorsList = () => {
+    if (!info.validatedBy) return [];
+    
+    return Object.entries(info.validatedBy).map(([userId, data]) => {
+      // Gestion des anciennes données (juste une date string) et nouvelles (objet)
+      if (typeof data === 'string') {
+        return {
+          odot: userId,
+          userName: 'Utilisateur',
+          validatedAt: data,
+          userAvatar: null
+        };
+      }
+      return {
+        odot: userId,
+        userName: data.userName || 'Utilisateur',
+        validatedAt: data.validatedAt,
+        userAvatar: data.userAvatar
+      };
+    }).sort((a, b) => new Date(b.validatedAt) - new Date(a.validatedAt));
+  };
+
+  const validators = getValidatorsList();
+  const validatorCount = validators.length;
+
+  // ✅ FORMATER LA DATE DE VALIDATION
+  const formatValidationDate = (dateStr) => {
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diff = now - date;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+
+      if (minutes < 1) return 'À l\'instant';
+      if (minutes < 60) return `Il y a ${minutes} min`;
+      if (hours < 24) return `Il y a ${hours}h`;
+      if (days < 7) return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+      
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short'
+      });
+    } catch {
+      return 'Date inconnue';
+    }
+  };
 
   return (
     <motion.div
@@ -205,10 +263,21 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
       )}
 
       <div className="flex items-center justify-between pt-4 border-t border-white/10">
-        <div className="flex items-center gap-2 text-white/60 text-sm">
-          <Eye className="w-4 h-4" />
-          <span>{info.validationCount || 0} vue{info.validationCount > 1 ? 's' : ''}</span>
-        </div>
+        {/* ✅ BOUTON POUR VOIR QUI A VALIDÉ */}
+        <button
+          onClick={() => setShowValidators(!showValidators)}
+          className="flex items-center gap-2 text-white/60 text-sm hover:text-white/80 transition-colors"
+        >
+          <Users className="w-4 h-4" />
+          <span>{validatorCount} vue{validatorCount > 1 ? 's' : ''}</span>
+          {validatorCount > 0 && (
+            showValidators ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )
+          )}
+        </button>
 
         {!isValidated ? (
           <button
@@ -225,6 +294,56 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
           </div>
         )}
       </div>
+
+      {/* ✅ LISTE DES VALIDEURS (AFFICHÉE SI CLIQUÉ) */}
+      <AnimatePresence>
+        {showValidators && validatorCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-4 pt-4 border-t border-white/10"
+          >
+            <p className="text-white/60 text-sm mb-3 font-semibold flex items-center gap-2">
+              <Eye className="w-4 h-4" />
+              Vu par {validatorCount} personne{validatorCount > 1 ? 's' : ''} :
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {validators.map((validator, index) => (
+                <div 
+                  key={validator.odot || index}
+                  className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2"
+                >
+                  {/* Avatar du valideur */}
+                  {validator.userAvatar ? (
+                    <img 
+                      src={validator.userAvatar} 
+                      alt={validator.userName}
+                      className="w-6 h-6 rounded-full object-cover border border-green-500/50"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {validator.userName?.charAt(0) || '?'}
+                    </div>
+                  )}
+                  
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">
+                      {validator.userName}
+                    </p>
+                    <p className="text-white/40 text-xs">
+                      {formatValidationDate(validator.validatedAt)}
+                    </p>
+                  </div>
+                  
+                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
