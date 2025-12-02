@@ -16,7 +16,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
-
+import notificationService from './notificationService.js';
 /**
  * 🛡️ SERVICE DE VALIDATION DES TÂCHES (Version corrigée)
  */
@@ -135,7 +135,19 @@ class TaskValidationService {
 
       // Créer la demande de validation
       const docRef = await addDoc(collection(db, this.COLLECTION_NAME), submissionData);
-
+try {
+  await notificationService.notifyQuestValidationPending({
+    questId: taskId,
+    validationId: docRef.id,
+    questTitle: taskTitle || 'Quête sans titre',
+    userId: userId,
+    userName: '', // Sera récupéré par le service
+    xpAmount: submissionData.xpAmount
+  });
+  console.log('🔔 [NOTIF] Admins notifiés de la nouvelle quête à valider');
+} catch (notifError) {
+  console.warn('⚠️ [NOTIF] Erreur notification admins:', notifError);
+}
       // Mettre à jour le statut de la tâche
       await updateDoc(doc(db, 'tasks', taskId), {
         status: 'validation_pending',
