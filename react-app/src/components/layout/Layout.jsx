@@ -46,7 +46,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/admin', label: 'Dashboard Admin', icon: '👑' },
       { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
       { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
-      { path: '/admin/rewards', label: 'Validation Récompenses', icon: '🎁' }, // ✅ AJOUT
+      { path: '/admin/rewards', label: 'Validation Récompenses', icon: '🎁' },
       { path: '/admin/analytics', label: 'Analytics Admin', icon: '📊' },
       { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
       { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
@@ -333,7 +333,7 @@ const Layout = memo(({ children }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuOpenRef = useRef(false);
   const navigate = useNavigate();
-  const { user } = useAuthStore(); // 👑 Récupérer l'utilisateur pour vérifier l'email
+  const { user } = useAuthStore();
 
   const openMenu = useCallback(() => {
     console.log('🔓 [LAYOUT] Ouverture menu demandée');
@@ -403,7 +403,7 @@ const Layout = memo(({ children }) => {
         isOpen={menuOpen} 
         onClose={closeMenu}
         navigateFunction={navigateFunction}
-        userEmail={user?.email} // 👑 Passer l'email pour vérifier GODMOD
+        userEmail={user?.email}
       />
 
       {/* CONTENU */}
