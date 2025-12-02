@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/core/services/notificationService.js
-// SERVICE NOTIFICATIONS COMPLET - ADMIN + UTILISATEURS + INFOS
+// SERVICE DE NOTIFICATIONS - VERSION COMPLÈTE
+// ✅ Notifications pour quêtes, infos, badges, XP
 // ==========================================
 
 import { 
@@ -8,407 +9,102 @@ import {
   doc, 
   addDoc, 
   updateDoc, 
-  deleteDoc,
-  getDocs, 
   getDoc,
+  getDocs,
   query, 
   where, 
-  orderBy, 
+  orderBy,
   limit,
   onSnapshot,
   serverTimestamp,
-  writeBatch
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-const COLLECTIONS = {
-  NOTIFICATIONS: 'notifications',
-  USERS: 'users'
+/**
+ * 🔔 TYPES DE NOTIFICATIONS
+ */
+export const NOTIFICATION_TYPES = {
+  // Quêtes
+  QUEST_VALIDATION_PENDING: 'quest_validation_pending',
+  QUEST_APPROVED: 'quest_approved',
+  QUEST_REJECTED: 'quest_rejected',
+  QUEST_ASSIGNED: 'quest_assigned',
+  QUEST_COMMENT: 'quest_comment',
+  
+  // XP et Gamification
+  XP_EARNED: 'xp_earned',
+  LEVEL_UP: 'level_up',
+  BADGE_EARNED: 'badge_earned',
+  
+  // Infos d'équipe
+  NEW_INFO: 'new_info',
+  INFO_VALIDATED: 'info_validated',
+  
+  // Récompenses
+  REWARD_REQUESTED: 'reward_requested',
+  REWARD_APPROVED: 'reward_approved',
+  REWARD_REJECTED: 'reward_rejected',
+  
+  // Système
+  SYSTEM: 'system',
+  MENTION: 'mention',
+  REMINDER: 'reminder'
 };
 
 /**
- * 🔔 SERVICE DE NOTIFICATIONS SYNERGIA
+ * 🔔 SERVICE DE NOTIFICATIONS
  */
-const notificationService = {
+class NotificationService {
+  constructor() {
+    this.COLLECTION_NAME = 'notifications';
+    this.listeners = new Map();
+    console.log('🔔 NotificationService initialisé');
+  }
 
   // ==========================================
-  // 📋 TYPES DE NOTIFICATIONS
+  // 📝 MÉTHODES DE BASE
   // ==========================================
-  TYPES: {
-    // Admin notifications
-    QUEST_VALIDATION_PENDING: 'quest_validation_pending',
-    REWARD_REQUEST_PENDING: 'reward_request_pending',
-    OBJECTIVE_VALIDATION_PENDING: 'objective_validation_pending',
-    NEW_USER_REGISTERED: 'new_user_registered',
-    
-    // User notifications
-    QUEST_APPROVED: 'quest_approved',
-    QUEST_REJECTED: 'quest_rejected',
-    REWARD_APPROVED: 'reward_approved',
-    REWARD_REJECTED: 'reward_rejected',
-    XP_EARNED: 'xp_earned',
-    BADGE_EARNED: 'badge_earned',
-    LEVEL_UP: 'level_up',
-    TASK_ASSIGNED: 'task_assigned',
-    TASK_REMINDER: 'task_reminder',
-    MENTION: 'mention',
-    SYSTEM: 'system',
-    
-    // Notifications infos équipe
-    NEW_INFO: 'new_info'
-  },
 
-  // ==========================================
-  // 🔔 CRÉER UNE NOTIFICATION
-  // ==========================================
+  /**
+   * ➕ CRÉER UNE NOTIFICATION
+   */
   async createNotification(data) {
     try {
       const notificationData = {
-        userId: data.userId,
-        type: data.type,
-        title: data.title,
-        message: data.message,
-        icon: data.icon || '🔔',
-        link: data.link || null,
-        data: data.data || {},
+        ...data,
         read: false,
         createdAt: serverTimestamp(),
-        expiresAt: data.expiresAt || null
+        updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), notificationData);
+      const docRef = await addDoc(collection(db, this.COLLECTION_NAME), notificationData);
       console.log('🔔 [NOTIF] Notification créée:', docRef.id);
       
-      return { success: true, id: docRef.id };
+      return { success: true, notificationId: docRef.id };
     } catch (error) {
-      console.error('❌ [NOTIF] Erreur création:', error);
-      return { success: false, error: error.message };
+      console.error('❌ [NOTIF] Erreur création notification:', error);
+      throw error;
     }
-  },
+  }
 
-  // ==========================================
-  // 👑 NOTIFIER TOUS LES ADMINS
-  // ==========================================
-  async notifyAllAdmins(data) {
+  /**
+   * 📋 RÉCUPÉRER LES NOTIFICATIONS D'UN UTILISATEUR
+   */
+  async getUserNotifications(userId, options = {}) {
     try {
-      console.log('👑 [NOTIF] Notification à tous les admins...');
-      
-      // Récupérer tous les admins
-      const usersRef = collection(db, COLLECTIONS.USERS);
-      const usersSnapshot = await getDocs(usersRef);
-      
-      const adminIds = [];
-      usersSnapshot.forEach(doc => {
-        const userData = doc.data();
-        // Vérifier si l'utilisateur est admin
-        if (
-          userData.role === 'admin' ||
-          userData.profile?.role === 'admin' ||
-          userData.isAdmin === true ||
-          userData.email === 'alan.boehme61@gmail.com'
-        ) {
-          adminIds.push(doc.id);
-        }
-      });
+      const { limitCount = 50, unreadOnly = false } = options;
 
-      console.log(`👑 [NOTIF] ${adminIds.length} admins trouvés`);
-
-      // Créer une notification pour chaque admin
-      const batch = writeBatch(db);
-      const notificationsRef = collection(db, COLLECTIONS.NOTIFICATIONS);
-      
-      for (const adminId of adminIds) {
-        const notifRef = doc(notificationsRef);
-        batch.set(notifRef, {
-          userId: adminId,
-          type: data.type,
-          title: data.title,
-          message: data.message,
-          icon: data.icon || '👑',
-          link: data.link || '/admin',
-          data: data.data || {},
-          read: false,
-          isAdminNotification: true,
-          createdAt: serverTimestamp()
-        });
-      }
-
-      await batch.commit();
-      console.log(`✅ [NOTIF] ${adminIds.length} admins notifiés`);
-      
-      return { success: true, notifiedCount: adminIds.length };
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur notification admins:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // ==========================================
-  // 📢 NOTIFIER TOUS LES UTILISATEURS (NOUVELLE INFO)
-  // ==========================================
-  async notifyAllUsersNewInfo(infoData) {
-    try {
-      console.log('📢 [NOTIF] Notification nouvelle info à tous les utilisateurs...');
-      
-      const { infoId, infoText, authorId, authorName } = infoData;
-      
-      // Récupérer TOUS les utilisateurs
-      const usersRef = collection(db, COLLECTIONS.USERS);
-      const usersSnapshot = await getDocs(usersRef);
-      
-      const batch = writeBatch(db);
-      const notificationsRef = collection(db, COLLECTIONS.NOTIFICATIONS);
-      let notifiedCount = 0;
-      
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        
-        // Ne pas notifier l'auteur de l'info
-        if (userId === authorId) continue;
-        
-        const notifRef = doc(notificationsRef);
-        batch.set(notifRef, {
-          userId: userId,
-          type: this.TYPES.NEW_INFO,
-          title: '📢 Nouvelle information',
-          message: `${authorName} a publié une nouvelle info${infoText ? ': ' + infoText.substring(0, 50) + (infoText.length > 50 ? '...' : '') : ''}`,
-          icon: '📢',
-          link: '/infos',
-          data: { infoId, authorId, authorName },
-          read: false,
-          createdAt: serverTimestamp()
-        });
-        notifiedCount++;
-      }
-      
-      await batch.commit();
-      console.log(`✅ [NOTIF] ${notifiedCount} utilisateurs notifiés de la nouvelle info`);
-      
-      return { success: true, notifiedCount };
-      
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur notification nouvelle info:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // ==========================================
-  // 🎯 NOTIFICATIONS ADMIN SPÉCIFIQUES
-  // ==========================================
-
-  // Nouvelle quête à valider
-  async notifyQuestValidationPending(questData) {
-    return this.notifyAllAdmins({
-      type: this.TYPES.QUEST_VALIDATION_PENDING,
-      title: '🛡️ Quête à valider',
-      message: `${questData.userName || 'Un utilisateur'} a soumis la quête "${questData.questTitle}" (+${questData.xpAmount || 0} XP)`,
-      icon: '🛡️',
-      link: '/admin/task-validation',
-      data: {
-        questId: questData.questId,
-        validationId: questData.validationId,
-        userId: questData.userId,
-        xpAmount: questData.xpAmount
-      }
-    });
-  },
-
-  // Nouvelle demande de récompense
-  async notifyRewardRequestPending(rewardData) {
-    return this.notifyAllAdmins({
-      type: this.TYPES.REWARD_REQUEST_PENDING,
-      title: '🎁 Récompense demandée',
-      message: `${rewardData.userName || 'Un utilisateur'} demande la récompense "${rewardData.rewardName}" (${rewardData.xpCost} XP)`,
-      icon: '🎁',
-      link: '/admin/rewards',
-      data: {
-        rewardId: rewardData.rewardId,
-        requestId: rewardData.requestId,
-        userId: rewardData.userId,
-        xpCost: rewardData.xpCost
-      }
-    });
-  },
-
-  // Nouvel objectif à valider
-  async notifyObjectiveValidationPending(objectiveData) {
-    return this.notifyAllAdmins({
-      type: this.TYPES.OBJECTIVE_VALIDATION_PENDING,
-      title: '🎯 Objectif à valider',
-      message: `${objectiveData.userName || 'Un utilisateur'} a complété l'objectif "${objectiveData.objectiveTitle}"`,
-      icon: '🎯',
-      link: '/admin/objective-validation',
-      data: {
-        objectiveId: objectiveData.objectiveId,
-        userId: objectiveData.userId
-      }
-    });
-  },
-
-  // Nouvel utilisateur inscrit
-  async notifyNewUserRegistered(userData) {
-    return this.notifyAllAdmins({
-      type: this.TYPES.NEW_USER_REGISTERED,
-      title: '👤 Nouvel utilisateur',
-      message: `${userData.displayName || userData.email} vient de s'inscrire sur Synergia`,
-      icon: '👤',
-      link: '/admin/users',
-      data: {
-        userId: userData.userId,
-        email: userData.email
-      }
-    });
-  },
-
-  // ==========================================
-  // 👤 NOTIFICATIONS UTILISATEUR
-  // ==========================================
-
-  // Quête approuvée
-  async notifyQuestApproved(userId, questData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.QUEST_APPROVED,
-      title: '✅ Quête validée !',
-      message: `Votre quête "${questData.questTitle}" a été approuvée ! +${questData.xpAmount} XP`,
-      icon: '✅',
-      link: '/tasks',
-      data: {
-        questId: questData.questId,
-        xpAmount: questData.xpAmount
-      }
-    });
-  },
-
-  // Quête rejetée
-  async notifyQuestRejected(userId, questData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.QUEST_REJECTED,
-      title: '❌ Quête rejetée',
-      message: `Votre quête "${questData.questTitle}" a été rejetée. ${questData.reason || 'Veuillez la resoumettre.'}`,
-      icon: '❌',
-      link: '/tasks',
-      data: {
-        questId: questData.questId,
-        reason: questData.reason
-      }
-    });
-  },
-
-  // Récompense approuvée
-  async notifyRewardApproved(userId, rewardData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.REWARD_APPROVED,
-      title: '🎁 Récompense accordée !',
-      message: `Votre demande pour "${rewardData.rewardName}" a été approuvée !`,
-      icon: '🎁',
-      link: '/rewards',
-      data: {
-        rewardId: rewardData.rewardId,
-        rewardName: rewardData.rewardName
-      }
-    });
-  },
-
-  // Récompense rejetée
-  async notifyRewardRejected(userId, rewardData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.REWARD_REJECTED,
-      title: '❌ Récompense refusée',
-      message: `Votre demande pour "${rewardData.rewardName}" a été refusée. ${rewardData.reason || ''}`,
-      icon: '❌',
-      link: '/rewards',
-      data: {
-        rewardId: rewardData.rewardId,
-        reason: rewardData.reason
-      }
-    });
-  },
-
-  // XP gagnés
-  async notifyXPEarned(userId, xpData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.XP_EARNED,
-      title: '⚡ XP gagnés !',
-      message: `+${xpData.amount} XP pour : ${xpData.reason}`,
-      icon: '⚡',
-      link: '/gamification',
-      data: {
-        amount: xpData.amount,
-        reason: xpData.reason
-      }
-    });
-  },
-
-  // Badge obtenu
-  async notifyBadgeEarned(userId, badgeData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.BADGE_EARNED,
-      title: '🏆 Nouveau badge !',
-      message: `Vous avez obtenu le badge "${badgeData.badgeName}" !`,
-      icon: badgeData.badgeIcon || '🏆',
-      link: '/badges',
-      data: {
-        badgeId: badgeData.badgeId,
-        badgeName: badgeData.badgeName
-      }
-    });
-  },
-
-  // Level up
-  async notifyLevelUp(userId, levelData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.LEVEL_UP,
-      title: '🎉 Niveau supérieur !',
-      message: `Félicitations ! Vous êtes maintenant niveau ${levelData.newLevel} !`,
-      icon: '🎉',
-      link: '/profile',
-      data: {
-        previousLevel: levelData.previousLevel,
-        newLevel: levelData.newLevel
-      }
-    });
-  },
-
-  // Tâche assignée
-  async notifyTaskAssigned(userId, taskData) {
-    return this.createNotification({
-      userId,
-      type: this.TYPES.TASK_ASSIGNED,
-      title: '📋 Nouvelle quête assignée',
-      message: `La quête "${taskData.taskTitle}" vous a été assignée`,
-      icon: '📋',
-      link: '/tasks',
-      data: {
-        taskId: taskData.taskId,
-        taskTitle: taskData.taskTitle
-      }
-    });
-  },
-
-  // ==========================================
-  // 📖 RÉCUPÉRER LES NOTIFICATIONS
-  // ==========================================
-  async getNotifications(userId, options = {}) {
-    try {
-      const { onlyUnread = false, limitCount = 50 } = options;
-      
       let q = query(
-        collection(db, COLLECTIONS.NOTIFICATIONS),
+        collection(db, this.COLLECTION_NAME),
         where('userId', '==', userId),
         orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
 
-      if (onlyUnread) {
+      if (unreadOnly) {
         q = query(
-          collection(db, COLLECTIONS.NOTIFICATIONS),
+          collection(db, this.COLLECTION_NAME),
           where('userId', '==', userId),
           where('read', '==', false),
           orderBy('createdAt', 'desc'),
@@ -420,27 +116,78 @@ const notificationService = {
       const notifications = [];
       
       snapshot.forEach(doc => {
-        notifications.push({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date()
-        });
+        notifications.push({ id: doc.id, ...doc.data() });
       });
 
       return notifications;
     } catch (error) {
-      console.error('❌ [NOTIF] Erreur récupération:', error);
+      console.error('❌ [NOTIF] Erreur récupération notifications:', error);
       return [];
     }
-  },
+  }
 
-  // ==========================================
-  // 🔴 COMPTER LES NON LUES
-  // ==========================================
+  /**
+   * ✅ MARQUER COMME LUE
+   */
+  async markAsRead(notificationId) {
+    try {
+      await updateDoc(doc(db, this.COLLECTION_NAME, notificationId), {
+        read: true,
+        readAt: serverTimestamp()
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur marquage lecture:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ MARQUER TOUTES COMME LUES
+   */
+  async markAllAsRead(userId) {
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('userId', '==', userId),
+        where('read', '==', false)
+      );
+
+      const snapshot = await getDocs(q);
+      const updatePromises = snapshot.docs.map(doc => 
+        updateDoc(doc.ref, { read: true, readAt: serverTimestamp() })
+      );
+
+      await Promise.all(updatePromises);
+      console.log(`🔔 [NOTIF] ${snapshot.size} notifications marquées comme lues`);
+      
+      return { success: true, count: snapshot.size };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur marquage toutes lues:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🗑️ SUPPRIMER UNE NOTIFICATION
+   */
+  async deleteNotification(notificationId) {
+    try {
+      await deleteDoc(doc(db, this.COLLECTION_NAME, notificationId));
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur suppression:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔢 COMPTER LES NOTIFICATIONS NON LUES
+   */
   async getUnreadCount(userId) {
     try {
       const q = query(
-        collection(db, COLLECTIONS.NOTIFICATIONS),
+        collection(db, this.COLLECTION_NAME),
         where('userId', '==', userId),
         where('read', '==', false)
       );
@@ -451,133 +198,488 @@ const notificationService = {
       console.error('❌ [NOTIF] Erreur comptage:', error);
       return 0;
     }
-  },
+  }
 
   // ==========================================
-  // 👁️ MARQUER COMME LUE
+  // 🎯 NOTIFICATIONS QUÊTES
   // ==========================================
-  async markAsRead(notificationId) {
+
+  /**
+   * 🔔 NOTIFIER LES ADMINS D'UNE QUÊTE EN ATTENTE DE VALIDATION
+   */
+  async notifyQuestValidationPending(data) {
     try {
-      const notifRef = doc(db, COLLECTIONS.NOTIFICATIONS, notificationId);
-      await updateDoc(notifRef, {
-        read: true,
-        readAt: serverTimestamp()
-      });
-      return { success: true };
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur marquage:', error);
-      return { success: false, error: error.message };
-    }
-  },
+      const { questId, validationId, questTitle, userId, userName, xpAmount } = data;
 
-  // ==========================================
-  // ✅ MARQUER TOUTES COMME LUES
-  // ==========================================
-  async markAllAsRead(userId) {
-    try {
-      const q = query(
-        collection(db, COLLECTIONS.NOTIFICATIONS),
-        where('userId', '==', userId),
-        where('read', '==', false)
-      );
+      console.log('🔔 [NOTIF] Notification quête en attente...', { questId, questTitle });
 
-      const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
-
-      snapshot.forEach(doc => {
-        batch.update(doc.ref, {
-          read: true,
-          readAt: serverTimestamp()
-        });
-      });
-
-      await batch.commit();
-      console.log(`✅ [NOTIF] ${snapshot.size} notifications marquées comme lues`);
-      
-      return { success: true, count: snapshot.size };
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur marquage global:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // ==========================================
-  // 🗑️ SUPPRIMER UNE NOTIFICATION
-  // ==========================================
-  async deleteNotification(notificationId) {
-    try {
-      await deleteDoc(doc(db, COLLECTIONS.NOTIFICATIONS, notificationId));
-      return { success: true };
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur suppression:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // ==========================================
-  // 🧹 NETTOYER LES VIEILLES NOTIFICATIONS
-  // ==========================================
-  async cleanOldNotifications(userId, daysOld = 30) {
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-      const q = query(
-        collection(db, COLLECTIONS.NOTIFICATIONS),
-        where('userId', '==', userId),
-        where('read', '==', true)
-      );
-
-      const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
-      let count = 0;
-
-      snapshot.forEach(doc => {
-        const createdAt = doc.data().createdAt?.toDate();
-        if (createdAt && createdAt < cutoffDate) {
-          batch.delete(doc.ref);
-          count++;
+      // Récupérer le nom de l'utilisateur si non fourni
+      let displayName = userName;
+      if (!displayName && userId) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            displayName = userData.displayName || userData.profile?.displayName || userData.email?.split('@')[0] || 'Utilisateur';
+          }
+        } catch (e) {
+          displayName = 'Utilisateur';
         }
-      });
-
-      if (count > 0) {
-        await batch.commit();
-        console.log(`🧹 [NOTIF] ${count} vieilles notifications supprimées`);
       }
 
-      return { success: true, deleted: count };
+      // Récupérer tous les admins
+      const adminsQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'admin')
+      );
+      
+      const adminsSnapshot = await getDocs(adminsQuery);
+      
+      if (adminsSnapshot.empty) {
+        // Fallback: chercher par email admin connu
+        const adminEmailQuery = query(
+          collection(db, 'users'),
+          where('email', '==', 'alan.boehme61@gmail.com')
+        );
+        const adminEmailSnapshot = await getDocs(adminEmailQuery);
+        
+        if (!adminEmailSnapshot.empty) {
+          const adminDoc = adminEmailSnapshot.docs[0];
+          await this.createNotification({
+            userId: adminDoc.id,
+            type: NOTIFICATION_TYPES.QUEST_VALIDATION_PENDING,
+            title: '🎯 Nouvelle quête à valider',
+            message: `${displayName} a soumis la quête "${questTitle}" (+${xpAmount || 25} XP)`,
+            data: {
+              questId,
+              validationId,
+              requesterId: userId,
+              requesterName: displayName,
+              xpAmount: xpAmount || 25,
+              questTitle
+            },
+            priority: 'high',
+            actionUrl: '/admin/validation'
+          });
+          console.log('🔔 [NOTIF] Admin notifié (par email)');
+          return { success: true, count: 1 };
+        }
+        
+        console.warn('⚠️ [NOTIF] Aucun admin trouvé');
+        return { success: false, message: 'Aucun admin trouvé' };
+      }
+
+      // Créer une notification pour chaque admin
+      const notificationPromises = adminsSnapshot.docs.map(adminDoc => 
+        this.createNotification({
+          userId: adminDoc.id,
+          type: NOTIFICATION_TYPES.QUEST_VALIDATION_PENDING,
+          title: '🎯 Nouvelle quête à valider',
+          message: `${displayName} a soumis la quête "${questTitle}" (+${xpAmount || 25} XP)`,
+          data: {
+            questId,
+            validationId,
+            requesterId: userId,
+            requesterName: displayName,
+            xpAmount: xpAmount || 25,
+            questTitle
+          },
+          priority: 'high',
+          actionUrl: '/admin/validation'
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${adminsSnapshot.size} admins notifiés pour quête ${questId}`);
+
+      return { success: true, count: adminsSnapshot.size };
     } catch (error) {
-      console.error('❌ [NOTIF] Erreur nettoyage:', error);
+      console.error('❌ [NOTIF] Erreur notification admins:', error);
+      // Ne pas propager l'erreur - la notification n'est pas critique
       return { success: false, error: error.message };
     }
-  },
-
-  // ==========================================
-  // 🎧 LISTENER TEMPS RÉEL
-  // ==========================================
-  subscribeToNotifications(userId, callback) {
-    const q = query(
-      collection(db, COLLECTIONS.NOTIFICATIONS),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
-
-    return onSnapshot(q, (snapshot) => {
-      const notifications = [];
-      snapshot.forEach(doc => {
-        notifications.push({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate() || new Date()
-        });
-      });
-      callback(notifications);
-    }, (error) => {
-      console.error('❌ [NOTIF] Erreur listener:', error);
-      callback([]);
-    });
   }
-};
 
+  /**
+   * ✅ NOTIFIER L'UTILISATEUR D'UNE QUÊTE APPROUVÉE
+   */
+  async notifyQuestApproved(userId, data) {
+    try {
+      const { questId, questTitle, xpAmount, adminComment } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.QUEST_APPROVED,
+        title: '🎉 Quête validée !',
+        message: `Votre quête "${questTitle}" a été approuvée ! +${xpAmount || 25} XP`,
+        data: {
+          questId,
+          questTitle,
+          xpAmount: xpAmount || 25,
+          adminComment
+        },
+        priority: 'high'
+      });
+
+      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - quête approuvée`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification approbation:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ❌ NOTIFIER L'UTILISATEUR D'UNE QUÊTE REJETÉE
+   */
+  async notifyQuestRejected(userId, data) {
+    try {
+      const { questId, questTitle, reason } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.QUEST_REJECTED,
+        title: '❌ Quête non validée',
+        message: `Votre quête "${questTitle}" n'a pas été validée. Raison: ${reason}`,
+        data: {
+          questId,
+          questTitle,
+          reason
+        },
+        priority: 'high'
+      });
+
+      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - quête rejetée`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification rejet:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📋 NOTIFIER L'ASSIGNATION D'UNE QUÊTE
+   */
+  async notifyQuestAssigned(userId, data) {
+    try {
+      const { questId, questTitle, assignedBy, xpReward } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.QUEST_ASSIGNED,
+        title: '📋 Nouvelle quête assignée',
+        message: `On vous a assigné la quête "${questTitle}" (+${xpReward || 25} XP)`,
+        data: {
+          questId,
+          questTitle,
+          assignedBy,
+          xpReward
+        },
+        priority: 'medium',
+        actionUrl: `/tasks?id=${questId}`
+      });
+
+      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - quête assignée`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification assignation:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ==========================================
+  // 🏆 NOTIFICATIONS GAMIFICATION
+  // ==========================================
+
+  /**
+   * ⭐ NOTIFIER UN GAIN D'XP
+   */
+  async notifyXPEarned(userId, data) {
+    try {
+      const { xpAmount, source, newTotal } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.XP_EARNED,
+        title: `⭐ +${xpAmount} XP !`,
+        message: `Vous avez gagné ${xpAmount} XP pour: ${source}`,
+        data: {
+          xpAmount,
+          source,
+          newTotal
+        },
+        priority: 'low'
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification XP:', error);
+      return { success: false };
+    }
+  }
+
+  /**
+   * 🆙 NOTIFIER UN PASSAGE DE NIVEAU
+   */
+  async notifyLevelUp(userId, data) {
+    try {
+      const { newLevel, previousLevel } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.LEVEL_UP,
+        title: `🎊 Niveau ${newLevel} atteint !`,
+        message: `Félicitations ! Vous êtes passé du niveau ${previousLevel} au niveau ${newLevel} !`,
+        data: {
+          newLevel,
+          previousLevel
+        },
+        priority: 'high'
+      });
+
+      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - niveau ${newLevel}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification niveau:', error);
+      return { success: false };
+    }
+  }
+
+  /**
+   * 🏅 NOTIFIER UN BADGE OBTENU
+   */
+  async notifyBadgeEarned(userId, data) {
+    try {
+      const { badgeId, badgeName, badgeIcon, badgeDescription } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.BADGE_EARNED,
+        title: `🏅 Nouveau badge : ${badgeName}`,
+        message: badgeDescription || `Vous avez débloqué le badge "${badgeName}" !`,
+        data: {
+          badgeId,
+          badgeName,
+          badgeIcon,
+          badgeDescription
+        },
+        priority: 'high'
+      });
+
+      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - badge ${badgeName}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification badge:', error);
+      return { success: false };
+    }
+  }
+
+  // ==========================================
+  // 📢 NOTIFICATIONS INFOS D'ÉQUIPE
+  // ==========================================
+
+  /**
+   * 📢 NOTIFIER TOUS LES UTILISATEURS D'UNE NOUVELLE INFO
+   */
+  async notifyAllUsersNewInfo(data) {
+    try {
+      const { infoId, infoTitle, infoType, authorName, priority } = data;
+
+      console.log('🔔 [NOTIF] Notification nouvelle info à tous les utilisateurs...');
+
+      // Récupérer tous les utilisateurs actifs
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      
+      if (usersSnapshot.empty) {
+        console.warn('⚠️ [NOTIF] Aucun utilisateur trouvé');
+        return { success: false, message: 'Aucun utilisateur' };
+      }
+
+      // Créer une notification pour chaque utilisateur
+      const notificationPromises = usersSnapshot.docs.map(userDoc => 
+        this.createNotification({
+          userId: userDoc.id,
+          type: NOTIFICATION_TYPES.NEW_INFO,
+          title: `📢 ${priority === 'urgent' ? '🚨 ' : ''}Nouvelle info : ${infoTitle}`,
+          message: `${authorName} a publié une nouvelle information${priority === 'urgent' ? ' URGENTE' : ''}`,
+          data: {
+            infoId,
+            infoTitle,
+            infoType,
+            authorName,
+            priority
+          },
+          priority: priority === 'urgent' ? 'high' : 'medium',
+          actionUrl: '/infos'
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${usersSnapshot.size} utilisateurs notifiés pour nouvelle info`);
+
+      return { success: true, count: usersSnapshot.size };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification nouvelle info:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ==========================================
+  // 🎁 NOTIFICATIONS RÉCOMPENSES
+  // ==========================================
+
+  /**
+   * 🎁 NOTIFIER LES ADMINS D'UNE DEMANDE DE RÉCOMPENSE
+   */
+  async notifyRewardRequested(data) {
+    try {
+      const { rewardId, rewardName, userId, userName, cost } = data;
+
+      // Récupérer tous les admins
+      const adminsQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'admin')
+      );
+      
+      const adminsSnapshot = await getDocs(adminsQuery);
+      
+      const notificationPromises = adminsSnapshot.docs.map(adminDoc => 
+        this.createNotification({
+          userId: adminDoc.id,
+          type: NOTIFICATION_TYPES.REWARD_REQUESTED,
+          title: '🎁 Nouvelle demande de récompense',
+          message: `${userName} demande la récompense "${rewardName}" (${cost} points)`,
+          data: {
+            rewardId,
+            rewardName,
+            requesterId: userId,
+            requesterName: userName,
+            cost
+          },
+          priority: 'medium',
+          actionUrl: '/admin/rewards'
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${adminsSnapshot.size} admins notifiés pour récompense`);
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification récompense:', error);
+      return { success: false };
+    }
+  }
+
+  /**
+   * ✅ NOTIFIER L'APPROBATION D'UNE RÉCOMPENSE
+   */
+  async notifyRewardApproved(userId, data) {
+    try {
+      const { rewardName, adminComment } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.REWARD_APPROVED,
+        title: '🎉 Récompense approuvée !',
+        message: `Votre demande pour "${rewardName}" a été approuvée !`,
+        data: { rewardName, adminComment },
+        priority: 'high'
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification récompense approuvée:', error);
+      return { success: false };
+    }
+  }
+
+  /**
+   * ❌ NOTIFIER LE REJET D'UNE RÉCOMPENSE
+   */
+  async notifyRewardRejected(userId, data) {
+    try {
+      const { rewardName, reason } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.REWARD_REJECTED,
+        title: '❌ Récompense refusée',
+        message: `Votre demande pour "${rewardName}" a été refusée. Raison: ${reason}`,
+        data: { rewardName, reason },
+        priority: 'high'
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification récompense refusée:', error);
+      return { success: false };
+    }
+  }
+
+  // ==========================================
+  // 🎧 LISTENERS TEMPS RÉEL
+  // ==========================================
+
+  /**
+   * 🎧 ÉCOUTER LES NOTIFICATIONS EN TEMPS RÉEL
+   */
+  subscribeToNotifications(userId, callback) {
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const notifications = [];
+        snapshot.forEach(doc => {
+          notifications.push({ id: doc.id, ...doc.data() });
+        });
+        callback(notifications);
+      }, (error) => {
+        console.error('❌ [NOTIF] Erreur listener:', error);
+      });
+
+      const listenerId = `notif_${userId}_${Date.now()}`;
+      this.listeners.set(listenerId, unsubscribe);
+
+      return listenerId;
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur création listener:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 🛑 ARRÊTER L'ÉCOUTE
+   */
+  unsubscribe(listenerId) {
+    const unsubscribe = this.listeners.get(listenerId);
+    if (unsubscribe) {
+      unsubscribe();
+      this.listeners.delete(listenerId);
+      console.log('🔔 [NOTIF] Listener arrêté:', listenerId);
+    }
+  }
+
+  /**
+   * 🧹 NETTOYER TOUS LES LISTENERS
+   */
+  cleanup() {
+    this.listeners.forEach(unsubscribe => unsubscribe());
+    this.listeners.clear();
+    console.log('🔔 [NOTIF] Tous les listeners nettoyés');
+  }
+}
+
+// ✅ INSTANCE UNIQUE
+const notificationService = new NotificationService();
+
+// ✅ EXPORTS
+export { notificationService, NOTIFICATION_TYPES };
 export default notificationService;
+
+console.log('🔔 NotificationService prêt - Version complète');
