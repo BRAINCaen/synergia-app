@@ -24,6 +24,7 @@ import {
   Crown,
   Star
 } from 'lucide-react';
+import notificationService from '../core/services/notificationService.js';
 
 // 🎯 IMPORT DU LAYOUT
 import Layout from '../components/layout/Layout.jsx';
@@ -352,7 +353,16 @@ const AdminRewardsPage = () => {
         approvedBy: user.uid,
         adminEmail: user.email
       });
-
+// 🔔 NOTIFIER L'UTILISATEUR DE L'APPROBATION
+try {
+  await notificationService.notifyRewardApproved(request.userId, {
+    rewardId: request.rewardId,
+    rewardName: rewardDetails.name
+  });
+  console.log('🔔 [NOTIF] Utilisateur notifié de la récompense approuvée');
+} catch (notifError) {
+  console.warn('⚠️ [NOTIF] Erreur notification:', notifError);
+}
       // ✅ DÉDUIRE LES XP DU BON ENDROIT
       if (rewardDetails.type === 'team') {
         // RÉCOMPENSE ÉQUIPE → Déduire du POOL collectif
