@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/InfosPage.jsx
-// PAGE INFORMATIONS ÉQUIPE AVEC AFFICHAGE DES VALIDEURS
+// PAGE INFORMATIONS ÉQUIPE AVEC AFFICHAGE DES VALIDEURS (NOMS RÉELS)
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -13,6 +13,8 @@ import {
 import Layout from '../components/layout/Layout.jsx';
 import infosService from '../core/services/infosService.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 
 const InfosPage = () => {
   const { user } = useAuthStore();
@@ -150,35 +152,95 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
   
   // ✅ ÉTAT POUR AFFICHER/MASQUER LA LISTE DES VALIDEURS
   const [showValidators, setShowValidators] = useState(false);
+  
+  // ✅ ÉTAT POUR STOCKER LES INFOS DES VALIDEURS (AVEC VRAIS NOMS)
+  const [validatorsWithNames, setValidatorsWithNames] = useState([]);
+  const [loadingValidators, setLoadingValidators] = useState(false);
 
-  // ✅ EXTRAIRE LA LISTE DES VALIDEURS
-  const getValidatorsList = () => {
-    if (!info.validatedBy) return [];
-    
-    return Object.entries(info.validatedBy).map(([userId, data]) => {
-      // Gestion des anciennes données (juste une date string) et nouvelles (objet)
-      if (typeof data === 'string') {
-        return {
-          odot: userId,
-          userName: 'Utilisateur',
-          validatedAt: data,
-          userAvatar: null
-        };
+  // ✅ RÉCUPÉRER LES VRAIS NOMS DES VALIDEURS DEPUIS FIREBASE
+  useEffect(() => {
+    const fetchValidatorNames = async () => {
+      if (!info.validatedBy || Object.keys(info.validatedBy).length === 0) {
+        setValidatorsWithNames([]);
+        return;
       }
-      return {
-        odot: userId,
-        userName: data.userName || 'Utilisateur',
-        validatedAt: data.validatedAt,
-        userAvatar: data.userAvatar
-      };
-    }).sort((a, b) => new Date(b.validatedAt) - new Date(a.validatedAt));
-  };
 
-  const validators = getValidatorsList();
-  const validatorCount = validators.length;
+      setLoadingValidators(true);
+      
+      const validators = [];
+      
+      for (const [odot, data] of Object.entries(info.validatedBy)) {
+        try {
+          // Récupérer les infos utilisateur depuis Firebase
+          const userRef = doc(db, 'users', odot);
+          const userSnap = await getDoc(userRef);
+          
+          let userName = 'Utilisateur';
+          let userAvatar = null;
+          let validatedAt = null;
+          
+          // Récupérer le nom depuis Firebase
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            userName = userData.profile?.displayName || 
+                       userData.displayName || 
+                       userData.email?.split('@')[0] || 
+                       'Utilisateur';
+            userAvatar = userData.profile?.photoURL || userData.photoURL || null;
+          }
+          
+          // Gérer la date de validation (ancien format string ou nouveau format objet)
+          if (typeof data === 'string') {
+            validatedAt = data;
+          } else if (data && typeof data === 'object') {
+            validatedAt = data.validatedAt;
+            // Si le nom n'a pas été trouvé dans Firebase, utiliser celui stocké
+            if (userName === 'Utilisateur' && data.userName) {
+              userName = data.userName;
+            }
+            if (!userAvatar && data.userAvatar) {
+              userAvatar = data.userAvatar;
+            }
+          }
+          
+          validators.push({
+            odot: odot,
+            userName,
+            userAvatar,
+            validatedAt
+          });
+          
+        } catch (error) {
+          console.warn('⚠️ Erreur récupération valideur:', odot, error);
+          // Fallback en cas d'erreur
+          validators.push({
+            odot: odot,
+            userName: typeof data === 'object' ? data.userName || 'Utilisateur' : 'Utilisateur',
+            userAvatar: typeof data === 'object' ? data.userAvatar : null,
+            validatedAt: typeof data === 'string' ? data : data?.validatedAt
+          });
+        }
+      }
+      
+      // Trier par date de validation (plus récent en premier)
+      validators.sort((a, b) => {
+        const dateA = a.validatedAt ? new Date(a.validatedAt) : new Date(0);
+        const dateB = b.validatedAt ? new Date(b.validatedAt) : new Date(0);
+        return dateB - dateA;
+      });
+      
+      setValidatorsWithNames(validators);
+      setLoadingValidators(false);
+    };
+
+    fetchValidatorNames();
+  }, [info.validatedBy]);
+
+  const validatorCount = Object.keys(info.validatedBy || {}).length;
 
   // ✅ FORMATER LA DATE DE VALIDATION
   const formatValidationDate = (dateStr) => {
+    if (!dateStr) return 'Date inconnue';
     try {
       const date = new Date(dateStr);
       const now = new Date();
@@ -309,38 +371,45 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
               Vu par {validatorCount} personne{validatorCount > 1 ? 's' : ''} :
             </p>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-              {validators.map((validator, index) => (
-                <div 
-                  key={validator.odot || index}
-                  className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2"
-                >
-                  {/* Avatar du valideur */}
-                  {validator.userAvatar ? (
-                    <img 
-                      src={validator.userAvatar} 
-                      alt={validator.userName}
-                      className="w-6 h-6 rounded-full object-cover border border-green-500/50"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {validator.userName?.charAt(0) || '?'}
+            {loadingValidators ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader className="w-5 h-5 text-purple-400 animate-spin" />
+                <span className="text-white/40 ml-2 text-sm">Chargement...</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {validatorsWithNames.map((validator, index) => (
+                  <div 
+                    key={validator.odot || index}
+                    className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2"
+                  >
+                    {/* Avatar du valideur */}
+                    {validator.userAvatar ? (
+                      <img 
+                        src={validator.userAvatar} 
+                        alt={validator.userName}
+                        className="w-6 h-6 rounded-full object-cover border border-green-500/50"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {validator.userName?.charAt(0) || '?'}
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">
+                        {validator.userName}
+                      </p>
+                      <p className="text-white/40 text-xs">
+                        {formatValidationDate(validator.validatedAt)}
+                      </p>
                     </div>
-                  )}
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">
-                      {validator.userName}
-                    </p>
-                    <p className="text-white/40 text-xs">
-                      {formatValidationDate(validator.validatedAt)}
-                    </p>
+                    
+                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                   </div>
-                  
-                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
