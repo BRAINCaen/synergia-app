@@ -12,6 +12,7 @@ import {
   Shield, Eye, EyeOff, Package, Zap, Heart, Coffee, Gamepad2,
   MapPin, Camera, Music, Book, Palette, Dumbbell, ChefHat, Save
 } from 'lucide-react';
+import notificationService from '../core/services/notificationService.js';
 
 // 🎯 IMPORT DU LAYOUT
 import Layout from '../components/layout/Layout.jsx';
@@ -263,7 +264,19 @@ const RewardsPage = () => {
         status: 'pending',
         requestedAt: serverTimestamp()
       });
-
+// 🔔 NOTIFIER LES ADMINS
+try {
+  await notificationService.notifyRewardRequestPending({
+    rewardId: reward.id,
+    rewardName: reward.name,
+    userId: user.uid,
+    userName: user.displayName || user.email,
+    xpCost: reward.xpCost
+  });
+  console.log('🔔 [NOTIF] Admins notifiés de la demande de récompense');
+} catch (notifError) {
+  console.warn('⚠️ [NOTIF] Erreur notification admins:', notifError);
+}
       alert('✅ Demande envoyée ! Un admin va la valider.');
       loadAllData();
     } catch (error) {
