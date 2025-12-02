@@ -253,7 +253,17 @@ try {
           console.warn('⚠️ [APPROVE] Erreur mise à jour tâche:', taskError);
         }
       }
-
+// 🔔 NOTIFIER L'UTILISATEUR DE L'APPROBATION
+try {
+  await notificationService.notifyQuestApproved(validationData.userId, {
+    questId: validationData.taskId,
+    questTitle: validationData.taskTitle,
+    xpAmount: validationData.xpAmount
+  });
+  console.log('🔔 [NOTIF] Utilisateur notifié de l\'approbation');
+} catch (notifError) {
+  console.warn('⚠️ [NOTIF] Erreur notification utilisateur:', notifError);
+}
       console.log('✅ [APPROVE] Validation approuvée avec succès');
       return { 
         success: true, 
@@ -310,7 +320,17 @@ try {
           console.warn('⚠️ [REJECT] Erreur mise à jour tâche:', taskError);
         }
       }
-
+// 🔔 NOTIFIER L'UTILISATEUR DU REJET
+try {
+  await notificationService.notifyQuestRejected(validationData.userId, {
+    questId: validationData.taskId,
+    questTitle: validationData.taskTitle,
+    reason: adminComment
+  });
+  console.log('🔔 [NOTIF] Utilisateur notifié du rejet');
+} catch (notifError) {
+  console.warn('⚠️ [NOTIF] Erreur notification utilisateur:', notifError);
+}
       console.log('❌ [REJECT] Validation rejetée avec succès');
       return { success: true };
 
