@@ -1,7 +1,8 @@
 // ==========================================
 // 📁 react-app/src/core/services/notificationService.js
-// SERVICE DE NOTIFICATIONS - VERSION COMPLÈTE
-// ✅ Notifications pour quêtes, infos, badges, XP
+// SERVICE DE NOTIFICATIONS - VERSION CORRIGÉE
+// ✅ FIX: subscribeToNotifications retourne la fonction unsubscribe
+// ✅ FIX: Conversion des timestamps Firestore en Date JavaScript
 // ==========================================
 
 import { 
@@ -30,7 +31,6 @@ const NOTIFICATION_TYPES = {
   QUEST_APPROVED: 'quest_approved',
   QUEST_REJECTED: 'quest_rejected',
   QUEST_ASSIGNED: 'quest_assigned',
-  QUEST_COMMENT: 'quest_comment',
   
   // XP et Gamification
   XP_EARNED: 'xp_earned',
@@ -39,7 +39,6 @@ const NOTIFICATION_TYPES = {
   
   // Infos d'équipe
   NEW_INFO: 'new_info',
-  INFO_VALIDATED: 'info_validated',
   
   // Récompenses
   REWARD_REQUESTED: 'reward_requested',
@@ -48,8 +47,7 @@ const NOTIFICATION_TYPES = {
   
   // Système
   SYSTEM: 'system',
-  MENTION: 'mention',
-  REMINDER: 'reminder'
+  MENTION: 'mention'
 };
 
 /**
@@ -58,8 +56,42 @@ const NOTIFICATION_TYPES = {
 class NotificationService {
   constructor() {
     this.COLLECTION_NAME = 'notifications';
-    this.listeners = new Map();
     console.log('🔔 NotificationService initialisé');
+  }
+
+  // ==========================================
+  // 🔧 HELPER: Convertir Timestamp Firestore en Date
+  // ==========================================
+  
+  convertTimestamp(timestamp) {
+    if (!timestamp) return null;
+    
+    try {
+      // Si c'est un Timestamp Firestore avec toDate()
+      if (timestamp?.toDate && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+      }
+      // Si c'est un objet avec seconds (Timestamp sérialisé)
+      if (timestamp?.seconds) {
+        return new Date(timestamp.seconds * 1000);
+      }
+      // Si c'est déjà une Date
+      if (timestamp instanceof Date) {
+        return timestamp;
+      }
+      // Si c'est un string ISO
+      if (typeof timestamp === 'string') {
+        return new Date(timestamp);
+      }
+      // Si c'est un nombre (timestamp en ms)
+      if (typeof timestamp === 'number') {
+        return new Date(timestamp);
+      }
+      return null;
+    } catch (error) {
+      console.warn('⚠️ [NOTIF] Erreur conversion timestamp:', error);
+      return null;
+    }
   }
 
   // ==========================================
@@ -84,7 +116,7 @@ class NotificationService {
       return { success: true, notificationId: docRef.id };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur création notification:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
@@ -93,36 +125,98 @@ class NotificationService {
    */
   async getUserNotifications(userId, options = {}) {
     try {
-      const { limitCount = 50, unreadOnly = false } = options;
+      const { limitCount = 50 } = options;
 
-      let q = query(
+      const q = query(
         collection(db, this.COLLECTION_NAME),
         where('userId', '==', userId),
         orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
 
-      if (unreadOnly) {
-        q = query(
-          collection(db, this.COLLECTION_NAME),
-          where('userId', '==', userId),
-          where('read', '==', false),
-          orderBy('createdAt', 'desc'),
-          limit(limitCount)
-        );
-      }
-
       const snapshot = await getDocs(q);
       const notifications = [];
       
       snapshot.forEach(doc => {
-        notifications.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        notifications.push({ 
+          id: doc.id, 
+          ...data,
+          // ✅ CONVERTIR LE TIMESTAMP EN DATE
+          createdAt: this.convertTimestamp(data.createdAt),
+          readAt: this.convertTimestamp(data.readAt)
+        });
       });
 
       return notifications;
     } catch (error) {
       console.error('❌ [NOTIF] Erreur récupération notifications:', error);
       return [];
+    }
+  }
+
+  /**
+   * 🎧 ÉCOUTER LES NOTIFICATIONS EN TEMPS RÉEL
+   * ✅ CORRIGÉ: Retourne directement la fonction unsubscribe
+   */
+  subscribeToNotifications(userId, callback) {
+    try {
+      if (!userId) {
+        console.warn('⚠️ [NOTIF] userId manquant pour subscription');
+        return () => {}; // Retourner une fonction vide
+      }
+
+      console.log('🔔 [NOTIF] Abonnement notifications pour:', userId);
+
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+
+      // ✅ RETOURNER DIRECTEMENT la fonction unsubscribe de onSnapshot
+      const unsubscribe = onSnapshot(
+        q, 
+        (snapshot) => {
+          try {
+            const notifications = [];
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              notifications.push({ 
+                id: doc.id, 
+                ...data,
+                // ✅ CONVERTIR LES TIMESTAMPS EN DATE
+                createdAt: this.convertTimestamp(data.createdAt),
+                readAt: this.convertTimestamp(data.readAt)
+              });
+            });
+            
+            // Appeler le callback avec les notifications converties
+            if (typeof callback === 'function') {
+              callback(notifications);
+            }
+          } catch (error) {
+            console.error('❌ [NOTIF] Erreur traitement snapshot:', error);
+            if (typeof callback === 'function') {
+              callback([]);
+            }
+          }
+        },
+        (error) => {
+          console.error('❌ [NOTIF] Erreur listener notifications:', error);
+          if (typeof callback === 'function') {
+            callback([]);
+          }
+        }
+      );
+
+      // ✅ RETOURNER LA FONCTION UNSUBSCRIBE DIRECTEMENT
+      return unsubscribe;
+
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur création subscription:', error);
+      return () => {}; // Retourner une fonction vide en cas d'erreur
     }
   }
 
@@ -135,10 +229,11 @@ class NotificationService {
         read: true,
         readAt: serverTimestamp()
       });
+      console.log('✅ [NOTIF] Notification marquée comme lue:', notificationId);
       return { success: true };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur marquage lecture:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
@@ -154,8 +249,11 @@ class NotificationService {
       );
 
       const snapshot = await getDocs(q);
-      const updatePromises = snapshot.docs.map(doc => 
-        updateDoc(doc.ref, { read: true, readAt: serverTimestamp() })
+      const updatePromises = snapshot.docs.map(docSnap => 
+        updateDoc(doc(db, this.COLLECTION_NAME, docSnap.id), { 
+          read: true, 
+          readAt: serverTimestamp() 
+        })
       );
 
       await Promise.all(updatePromises);
@@ -164,7 +262,7 @@ class NotificationService {
       return { success: true, count: snapshot.size };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur marquage toutes lues:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
@@ -174,10 +272,11 @@ class NotificationService {
   async deleteNotification(notificationId) {
     try {
       await deleteDoc(doc(db, this.COLLECTION_NAME, notificationId));
+      console.log('🗑️ [NOTIF] Notification supprimée:', notificationId);
       return { success: true };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur suppression:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
@@ -250,18 +349,17 @@ class NotificationService {
             type: NOTIFICATION_TYPES.QUEST_VALIDATION_PENDING,
             title: '🎯 Nouvelle quête à valider',
             message: `${displayName} a soumis la quête "${questTitle}" (+${xpAmount || 25} XP)`,
+            icon: '🎯',
+            link: '/admin/task-validation',
             data: {
               questId,
               validationId,
               requesterId: userId,
               requesterName: displayName,
-              xpAmount: xpAmount || 25,
-              questTitle
+              xpAmount: xpAmount || 25
             },
-            priority: 'high',
-            actionUrl: '/admin/validation'
+            priority: 'high'
           });
-          console.log('🔔 [NOTIF] Admin notifié (par email)');
           return { success: true, count: 1 };
         }
         
@@ -276,26 +374,25 @@ class NotificationService {
           type: NOTIFICATION_TYPES.QUEST_VALIDATION_PENDING,
           title: '🎯 Nouvelle quête à valider',
           message: `${displayName} a soumis la quête "${questTitle}" (+${xpAmount || 25} XP)`,
+          icon: '🎯',
+          link: '/admin/task-validation',
           data: {
             questId,
             validationId,
             requesterId: userId,
             requesterName: displayName,
-            xpAmount: xpAmount || 25,
-            questTitle
+            xpAmount: xpAmount || 25
           },
-          priority: 'high',
-          actionUrl: '/admin/validation'
+          priority: 'high'
         })
       );
 
       await Promise.all(notificationPromises);
-      console.log(`🔔 [NOTIF] ${adminsSnapshot.size} admins notifiés pour quête ${questId}`);
+      console.log(`🔔 [NOTIF] ${adminsSnapshot.size} admins notifiés`);
 
       return { success: true, count: adminsSnapshot.size };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification admins:', error);
-      // Ne pas propager l'erreur - la notification n'est pas critique
       return { success: false, error: error.message };
     }
   }
@@ -312,6 +409,8 @@ class NotificationService {
         type: NOTIFICATION_TYPES.QUEST_APPROVED,
         title: '🎉 Quête validée !',
         message: `Votre quête "${questTitle}" a été approuvée ! +${xpAmount || 25} XP`,
+        icon: '✅',
+        link: '/tasks',
         data: {
           questId,
           questTitle,
@@ -341,6 +440,8 @@ class NotificationService {
         type: NOTIFICATION_TYPES.QUEST_REJECTED,
         title: '❌ Quête non validée',
         message: `Votre quête "${questTitle}" n'a pas été validée. Raison: ${reason}`,
+        icon: '❌',
+        link: '/tasks',
         data: {
           questId,
           questTitle,
@@ -357,63 +458,31 @@ class NotificationService {
     }
   }
 
-  /**
-   * 📋 NOTIFIER L'ASSIGNATION D'UNE QUÊTE
-   */
-  async notifyQuestAssigned(userId, data) {
-    try {
-      const { questId, questTitle, assignedBy, xpReward } = data;
-
-      await this.createNotification({
-        userId,
-        type: NOTIFICATION_TYPES.QUEST_ASSIGNED,
-        title: '📋 Nouvelle quête assignée',
-        message: `On vous a assigné la quête "${questTitle}" (+${xpReward || 25} XP)`,
-        data: {
-          questId,
-          questTitle,
-          assignedBy,
-          xpReward
-        },
-        priority: 'medium',
-        actionUrl: `/tasks?id=${questId}`
-      });
-
-      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - quête assignée`);
-      return { success: true };
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur notification assignation:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
   // ==========================================
   // 🏆 NOTIFICATIONS GAMIFICATION
   // ==========================================
 
   /**
-   * ⭐ NOTIFIER UN GAIN D'XP
+   * 🏅 NOTIFIER UN BADGE OBTENU
    */
-  async notifyXPEarned(userId, data) {
+  async notifyBadgeEarned(userId, data) {
     try {
-      const { xpAmount, source, newTotal } = data;
+      const { badgeId, badgeName, badgeIcon, badgeDescription } = data;
 
       await this.createNotification({
         userId,
-        type: NOTIFICATION_TYPES.XP_EARNED,
-        title: `⭐ +${xpAmount} XP !`,
-        message: `Vous avez gagné ${xpAmount} XP pour: ${source}`,
-        data: {
-          xpAmount,
-          source,
-          newTotal
-        },
-        priority: 'low'
+        type: NOTIFICATION_TYPES.BADGE_EARNED,
+        title: `🏅 Nouveau badge : ${badgeName}`,
+        message: badgeDescription || `Vous avez débloqué le badge "${badgeName}" !`,
+        icon: badgeIcon || '🏆',
+        link: '/badges',
+        data: { badgeId, badgeName },
+        priority: 'high'
       });
 
       return { success: true };
     } catch (error) {
-      console.error('❌ [NOTIF] Erreur notification XP:', error);
+      console.error('❌ [NOTIF] Erreur notification badge:', error);
       return { success: false };
     }
   }
@@ -430,46 +499,15 @@ class NotificationService {
         type: NOTIFICATION_TYPES.LEVEL_UP,
         title: `🎊 Niveau ${newLevel} atteint !`,
         message: `Félicitations ! Vous êtes passé du niveau ${previousLevel} au niveau ${newLevel} !`,
-        data: {
-          newLevel,
-          previousLevel
-        },
+        icon: '⭐',
+        link: '/profile',
+        data: { newLevel, previousLevel },
         priority: 'high'
       });
 
-      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - niveau ${newLevel}`);
       return { success: true };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification niveau:', error);
-      return { success: false };
-    }
-  }
-
-  /**
-   * 🏅 NOTIFIER UN BADGE OBTENU
-   */
-  async notifyBadgeEarned(userId, data) {
-    try {
-      const { badgeId, badgeName, badgeIcon, badgeDescription } = data;
-
-      await this.createNotification({
-        userId,
-        type: NOTIFICATION_TYPES.BADGE_EARNED,
-        title: `🏅 Nouveau badge : ${badgeName}`,
-        message: badgeDescription || `Vous avez débloqué le badge "${badgeName}" !`,
-        data: {
-          badgeId,
-          badgeName,
-          badgeIcon,
-          badgeDescription
-        },
-        priority: 'high'
-      });
-
-      console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - badge ${badgeName}`);
-      return { success: true };
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur notification badge:', error);
       return { success: false };
     }
   }
@@ -485,32 +523,22 @@ class NotificationService {
     try {
       const { infoId, infoTitle, infoType, authorName, priority } = data;
 
-      console.log('🔔 [NOTIF] Notification nouvelle info à tous les utilisateurs...');
-
-      // Récupérer tous les utilisateurs actifs
       const usersSnapshot = await getDocs(collection(db, 'users'));
       
       if (usersSnapshot.empty) {
-        console.warn('⚠️ [NOTIF] Aucun utilisateur trouvé');
         return { success: false, message: 'Aucun utilisateur' };
       }
 
-      // Créer une notification pour chaque utilisateur
       const notificationPromises = usersSnapshot.docs.map(userDoc => 
         this.createNotification({
           userId: userDoc.id,
           type: NOTIFICATION_TYPES.NEW_INFO,
-          title: `📢 ${priority === 'urgent' ? '🚨 ' : ''}Nouvelle info : ${infoTitle}`,
+          title: `📢 ${priority === 'urgent' ? '🚨 ' : ''}${infoTitle}`,
           message: `${authorName} a publié une nouvelle information${priority === 'urgent' ? ' URGENTE' : ''}`,
-          data: {
-            infoId,
-            infoTitle,
-            infoType,
-            authorName,
-            priority
-          },
-          priority: priority === 'urgent' ? 'high' : 'medium',
-          actionUrl: '/infos'
+          icon: priority === 'urgent' ? '🚨' : '📢',
+          link: '/infos',
+          data: { infoId, infoTitle, infoType, authorName },
+          priority: priority === 'urgent' ? 'high' : 'medium'
         })
       );
 
@@ -535,7 +563,6 @@ class NotificationService {
     try {
       const { rewardId, rewardName, userId, userName, cost } = data;
 
-      // Récupérer tous les admins
       const adminsQuery = query(
         collection(db, 'users'),
         where('role', '==', 'admin')
@@ -548,22 +575,15 @@ class NotificationService {
           userId: adminDoc.id,
           type: NOTIFICATION_TYPES.REWARD_REQUESTED,
           title: '🎁 Nouvelle demande de récompense',
-          message: `${userName} demande la récompense "${rewardName}" (${cost} points)`,
-          data: {
-            rewardId,
-            rewardName,
-            requesterId: userId,
-            requesterName: userName,
-            cost
-          },
-          priority: 'medium',
-          actionUrl: '/admin/rewards'
+          message: `${userName} demande "${rewardName}" (${cost} points)`,
+          icon: '🎁',
+          link: '/admin/rewards',
+          data: { rewardId, rewardName, requesterId: userId, cost },
+          priority: 'medium'
         })
       );
 
       await Promise.all(notificationPromises);
-      console.log(`🔔 [NOTIF] ${adminsSnapshot.size} admins notifiés pour récompense`);
-
       return { success: true };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification récompense:', error);
@@ -576,14 +596,16 @@ class NotificationService {
    */
   async notifyRewardApproved(userId, data) {
     try {
-      const { rewardName, adminComment } = data;
+      const { rewardName } = data;
 
       await this.createNotification({
         userId,
         type: NOTIFICATION_TYPES.REWARD_APPROVED,
         title: '🎉 Récompense approuvée !',
         message: `Votre demande pour "${rewardName}" a été approuvée !`,
-        data: { rewardName, adminComment },
+        icon: '🎉',
+        link: '/rewards',
+        data: { rewardName },
         priority: 'high'
       });
 
@@ -606,6 +628,8 @@ class NotificationService {
         type: NOTIFICATION_TYPES.REWARD_REJECTED,
         title: '❌ Récompense refusée',
         message: `Votre demande pour "${rewardName}" a été refusée. Raison: ${reason}`,
+        icon: '❌',
+        link: '/rewards',
         data: { rewardName, reason },
         priority: 'high'
       });
@@ -616,63 +640,6 @@ class NotificationService {
       return { success: false };
     }
   }
-
-  // ==========================================
-  // 🎧 LISTENERS TEMPS RÉEL
-  // ==========================================
-
-  /**
-   * 🎧 ÉCOUTER LES NOTIFICATIONS EN TEMPS RÉEL
-   */
-  subscribeToNotifications(userId, callback) {
-    try {
-      const q = query(
-        collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const notifications = [];
-        snapshot.forEach(doc => {
-          notifications.push({ id: doc.id, ...doc.data() });
-        });
-        callback(notifications);
-      }, (error) => {
-        console.error('❌ [NOTIF] Erreur listener:', error);
-      });
-
-      const listenerId = `notif_${userId}_${Date.now()}`;
-      this.listeners.set(listenerId, unsubscribe);
-
-      return listenerId;
-    } catch (error) {
-      console.error('❌ [NOTIF] Erreur création listener:', error);
-      return null;
-    }
-  }
-
-  /**
-   * 🛑 ARRÊTER L'ÉCOUTE
-   */
-  unsubscribe(listenerId) {
-    const unsubscribe = this.listeners.get(listenerId);
-    if (unsubscribe) {
-      unsubscribe();
-      this.listeners.delete(listenerId);
-      console.log('🔔 [NOTIF] Listener arrêté:', listenerId);
-    }
-  }
-
-  /**
-   * 🧹 NETTOYER TOUS LES LISTENERS
-   */
-  cleanup() {
-    this.listeners.forEach(unsubscribe => unsubscribe());
-    this.listeners.clear();
-    console.log('🔔 [NOTIF] Tous les listeners nettoyés');
-  }
 }
 
 // ✅ INSTANCE UNIQUE
@@ -682,4 +649,4 @@ const notificationService = new NotificationService();
 export { notificationService, NOTIFICATION_TYPES };
 export default notificationService;
 
-console.log('🔔 NotificationService prêt - Version complète');
+console.log('🔔 NotificationService prêt - Version corrigée');
