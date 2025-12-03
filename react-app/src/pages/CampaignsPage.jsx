@@ -116,31 +116,69 @@ const CAMPAIGN_PRIORITY = {
   urgent: { label: 'Urgent', color: 'red', icon: '🔴', textColor: 'text-red-400' }
 };
 
+// 🔧 FONCTION UTILITAIRE: Conversion SÉCURISÉE des dates Firebase
+const safeToDate = (value) => {
+  if (!value) return null;
+  
+  try {
+    // Déjà une Date JavaScript
+    if (value instanceof Date) {
+      return value;
+    }
+    
+    // Firebase Timestamp avec méthode toDate()
+    if (typeof value?.toDate === 'function') {
+      return value.toDate();
+    }
+    
+    // Firebase Timestamp avec seconds/nanoseconds
+    if (value?.seconds !== undefined) {
+      return new Date(value.seconds * 1000);
+    }
+    
+    // String ISO ou timestamp number
+    if (typeof value === 'string' || typeof value === 'number') {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('⚠️ [DATE] Erreur conversion date:', value, error);
+    return null;
+  }
+};
+
 // 🔧 FONCTION UTILITAIRE: Extraire l'ID d'un projectId (string ou DocumentReference)
 const extractProjectId = (projectId) => {
   if (!projectId) return null;
   
-  // Si c'est déjà une chaîne
-  if (typeof projectId === 'string') {
-    return projectId.trim();
-  }
-  
-  // Si c'est un objet DocumentReference Firebase
-  if (typeof projectId === 'object') {
-    // DocumentReference a une propriété 'id'
-    if (projectId.id) {
-      return String(projectId.id).trim();
+  try {
+    // Si c'est déjà une chaîne
+    if (typeof projectId === 'string') {
+      return projectId.trim();
     }
-    // Ou une propriété 'path' qui contient 'projects/ID'
-    if (projectId.path) {
-      const parts = projectId.path.split('/');
-      return parts[parts.length - 1].trim();
+    
+    // Si c'est un objet DocumentReference Firebase
+    if (typeof projectId === 'object') {
+      // DocumentReference a une propriété 'id'
+      if (projectId.id) {
+        return String(projectId.id).trim();
+      }
+      // Ou une propriété 'path' qui contient 'projects/ID'
+      if (projectId.path) {
+        const parts = projectId.path.split('/');
+        return parts[parts.length - 1].trim();
+      }
+      // Fallback: essayer de convertir en string
+      return String(projectId).trim();
     }
-    // Fallback: essayer de convertir en string
+    
     return String(projectId).trim();
+  } catch (error) {
+    console.warn('⚠️ [PROJECT_ID] Erreur extraction:', projectId, error);
+    return null;
   }
-  
-  return String(projectId).trim();
 };
 
 const CampaignsPage = () => {
@@ -178,65 +216,97 @@ const CampaignsPage = () => {
     );
 
     const unsubscribeCampaigns = onSnapshot(campaignsQuery, (snapshot) => {
-      const campaignsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate(),
-        dueDate: doc.data().dueDate?.toDate()
-      }));
+      try {
+        const campaignsData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: safeToDate(data.createdAt),
+            updatedAt: safeToDate(data.updatedAt),
+            dueDate: safeToDate(data.dueDate)
+          };
+        });
 
-      console.log('⚔️ [CAMPAIGNS] Campagnes chargées depuis Firebase:', campaignsData.length);
-      console.log('⚔️ [CAMPAIGNS] IDs des campagnes:', campaignsData.map(c => c.id));
-      setCampaigns(campaignsData);
-      setLoading(false);
+        console.log('⚔️ [CAMPAIGNS] Campagnes chargées depuis Firebase:', campaignsData.length);
+        console.log('⚔️ [CAMPAIGNS] IDs des campagnes:', campaignsData.map(c => c.id));
+        setCampaigns(campaignsData);
+        setLoading(false);
+      } catch (err) {
+        console.error('❌ [CAMPAIGNS] Erreur parsing campagnes:', err);
+        setError('Erreur de parsing des campagnes');
+        setLoading(false);
+      }
     }, (error) => {
       console.error('❌ [CAMPAIGNS] Erreur chargement campagnes:', error);
       setError('Erreur de chargement des campagnes');
       setLoading(false);
     });
 
-    // Chargement des quêtes pour calcul des statistiques
+    // 🔥 CHARGEMENT DES QUÊTES AVEC GESTION D'ERREUR ROBUSTE
     const questsQuery = query(
       collection(db, 'tasks'),
       orderBy('createdAt', 'desc')
     );
 
     const unsubscribeQuests = onSnapshot(questsQuery, (snapshot) => {
-      const questsData = snapshot.docs.map(doc => {
-        const data = doc.data();
+      try {
+        console.log('🔄 [QUESTS] Réception snapshot quêtes, docs:', snapshot.docs.length);
         
-        // 🔧 EXTRACTION ROBUSTE DU PROJECT ID
-        const rawProjectId = data.projectId;
-        const extractedProjectId = extractProjectId(rawProjectId);
+        const questsData = [];
         
-        return {
-          id: doc.id,
-          ...data,
-          // Remplacer projectId par la version extraite (string)
-          projectId: extractedProjectId,
-          // Garder l'original pour debug
-          _rawProjectId: rawProjectId,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-          dueDate: data.dueDate?.toDate()
-        };
-      });
-
-      console.log('⚔️ [QUESTS] Quêtes chargées pour stats:', questsData.length);
-      
-      // 🔍 DEBUG DÉTAILLÉ
-      const questsWithProject = questsData.filter(q => q.projectId);
-      console.log('⚔️ [QUESTS] Quêtes avec projectId:', questsWithProject.length);
-      
-      if (questsWithProject.length > 0) {
-        console.log('⚔️ [QUESTS] === DEBUG PROJECT IDS ===');
-        questsWithProject.forEach(q => {
-          console.log(`  - Quête "${q.title}": projectId="${q.projectId}" (raw: ${typeof q._rawProjectId} = ${JSON.stringify(q._rawProjectId)})`);
+        // Parcourir chaque document avec try-catch individuel
+        snapshot.docs.forEach(doc => {
+          try {
+            const data = doc.data();
+            
+            // Extraction robuste du projectId
+            const extractedProjectId = extractProjectId(data.projectId);
+            
+            questsData.push({
+              id: doc.id,
+              ...data,
+              // Remplacer projectId par la version extraite (string)
+              projectId: extractedProjectId,
+              // Conversion sécurisée des dates
+              createdAt: safeToDate(data.createdAt),
+              updatedAt: safeToDate(data.updatedAt),
+              dueDate: safeToDate(data.dueDate)
+            });
+          } catch (docError) {
+            console.warn('⚠️ [QUESTS] Erreur parsing quête:', doc.id, docError);
+            // Continuer avec les autres quêtes
+          }
         });
+
+        console.log('✅ [QUESTS] Quêtes parsées avec succès:', questsData.length);
+        
+        // 🔍 DEBUG DÉTAILLÉ
+        const questsWithProject = questsData.filter(q => q.projectId);
+        console.log('⚔️ [QUESTS] Quêtes avec projectId:', questsWithProject.length);
+        
+        if (questsWithProject.length > 0) {
+          console.log('⚔️ [QUESTS] === DEBUG PROJECT IDS ===');
+          questsWithProject.slice(0, 5).forEach(q => {
+            console.log(`  - Quête "${q.title}": projectId="${q.projectId}"`);
+          });
+          if (questsWithProject.length > 5) {
+            console.log(`  ... et ${questsWithProject.length - 5} autres`);
+          }
+        }
+        
+        // 🚀 MISE À JOUR DE L'ÉTAT
+        setQuests(questsData);
+        console.log('✅ [QUESTS] État mis à jour avec', questsData.length, 'quêtes');
+        
+      } catch (err) {
+        console.error('❌ [QUESTS] Erreur globale parsing quêtes:', err);
+        // Mettre quand même un tableau vide pour éviter les erreurs
+        setQuests([]);
       }
-      
-      setQuests(questsData);
+    }, (error) => {
+      console.error('❌ [QUESTS] Erreur listener quêtes:', error);
+      setQuests([]);
     });
 
     return () => {
@@ -275,9 +345,6 @@ const CampaignsPage = () => {
         
         if (matchingCampaignId) {
           mapping[matchingCampaignId].push(quest);
-          console.log(`✅ [MAPPING] Quête "${quest.title}" → Campagne ${matchingCampaignId}`);
-        } else {
-          console.warn(`⚠️ [MAPPING] Quête "${quest.title}" a projectId="${projectIdStr}" mais aucune campagne ne correspond`);
         }
       }
     });
@@ -1188,3 +1255,20 @@ const CampaignFormModal = ({ campaign, onClose, onSubmit }) => {
 };
 
 export default CampaignsPage;
+```
+
+## ✅ CORRECTIONS APPORTÉES
+
+| Problème | Solution |
+|----------|----------|
+| **Erreur `toDate is not a function`** | Fonction `safeToDate()` qui gère tous les formats de dates |
+| **Listener quêtes échoue silencieusement** | Try-catch individuel pour chaque document + callback d'erreur |
+| **Erreur bloque `setQuests()`** | Parsing document par document, continue même si une quête échoue |
+| **Aucun log d'erreur visible** | Ajout de logs détaillés à chaque étape |
+
+Les logs devraient maintenant montrer :
+```
+🔄 [QUESTS] Réception snapshot quêtes, docs: XX
+✅ [QUESTS] Quêtes parsées avec succès: XX
+✅ [QUESTS] État mis à jour avec XX quêtes
+🔄 [MAPPING] Quêtes: XX  ← Plus à 0 !
