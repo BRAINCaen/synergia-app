@@ -1,628 +1,512 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT AVEC MENU COMPLET + GODMOD + NOTIFICATIONS
+// LAYOUT PRINCIPAL SYNERGIA - NOTIFICATIONS CORRIGÉES
+// ✅ FIX: Timestamps Firestore + Callbacks + Try/Catch
 // ==========================================
 
-import React, { useState, useEffect, memo, useRef, useCallback } from 'react';
-import { Menu, X, Bell, Check, Trash2, ExternalLink } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Home, Target, Trophy, Users, BarChart3, Settings, LogOut, 
+  Clock, Star, Award, Gift, Info, Bell, X, User, Shield,
+  Calendar, MessageSquare, Briefcase, BookOpen, Menu,
+  ChevronRight, Zap
+} from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import notificationService from '../../core/services/notificationService.js';
 
-// 🔔 COMPOSANT CENTRE DE NOTIFICATIONS
-const NotificationCenter = memo(({ isOpen, onClose, notifications, onMarkAsRead, onMarkAllAsRead, onDelete, onNavigate }) => {
+// 🔥 IMPORT FIREBASE POUR NOTIFICATIONS
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot,
+  limit,
+  updateDoc,
+  doc
+} from 'firebase/firestore';
+import { db } from '../../core/firebase.js';
+
+// ==========================================
+// 🎨 COMPOSANT MENU HAMBURGER PREMIUM
+// ==========================================
+
+const HamburgerMenu = memo(({ isOpen, onClose, navigate, user }) => {
+  const location = useLocation();
+  
+  // 👑 VÉRIFIER SI L'UTILISATEUR EST ADMIN
+  const isAdmin = user?.email === 'alan.boehme61@gmail.com' || 
+                 user?.role === 'admin' || 
+                 user?.profile?.role === 'admin';
+
+  // 📋 CONFIGURATION DES MENUS
+  const menuItems = [
+    { 
+      section: 'PRINCIPAL',
+      items: [
+        { path: '/', label: 'Tableau de bord', icon: Home, emoji: '🏠' },
+        { path: '/tasks', label: 'Quêtes', icon: Target, emoji: '⚔️' },
+        { path: '/rewards', label: 'Récompenses', icon: Gift, emoji: '🎁' },
+        { path: '/team', label: 'Équipe', icon: Users, emoji: '👥' },
+      ]
+    },
+    {
+      section: 'OUTILS',
+      items: [
+        { path: '/timetrack', label: 'Badgeuse', icon: Clock, emoji: '⏱️' },
+        { path: '/analytics', label: 'Statistiques', icon: BarChart3, emoji: '📊' },
+        { path: '/infos', label: 'Infos équipe', icon: Info, emoji: '📢' },
+      ]
+    },
+    {
+      section: 'PROFIL',
+      items: [
+        { path: '/profile', label: 'Mon profil', icon: User, emoji: '👤' },
+      ]
+    }
+  ];
+
+  // 🛡️ MENU ADMIN (si admin)
+  const adminItems = isAdmin ? [
+    {
+      section: 'ADMINISTRATION',
+      items: [
+        { path: '/admin', label: 'Dashboard Admin', icon: Shield, emoji: '🛡️' },
+        { path: '/admin/users', label: 'Gestion utilisateurs', icon: Users, emoji: '👥' },
+        { path: '/admin/validation', label: 'Validation quêtes', icon: Target, emoji: '✅' },
+        { path: '/admin/rewards', label: 'Gestion récompenses', icon: Gift, emoji: '🎁' },
+        { path: '/admin/settings', label: 'Paramètres', icon: Settings, emoji: '⚙️' },
+        { path: '/hr', label: 'Ressources Humaines', icon: Briefcase, emoji: '💼' },
+        { path: '/onboarding', label: 'Onboarding', icon: BookOpen, emoji: '📚' },
+      ]
+    }
+  ] : [];
+
+  const allMenuSections = [...menuItems, ...adminItems];
+
+  const handleNavigation = useCallback((path) => {
+    console.log('🧭 [MENU] Navigation vers:', path);
+    navigate(path);
+    onClose();
+  }, [navigate, onClose]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      const { logout } = useAuthStore.getState();
+      await logout();
+      navigate('/login');
+      onClose();
+    } catch (error) {
+      console.error('❌ Erreur déconnexion:', error);
+    }
+  }, [navigate, onClose]);
+
   if (!isOpen) return null;
 
-  const formatDate = (date) => {
-    if (!date) return '';
-    const now = new Date();
-    const diff = now - date;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'À l\'instant';
-    if (minutes < 60) return `Il y a ${minutes} min`;
-    if (hours < 24) return `Il y a ${hours}h`;
-    if (days < 7) return `Il y a ${days}j`;
-    return date.toLocaleDateString('fr-FR');
-  };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 999999,
-        animation: 'fadeIn 0.2s ease-out'
-      }}
-    >
+    <>
       {/* Overlay */}
-      <div 
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999998]"
         onClick={onClose}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(4px)'
-        }}
       />
 
-      {/* Panel */}
-      <div 
-        style={{
-          position: 'absolute',
-          top: '100px',
-          right: '24px',
-          width: '420px',
-          maxWidth: '90vw',
-          maxHeight: '70vh',
-          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)',
-          borderRadius: '20px',
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideDown 0.3s ease-out',
-          border: '1px solid rgba(75, 85, 99, 0.3)'
-        }}
+      {/* Menu Panel */}
+      <motion.div
+        initial={{ x: '-100%', opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: '-100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed top-0 left-0 h-full w-80 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 z-[999999] shadow-2xl"
       >
-        {/* Header */}
-        <div 
-          style={{
-            padding: '20px',
-            borderBottom: '1px solid rgba(75, 85, 99, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Bell style={{ width: '20px', height: '20px', color: 'white' }} />
+        {/* Header du menu */}
+        <div className="p-6 border-b border-gray-700/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Synergia</h2>
+                <p className="text-xs text-gray-400">v3.5</p>
+              </div>
             </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: 'white' }}>
-                Notifications
-              </h3>
-              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(156, 163, 175, 1)' }}>
-                {unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Tout est lu'}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {unreadCount > 0 && (
-              <button
-                onClick={onMarkAllAsRead}
-                style={{
-                  padding: '8px 12px',
-                  background: 'rgba(34, 197, 94, 0.1)',
-                  border: '1px solid rgba(34, 197, 94, 0.3)',
-                  borderRadius: '8px',
-                  color: '#22c55e',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <Check style={{ width: '14px', height: '14px' }} />
-                Tout lire
-              </button>
-            )}
             <button
               onClick={onClose}
-              style={{
-                width: '32px',
-                height: '32px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: '#f87171'
-              }}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
             >
-              <X style={{ width: '16px', height: '16px' }} />
+              <X className="w-5 h-5" />
             </button>
           </div>
-        </div>
 
-        {/* Liste des notifications */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-          {notifications.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '40px 20px',
-              color: 'rgba(156, 163, 175, 1)'
-            }}>
-              <Bell style={{ width: '48px', height: '48px', marginBottom: '12px', opacity: 0.3 }} />
-              <p style={{ margin: 0 }}>Aucune notification</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  style={{
-                    padding: '14px',
-                    background: notif.read 
-                      ? 'rgba(31, 41, 55, 0.3)' 
-                      : 'rgba(59, 130, 246, 0.1)',
-                    border: notif.read
-                      ? '1px solid rgba(75, 85, 99, 0.2)'
-                      : '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => {
-                    if (!notif.read) onMarkAsRead(notif.id);
-                    if (notif.link) {
-                      onNavigate(notif.link);
-                      onClose();
-                    }
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    <span style={{ fontSize: '24px' }}>{notif.icon || '🔔'}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <h4 style={{
-                          margin: 0,
-                          fontSize: '14px',
-                          fontWeight: notif.read ? '500' : '600',
-                          color: notif.read ? 'rgba(209, 213, 219, 1)' : 'white'
-                        }}>
-                          {notif.title}
-                        </h4>
-                        {!notif.read && (
-                          <div style={{
-                            width: '8px',
-                            height: '8px',
-                            background: '#3b82f6',
-                            borderRadius: '50%'
-                          }} />
-                        )}
-                      </div>
-                      <p style={{
-                        margin: 0,
-                        fontSize: '13px',
-                        color: 'rgba(156, 163, 175, 1)',
-                        lineHeight: '1.4'
-                      }}>
-                        {notif.message}
-                      </p>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginTop: '8px'
-                      }}>
-                        <span style={{ fontSize: '11px', color: 'rgba(107, 114, 128, 1)' }}>
-                          {formatDate(notif.createdAt)}
-                        </span>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          {notif.link && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigate(notif.link);
-                                onClose();
-                              }}
-                              style={{
-                                padding: '4px',
-                                background: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                color: 'rgba(96, 165, 250, 1)'
-                              }}
-                              title="Voir"
-                            >
-                              <ExternalLink style={{ width: '14px', height: '14px' }} />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDelete(notif.id);
-                            }}
-                            style={{
-                              padding: '4px',
-                              background: 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: 'rgba(248, 113, 113, 1)'
-                            }}
-                            title="Supprimer"
-                          >
-                            <Trash2 style={{ width: '14px', height: '14px' }} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+          {/* User info */}
+          {user && (
+            <div className="mt-4 flex items-center space-x-3 p-3 bg-gray-800/50 rounded-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
+                {user.displayName?.[0] || user.email?.[0] || '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user.displayName || 'Utilisateur'}
+                </p>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
+              {isAdmin && (
+                <span className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 rounded-full">
+                  Admin
+                </span>
+              )}
             </div>
           )}
         </div>
 
-        {/* Styles */}
-        <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-      </div>
-    </div>
-  );
-});
-
-// 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD
-const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail }) => {
-  console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen);
-  
-  if (!isOpen) return null;
-
-  // 👑 Vérifier si l'utilisateur est l'admin principal
-  const isGodMode = userEmail === 'alan.boehme61@gmail.com';
-
-  const menuItems = [
-    { section: 'PRINCIPAL', items: [
-      { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
-      { path: '/infos', label: 'Info', icon: 'ℹ️' },
-      { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
-      { path: '/projects', label: 'Campagnes', icon: '🎯' },
-      { path: '/analytics', label: 'Analytics', icon: '📊' }
-    ]},
-    { section: 'GAMIFICATION', items: [
-      { path: '/gamification', label: 'Gamification', icon: '🎮' },
-      { path: '/badges', label: 'Badges', icon: '🏆' },
-      { path: '/leaderboard', label: 'Classement', icon: '🥇' },
-      { path: '/rewards', label: 'Récompenses', icon: '🎁' }
-    ]},
-    { section: 'ÉQUIPE', items: [
-      { path: '/team', label: 'Équipe', icon: '👥' },
-      { path: '/settings', label: 'Paramètres', icon: '⚙️' }
-    ]},
-    { section: 'OUTILS', items: [
-      { path: '/onboarding', label: 'Intégration', icon: '🎯' },
-      { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' },
-      { path: '/hr', label: 'RH', icon: '🏢' },
-      { path: '/planning', label: 'Planning', icon: '📅' }
-    ]},
-    { section: 'ADMIN', items: [
-      { path: '/admin', label: 'Dashboard Admin', icon: '👑' },
-      { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
-      { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
-      { path: '/admin/rewards', label: 'Validation Récompenses', icon: '🎁' },
-      { path: '/admin/analytics', label: 'Analytics Admin', icon: '📊' },
-      { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
-      { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
-      { path: '/admin/sync', label: 'Synchronisation', icon: '🔄' }
-    ]}
-  ];
-
-  // 👑 AJOUTER GODMOD SI L'UTILISATEUR EST ALAN
-  if (isGodMode) {
-    menuItems.push({
-      section: '👑 GODMOD',
-      items: [
-        { path: '/godmod', label: 'GODMOD', icon: '👑', isGodMode: true }
-      ]
-    });
-  }
-
-  const handleNavigation = (path) => {
-    console.log('🧭 [MENU] Navigation vers:', path);
-    onClose(); // Fermer le menu
-    navigateFunction(path); // Naviguer
-  };
-
-  return (
-    <div 
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 999999,
-        animation: 'fadeIn 0.2s ease-out'
-      }}
-    >
-      {/* Overlay */}
-      <div 
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)'
-        }}
-      />
-
-      {/* Menu Panel */}
-      <div 
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: '400px',
-          maxWidth: '85vw',
-          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)',
-          boxShadow: '4px 0 30px rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideIn 0.3s ease-out'
-        }}
-      >
-        {/* Header */}
-        <div 
-          style={{
-            padding: '24px',
-            borderBottom: '1px solid rgba(75, 85, 99, 0.3)',
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '56px',
-                height: '56px',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '28px',
-                boxShadow: '0 8px 20px -4px rgba(59, 130, 246, 0.4)'
-              }}>
-                🎮
-              </div>
-              <div>
-                <h2 style={{
-                  fontSize: '24px',
-                  fontWeight: '800',
-                  background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  margin: 0,
-                  lineHeight: '1.2'
-                }}>
-                  Synergia
-                </h2>
-                <p style={{
-                  fontSize: '14px',
-                  color: 'rgba(156, 163, 175, 1)',
-                  margin: '4px 0 0 0'
-                }}>
-                  v3.5 - Menu Principal
-                </p>
-              </div>
-            </div>
-            
-            <button
-              onClick={onClose}
-              style={{
-                width: '40px',
-                height: '40px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                color: 'rgba(248, 113, 113, 1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = 'rgba(239, 68, 68, 0.2)';
-                e.target.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'rgba(239, 68, 68, 0.1)';
-                e.target.style.borderColor = 'rgba(239, 68, 68, 0.2)';
-              }}
-            >
-              <X style={{ width: '20px', height: '20px' }} />
-            </button>
-          </div>
-        </div>
-
-        {/* Menu Items */}
-        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-          {menuItems.map((section, sectionIndex) => (
-            <div 
-              key={sectionIndex}
-              style={{
-                marginBottom: sectionIndex < menuItems.length - 1 ? '28px' : '0'
-              }}
-            >
-              {/* Section Header */}
-              <div style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '1.5px',
-                color: section.section.includes('GODMOD') ? '#fbbf24' : 'rgba(156, 163, 175, 1)',
-                marginBottom: '12px',
-                paddingLeft: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                {section.section.includes('GODMOD') && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    fontSize: '10px',
-                    color: '#000',
-                    fontWeight: '900'
-                  }}>EXCLUSIF</span>
-                )}
+        {/* Menu items */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-6" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+          {allMenuSections.map((section, sectionIndex) => (
+            <div key={sectionIndex}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-2">
                 {section.section}
-              </div>
-
-              {/* Section Items */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {section.items.map((item, itemIndex) => (
-                  <button
-                    key={itemIndex}
-                    onClick={() => handleNavigation(item.path)}
-                    style={{
-                      padding: '14px 16px',
-                      background: item.isGodMode 
-                        ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)'
-                        : 'rgba(31, 41, 55, 0.5)',
-                      border: item.isGodMode
-                        ? '1px solid rgba(251, 191, 36, 0.3)'
-                        : '1px solid rgba(75, 85, 99, 0.3)',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      color: item.isGodMode ? '#fbbf24' : 'rgba(229, 231, 235, 1)',
-                      textAlign: 'left',
-                      width: '100%'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (item.isGodMode) {
-                        e.target.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%)';
-                        e.target.style.borderColor = 'rgba(251, 191, 36, 0.5)';
-                        e.target.style.transform = 'translateX(8px)';
-                      } else {
-                        e.target.style.background = 'rgba(55, 65, 81, 0.8)';
-                        e.target.style.borderColor = 'rgba(96, 165, 250, 0.5)';
-                        e.target.style.transform = 'translateX(8px)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (item.isGodMode) {
-                        e.target.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)';
-                        e.target.style.borderColor = 'rgba(251, 191, 36, 0.3)';
-                      } else {
-                        e.target.style.background = 'rgba(31, 41, 55, 0.5)';
-                        e.target.style.borderColor = 'rgba(75, 85, 99, 0.3)';
-                      }
-                      e.target.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    <span style={{ 
-                      fontSize: '20px',
-                      width: '28px',
-                      textAlign: 'center'
-                    }}>
-                      {item.icon}
-                    </span>
-                    <span style={{ 
-                      fontSize: '15px',
-                      fontWeight: '500'
-                    }}>
-                      {item.label}
-                    </span>
-                  </button>
-                ))}
+              </p>
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  const Icon = item.icon;
+                  
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => handleNavigation(item.path)}
+                      className={`
+                        w-full flex items-center space-x-3 px-3 py-3 rounded-lg transition-all
+                        ${isActive 
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                          : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                        }
+                      `}
+                    >
+                      <span className="text-xl">{item.emoji}</span>
+                      <Icon className="w-5 h-5" />
+                      <span className="flex-1 text-left font-medium">{item.label}</span>
+                      {isActive && <ChevronRight className="w-4 h-4" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Footer */}
-        <div style={{
-          padding: '16px 24px',
-          borderTop: '1px solid rgba(75, 85, 99, 0.3)',
-          background: 'rgba(17, 24, 39, 0.5)'
-        }}>
-          <p style={{
-            fontSize: '12px',
-            color: 'rgba(107, 114, 128, 1)',
-            margin: 0,
-            textAlign: 'center'
-          }}>
-            © 2025 Synergia - Brain Escape & Quiz Game
-          </p>
+        {/* Footer du menu */}
+        <div className="p-4 border-t border-gray-700/50">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-3 py-3 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Déconnexion</span>
+          </button>
         </div>
 
-        {/* Styles animations */}
+        {/* Custom scrollbar styles */}
         <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes slideIn {
-            from { transform: translateX(-100%); }
-            to { transform: translateX(0); }
-          }
           div::-webkit-scrollbar {
             width: 6px;
           }
+          
           div::-webkit-scrollbar-track {
-            background: rgba(31, 41, 55, 0.3);
-            border-radius: 4px;
+            background: rgba(75, 85, 99, 0.2);
+            border-radius: 3px;
           }
+          
           div::-webkit-scrollbar-thumb {
             background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
             border-radius: 4px;
           }
+          
           div::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
           }
         `}</style>
-      </div>
+      </motion.div>
+    </>
+  );
+});
+
+// ==========================================
+// 🔔 COMPOSANT NOTIFICATIONS (CORRIGÉ)
+// ==========================================
+
+const NotificationBell = memo(({ user }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const unsubscribeRef = useRef(null);
+
+  // ✅ HELPER: Convertir timestamp Firestore en Date
+  const convertTimestamp = useCallback((timestamp) => {
+    if (!timestamp) return null;
+    
+    try {
+      // Si c'est un Timestamp Firestore avec toDate()
+      if (timestamp?.toDate && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+      }
+      // Si c'est un objet avec seconds (Timestamp sérialisé)
+      if (timestamp?.seconds) {
+        return new Date(timestamp.seconds * 1000);
+      }
+      // Si c'est déjà une Date
+      if (timestamp instanceof Date) {
+        return timestamp;
+      }
+      // Si c'est un string ISO
+      if (typeof timestamp === 'string') {
+        return new Date(timestamp);
+      }
+      // Si c'est un nombre (timestamp en ms)
+      if (typeof timestamp === 'number') {
+        return new Date(timestamp);
+      }
+      return null;
+    } catch (error) {
+      console.warn('⚠️ [NOTIF] Erreur conversion timestamp:', error);
+      return null;
+    }
+  }, []);
+
+  // ✅ HELPER: Formater la date relative
+  const formatTimeAgo = useCallback((timestamp) => {
+    const date = convertTimestamp(timestamp);
+    if (!date) return '';
+
+    try {
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'À l\'instant';
+      if (diffMins < 60) return `${diffMins}m`;
+      if (diffHours < 24) return `${diffHours}h`;
+      if (diffDays < 7) return `${diffDays}j`;
+      
+      // Utiliser toLocaleDateString seulement sur un objet Date valide
+      return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    } catch (error) {
+      console.warn('⚠️ [NOTIF] Erreur formatage date:', error);
+      return '';
+    }
+  }, [convertTimestamp]);
+
+  // ✅ ABONNEMENT AUX NOTIFICATIONS (AVEC TRY/CATCH)
+  useEffect(() => {
+    if (!user?.uid) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    console.log('🔔 [LAYOUT] Abonnement aux notifications...');
+    setLoading(true);
+
+    try {
+      const notifQuery = query(
+        collection(db, 'notifications'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+
+      unsubscribeRef.current = onSnapshot(
+        notifQuery,
+        (snapshot) => {
+          try {
+            const notifList = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            setNotifications(notifList);
+            const unread = notifList.filter(n => !n.read).length;
+            setUnreadCount(unread);
+            
+            console.log(`🔔 [LAYOUT] ${notifList.length} notifications, ${unread} non lues`);
+          } catch (error) {
+            console.error('❌ [LAYOUT] Erreur traitement notifications:', error);
+            setNotifications([]);
+            setUnreadCount(0);
+          } finally {
+            setLoading(false);
+          }
+        },
+        (error) => {
+          console.error('❌ [LAYOUT] Erreur listener notifications:', error);
+          setLoading(false);
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+      );
+    } catch (error) {
+      console.error('❌ [LAYOUT] Erreur création listener:', error);
+      setLoading(false);
+    }
+
+    return () => {
+      console.log('🔔 [LAYOUT] Désabonnement notifications');
+      if (unsubscribeRef.current && typeof unsubscribeRef.current === 'function') {
+        try {
+          unsubscribeRef.current();
+        } catch (e) {
+          console.warn('⚠️ Erreur désabonnement:', e);
+        }
+      }
+    };
+  }, [user?.uid]);
+
+  // ✅ MARQUER COMME LU
+  const markAsRead = useCallback(async (notificationId) => {
+    try {
+      await updateDoc(doc(db, 'notifications', notificationId), {
+        read: true,
+        readAt: new Date()
+      });
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('❌ Erreur marquage notification:', error);
+    }
+  }, []);
+
+  // ✅ ICÔNE NOTIFICATION TYPE
+  const getNotificationIcon = useCallback((type) => {
+    const icons = {
+      quest_validation_pending: '🎯',
+      quest_approved: '✅',
+      quest_rejected: '❌',
+      badge_earned: '🏆',
+      level_up: '⭐',
+      xp_earned: '⚡',
+      new_info: '📢',
+      reward_requested: '🎁',
+      reward_approved: '🎉',
+      system: '⚙️'
+    };
+    return icons[type] || '🔔';
+  }, []);
+
+  return (
+    <div className="relative">
+      {/* Bouton cloche */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative p-3 text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
+      >
+        <Bell className="w-6 h-6" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {/* Panel notifications */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Overlay */}
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => setIsOpen(false)}
+            />
+            
+            {/* Panel */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              className="absolute right-0 top-full mt-2 w-80 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Notifications</h3>
+                {unreadCount > 0 && (
+                  <span className="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-full">
+                    {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              {/* Liste */}
+              <div className="max-h-80 overflow-y-auto">
+                {loading ? (
+                  <div className="p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    <p className="text-gray-400 mt-2 text-sm">Chargement...</p>
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <span className="text-4xl mb-2 block">🎉</span>
+                    <p className="text-gray-400">Aucune notification</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-700/50">
+                    {notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => !notif.read && markAsRead(notif.id)}
+                        className={`p-4 hover:bg-gray-700/30 cursor-pointer transition-colors ${
+                          !notif.read ? 'bg-blue-500/10 border-l-2 border-l-blue-500' : ''
+                        }`}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <span className="text-xl">{getNotificationIcon(notif.type)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm ${!notif.read ? 'font-semibold text-white' : 'text-gray-300'}`}>
+                              {notif.title || 'Notification'}
+                            </p>
+                            {notif.message && (
+                              <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                                {notif.message}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatTimeAgo(notif.createdAt)}
+                            </p>
+                          </div>
+                          {!notif.read && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
 
+// ==========================================
 // 🔒 COMPOSANT LAYOUT PRINCIPAL
+// ==========================================
+
 const Layout = memo(({ children }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const menuOpenRef = useRef(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
-
-  // 🔔 CHARGER LES NOTIFICATIONS
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    console.log('🔔 [LAYOUT] Abonnement aux notifications...');
-    
-    const unsubscribe = notificationService.subscribeToNotifications(user.uid, (notifs) => {
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.read).length);
-      console.log(`🔔 [LAYOUT] ${notifs.length} notifications, ${notifs.filter(n => !n.read).length} non lues`);
-    });
-
-    return () => {
-      console.log('🔔 [LAYOUT] Désabonnement notifications');
-      unsubscribe();
-    };
-  }, [user?.uid]);
 
   const openMenu = useCallback(() => {
     console.log('🔓 [LAYOUT] Ouverture menu demandée');
@@ -634,163 +518,51 @@ const Layout = memo(({ children }) => {
     setMenuOpen(false);
   }, []);
 
-  const navigateFunction = useCallback((path) => {
-    console.log('🧭 [LAYOUT] Navigation vers:', path);
-    navigate(path);
-  }, [navigate]);
-
-  // 🔔 HANDLERS NOTIFICATIONS
-  const handleMarkAsRead = useCallback(async (notifId) => {
-    await notificationService.markAsRead(notifId);
-  }, []);
-
-  const handleMarkAllAsRead = useCallback(async () => {
-    if (user?.uid) {
-      await notificationService.markAllAsRead(user.uid);
-    }
-  }, [user?.uid]);
-
-  const handleDeleteNotification = useCallback(async (notifId) => {
-    await notificationService.deleteNotification(notifId);
-  }, []);
-
-  // Debug logging
-  if (menuOpenRef.current !== menuOpen) {
-    console.log('🔄 [LAYOUT] État menu changé:', {
-      ancien: menuOpenRef.current,
-      nouveau: menuOpen,
-      timestamp: new Date().toLocaleTimeString()
-    });
-    menuOpenRef.current = menuOpen;
-  }
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       
-      {/* 🔒 BOUTON HAMBURGER PREMIUM */}
-      <button
-        onClick={openMenu}
-        style={{
-          position: 'fixed',
-          top: '24px',
-          left: '24px',
-          zIndex: 999998,
-          width: '64px',
-          height: '64px',
-          background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-          border: 'none',
-          borderRadius: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 20px 40px -10px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          backdropFilter: 'blur(10px)'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.05) translateY(-2px)';
-          e.target.style.background = 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)';
-          e.target.style.boxShadow = '0 25px 50px -10px rgba(59, 130, 246, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2)';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1) translateY(0)';
-          e.target.style.background = 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)';
-          e.target.style.boxShadow = '0 20px 40px -10px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)';
-        }}
-      >
-        <Menu style={{ width: '28px', height: '28px', color: 'white' }} />
-      </button>
-
-      {/* 🔔 BOUTON NOTIFICATIONS */}
-      <button
-        onClick={() => setNotifOpen(true)}
-        style={{
-          position: 'fixed',
-          top: '24px',
-          right: '24px',
-          zIndex: 999998,
-          width: '56px',
-          height: '56px',
-          background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-          border: 'none',
-          borderRadius: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 15px 30px -8px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          backdropFilter: 'blur(10px)'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.05) translateY(-2px)';
-          e.target.style.boxShadow = '0 20px 40px -8px rgba(245, 158, 11, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2)';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1) translateY(0)';
-          e.target.style.boxShadow = '0 15px 30px -8px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)';
-        }}
-      >
-        <Bell style={{ width: '24px', height: '24px', color: 'white' }} />
-        
-        {/* Badge compteur */}
-        {unreadCount > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '-6px',
-              right: '-6px',
-              minWidth: '22px',
-              height: '22px',
-              background: '#ef4444',
-              borderRadius: '11px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              fontWeight: '700',
-              color: 'white',
-              border: '2px solid white',
-              padding: '0 6px',
-              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
-            }}
+      {/* 🔒 HEADER AVEC BOUTON HAMBURGER ET NOTIFICATIONS */}
+      <div className="fixed top-0 left-0 right-0 z-[999] bg-gray-900/80 backdrop-blur-sm border-b border-gray-700/50">
+        <div className="flex items-center justify-between px-4 py-3">
+          {/* Bouton hamburger */}
+          <button
+            onClick={openMenu}
+            className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
+            <Menu className="w-6 h-6 text-white" />
+          </button>
+
+          {/* Logo central */}
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg font-bold text-white hidden sm:block">Synergia</span>
           </div>
+
+          {/* Notifications */}
+          <NotificationBell user={user} />
+        </div>
+      </div>
+
+      {/* 🍔 MENU HAMBURGER */}
+      <AnimatePresence>
+        {menuOpen && (
+          <HamburgerMenu
+            isOpen={menuOpen}
+            onClose={closeMenu}
+            navigate={navigate}
+            user={user}
+          />
         )}
-      </button>
+      </AnimatePresence>
 
-      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE + GODMOD */}
-      <HamburgerMenuStable 
-        isOpen={menuOpen} 
-        onClose={closeMenu}
-        navigateFunction={navigateFunction}
-        userEmail={user?.email}
-      />
-
-      {/* 🔔 CENTRE DE NOTIFICATIONS */}
-      <NotificationCenter
-        isOpen={notifOpen}
-        onClose={() => setNotifOpen(false)}
-        notifications={notifications}
-        onMarkAsRead={handleMarkAsRead}
-        onMarkAllAsRead={handleMarkAllAsRead}
-        onDelete={handleDeleteNotification}
-        onNavigate={navigateFunction}
-      />
-
-      {/* CONTENU */}
-      <main style={{ minHeight: '100vh', paddingTop: '20px' }}>
+      {/* 📄 CONTENU PRINCIPAL */}
+      <main className="pt-20 pb-6">
         {children}
       </main>
     </div>
   );
 });
-
-// Noms pour React DevTools
-Layout.displayName = 'Layout';
-HamburgerMenuStable.displayName = 'HamburgerMenuStable';
-NotificationCenter.displayName = 'NotificationCenter';
 
 export default Layout;
