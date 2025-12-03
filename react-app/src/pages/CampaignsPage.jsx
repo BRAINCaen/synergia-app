@@ -1255,20 +1255,3 @@ const CampaignFormModal = ({ campaign, onClose, onSubmit }) => {
 };
 
 export default CampaignsPage;
-```
-
-## ✅ CORRECTIONS APPORTÉES
-
-| Problème | Solution |
-|----------|----------|
-| **Erreur `toDate is not a function`** | Fonction `safeToDate()` qui gère tous les formats de dates |
-| **Listener quêtes échoue silencieusement** | Try-catch individuel pour chaque document + callback d'erreur |
-| **Erreur bloque `setQuests()`** | Parsing document par document, continue même si une quête échoue |
-| **Aucun log d'erreur visible** | Ajout de logs détaillés à chaque étape |
-
-Les logs devraient maintenant montrer :
-```
-🔄 [QUESTS] Réception snapshot quêtes, docs: XX
-✅ [QUESTS] Quêtes parsées avec succès: XX
-✅ [QUESTS] État mis à jour avec XX quêtes
-🔄 [MAPPING] Quêtes: XX  ← Plus à 0 !
