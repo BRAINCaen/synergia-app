@@ -229,6 +229,24 @@ const RewardsPage = () => {
   };
 
   // ==========================================
+  // ✅ CALCUL CORRECT DES XP DÉPENSABLES
+  // Si spendableXp est négatif ou absent, utiliser totalXp
+  // ==========================================
+
+  const getSpendableXP = () => {
+    const rawSpendableXP = userProfile?.gamification?.spendableXp;
+    const totalXP = userProfile?.gamification?.totalXp || 0;
+    
+    // Si spendableXp n'existe pas, est undefined, ou est négatif → utiliser totalXp
+    if (rawSpendableXP === undefined || rawSpendableXP === null || rawSpendableXP < 0) {
+      console.log('⚠️ [RewardsPage] spendableXp invalide (' + rawSpendableXP + '), utilisation de totalXp:', totalXP);
+      return totalXP;
+    }
+    
+    return rawSpendableXP;
+  };
+
+  // ==========================================
   // 🎁 DEMANDER UNE RÉCOMPENSE
   // ✅ Vérification avec spendableXp pour récompenses individuelles
   // ==========================================
@@ -240,7 +258,7 @@ const RewardsPage = () => {
     }
 
     // ✅ SYSTÈME 2 COMPTEURS : utiliser spendableXp pour les achats individuels
-    const userSpendableXP = userProfile?.gamification?.spendableXp || userProfile?.gamification?.totalXp || 0;
+    const userSpendableXP = getSpendableXP();
     const userTotalXP = userProfile?.gamification?.totalXp || 0;
     const requiredXP = reward.type === 'team' ? teamPoolXP : userSpendableXP;
 
@@ -490,9 +508,9 @@ const RewardsPage = () => {
     );
   }
 
-  // ✅ SYSTÈME 2 COMPTEURS : récupérer les 2 valeurs
+  // ✅ SYSTÈME 2 COMPTEURS : récupérer les valeurs CORRECTES
   const userTotalXP = userProfile?.gamification?.totalXp || 0;
-  const userSpendableXP = userProfile?.gamification?.spendableXp || userProfile?.gamification?.totalXp || 0;
+  const userSpendableXP = getSpendableXP(); // ✅ UTILISE LA FONCTION CORRIGÉE
   const totalSpentXP = userProfile?.gamification?.totalSpentXp || 0;
 
   return (
@@ -524,7 +542,7 @@ const RewardsPage = () => {
               </div>
             </div>
 
-            {/* XP Dépensables (achats) */}
+            {/* XP Dépensables (achats) - ✅ AFFICHE LE MONTANT RESTANT */}
             <div className="bg-white/10 backdrop-blur-lg border border-green-400/30 p-6 rounded-xl">
               <div className="flex items-center gap-3">
                 <ShoppingCart className="w-8 h-8 text-green-400" />
@@ -667,8 +685,9 @@ const RewardsPage = () => {
           {/* 🏆 GRILLE DES RÉCOMPENSES */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRewards.map((reward) => {
-              // ✅ SYSTÈME 2 COMPTEURS : utiliser spendableXp pour les achats individuels
-              const requiredXP = reward.type === 'team' ? teamPoolXP : userSpendableXP;
+              // ✅ SYSTÈME 2 COMPTEURS : utiliser la fonction corrigée
+              const currentSpendableXP = getSpendableXP();
+              const requiredXP = reward.type === 'team' ? teamPoolXP : currentSpendableXP;
               const canAfford = requiredXP >= reward.xpCost;
               
               return (
