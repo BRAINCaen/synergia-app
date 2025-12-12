@@ -230,30 +230,18 @@ const RewardsPage = () => {
 
   // ==========================================
   // ✅ CALCUL CORRECT DES XP DÉPENSABLES
-  // Si spendableXp est négatif = montant dépensé → calculer le solde
+  // Formule fiable : totalXp - totalSpentXp
   // ==========================================
 
   const getSpendableXP = () => {
-    const rawSpendableXP = userProfile?.gamification?.spendableXp;
     const totalXP = userProfile?.gamification?.totalXp || 0;
+    const totalSpentXP = userProfile?.gamification?.totalSpentXp || 0;
     
-    // Si spendableXp n'existe pas → utiliser totalXp (aucune dépense encore)
-    if (rawSpendableXP === undefined || rawSpendableXP === null) {
-      console.log('⚠️ [RewardsPage] spendableXp non défini, utilisation de totalXp:', totalXP);
-      return totalXP;
-    }
+    // ✅ CALCUL FIABLE : XP gagnés - XP dépensés = XP restants
+    const soldeRestant = totalXP - totalSpentXP;
+    console.log(`✅ [RewardsPage] Calcul XP dépensables: ${totalXP} - ${totalSpentXP} = ${soldeRestant}`);
     
-    // ✅ Si spendableXp est NÉGATIF → c'est le montant dépensé
-    // Calcul du solde restant : totalXp + spendableXp (car négatif)
-    // Exemple : 2058 + (-600) = 1458 XP restants
-    if (rawSpendableXP < 0) {
-      const soldeRestant = totalXP + rawSpendableXP;
-      console.log(`✅ [RewardsPage] Calcul solde: ${totalXP} + (${rawSpendableXP}) = ${soldeRestant} XP dépensables`);
-      return Math.max(0, soldeRestant); // Ne pas retourner de valeur négative
-    }
-    
-    // Sinon, spendableXp contient déjà le solde restant
-    return rawSpendableXP;
+    return Math.max(0, soldeRestant); // Ne pas retourner de valeur négative
   };
 
   // ==========================================
