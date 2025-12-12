@@ -2,6 +2,7 @@
 // 📁 react-app/src/pages/AdminTaskValidationPage.jsx
 // VRAIE PAGE DE VALIDATION DES QUÊTES - FIREBASE + CHARTE SYNERGIA
 // ✅ CORRIGÉ : AFFICHAGE PREUVES (COMMENTAIRES, PHOTOS, VIDÉOS) DANS LE MODAL
+// ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
 // ==========================================
 
 console.log('🔄 [AdminValidationQuêtes] Rechargé à:', new Date().toLocaleTimeString());
@@ -100,6 +101,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend }) => {
 
 /**
  * 🛡️ VRAIE PAGE DE VALIDATION DES QUÊTES
+ * ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
  */
 const AdminTaskValidationPage = () => {
   const { user } = useAuthStore();
@@ -301,6 +303,7 @@ const AdminTaskValidationPage = () => {
 
   /**
    * ✅ VALIDER UNE QUÊTE
+   * ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
    */
   const handleValidate = async () => {
     if (!selectedQuest) return;
@@ -321,8 +324,9 @@ const AdminTaskValidationPage = () => {
         validationStatus: 'approved'
       });
       
-      // 2. Attribuer les XP à l'utilisateur
+      // 2. Attribuer les XP à l'utilisateur (SYSTÈME 2 COMPTEURS)
       let newTotalXP = 0;
+      let newSpendableXP = 0;
       let newLevel = 1;
       let userEmail = '';
       
@@ -336,20 +340,28 @@ const AdminTaskValidationPage = () => {
           userEmail = userData.email || '';
           
           const currentXP = gamification.totalXp || 0;
+          const currentSpendableXP = gamification.spendableXp || currentXP;
           newTotalXP = currentXP + xpToAdd;
+          newSpendableXP = currentSpendableXP + xpToAdd;
           newLevel = Math.floor(newTotalXP / 100) + 1;
           const currentTasksCompleted = gamification.tasksCompleted || 0;
           
-          console.log(`🎯 Attribution XP:`, {
+          console.log(`🎯 Attribution XP (2 compteurs):`, {
             odot,
             currentXP,
+            currentSpendableXP,
             xpToAdd,
             newTotalXP,
+            newSpendableXP,
             newLevel
           });
           
+          // ✅ MISE À JOUR AVEC LES 2 COMPTEURS
           await updateDoc(userRef, {
+            // ✅ XP DE PRESTIGE (classements, niveaux) - NE DIMINUE JAMAIS
             'gamification.totalXp': newTotalXP,
+            // ✅ XP DÉPENSABLES (récompenses) - SE DÉDUIT À L'ACHAT
+            'gamification.spendableXp': newSpendableXP,
             'gamification.level': newLevel,
             'gamification.tasksCompleted': currentTasksCompleted + 1,
             'gamification.weeklyXp': (gamification.weeklyXp || 0) + xpToAdd,
@@ -369,8 +381,8 @@ const AdminTaskValidationPage = () => {
             updatedAt: serverTimestamp()
           });
           
-          console.log(`💎 ${xpToAdd} XP attribués à ${odot}`);
-          console.log(`✅ Nouveau total: ${newTotalXP} XP (Niveau ${newLevel})`);
+          console.log(`💎 ${xpToAdd} XP attribués à ${odot} (totalXp + spendableXp)`);
+          console.log(`✅ Nouveau total: ${newTotalXP} XP prestige, ${newSpendableXP} XP dépensables (Niveau ${newLevel})`);
         }
       }
       
@@ -409,6 +421,7 @@ const AdminTaskValidationPage = () => {
           userEmail: userEmail,
           gamificationData: {
             totalXp: newTotalXP,
+            spendableXp: newSpendableXP,
             level: newLevel
           },
           timestamp: new Date().toISOString()
@@ -543,6 +556,7 @@ const AdminTaskValidationPage = () => {
 
   /**
    * 💎 FORCER L'ATTRIBUTION DES XP
+   * ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
    */
   const handleForceXp = async () => {
     if (!selectedQuest || !editedXp) return;
@@ -568,20 +582,28 @@ const AdminTaskValidationPage = () => {
         const userEmail = userData.email || '';
         
         const currentXP = gamification.totalXp || 0;
+        const currentSpendableXP = gamification.spendableXp || currentXP;
         const xpToAdd = parseInt(editedXp);
         const newTotalXP = currentXP + xpToAdd;
+        const newSpendableXP = currentSpendableXP + xpToAdd;
         const newLevel = Math.floor(newTotalXP / 100) + 1;
         
-        console.log(`🎯 Force XP:`, {
+        console.log(`🎯 Force XP (2 compteurs):`, {
           odot,
           currentXP,
+          currentSpendableXP,
           xpToAdd,
           newTotalXP,
+          newSpendableXP,
           newLevel
         });
         
+        // ✅ MISE À JOUR AVEC LES 2 COMPTEURS
         await updateDoc(userRef, {
+          // ✅ XP DE PRESTIGE (classements, niveaux) - NE DIMINUE JAMAIS
           'gamification.totalXp': newTotalXP,
+          // ✅ XP DÉPENSABLES (récompenses) - SE DÉDUIT À L'ACHAT
+          'gamification.spendableXp': newSpendableXP,
           'gamification.level': newLevel,
           'gamification.weeklyXp': (gamification.weeklyXp || 0) + xpToAdd,
           'gamification.monthlyXp': (gamification.monthlyXp || 0) + xpToAdd,
@@ -626,6 +648,11 @@ const AdminTaskValidationPage = () => {
             xpGained: xpToAdd,
             source: 'admin_force_xp',
             userEmail: userEmail,
+            gamificationData: {
+              totalXp: newTotalXP,
+              spendableXp: newSpendableXP,
+              level: newLevel
+            },
             timestamp: new Date().toISOString()
           }
         });
@@ -647,12 +674,12 @@ const AdminTaskValidationPage = () => {
           console.warn('⚠️ Erreur contribution pool:', poolError);
         }
         
-        alert(`✅ ${xpToAdd} XP attribués avec succès !`);
+        alert(`✅ ${xpToAdd} XP attribués avec succès !\n\n💎 XP Prestige: ${newTotalXP}\n🛒 XP Dépensables: ${newSpendableXP}`);
         setShowForceXpModal(false);
         setEditedXp(0);
         await loadValidatedQuests();
         
-        console.log(`💎 ${xpToAdd} XP forcés pour ${odot}`);
+        console.log(`💎 ${xpToAdd} XP forcés pour ${odot} (totalXp + spendableXp)`);
       } else {
         alert('❌ Utilisateur introuvable');
       }
@@ -716,7 +743,7 @@ const AdminTaskValidationPage = () => {
                   🛡️ Validation des Quêtes
                 </h1>
                 <p className="text-gray-400 text-lg">
-                  Validez les quêtes terminées et attribuez les XP • Connecté en tant que <span className="text-white font-semibold">{user?.displayName || user?.email}</span>
+                  Validez les quêtes terminées et attribuez les XP (système 2 compteurs) • Connecté en tant que <span className="text-white font-semibold">{user?.displayName || user?.email}</span>
                 </p>
               </div>
               
@@ -1076,6 +1103,7 @@ const AdminTaskValidationPage = () => {
                       <div>
                         <label className="text-sm text-gray-400 mb-1 block">Récompense XP</label>
                         <p className="text-white font-bold text-xl">{selectedQuest.xpReward} XP</p>
+                        <p className="text-xs text-green-400">💎 Prestige + 🛒 Dépensables</p>
                       </div>
                       <div>
                         <label className="text-sm text-gray-400 mb-1 block">Date soumission</label>
@@ -1257,7 +1285,7 @@ const AdminTaskValidationPage = () => {
                         💎 Forcer l'Attribution d'XP
                       </h2>
                       <p className="text-gray-400">
-                        Attribuez manuellement des XP pour cette quête
+                        Attribuez manuellement des XP pour cette quête (2 compteurs)
                       </p>
                     </div>
                     <button
@@ -1294,6 +1322,9 @@ const AdminTaskValidationPage = () => {
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         XP de base de la quête : {selectedQuest.xpReward} XP
+                      </p>
+                      <p className="text-xs text-green-400 mt-1">
+                        💎 Les XP seront ajoutés aux 2 compteurs : Prestige + Dépensables
                       </p>
                     </div>
                   </div>
