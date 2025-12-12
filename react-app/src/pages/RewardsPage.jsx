@@ -230,19 +230,29 @@ const RewardsPage = () => {
 
   // ==========================================
   // ✅ CALCUL CORRECT DES XP DÉPENSABLES
-  // Si spendableXp est négatif ou absent, utiliser totalXp
+  // Si spendableXp est négatif = montant dépensé → calculer le solde
   // ==========================================
 
   const getSpendableXP = () => {
     const rawSpendableXP = userProfile?.gamification?.spendableXp;
     const totalXP = userProfile?.gamification?.totalXp || 0;
     
-    // Si spendableXp n'existe pas, est undefined, ou est négatif → utiliser totalXp
-    if (rawSpendableXP === undefined || rawSpendableXP === null || rawSpendableXP < 0) {
-      console.log('⚠️ [RewardsPage] spendableXp invalide (' + rawSpendableXP + '), utilisation de totalXp:', totalXP);
+    // Si spendableXp n'existe pas → utiliser totalXp (aucune dépense encore)
+    if (rawSpendableXP === undefined || rawSpendableXP === null) {
+      console.log('⚠️ [RewardsPage] spendableXp non défini, utilisation de totalXp:', totalXP);
       return totalXP;
     }
     
+    // ✅ Si spendableXp est NÉGATIF → c'est le montant dépensé
+    // Calcul du solde restant : totalXp + spendableXp (car négatif)
+    // Exemple : 2058 + (-600) = 1458 XP restants
+    if (rawSpendableXP < 0) {
+      const soldeRestant = totalXP + rawSpendableXP;
+      console.log(`✅ [RewardsPage] Calcul solde: ${totalXP} + (${rawSpendableXP}) = ${soldeRestant} XP dépensables`);
+      return Math.max(0, soldeRestant); // Ne pas retourner de valeur négative
+    }
+    
+    // Sinon, spendableXp contient déjà le solde restant
     return rawSpendableXP;
   };
 
@@ -542,7 +552,7 @@ const RewardsPage = () => {
               </div>
             </div>
 
-            {/* XP Dépensables (achats) - ✅ AFFICHE LE MONTANT RESTANT */}
+            {/* XP Dépensables (achats) - ✅ AFFICHE LE SOLDE RESTANT */}
             <div className="bg-white/10 backdrop-blur-lg border border-green-400/30 p-6 rounded-xl">
               <div className="flex items-center gap-3">
                 <ShoppingCart className="w-8 h-8 text-green-400" />
