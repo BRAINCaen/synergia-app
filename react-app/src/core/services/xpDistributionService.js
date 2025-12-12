@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/core/services/xpDistributionService.js
 // SERVICE DISTRIBUTION XP - SYSTÈME 100% + 50% BONUS
+// ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
 // ==========================================
 
 import { doc, updateDoc, increment, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
@@ -11,10 +12,16 @@ import { db } from '../firebase.js';
  * 
  * RÈGLE : Quand un utilisateur gagne des XP :
  * - 100% vont sur son compte personnel (users/{uid}/gamification/totalXp)
+ * - 100% vont AUSSI sur ses XP dépensables (users/{uid}/gamification/spendableXp)
  * - 50% EN BONUS vont au pool équipe collectif (teamPool/main/totalXP)
  * 
+ * ✅ SYSTÈME 2 COMPTEURS :
+ * - totalXp : XP de PRESTIGE (classements, niveaux, profil) → NE DIMINUE JAMAIS
+ * - spendableXp : XP DÉPENSABLES (récompenses individuelles) → SE DÉDUIT À L'ACHAT
+ * 
  * EXEMPLE : 100 XP gagnés
- * → Utilisateur : +100 XP
+ * → Utilisateur totalXp : +100 XP (prestige, jamais déduit)
+ * → Utilisateur spendableXp : +100 XP (pour achats récompenses)
  * → Pool équipe : +50 XP (bonus)
  * → Total créé : 150 XP
  */
@@ -38,19 +45,23 @@ export const distributeXP = async (userId, xpAmount, source = 'unknown', sourceI
     const totalCreated = userXP + teamXP;         // Total créé dans le système
 
     console.log(`👤 [XP Distribution] XP Utilisateur: ${userXP} (100%)`);
+    console.log(`💰 [XP Distribution] XP Dépensables: ${userXP} (100%)`);
     console.log(`👥 [XP Distribution] XP Pool Équipe: ${teamXP} (bonus 50%)`);
     console.log(`📊 [XP Distribution] Total créé: ${totalCreated} XP`);
 
-    // ✅ 1. CRÉDITER L'UTILISATEUR (100%)
+    // ✅ 1. CRÉDITER L'UTILISATEUR (100% totalXp + 100% spendableXp)
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
+      // ✅ XP DE PRESTIGE (classements, niveaux) - NE DIMINUE JAMAIS
       'gamification.totalXp': increment(userXP),
+      // ✅ XP DÉPENSABLES (récompenses) - SE DÉDUIT À L'ACHAT
+      'gamification.spendableXp': increment(userXP),
       'gamification.lastXpGained': userXP,
       'gamification.lastXpSource': source,
       'gamification.lastXpDate': serverTimestamp(),
       lastActivity: serverTimestamp()
     });
-    console.log(`✅ [XP Distribution] +${userXP} XP crédités à l'utilisateur`);
+    console.log(`✅ [XP Distribution] +${userXP} XP crédités (totalXp + spendableXp)`);
 
     // ✅ 2. CRÉDITER LE POOL ÉQUIPE (50% BONUS)
     const poolRef = doc(db, 'teamPool', 'main');
@@ -93,7 +104,7 @@ export const distributeXP = async (userId, xpAmount, source = 'unknown', sourceI
 
     // ✅ 3. RÉSULTAT
     console.log(`✅ [XP Distribution] Distribution terminée avec succès`);
-    console.log(`📊 [XP Distribution] Répartition: ${userXP} XP (user) + ${teamXP} XP (pool bonus) = ${totalCreated} XP créés`);
+    console.log(`📊 [XP Distribution] Répartition: ${userXP} XP (user totalXp + spendableXp) + ${teamXP} XP (pool bonus) = ${totalCreated} XP créés`);
 
     return {
       userXP,      // XP reçus par l'utilisateur (100%)
@@ -179,11 +190,10 @@ export const initializeTeamPool = async (initialXP = 0) => {
  * 
  * // Lors de la validation d'une tâche valant 100 XP :
  * await distributeXP(userId, 100, 'task_validation', taskId);
- * // → Utilisateur : +100 XP, Pool équipe : +50 XP (total créé: 150 XP)
- * 
- * // Lors du déblocage d'un badge valant 200 XP :
- * await distributeXP(userId, 200, 'badge_unlock', badgeId);
- * // → Utilisateur : +200 XP, Pool équipe : +100 XP (total créé: 300 XP)
+ * // → Utilisateur totalXp : +100 XP (prestige, jamais déduit)
+ * // → Utilisateur spendableXp : +100 XP (pour achats)
+ * // → Pool équipe : +50 XP (bonus)
+ * // → Total créé: 150 XP
  * 
  * // Récupérer les stats du pool :
  * const stats = await getTeamPoolStats();
