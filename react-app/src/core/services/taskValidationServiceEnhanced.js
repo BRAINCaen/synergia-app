@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/core/services/taskValidationServiceEnhanced.js
 // SERVICE DE VALIDATION AVEC INTÉGRATION HISTORIQUE COMPLÈTE - SYNTAX FIX
+// ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
 // ==========================================
 
 import { 
@@ -31,6 +32,9 @@ import { taskHistoryService } from './taskHistoryService.js';
 
 /**
  * 🔄 SERVICE DE VALIDATION AVEC HISTORIQUE AUTOMATIQUE
+ * ✅ SYSTÈME 2 COMPTEURS XP :
+ * - totalXp : XP de PRESTIGE (classements, niveaux) → NE DIMINUE JAMAIS
+ * - spendableXp : XP DÉPENSABLES (récompenses) → SE DÉDUIT À L'ACHAT
  */
 class TaskValidationServiceEnhanced {
   
@@ -313,10 +317,11 @@ class TaskValidationServiceEnhanced {
 
   /**
    * 🏆 ATTRIBUER XP À UN UTILISATEUR AVEC SYNCHRONISATION COMPLÈTE
+   * ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
    */
   async awardXPToUserWithSync(userId, xpAmount, taskId, taskTitle) {
     try {
-      console.log('🏆 [XP-SYNC] Attribution XP avec synchronisation:', { userId, xpAmount, taskId });
+      console.log('🏆 [XP-SYNC] Attribution XP avec synchronisation (2 compteurs):', { userId, xpAmount, taskId });
       
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
@@ -331,12 +336,14 @@ class TaskValidationServiceEnhanced {
       
       // Calculer les nouvelles valeurs
       const currentXP = currentGamification.totalXp || 0;
+      const currentSpendableXP = currentGamification.spendableXp || 0;
       const currentLevel = currentGamification.level || 1;
       const currentTasksCompleted = currentGamification.tasksCompleted || 0;
       const currentWeeklyXp = currentGamification.weeklyXp || 0;
       const currentMonthlyXp = currentGamification.monthlyXp || 0;
 
       const newXP = currentXP + xpAmount;
+      const newSpendableXP = currentSpendableXP + xpAmount;
       const newLevel = this.calculateLevel(newXP);
       const newTasksCompleted = currentTasksCompleted + 1;
       const newWeeklyXp = currentWeeklyXp + xpAmount;
@@ -377,10 +384,12 @@ class TaskValidationServiceEnhanced {
         console.log(`🎉 [XP-SYNC] Level UP! ${currentLevel} → ${newLevel}`);
       }
 
-      // Mise à jour complète avec synchronisation
+      // ✅ Mise à jour complète avec synchronisation (SYSTÈME 2 COMPTEURS)
       const updates = {
-        // Gamification principale
+        // ✅ XP DE PRESTIGE (classements, niveaux) - NE DIMINUE JAMAIS
         'gamification.totalXp': newXP,
+        // ✅ XP DÉPENSABLES (récompenses) - SE DÉDUIT À L'ACHAT
+        'gamification.spendableXp': newSpendableXP,
         'gamification.weeklyXp': newWeeklyXp,
         'gamification.monthlyXp': newMonthlyXp,
         'gamification.level': newLevel,
@@ -410,10 +419,12 @@ class TaskValidationServiceEnhanced {
       // Effectuer la mise à jour
       await updateDoc(userRef, updates);
 
-      console.log('✅ [XP-SYNC] XP attribués avec synchronisation complète:', {
+      console.log('✅ [XP-SYNC] XP attribués avec synchronisation complète (2 compteurs):', {
         userId,
         oldXP: currentXP,
         newXP,
+        oldSpendableXP: currentSpendableXP,
+        newSpendableXP,
         xpAmount,
         oldLevel: currentLevel,
         newLevel,
@@ -423,6 +434,7 @@ class TaskValidationServiceEnhanced {
       // Notification globale pour synchronisation immédiate
       this.notifyXPUpdate(userId, {
         totalXp: newXP,
+        spendableXp: newSpendableXP,
         level: newLevel,
         tasksCompleted: newTasksCompleted,
         weeklyXp: newWeeklyXp,
@@ -435,6 +447,7 @@ class TaskValidationServiceEnhanced {
         success: true,
         xpAwarded: xpAmount,
         newTotalXp: newXP,
+        newSpendableXp: newSpendableXP,
         newLevel: newLevel,
         leveledUp: newLevel > currentLevel
       };
@@ -476,6 +489,7 @@ class TaskValidationServiceEnhanced {
     console.log('📢 [XP-SYNC] Notifications XP émises pour synchronisation:', {
       userId,
       totalXp: gamificationData.totalXp,
+      spendableXp: gamificationData.spendableXp,
       level: gamificationData.level,
       tasksCompleted: gamificationData.tasksCompleted
     });
