@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/RewardsPage.jsx
 // PAGE RÉCOMPENSES - COMPLÈTE AVEC POOL ÉQUIPE
+// ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -229,6 +230,7 @@ const RewardsPage = () => {
 
   // ==========================================
   // 🎁 DEMANDER UNE RÉCOMPENSE
+  // ✅ Vérification avec spendableXp pour récompenses individuelles
   // ==========================================
 
   const handleRequestReward = async (reward) => {
@@ -237,18 +239,23 @@ const RewardsPage = () => {
       return;
     }
 
-    const userXP = userProfile?.gamification?.totalXp || 0;
-    const requiredXP = reward.type === 'team' ? teamPoolXP : userXP;
+    // ✅ SYSTÈME 2 COMPTEURS : utiliser spendableXp pour les achats individuels
+    const userSpendableXP = userProfile?.gamification?.spendableXp || userProfile?.gamification?.totalXp || 0;
+    const userTotalXP = userProfile?.gamification?.totalXp || 0;
+    const requiredXP = reward.type === 'team' ? teamPoolXP : userSpendableXP;
 
     if (requiredXP < reward.xpCost) {
-      const source = reward.type === 'team' ? 'Pool équipe' : 'Vos XP';
-      alert(`XP insuffisants !\n${source}: ${requiredXP} XP\nRequis: ${reward.xpCost} XP\nManque: ${reward.xpCost - requiredXP} XP`);
+      if (reward.type === 'team') {
+        alert(`XP insuffisants !\nPool équipe: ${teamPoolXP} XP\nRequis: ${reward.xpCost} XP\nManque: ${reward.xpCost - teamPoolXP} XP`);
+      } else {
+        alert(`XP dépensables insuffisants !\n\n🛒 XP dépensables: ${userSpendableXP} XP\nRequis: ${reward.xpCost} XP\nManque: ${reward.xpCost - userSpendableXP} XP\n\n💎 Vos XP de prestige (${userTotalXP} XP) restent intacts pour les classements !`);
+      }
       return;
     }
 
     const confirmMsg = reward.type === 'team'
       ? `Demander ${reward.name} pour ${reward.xpCost} XP du pool équipe ?`
-      : `Demander ${reward.name} pour ${reward.xpCost} de vos XP ?`;
+      : `Demander ${reward.name} pour ${reward.xpCost} de vos XP dépensables ?\n\n💡 Vos XP de prestige (${userTotalXP} XP) resteront intacts !`;
 
     if (!confirm(confirmMsg)) return;
 
@@ -264,19 +271,21 @@ const RewardsPage = () => {
         status: 'pending',
         requestedAt: serverTimestamp()
       });
-// 🔔 NOTIFIER LES ADMINS
-try {
-  await notificationService.notifyRewardRequestPending({
-    rewardId: reward.id,
-    rewardName: reward.name,
-    userId: user.uid,
-    userName: user.displayName || user.email,
-    xpCost: reward.xpCost
-  });
-  console.log('🔔 [NOTIF] Admins notifiés de la demande de récompense');
-} catch (notifError) {
-  console.warn('⚠️ [NOTIF] Erreur notification admins:', notifError);
-}
+
+      // 🔔 NOTIFIER LES ADMINS
+      try {
+        await notificationService.notifyRewardRequestPending({
+          rewardId: reward.id,
+          rewardName: reward.name,
+          userId: user.uid,
+          userName: user.displayName || user.email,
+          xpCost: reward.xpCost
+        });
+        console.log('🔔 [NOTIF] Admins notifiés de la demande de récompense');
+      } catch (notifError) {
+        console.warn('⚠️ [NOTIF] Erreur notification admins:', notifError);
+      }
+
       alert('✅ Demande envoyée ! Un admin va la valider.');
       loadAllData();
     } catch (error) {
@@ -481,7 +490,10 @@ try {
     );
   }
 
-  const userXP = userProfile?.gamification?.totalXp || 0;
+  // ✅ SYSTÈME 2 COMPTEURS : récupérer les 2 valeurs
+  const userTotalXP = userProfile?.gamification?.totalXp || 0;
+  const userSpendableXP = userProfile?.gamification?.spendableXp || userProfile?.gamification?.totalXp || 0;
+  const totalSpentXP = userProfile?.gamification?.totalSpentXp || 0;
 
   return (
     <Layout>
@@ -498,37 +510,72 @@ try {
             </p>
           </div>
 
-          {/* 📊 STATISTIQUES */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+          {/* ✅ 📊 STATISTIQUES - SYSTÈME 2 COMPTEURS */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {/* XP de Prestige (classements) */}
+            <div className="bg-white/10 backdrop-blur-lg border border-yellow-400/30 p-6 rounded-xl">
               <div className="flex items-center gap-3">
-                <User className="w-8 h-8 text-blue-400" />
+                <Trophy className="w-8 h-8 text-yellow-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">Mes XP</p>
-                  <p className="text-2xl font-bold text-white">{userXP.toLocaleString()}</p>
-                  <p className="text-xs text-blue-400">Pour récompenses perso</p>
+                  <p className="text-gray-400 font-semibold">💎 XP Prestige</p>
+                  <p className="text-2xl font-bold text-white">{userTotalXP.toLocaleString()}</p>
+                  <p className="text-xs text-yellow-400">Classements & niveaux</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+            {/* XP Dépensables (achats) */}
+            <div className="bg-white/10 backdrop-blur-lg border border-green-400/30 p-6 rounded-xl">
+              <div className="flex items-center gap-3">
+                <ShoppingCart className="w-8 h-8 text-green-400" />
+                <div>
+                  <p className="text-gray-400 font-semibold">🛒 XP Dépensables</p>
+                  <p className="text-2xl font-bold text-white">{userSpendableXP.toLocaleString()}</p>
+                  <p className="text-xs text-green-400">Pour récompenses perso</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pool Équipe */}
+            <div className="bg-white/10 backdrop-blur-lg border border-purple-400/30 p-6 rounded-xl">
               <div className="flex items-center gap-3">
                 <Users className="w-8 h-8 text-purple-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">Pool Équipe</p>
+                  <p className="text-gray-400 font-semibold">👥 Pool Équipe</p>
                   <p className="text-2xl font-bold text-white">{teamPoolXP.toLocaleString()}</p>
                   <p className="text-xs text-purple-400">🎁 Cagnotte collective</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+            {/* Demandes en cours */}
+            <div className="bg-white/10 backdrop-blur-lg border border-blue-400/30 p-6 rounded-xl">
               <div className="flex items-center gap-3">
-                <ShoppingCart className="w-8 h-8 text-green-400" />
+                <Clock className="w-8 h-8 text-blue-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">Demandes en cours</p>
+                  <p className="text-gray-400 font-semibold">Demandes</p>
                   <p className="text-2xl font-bold text-white">{userRewards.filter(r => r.status === 'pending').length}</p>
+                  <p className="text-xs text-blue-400">En attente</p>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ✅ INFO SYSTÈME 2 COMPTEURS */}
+          <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-xl p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-gray-300">
+                <p className="font-semibold text-blue-400 mb-1">💡 Système XP intelligent</p>
+                <p>
+                  <span className="text-yellow-400">💎 XP Prestige</span> : Vos efforts restent visibles dans les classements, niveaux et profil - <strong>ne diminuent jamais</strong>.
+                </p>
+                <p>
+                  <span className="text-green-400">🛒 XP Dépensables</span> : Utilisables pour acheter des récompenses individuelles - <strong>se déduisent à l'achat</strong>.
+                </p>
+                <p>
+                  <span className="text-purple-400">👥 Pool Équipe</span> : Cagnotte collective pour les récompenses d'équipe.
+                </p>
               </div>
             </div>
           </div>
@@ -620,7 +667,8 @@ try {
           {/* 🏆 GRILLE DES RÉCOMPENSES */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRewards.map((reward) => {
-              const requiredXP = reward.type === 'team' ? teamPoolXP : userXP;
+              // ✅ SYSTÈME 2 COMPTEURS : utiliser spendableXp pour les achats individuels
+              const requiredXP = reward.type === 'team' ? teamPoolXP : userSpendableXP;
               const canAfford = requiredXP >= reward.xpCost;
               
               return (
