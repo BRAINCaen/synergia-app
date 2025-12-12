@@ -1,6 +1,7 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminRewardsPage.jsx
 // PAGE ADMIN RÉCOMPENSES - POOL ÉQUIPE CORRECT
+// ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -106,6 +107,7 @@ const DEFAULT_TEAM_REWARDS = [
 
 /**
  * 👑 PAGE ADMIN RÉCOMPENSES - POOL ÉQUIPE CORRECT
+ * ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
  */
 const AdminRewardsPage = () => {
   const { user } = useAuthStore();
@@ -258,7 +260,11 @@ const AdminRewardsPage = () => {
             userData,
             userName: userData?.profile?.displayName || userData?.email?.split('@')[0] || 'Utilisateur inconnu',
             userEmail: userData?.email || 'Email inconnu',
-            userXP: userData?.gamification?.totalXp || 0
+            // ✅ RÉCUPÉRER LES 2 COMPTEURS XP
+            userTotalXP: userData?.gamification?.totalXp || 0,
+            userSpendableXP: userData?.gamification?.spendableXp || userData?.gamification?.totalXp || 0,
+            // Garder userXP pour compatibilité (maintenant c'est spendableXp)
+            userXP: userData?.gamification?.spendableXp || userData?.gamification?.totalXp || 0
           });
         } catch (error) {
           console.error('❌ Erreur récupération utilisateur:', error);
@@ -323,6 +329,7 @@ const AdminRewardsPage = () => {
 
   /**
    * ✅ APPROUVER UNE DEMANDE
+   * ✅ SYSTÈME 2 COMPTEURS : Déduire de spendableXp (pas totalXp) pour individuel
    */
   const handleApprove = async (request) => {
     try {
@@ -338,9 +345,9 @@ const AdminRewardsPage = () => {
           return;
         }
       } else {
-        // Récompense INDIVIDUELLE → vérifier XP utilisateur
-        if (request.userXP < rewardDetails.xpCost) {
-          alert(`❌ XP utilisateur insuffisants !\nDisponible: ${request.userXP} XP\nRequis: ${rewardDetails.xpCost} XP`);
+        // ✅ Récompense INDIVIDUELLE → vérifier spendableXp (XP dépensables)
+        if (request.userSpendableXP < rewardDetails.xpCost) {
+          alert(`❌ XP dépensables insuffisants !\nDisponible: ${request.userSpendableXP} XP\nRequis: ${rewardDetails.xpCost} XP\n\n💡 Les XP de prestige (${request.userTotalXP} XP) restent intacts pour les classements !`);
           return;
         }
       }
@@ -353,16 +360,18 @@ const AdminRewardsPage = () => {
         approvedBy: user.uid,
         adminEmail: user.email
       });
-// 🔔 NOTIFIER L'UTILISATEUR DE L'APPROBATION
-try {
-  await notificationService.notifyRewardApproved(request.userId, {
-    rewardId: request.rewardId,
-    rewardName: rewardDetails.name
-  });
-  console.log('🔔 [NOTIF] Utilisateur notifié de la récompense approuvée');
-} catch (notifError) {
-  console.warn('⚠️ [NOTIF] Erreur notification:', notifError);
-}
+
+      // 🔔 NOTIFIER L'UTILISATEUR DE L'APPROBATION
+      try {
+        await notificationService.notifyRewardApproved(request.userId, {
+          rewardId: request.rewardId,
+          rewardName: rewardDetails.name
+        });
+        console.log('🔔 [NOTIF] Utilisateur notifié de la récompense approuvée');
+      } catch (notifError) {
+        console.warn('⚠️ [NOTIF] Erreur notification:', notifError);
+      }
+
       // ✅ DÉDUIRE LES XP DU BON ENDROIT
       if (rewardDetails.type === 'team') {
         // RÉCOMPENSE ÉQUIPE → Déduire du POOL collectif
@@ -373,12 +382,15 @@ try {
           updatedAt: serverTimestamp()
         });
       } else {
-        // RÉCOMPENSE INDIVIDUELLE → Déduire de l'utilisateur SEULEMENT
-        console.log(`👤 Déduction XP INDIVIDUEL: -${rewardDetails.xpCost} XP pour ${request.userName}`);
+        // ✅ RÉCOMPENSE INDIVIDUELLE → Déduire de spendableXp SEULEMENT (pas totalXp !)
+        console.log(`👤 Déduction XP DÉPENSABLES: -${rewardDetails.xpCost} XP pour ${request.userName}`);
+        console.log(`💎 XP de prestige (totalXp) INTACTS pour les classements !`);
         const userRef = doc(db, 'users', request.userId);
         await updateDoc(userRef, {
-          'gamification.totalXp': increment(-rewardDetails.xpCost),
+          // ✅ SEULEMENT spendableXp est déduit - totalXp reste INTACT !
+          'gamification.spendableXp': increment(-rewardDetails.xpCost),
           'gamification.rewardsRedeemed': increment(1),
+          'gamification.totalSpentXp': increment(rewardDetails.xpCost),
           'gamification.lastRewardRedeemed': serverTimestamp(),
           lastActivity: serverTimestamp()
         });
@@ -390,7 +402,7 @@ try {
       const typeText = rewardDetails.type === 'team' ? '👥 ÉQUIPE' : '👤 INDIVIDUELLE';
       const sourceText = rewardDetails.type === 'team' 
         ? `Pool équipe: ${teamPoolXP} → ${teamPoolXP - rewardDetails.xpCost} XP`
-        : `XP utilisateur: ${request.userXP} → ${request.userXP - rewardDetails.xpCost} XP`;
+        : `XP dépensables: ${request.userSpendableXP} → ${request.userSpendableXP - rewardDetails.xpCost} XP\n💎 XP prestige: ${request.userTotalXP} XP (inchangés)`;
         
       alert(`✅ Récompense ${typeText} approuvée !\n\n"${rewardDetails.name}"\nPour: ${request.userName}\n\n${sourceText}`);
       
@@ -418,17 +430,19 @@ try {
         rejectionReason: rejectionReason.trim(),
         adminEmail: user.email
       });
-// 🔔 NOTIFIER L'UTILISATEUR DU REJET
-try {
-  await notificationService.notifyRewardRejected(request.userId, {
-    rewardId: request.rewardId,
-    rewardName: request.rewardName,
-    reason: rejectionReason.trim()
-  });
-  console.log('🔔 [NOTIF] Utilisateur notifié du rejet de récompense');
-} catch (notifError) {
-  console.warn('⚠️ [NOTIF] Erreur notification:', notifError);
-}
+
+      // 🔔 NOTIFIER L'UTILISATEUR DU REJET
+      try {
+        await notificationService.notifyRewardRejected(request.userId, {
+          rewardId: request.rewardId,
+          rewardName: request.rewardName,
+          reason: rejectionReason.trim()
+        });
+        console.log('🔔 [NOTIF] Utilisateur notifié du rejet de récompense');
+      } catch (notifError) {
+        console.warn('⚠️ [NOTIF] Erreur notification:', notifError);
+      }
+
       setShowModal(false);
       setSelectedRequest(null);
       setRejectionReason('');
@@ -534,7 +548,7 @@ try {
                   Administration des Récompenses
                 </h1>
                 <p className="text-gray-400 text-lg mt-2">
-                  Validation des demandes - Pool équipe sécurisé
+                  Validation des demandes - Système 2 compteurs XP (prestige + dépensables)
                 </p>
               </div>
               
@@ -641,8 +655,8 @@ try {
                   {requests.map((request) => {
                     const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon, request.type);
                     
-                    // ✅ VÉRIFICATION SELON LE TYPE
-                    const requiredXP = rewardDetails.type === 'team' ? teamPoolXP : request.userXP;
+                    // ✅ VÉRIFICATION SELON LE TYPE (spendableXp pour individuel)
+                    const requiredXP = rewardDetails.type === 'team' ? teamPoolXP : request.userSpendableXP;
                     const canAfford = requiredXP >= rewardDetails.xpCost;
 
                     return (
@@ -694,29 +708,38 @@ try {
                             </div>
                           </div>
 
-                          {/* XP Source */}
+                          {/* ✅ XP Source - Affichage 2 compteurs pour individuel */}
                           <div className={`border rounded-lg p-2 mb-4 ${
                             rewardDetails.type === 'team' 
                               ? 'bg-purple-500/10 border-purple-400/30' 
                               : 'bg-blue-500/10 border-blue-400/30'
                           }`}>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-400">
-                                {rewardDetails.type === 'team' ? '💰 Pool équipe:' : '👤 XP utilisateur:'}
-                              </span>
-                              <span className={`font-bold ${
-                                rewardDetails.type === 'team' ? 'text-purple-400' : 'text-blue-400'
-                              }`}>
-                                {requiredXP.toLocaleString()} XP
-                              </span>
-                            </div>
+                            {rewardDetails.type === 'team' ? (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-400">💰 Pool équipe:</span>
+                                <span className="font-bold text-purple-400">{requiredXP.toLocaleString()} XP</span>
+                              </div>
+                            ) : (
+                              <div className="space-y-1 text-sm">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-gray-400">💎 XP prestige:</span>
+                                  <span className="font-bold text-yellow-400">{request.userTotalXP.toLocaleString()} XP</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-gray-400">🛒 XP dépensables:</span>
+                                  <span className={`font-bold ${canAfford ? 'text-green-400' : 'text-red-400'}`}>
+                                    {request.userSpendableXP.toLocaleString()} XP
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Alerte */}
                           {!canAfford && (
                             <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-3 mb-4 flex items-center gap-2">
                               <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                              <span className="text-red-400 text-xs">XP insuffisants</span>
+                              <span className="text-red-400 text-xs">XP dépensables insuffisants</span>
                             </div>
                           )}
 
@@ -815,15 +838,20 @@ try {
                         <span className="text-gray-400">Email:</span>
                         <p className="text-white font-semibold">{selectedRequest.userEmail}</p>
                       </div>
+                      {/* ✅ AFFICHAGE 2 COMPTEURS */}
                       <div>
-                        <span className="text-gray-400">XP utilisateur:</span>
-                        <p className="text-blue-400 font-bold">{selectedRequest.userXP} XP</p>
+                        <span className="text-gray-400">💎 XP prestige:</span>
+                        <p className="text-yellow-400 font-bold">{selectedRequest.userTotalXP} XP</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">🛒 XP dépensables:</span>
+                        <p className="text-green-400 font-bold">{selectedRequest.userSpendableXP} XP</p>
                       </div>
                       <div>
                         <span className="text-gray-400">Pool équipe:</span>
                         <p className="text-purple-400 font-bold">{teamPoolXP.toLocaleString()} XP</p>
                       </div>
-                      <div className="col-span-2">
+                      <div>
                         <span className="text-gray-400">Demandée le:</span>
                         <p className="text-white">{formatDate(selectedRequest.requestedAt)}</p>
                       </div>
@@ -837,7 +865,7 @@ try {
                       <div className="flex items-center gap-2">
                         {(selectedRequest.rewardDetails.type === 'team' 
                           ? teamPoolXP >= selectedRequest.rewardDetails.xpCost
-                          : selectedRequest.userXP >= selectedRequest.rewardDetails.xpCost
+                          : selectedRequest.userSpendableXP >= selectedRequest.rewardDetails.xpCost
                         ) ? (
                           <CheckCircle className="w-5 h-5 text-green-400" />
                         ) : (
@@ -846,10 +874,15 @@ try {
                         <span className="text-sm text-gray-300">
                           {selectedRequest.rewardDetails.type === 'team' 
                             ? `Pool équipe: ${teamPoolXP.toLocaleString()} / ${selectedRequest.rewardDetails.xpCost} XP`
-                            : `XP utilisateur: ${selectedRequest.userXP} / ${selectedRequest.rewardDetails.xpCost} XP`
+                            : `XP dépensables: ${selectedRequest.userSpendableXP} / ${selectedRequest.rewardDetails.xpCost} XP`
                           }
                         </span>
                       </div>
+                      {selectedRequest.rewardDetails.type !== 'team' && (
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <span className="text-xs">💡 Les XP de prestige ({selectedRequest.userTotalXP} XP) restent intacts pour les classements</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -881,7 +914,7 @@ try {
                         disabled={
                           selectedRequest.rewardDetails.type === 'team' 
                             ? teamPoolXP < selectedRequest.rewardDetails.xpCost
-                            : selectedRequest.userXP < selectedRequest.rewardDetails.xpCost
+                            : selectedRequest.userSpendableXP < selectedRequest.rewardDetails.xpCost
                         }
                         className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                       >
