@@ -2,6 +2,7 @@
 // 📁 react-app/src/pages/AdminRewardsPage.jsx
 // PAGE ADMIN RÉCOMPENSES - POOL ÉQUIPE CORRECT
 // ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
+// ✅ CALCUL CORRIGÉ : spendableXp = totalXp - totalSpentXp
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -108,6 +109,7 @@ const DEFAULT_TEAM_REWARDS = [
 /**
  * 👑 PAGE ADMIN RÉCOMPENSES - POOL ÉQUIPE CORRECT
  * ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
+ * ✅ CALCUL CORRIGÉ : spendableXp = totalXp - totalSpentXp
  */
 const AdminRewardsPage = () => {
   const { user } = useAuthStore();
@@ -254,17 +256,26 @@ const AdminRewardsPage = () => {
           const userDoc = await getDoc(userRef);
           const userData = userDoc.exists() ? userDoc.data() : null;
 
+          // ✅ CALCUL CORRECT DES XP DÉPENSABLES : totalXp - totalSpentXp
+          const gamification = userData?.gamification || {};
+          const totalXp = gamification.totalXp || 0;
+          const totalSpentXp = gamification.totalSpentXp || 0;
+          const calculatedSpendableXp = Math.max(0, totalXp - totalSpentXp);
+          
+          console.log(`📊 [${userData?.email}] XP: total=${totalXp}, dépensé=${totalSpentXp}, restant=${calculatedSpendableXp}`);
+
           requestsWithUserData.push({
             id: requestDoc.id,
             ...requestData,
             userData,
             userName: userData?.profile?.displayName || userData?.email?.split('@')[0] || 'Utilisateur inconnu',
             userEmail: userData?.email || 'Email inconnu',
-            // ✅ RÉCUPÉRER LES 2 COMPTEURS XP
-            userTotalXP: userData?.gamification?.totalXp || 0,
-            userSpendableXP: userData?.gamification?.spendableXp || userData?.gamification?.totalXp || 0,
-            // Garder userXP pour compatibilité (maintenant c'est spendableXp)
-            userXP: userData?.gamification?.spendableXp || userData?.gamification?.totalXp || 0
+            // ✅ SYSTÈME 2 COMPTEURS - CALCUL CORRIGÉ
+            userTotalXP: totalXp,
+            userSpendableXP: calculatedSpendableXp, // ✅ CALCUL : totalXp - totalSpentXp
+            userTotalSpentXP: totalSpentXp,
+            // Garder userXP pour compatibilité
+            userXP: calculatedSpendableXp
           });
         } catch (error) {
           console.error('❌ Erreur récupération utilisateur:', error);
@@ -329,7 +340,7 @@ const AdminRewardsPage = () => {
 
   /**
    * ✅ APPROUVER UNE DEMANDE
-   * ✅ SYSTÈME 2 COMPTEURS : Déduire de spendableXp (pas totalXp) pour individuel
+   * ✅ SYSTÈME 2 COMPTEURS : Incrémenter totalSpentXp (pas toucher totalXp) pour individuel
    */
   const handleApprove = async (request) => {
     try {
@@ -345,7 +356,7 @@ const AdminRewardsPage = () => {
           return;
         }
       } else {
-        // ✅ Récompense INDIVIDUELLE → vérifier spendableXp (XP dépensables)
+        // ✅ Récompense INDIVIDUELLE → vérifier spendableXp (XP dépensables calculés)
         if (request.userSpendableXP < rewardDetails.xpCost) {
           alert(`❌ XP dépensables insuffisants !\nDisponible: ${request.userSpendableXP} XP\nRequis: ${rewardDetails.xpCost} XP\n\n💡 Les XP de prestige (${request.userTotalXP} XP) restent intacts pour les classements !`);
           return;
@@ -382,15 +393,14 @@ const AdminRewardsPage = () => {
           updatedAt: serverTimestamp()
         });
       } else {
-        // ✅ RÉCOMPENSE INDIVIDUELLE → Déduire de spendableXp SEULEMENT (pas totalXp !)
+        // ✅ RÉCOMPENSE INDIVIDUELLE → Incrémenter totalSpentXp SEULEMENT (pas toucher totalXp !)
         console.log(`👤 Déduction XP DÉPENSABLES: -${rewardDetails.xpCost} XP pour ${request.userName}`);
         console.log(`💎 XP de prestige (totalXp) INTACTS pour les classements !`);
         const userRef = doc(db, 'users', request.userId);
         await updateDoc(userRef, {
-          // ✅ SEULEMENT spendableXp est déduit - totalXp reste INTACT !
-          'gamification.spendableXp': increment(-rewardDetails.xpCost),
-          'gamification.rewardsRedeemed': increment(1),
+          // ✅ On incrémente totalSpentXp - le calcul (totalXp - totalSpentXp) donnera le bon résultat
           'gamification.totalSpentXp': increment(rewardDetails.xpCost),
+          'gamification.rewardsRedeemed': increment(1),
           'gamification.lastRewardRedeemed': serverTimestamp(),
           lastActivity: serverTimestamp()
         });
@@ -655,7 +665,7 @@ const AdminRewardsPage = () => {
                   {requests.map((request) => {
                     const rewardDetails = getRewardDetails(request.rewardId, request.rewardName, request.rewardIcon, request.type);
                     
-                    // ✅ VÉRIFICATION SELON LE TYPE (spendableXp pour individuel)
+                    // ✅ VÉRIFICATION SELON LE TYPE (spendableXp calculé pour individuel)
                     const requiredXP = rewardDetails.type === 'team' ? teamPoolXP : request.userSpendableXP;
                     const canAfford = requiredXP >= rewardDetails.xpCost;
 
