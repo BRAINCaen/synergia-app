@@ -147,10 +147,10 @@ class BoostService {
    */
   async getUserBoostsReceived(userId, limitCount = 50) {
     try {
+      // Requete sans orderBy pour eviter le besoin d'index composite
       const boostsQuery = query(
         collection(db, this.collectionName),
         where('toUserId', '==', userId),
-        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
 
@@ -164,6 +164,9 @@ class BoostService {
           createdAt: doc.data().createdAt?.toDate() || new Date()
         });
       });
+
+      // Tri cote client par date decroissante
+      boosts.sort((a, b) => b.createdAt - a.createdAt);
 
       return boosts;
 
@@ -178,10 +181,10 @@ class BoostService {
    */
   async getUserBoostsSent(userId, limitCount = 50) {
     try {
+      // Requete sans orderBy pour eviter le besoin d'index composite
       const boostsQuery = query(
         collection(db, this.collectionName),
         where('fromUserId', '==', userId),
-        orderBy('createdAt', 'desc'),
         limit(limitCount)
       );
 
@@ -195,6 +198,9 @@ class BoostService {
           createdAt: doc.data().createdAt?.toDate() || new Date()
         });
       });
+
+      // Tri cote client par date decroissante
+      boosts.sort((a, b) => b.createdAt - a.createdAt);
 
       return boosts;
 
@@ -329,10 +335,10 @@ class BoostService {
    */
   subscribeToUserBoosts(userId, callback) {
     try {
+      // Requete sans orderBy pour eviter le besoin d'index composite
       const boostsQuery = query(
         collection(db, this.collectionName),
         where('toUserId', '==', userId),
-        orderBy('createdAt', 'desc'),
         limit(20)
       );
 
@@ -345,6 +351,8 @@ class BoostService {
             createdAt: doc.data().createdAt?.toDate() || new Date()
           });
         });
+        // Tri cote client par date decroissante
+        boosts.sort((a, b) => b.createdAt - a.createdAt);
         callback(boosts);
       });
 
