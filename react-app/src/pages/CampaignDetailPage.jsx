@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   ArrowLeft,
   Users,
   Target,
@@ -31,8 +31,13 @@ import {
   Sword,
   Trophy,
   Flag,
-  Shield
+  Shield,
+  Zap
 } from 'lucide-react';
+
+// 🎯 COMPOSANTS DÉFIS
+import { ChallengeCard, ChallengeModal } from '../components/challenges';
+import { challengeService } from '../core/services/challengeService.js';
 
 // 🎯 IMPORT DU LAYOUT SYNERGIA
 import Layout from '../components/layout/Layout.jsx';
@@ -118,6 +123,10 @@ const CampaignDetailPage = () => {
   const [showLinkQuestModal, setShowLinkQuestModal] = useState(false);
   const [searchQuestTerm, setSearchQuestTerm] = useState('');
 
+  // États Défis
+  const [campaignChallenges, setCampaignChallenges] = useState([]);
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+
   // 🔥 CHARGEMENT DES DONNÉES
   useEffect(() => {
     if (!campaignId || !user?.uid) return;
@@ -180,6 +189,11 @@ const CampaignDetailPage = () => {
           ...doc.data()
         }));
         setAllQuests(allQuestsData);
+
+        // 4. Charger les défis de la campagne
+        const challenges = await challengeService.getCampaignChallenges(campaignId);
+        console.log('🎯 [CAMPAIGN-DETAIL] Defis charges:', challenges.length);
+        setCampaignChallenges(challenges);
 
       } catch (error) {
         console.error('❌ [CAMPAIGN-DETAIL] Erreur chargement:', error);
@@ -273,6 +287,127 @@ const CampaignDetailPage = () => {
     } catch (error) {
       console.error('❌ [DELETE] Erreur suppression campagne:', error);
       alert('Erreur lors de la suppression de la campagne');
+    }
+  };
+
+  // 🎯 CRÉER UN NOUVEAU DÉFI
+  const handleCreateChallenge = async (challengeData) => {
+    try {
+      console.log('🎯 [CHALLENGE] Creation defi:', challengeData);
+
+      const newChallenge = await challengeService.createChallenge({
+        ...challengeData,
+        userId: user.uid,
+        userName: user.displayName || user.email,
+        campaignId: campaignId
+      });
+
+      console.log('✅ [CHALLENGE] Defi cree:', newChallenge.id);
+
+      // Recharger les défis
+      const updatedChallenges = await challengeService.getCampaignChallenges(campaignId);
+      setCampaignChallenges(updatedChallenges);
+
+    } catch (error) {
+      console.error('❌ [CHALLENGE] Erreur creation:', error);
+      throw error;
+    }
+  };
+
+  // 📤 SOUMETTRE ACCOMPLISSEMENT D'UN DÉFI
+  const handleSubmitChallengeCompletion = async (challengeId, proof) => {
+    try {
+      console.log('📤 [CHALLENGE] Soumission accomplissement:', challengeId);
+
+      await challengeService.submitChallengeCompletion(challengeId, proof);
+
+      console.log('✅ [CHALLENGE] Accomplissement soumis');
+
+      // Recharger les défis
+      const updatedChallenges = await challengeService.getCampaignChallenges(campaignId);
+      setCampaignChallenges(updatedChallenges);
+
+    } catch (error) {
+      console.error('❌ [CHALLENGE] Erreur soumission:', error);
+      alert('Erreur lors de la soumission');
+    }
+  };
+
+  // ✅ APPROUVER UN DÉFI (Admin)
+  const handleApproveChallenge = async (challengeId) => {
+    try {
+      console.log('✅ [CHALLENGE] Approbation defi:', challengeId);
+
+      await challengeService.approveChallenge(challengeId);
+
+      console.log('✅ [CHALLENGE] Defi approuve');
+
+      // Recharger les défis
+      const updatedChallenges = await challengeService.getCampaignChallenges(campaignId);
+      setCampaignChallenges(updatedChallenges);
+
+    } catch (error) {
+      console.error('❌ [CHALLENGE] Erreur approbation:', error);
+      alert('Erreur lors de l\'approbation');
+    }
+  };
+
+  // ❌ REJETER UN DÉFI (Admin)
+  const handleRejectChallenge = async (challengeId, reason) => {
+    try {
+      console.log('❌ [CHALLENGE] Rejet defi:', challengeId);
+
+      await challengeService.rejectChallenge(challengeId, reason);
+
+      console.log('✅ [CHALLENGE] Defi rejete');
+
+      // Recharger les défis
+      const updatedChallenges = await challengeService.getCampaignChallenges(campaignId);
+      setCampaignChallenges(updatedChallenges);
+
+    } catch (error) {
+      console.error('❌ [CHALLENGE] Erreur rejet:', error);
+      alert('Erreur lors du rejet');
+    }
+  };
+
+  // 🏆 VALIDER ACCOMPLISSEMENT D'UN DÉFI (Admin)
+  const handleValidateChallenge = async (challengeId) => {
+    try {
+      console.log('🏆 [CHALLENGE] Validation defi:', challengeId);
+
+      await challengeService.validateChallengeCompletion(challengeId, user.uid);
+
+      console.log('✅ [CHALLENGE] Defi valide - XP attribue');
+
+      // Recharger les défis
+      const updatedChallenges = await challengeService.getCampaignChallenges(campaignId);
+      setCampaignChallenges(updatedChallenges);
+
+    } catch (error) {
+      console.error('❌ [CHALLENGE] Erreur validation:', error);
+      alert('Erreur lors de la validation');
+    }
+  };
+
+  // 🗑️ SUPPRIMER UN DÉFI
+  const handleDeleteChallenge = async (challengeId) => {
+    if (!confirm('Supprimer ce defi ?')) return;
+
+    try {
+      console.log('🗑️ [CHALLENGE] Suppression defi:', challengeId);
+
+      await challengeService.deleteChallenge(challengeId);
+
+      console.log('✅ [CHALLENGE] Defi supprime');
+
+      // Recharger les défis
+      const updatedChallenges = await challengeService.getCampaignChallenges(campaignId);
+      setCampaignChallenges(updatedChallenges);
+
+    } catch (error) {
+      console.error('❌ [CHALLENGE] Erreur suppression:', error);
+      alert('Erreur lors de la suppression');
     }
   };
 
@@ -491,6 +626,17 @@ const CampaignDetailPage = () => {
               <Shield className="h-4 w-4 inline mr-2" />
               Équipe
             </button>
+            <button
+              onClick={() => setActiveTab('challenges')}
+              className={`px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
+                activeTab === 'challenges'
+                  ? 'border-purple-500 text-purple-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <Zap className="h-4 w-4 inline mr-2" />
+              Défis ({campaignChallenges.length})
+            </button>
           </div>
 
           {/* 📊 CONTENU DES ONGLETS */}
@@ -671,7 +817,7 @@ const CampaignDetailPage = () => {
 
             {/* Onglet Équipe */}
             {activeTab === 'team' && (
-              <motion.div 
+              <motion.div
                 className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -685,6 +831,86 @@ const CampaignDetailPage = () => {
                   <p className="text-gray-400">Fonctionnalité de gestion d'équipe à venir</p>
                 </div>
               </motion.div>
+            )}
+
+            {/* 🎯 Onglet Défis */}
+            {activeTab === 'challenges' && (
+              <div className="space-y-6">
+                {/* Header avec action */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                    <Zap className="h-6 w-6 text-purple-400" />
+                    Défis personnels
+                  </h3>
+                  <button
+                    onClick={() => setShowChallengeModal(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-pink-700 transition-all duration-200 flex items-center gap-2"
+                  >
+                    <Target className="h-4 w-4" />
+                    Proposer un défi
+                  </button>
+                </div>
+
+                {/* Info box */}
+                <motion.div
+                  className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex items-start gap-3">
+                    <Zap className="text-purple-400 flex-shrink-0 mt-0.5" size={18} />
+                    <div className="text-sm">
+                      <p className="text-purple-300 font-medium">Comment fonctionnent les Défis ?</p>
+                      <p className="text-purple-200/80 mt-1">
+                        Proposez un défi personnel, attendez l'approbation du Maître de Guilde,
+                        accomplissez-le, puis soumettez votre preuve pour gagner des XP !
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Liste des défis */}
+                {campaignChallenges.length === 0 ? (
+                  <motion.div
+                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Target className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">Aucun défi pour cette campagne</h4>
+                    <p className="text-gray-400 mb-6">
+                      Soyez le premier à proposer un défi personnel !
+                    </p>
+                    <button
+                      onClick={() => setShowChallengeModal(true)}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Proposer un défi
+                    </button>
+                  </motion.div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {campaignChallenges.map((challenge, index) => (
+                      <motion.div
+                        key={challenge.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <ChallengeCard
+                          challenge={challenge}
+                          onSubmitCompletion={challenge.userId === user?.uid ? handleSubmitChallengeCompletion : null}
+                          onDelete={challenge.userId === user?.uid ? handleDeleteChallenge : null}
+                          isAdmin={campaign?.createdBy === user?.uid}
+                          onApprove={handleApproveChallenge}
+                          onReject={handleRejectChallenge}
+                          onValidate={handleValidateChallenge}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -775,6 +1001,15 @@ const CampaignDetailPage = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 🎯 MODAL CRÉATION DÉFI */}
+        <ChallengeModal
+          isOpen={showChallengeModal}
+          onClose={() => setShowChallengeModal(false)}
+          onSubmit={handleCreateChallenge}
+          campaignId={campaignId}
+          campaignTitle={campaign?.title}
+        />
       </div>
     </Layout>
   );
