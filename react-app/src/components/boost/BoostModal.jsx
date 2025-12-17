@@ -55,14 +55,16 @@ const BoostModal = ({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: 9999 }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       {/* Backdrop */}
       <motion.div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        style={{ zIndex: 9999 }}
         onClick={onClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -71,7 +73,8 @@ const BoostModal = ({
 
       {/* Modal */}
       <motion.div
-        className="relative w-full max-w-md bg-gray-900/95 rounded-2xl border border-gray-700/50 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-md bg-gray-900 rounded-2xl border border-gray-700/50 shadow-2xl overflow-hidden"
+        style={{ zIndex: 10000 }}
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
