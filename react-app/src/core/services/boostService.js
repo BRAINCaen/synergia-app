@@ -147,6 +147,7 @@ class BoostService {
    */
   async getUserBoostsReceived(userId, limitCount = 50) {
     try {
+      console.log('⚡ [BOOST] getUserBoostsReceived - userId:', userId);
       // Requete sans orderBy pour eviter le besoin d'index composite
       const boostsQuery = query(
         collection(db, this.collectionName),
@@ -155,9 +156,11 @@ class BoostService {
       );
 
       const snapshot = await getDocs(boostsQuery);
+      console.log('⚡ [BOOST] getUserBoostsReceived - snapshot size:', snapshot.size);
       const boosts = [];
 
       snapshot.forEach((doc) => {
+        console.log('⚡ [BOOST] Doc received:', doc.id, doc.data());
         boosts.push({
           id: doc.id,
           ...doc.data(),
@@ -171,7 +174,7 @@ class BoostService {
       return boosts;
 
     } catch (error) {
-      console.error('Erreur getUserBoostsReceived:', error);
+      console.error('❌ [BOOST] Erreur getUserBoostsReceived:', error);
       return [];
     }
   }
@@ -181,6 +184,7 @@ class BoostService {
    */
   async getUserBoostsSent(userId, limitCount = 50) {
     try {
+      console.log('⚡ [BOOST] getUserBoostsSent - userId:', userId);
       // Requete sans orderBy pour eviter le besoin d'index composite
       const boostsQuery = query(
         collection(db, this.collectionName),
@@ -189,9 +193,11 @@ class BoostService {
       );
 
       const snapshot = await getDocs(boostsQuery);
+      console.log('⚡ [BOOST] getUserBoostsSent - snapshot size:', snapshot.size);
       const boosts = [];
 
       snapshot.forEach((doc) => {
+        console.log('⚡ [BOOST] Doc sent:', doc.id, doc.data());
         boosts.push({
           id: doc.id,
           ...doc.data(),
@@ -205,7 +211,7 @@ class BoostService {
       return boosts;
 
     } catch (error) {
-      console.error('Erreur getUserBoostsSent:', error);
+      console.error('❌ [BOOST] Erreur getUserBoostsSent:', error);
       return [];
     }
   }

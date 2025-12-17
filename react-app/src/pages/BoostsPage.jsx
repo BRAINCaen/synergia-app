@@ -29,6 +29,7 @@ const BoostsPage = () => {
   const loadBoostData = async () => {
     if (!user?.uid) return;
 
+    console.log('📊 [BOOSTS PAGE] Chargement pour user:', user.uid);
     setLoading(true);
     try {
       const [received, sent, boostStats] = await Promise.all([
@@ -36,6 +37,10 @@ const BoostsPage = () => {
         boostService.getUserBoostsSent(user.uid, 100),
         boostService.getBoostStats(user.uid)
       ]);
+
+      console.log('📊 [BOOSTS PAGE] Received:', received.length, received);
+      console.log('📊 [BOOSTS PAGE] Sent:', sent.length, sent);
+      console.log('📊 [BOOSTS PAGE] Stats:', boostStats);
 
       setBoostsReceived(received);
       setBoostsSent(sent);
@@ -46,7 +51,7 @@ const BoostsPage = () => {
         await boostService.markAllBoostsAsRead(user.uid);
       }
     } catch (error) {
-      console.error('Erreur chargement boosts:', error);
+      console.error('❌ [BOOSTS PAGE] Erreur chargement:', error);
     } finally {
       setLoading(false);
     }
