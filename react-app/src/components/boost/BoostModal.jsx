@@ -4,6 +4,7 @@
 // ==========================================
 
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, Send, Sparkles, CheckCircle } from 'lucide-react';
 import { boostService, BOOST_TYPES } from '../../core/services/boostService';
@@ -53,18 +54,19 @@ const BoostModal = ({
 
   const boostTypes = Object.values(BOOST_TYPES);
 
-  return (
+  // Utiliser un Portal pour rendre le modal directement dans le body
+  // Cela évite les problèmes de z-index et de contexte de stacking
+  const modalContent = (
     <motion.div
       className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 9999 }}
+      style={{ zIndex: 99999 }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       {/* Backdrop */}
       <motion.div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        style={{ zIndex: 9999 }}
+        className="fixed inset-0 bg-black/80"
         onClick={onClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -73,8 +75,7 @@ const BoostModal = ({
 
       {/* Modal */}
       <motion.div
-        className="relative w-full max-w-md bg-gray-900 rounded-2xl border border-gray-700/50 shadow-2xl overflow-hidden"
-        style={{ zIndex: 10000 }}
+        className="relative w-full max-w-md bg-gray-900 rounded-2xl border border-gray-700/50 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -235,6 +236,9 @@ const BoostModal = ({
       </motion.div>
     </motion.div>
   );
+
+  // Rendre via Portal dans le body
+  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 // Vue de succes
