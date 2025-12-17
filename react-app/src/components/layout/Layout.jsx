@@ -298,7 +298,8 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/gamification', label: 'Gamification', icon: '🎮' },
       { path: '/badges', label: 'Badges', icon: '🏆' },
       { path: '/leaderboard', label: 'Classement', icon: '🥇' },
-      { path: '/rewards', label: 'Récompenses', icon: '🎁' }
+      { path: '/rewards', label: 'Recompenses', icon: '🎁' },
+      { path: '/boosts', label: 'Boosts', icon: '⚡' }
     ]},
     { section: 'ÉQUIPE', items: [
       { path: '/team', label: 'Équipe', icon: '👥' },

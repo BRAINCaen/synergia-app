@@ -31,20 +31,23 @@ const NOTIFICATION_TYPES = {
   QUEST_APPROVED: 'quest_approved',
   QUEST_REJECTED: 'quest_rejected',
   QUEST_ASSIGNED: 'quest_assigned',
-  
+
   // XP et Gamification
   XP_EARNED: 'xp_earned',
   LEVEL_UP: 'level_up',
   BADGE_EARNED: 'badge_earned',
-  
+
+  // Boosts (micro-feedback entre collègues)
+  BOOST_RECEIVED: 'boost_received',
+
   // Infos d'équipe
   NEW_INFO: 'new_info',
-  
+
   // Récompenses
   REWARD_REQUESTED: 'reward_requested',
   REWARD_APPROVED: 'reward_approved',
   REWARD_REJECTED: 'reward_rejected',
-  
+
   // Système
   SYSTEM: 'system',
   MENTION: 'mention'
@@ -509,6 +512,41 @@ class NotificationService {
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification niveau:', error);
       return { success: false };
+    }
+  }
+
+  // ==========================================
+  // ⚡ NOTIFICATIONS BOOST
+  // ==========================================
+
+  /**
+   * ⚡ NOTIFIER UN BOOST REÇU
+   */
+  async notifyBoostReceived(userId, data) {
+    try {
+      const { boostId, boostType, boostEmoji, boostLabel, fromUserName, message, xpAmount } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.BOOST_RECEIVED,
+        title: `${boostEmoji} Boost reçu !`,
+        message: `${fromUserName} vous a envoyé un Boost ${boostLabel}${message ? ` : "${message}"` : ''} (+${xpAmount} XP)`,
+        icon: boostEmoji || '⚡',
+        link: '/boosts',
+        data: {
+          boostId,
+          boostType,
+          fromUserName,
+          xpAmount
+        },
+        priority: 'high'
+      });
+
+      console.log(`⚡ [NOTIF] Utilisateur ${userId} notifié - boost reçu de ${fromUserName}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification boost:', error);
+      return { success: false, error: error.message };
     }
   }
 

@@ -19,6 +19,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { notificationService } from './notificationService.js';
 
 // Types de Boost disponibles
 export const BOOST_TYPES = {
@@ -109,6 +110,21 @@ class BoostService {
       // Ajouter l'XP aux deux utilisateurs
       await this.awardBoostXP(fromUser.uid, XP_CONFIG.given, 'Boost envoye');
       await this.awardBoostXP(toUser.uid, XP_CONFIG.received, `Boost recu: ${BOOST_TYPES[type].label}`);
+
+      // Envoyer une notification au destinataire
+      try {
+        await notificationService.notifyBoostReceived(toUser.uid, {
+          boostId: boostRef.id,
+          boostType: type,
+          boostEmoji: BOOST_TYPES[type].emoji,
+          boostLabel: BOOST_TYPES[type].label,
+          fromUserName: fromUser.displayName || fromUser.email || 'Un Aventurier',
+          message: message.trim(),
+          xpAmount: XP_CONFIG.received
+        });
+      } catch (notifError) {
+        console.warn('Erreur notification boost (non bloquante):', notifError);
+      }
 
       console.log(`Boost envoye de ${fromUser.displayName} a ${toUser.displayName} (${type})`);
 
