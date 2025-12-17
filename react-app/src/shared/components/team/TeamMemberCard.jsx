@@ -1,7 +1,8 @@
 import React from 'react';
 import { User, Award, TrendingUp, Clock } from 'lucide-react';
+import { BoostButton } from '../../../components/boost';
 
-const TeamMemberCard = ({ member }) => {
+const TeamMemberCard = ({ member, currentUser, onBoostSent }) => {
   const getLevelColor = (level) => {
     if (level >= 10) return 'text-purple-400 bg-purple-900/20';
     if (level >= 5) return 'text-blue-400 bg-blue-900/20';
@@ -73,6 +74,18 @@ const TeamMemberCard = ({ member }) => {
                 </span>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Bouton Boost - ne s'affiche que si currentUser est fourni et different du membre */}
+        {currentUser && currentUser.uid !== member.uid && (
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <BoostButton
+              targetUser={member}
+              currentUser={currentUser}
+              variant="small"
+              onBoostSent={onBoostSent}
+            />
           </div>
         )}
       </div>

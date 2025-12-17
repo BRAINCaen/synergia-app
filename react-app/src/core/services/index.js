@@ -7,6 +7,7 @@
 import AuthService from './authService.js';
 import TaskService, { taskService } from './taskService.js';
 import ProjectService, { projectService } from './projectService.js';
+import { boostService, BOOST_TYPES } from './boostService.js';
 
 // 🔧 IMPORTS CONDITIONNELS POUR SERVICES AVANCÉS
 let teamManagementService = null;
@@ -91,6 +92,7 @@ initializeAdvancedServices();
 export { default as AuthService } from './authService.js';
 export { default as TaskService, taskService } from './taskService.js';
 export { default as ProjectService, projectService } from './projectService.js';
+export { boostService, BOOST_TYPES } from './boostService.js';
 
 // Exports conditionnels des services avancés
 export const getTeamManagementService = () => teamManagementService;
@@ -149,6 +151,8 @@ export default {
   ProjectService,
   taskService,
   projectService,
+  boostService,
+  BOOST_TYPES,
   getTeamManagementService,
   getMilestoneService,
   getProjectAnalyticsService,
