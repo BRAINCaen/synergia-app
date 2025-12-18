@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { unifiedXpSyncService } from '../../core/services/unifiedXpSyncService.js';
+import { calculateLevel, getXPProgress } from '../../core/services/levelService.js';
 
 /**
  * 🎯 HOOK UNIFIÉ POUR TOUTES LES DONNÉES XP - VERSION COMPLÈTE
@@ -190,10 +191,8 @@ export const useUnifiedXP = () => {
     // Calculs de niveau
     currentLevelXp: ((gamificationData.level || 1) - 1) * 100,
     nextLevelXp: (gamificationData.level || 1) * 100,
-    xpToNextLevel: Math.max(0, (gamificationData.level || 1) * 100 - (gamificationData.totalXp || 0)),
-    levelProgress: Math.min(100, Math.max(0, 
-      (((gamificationData.totalXp || 0) % 100) / 100) * 100
-    )),
+    xpToNextLevel: getXPProgress(gamificationData.totalXp || 0).xpToNextLevel,
+    levelProgress: getXPProgress(gamificationData.totalXp || 0).progressPercent,
     
     // Historiques
     xpHistory: gamificationData.xpHistory || [],

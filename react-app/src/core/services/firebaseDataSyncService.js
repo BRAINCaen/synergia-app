@@ -4,22 +4,23 @@
 // Remplace TOUTES les données mock par de vraies données Firebase
 // ==========================================
 
-import { 
-  doc, 
-  collection, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  onSnapshot, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  doc,
+  collection,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
   limit,
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel } from './levelService.js';
 
 /**
  * 🔄 SERVICE DE SYNCHRONISATION FIREBASE COMPLET
@@ -227,8 +228,8 @@ class FirebaseDataSyncService {
       }
     }
     
-    // 3. Vérifier la cohérence des niveaux
-    const expectedLevel = Math.floor(correctedData.gamification.totalXp / 100) + 1;
+    // 3. Vérifier la cohérence des niveaux (nouveau système calibré)
+    const expectedLevel = calculateLevel(correctedData.gamification.totalXp);
     if (correctedData.gamification.level !== expectedLevel) {
       correctedData.gamification.level = expectedLevel;
       hasChanges = true;
@@ -430,7 +431,7 @@ class FirebaseDataSyncService {
       const currentXp = userData.gamification?.totalXp || 0;
       const currentLevel = userData.gamification?.level || 1;
       const newTotalXp = currentXp + xpAmount;
-      const newLevel = Math.floor(newTotalXp / 100) + 1;
+      const newLevel = calculateLevel(newTotalXp);
       
       // Préparer les mises à jour
       const updates = {

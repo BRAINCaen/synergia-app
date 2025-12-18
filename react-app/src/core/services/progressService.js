@@ -3,6 +3,8 @@
 // SERVICE DE PROGRESSION - CORRECTIF BUILD
 // ==========================================
 
+import { calculateLevel, getXPProgress } from './levelService.js';
+
 /**
  * 🛡️ SERVICE DE PROGRESSION SIMPLIFIÉ
  * Pour résoudre l'erreur de build
@@ -48,10 +50,11 @@ class ProgressService {
         version: this.version
       };
 
-      // Calculer niveau basé sur expérience
+      // Calculer niveau basé sur expérience (nouveau système calibré)
       if (updated.experience) {
-        updated.level = Math.floor(updated.experience / 100) + 1;
-        updated.experienceToNext = ((updated.level) * 100) - updated.experience;
+        updated.level = calculateLevel(updated.experience);
+        const progress = getXPProgress(updated.experience);
+        updated.experienceToNext = progress.xpToNextLevel;
       }
 
       localStorage.setItem(key, JSON.stringify(updated));
@@ -159,8 +162,9 @@ class ProgressService {
 
       const currentData = currentProgress.data;
       const newExperience = (currentData.experience || 0) + safeXP;
-      const newLevel = Math.floor(newExperience / 100) + 1;
-      const experienceToNext = (newLevel * 100) - newExperience;
+      const newLevel = calculateLevel(newExperience);
+      const progress = getXPProgress(newExperience);
+      const experienceToNext = progress.xpToNextLevel;
 
       const updateData = {
         experience: newExperience,

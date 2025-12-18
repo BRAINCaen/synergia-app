@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import globalSyncService from '../../core/services/globalSyncService.js';
+import { calculateLevel } from '../../core/services/levelService.js';
 
 /**
  * 🌐 HOOK UTILISATEUR UNIFIÉ
@@ -188,7 +189,7 @@ export const useUnifiedUser = () => {
 
     try {
       const newTotalXP = gamificationData.totalXp + xpAmount;
-      const newLevel = Math.floor(newTotalXP / 100) + 1;
+      const newLevel = calculateLevel(newTotalXP);
       const leveledUp = newLevel > gamificationData.level;
 
       // Mettre à jour XP et niveau

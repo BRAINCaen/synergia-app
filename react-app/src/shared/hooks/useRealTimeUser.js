@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { doc, onSnapshot, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 import { useAuthStore } from '../stores/authStore.js';
+import { calculateLevel } from '../../core/services/levelService.js';
 
 // Hook principal pour les données utilisateur en temps réel
 export const useRealTimeUser = () => {
@@ -199,7 +200,7 @@ export const useUpdateUser = () => {
         const currentTasksCompleted = currentData.gamification?.tasksCompleted || 0;
         
         const newTotalXP = currentXP + xpAmount;
-        const newLevel = Math.floor(newTotalXP / 100) + 1; // 100 XP par niveau
+        const newLevel = calculateLevel(newTotalXP); // Système calibré
         const leveledUp = newLevel > (currentData.gamification?.level || 1);
         
         const xpEntry = {

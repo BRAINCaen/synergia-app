@@ -59,6 +59,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { calculateLevel } from '../core/services/levelService.js';
 
 // ✅ IMPORT DU SERVICE TEAM POOL POUR CONTRIBUTION AUTOMATIQUE
 import teamPoolService from '../core/services/teamPoolService.js';
@@ -343,7 +344,7 @@ const AdminTaskValidationPage = () => {
           const currentSpendableXP = gamification.spendableXp || currentXP;
           newTotalXP = currentXP + xpToAdd;
           newSpendableXP = currentSpendableXP + xpToAdd;
-          newLevel = Math.floor(newTotalXP / 100) + 1;
+          newLevel = calculateLevel(newTotalXP);
           const currentTasksCompleted = gamification.tasksCompleted || 0;
           
           console.log(`🎯 Attribution XP (2 compteurs):`, {
@@ -586,7 +587,7 @@ const AdminTaskValidationPage = () => {
         const xpToAdd = parseInt(editedXp);
         const newTotalXP = currentXP + xpToAdd;
         const newSpendableXP = currentSpendableXP + xpToAdd;
-        const newLevel = Math.floor(newTotalXP / 100) + 1;
+        const newLevel = calculateLevel(newTotalXP);
         
         console.log(`🎯 Force XP (2 compteurs):`, {
           odot,
