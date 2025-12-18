@@ -22,6 +22,7 @@ import RewardsPage from '../pages/RewardsPage.jsx';
 import BoostsPage from '../pages/BoostsPage.jsx';
 import ChallengesPage from '../pages/ChallengesPage.jsx'; // 🎯 MODULE 10
 import ProfileCustomizationPage from '../pages/ProfileCustomizationPage.jsx'; // 🎨 MODULE 13
+import PulsePage from '../pages/PulsePage.jsx'; // 💗 MODULE PULSE
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
@@ -83,6 +84,7 @@ const AppRoutes = () => {
 
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
+        <Route path="/pulse" element={<PulsePage />} /> {/* 💗 MODULE PULSE */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<ProfilePage />} />
         <Route path="/customization" element={<ProfileCustomizationPage />} /> {/* 🎨 MODULE 13 */}
