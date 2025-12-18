@@ -21,6 +21,7 @@ import GamificationPage from '../pages/GamificationPage.jsx';
 import RewardsPage from '../pages/RewardsPage.jsx';
 import BoostsPage from '../pages/BoostsPage.jsx';
 import ChallengesPage from '../pages/ChallengesPage.jsx'; // 🎯 MODULE 10
+import ProfileCustomizationPage from '../pages/ProfileCustomizationPage.jsx'; // 🎨 MODULE 13
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
@@ -84,6 +85,7 @@ const AppRoutes = () => {
         <Route path="/team" element={<TeamPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<ProfilePage />} />
+        <Route path="/customization" element={<ProfileCustomizationPage />} /> {/* 🎨 MODULE 13 */}
         
         {/* OUTILS */}
         <Route path="/onboarding" element={<OnboardingPage />} />
