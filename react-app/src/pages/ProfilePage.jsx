@@ -55,6 +55,11 @@ import Layout from '../components/layout/Layout.jsx';
 import ProfileBadges from '../components/gamification/ProfileBadges.jsx';
 import BadgeLeaderboard from '../components/gamification/BadgeLeaderboard.jsx';
 
+// 🎖️ MODULE 4: NIVEAUX & RANGS
+import RankCard, { AllRanksDisplay } from '../components/gamification/RankCard.jsx';
+import LevelProgressCard from '../components/gamification/LevelProgressCard.jsx';
+import { calculateLevel, getLevelProgress, getRankForLevel } from '../core/services/levelService.js';
+
 // 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
 
@@ -486,36 +491,38 @@ const ProfilePage = () => {
     }));
   };
 
-  // 📊 CALCULS POUR L'AFFICHAGE
-  const level = Math.floor(userProfile.totalXp / 100) + 1;
-  const xpForNextLevel = (level * 100) - userProfile.totalXp;
-  const progressPercent = ((userProfile.totalXp % 100) / 100) * 100;
+  // 📊 CALCULS POUR L'AFFICHAGE - Nouvelle formule calibrée (Module 4)
+  const levelProgress = getLevelProgress(userProfile.totalXp);
+  const level = levelProgress.currentLevel;
+  const currentRank = getRankForLevel(level);
+  const xpForNextLevel = levelProgress.xpNeeded;
+  const progressPercent = levelProgress.progress;
 
   // 📊 STATISTIQUES HEADER
   const headerStats = [
-    { 
-      label: "XP Total", 
-      value: userProfile.totalXp.toLocaleString(), 
-      icon: Zap, 
-      color: "text-yellow-400" 
+    {
+      label: "XP Total",
+      value: userProfile.totalXp.toLocaleString(),
+      icon: Zap,
+      color: "text-yellow-400"
     },
-    { 
-      label: "Niveau", 
-      value: level, 
-      icon: Trophy, 
-      color: "text-purple-400" 
+    {
+      label: `${currentRank.icon} ${currentRank.name}`,
+      value: `Niv. ${level}`,
+      icon: Trophy,
+      color: currentRank.textColor
     },
-    { 
-      label: "Badges", 
-      value: userProfile.badges.length, 
-      icon: Award, 
-      color: "text-blue-400" 
+    {
+      label: "Badges",
+      value: userProfile.badges.length,
+      icon: Award,
+      color: "text-blue-400"
     },
-    { 
-      label: "Taux de réussite", 
-      value: `${userProfile.completionRate}%`, 
-      icon: Target, 
-      color: "text-green-400" 
+    {
+      label: "Taux de réussite",
+      value: `${userProfile.completionRate}%`,
+      icon: Target,
+      color: "text-green-400"
     }
   ];
 
@@ -764,26 +771,13 @@ const ProfilePage = () => {
                       </div>
                     )}
 
-                    {/* Progression XP */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-semibold text-white">Progression</h3>
-                        <span className="text-sm text-gray-400">
-                          Niveau {level} • {xpForNextLevel} XP pour le niveau suivant
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-3">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progressPercent}%` }}
-                          transition={{ duration: 1, ease: "easeOut" }}
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full"
-                        />
-                      </div>
-                      <p className="text-sm text-gray-400 mt-2">
-                        {userProfile.totalXp} XP au total
-                      </p>
-                    </div>
+                    {/* 🎖️ Carte de Rang (Module 4) */}
+                    <RankCard
+                      level={level}
+                      totalXP={userProfile.totalXp}
+                      showNextRank={true}
+                      className="mb-6"
+                    />
 
                     {/* Compétences */}
                     {userProfile.skills.length > 0 && (
@@ -841,30 +835,36 @@ const ProfilePage = () => {
 
                 {/* Colonne latérale - Statistiques */}
                 <div className="space-y-6">
-                  
+
+                  {/* 📈 Carte de Progression de Niveau (Module 4) */}
+                  <LevelProgressCard
+                    totalXP={userProfile.totalXp}
+                    compact={true}
+                  />
+
                   {/* Résumé des stats */}
                   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                       <BarChart3 className="w-5 h-5 text-blue-400" />
                       Statistiques
                     </h3>
-                    
+
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Tâches terminées</span>
                         <span className="text-white font-semibold">{userProfile.tasksCompleted}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Projets créés</span>
                         <span className="text-white font-semibold">{userProfile.projectsCreated}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Série actuelle</span>
                         <span className="text-yellow-400 font-semibold">{userProfile.streak} jours</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Membre depuis</span>
                         <span className="text-white font-semibold">
@@ -1134,6 +1134,26 @@ const ProfilePage = () => {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Colonne principale */}
                 <div className="lg:col-span-2 space-y-8">
+
+                  {/* 🎖️ Carte de Rang complète (Module 4) */}
+                  <RankCard
+                    level={level}
+                    totalXP={userProfile.totalXp}
+                    showNextRank={true}
+                  />
+
+                  {/* 📈 Progression de Niveau détaillée (Module 4) */}
+                  <LevelProgressCard
+                    totalXP={userProfile.totalXp}
+                    showHistory={true}
+                    xpHistory={userProfile.xpHistory || []}
+                  />
+
+                  {/* 🏆 Tous les Rangs de la Guilde (Module 4) */}
+                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                    <AllRanksDisplay currentLevel={level} />
+                  </div>
+
                   {/* Paramètres de gamification */}
                   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
                     <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
@@ -1187,6 +1207,13 @@ const ProfilePage = () => {
 
                 {/* Colonne latérale - Leaderboard */}
                 <div className="space-y-6">
+                  {/* Progression compacte */}
+                  <LevelProgressCard
+                    totalXP={userProfile.totalXp}
+                    compact={true}
+                  />
+
+                  {/* Leaderboard Badges */}
                   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
                     <BadgeLeaderboard maxUsers={10} showCurrentUser={true} />
                   </div>

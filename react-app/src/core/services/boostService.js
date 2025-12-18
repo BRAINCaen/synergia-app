@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { notificationService } from './notificationService.js';
+import { calculateLevel } from './levelService.js';
 
 // Types de Boost disponibles
 export const BOOST_TYPES = {
@@ -416,7 +417,8 @@ class BoostService {
 
       const currentXp = userSnap.data().gamification?.totalXp || 0;
       const newTotalXp = currentXp + amount;
-      const newLevel = Math.floor(newTotalXp / 100) + 1;
+      // ✅ CORRECTION: Utiliser la formule calibree de levelService
+      const newLevel = calculateLevel(newTotalXp);
 
       await updateDoc(userRef, {
         'gamification.totalXp': newTotalXp,
@@ -427,7 +429,7 @@ class BoostService {
         lastActivity: serverTimestamp()
       });
 
-      console.log(`+${amount} XP pour ${reason}`);
+      console.log(`+${amount} XP pour ${reason} (Niveau: ${newLevel})`);
 
     } catch (error) {
       console.error('Erreur awardBoostXP:', error);
