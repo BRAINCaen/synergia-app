@@ -3,10 +3,10 @@
 // Modal de selection et envoi d'un Boost
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, Send, Sparkles, CheckCircle } from 'lucide-react';
+import { X, Zap, Send, Sparkles, CheckCircle, AlertCircle } from 'lucide-react';
 import { boostService, BOOST_TYPES } from '../../core/services/boostService';
 
 const BoostModal = ({
@@ -20,6 +20,24 @@ const BoostModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [remainingBoosts, setRemainingBoosts] = useState({ remaining: 2, limit: 2, sentToday: 0 });
+  const [loadingQuota, setLoadingQuota] = useState(true);
+
+  // Charger le quota restant au montage
+  useEffect(() => {
+    const loadRemainingBoosts = async () => {
+      if (currentUser?.uid) {
+        try {
+          const quota = await boostService.getRemainingBoostsToday(currentUser.uid);
+          setRemainingBoosts(quota);
+        } catch (err) {
+          console.error('Erreur chargement quota boosts:', err);
+        }
+      }
+      setLoadingQuota(false);
+    };
+    loadRemainingBoosts();
+  }, [currentUser?.uid]);
 
   const handleSendBoost = async () => {
     if (!selectedType) return;
@@ -114,7 +132,48 @@ const BoostModal = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
+              {/* Quota journalier */}
+              {!loadingQuota && (
+                <div className={`flex items-center justify-between p-3 rounded-xl ${
+                  remainingBoosts.remaining > 0
+                    ? 'bg-blue-500/10 border border-blue-500/30'
+                    : 'bg-red-500/10 border border-red-500/30'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {remainingBoosts.remaining > 0 ? (
+                      <Zap size={18} className="text-blue-400" />
+                    ) : (
+                      <AlertCircle size={18} className="text-red-400" />
+                    )}
+                    <span className={remainingBoosts.remaining > 0 ? 'text-blue-300' : 'text-red-300'}>
+                      {remainingBoosts.remaining > 0
+                        ? `${remainingBoosts.remaining} boost${remainingBoosts.remaining > 1 ? 's' : ''} restant${remainingBoosts.remaining > 1 ? 's' : ''} aujourd'hui`
+                        : 'Limite quotidienne atteinte'
+                      }
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {remainingBoosts.sentToday}/{remainingBoosts.limit} utilisés
+                  </span>
+                </div>
+              )}
+
+              {/* Message limite atteinte */}
+              {!loadingQuota && remainingBoosts.remaining <= 0 && (
+                <div className="text-center py-6">
+                  <div className="text-4xl mb-3">⏰</div>
+                  <p className="text-gray-400">
+                    Tu as déjà envoyé {remainingBoosts.limit} boosts aujourd'hui.
+                  </p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Reviens demain pour encourager tes collègues !
+                  </p>
+                </div>
+              )}
+
               {/* Selection du type */}
+              {remainingBoosts.remaining > 0 && (
+              <>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-3">
                   Choisissez le type de Boost
@@ -230,6 +289,8 @@ const BoostModal = ({
                   </>
                 )}
               </motion.button>
+              </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

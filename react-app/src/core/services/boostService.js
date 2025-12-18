@@ -60,10 +60,57 @@ const XP_CONFIG = {
   given: 2      // XP pour le donneur (encourager les boosts)
 };
 
+// Limite quotidienne de boosts
+const DAILY_BOOST_LIMIT = 2;
+
 class BoostService {
   constructor() {
     this.listeners = new Map();
     this.collectionName = 'boosts';
+  }
+
+  /**
+   * Compter les boosts envoyés aujourd'hui par un utilisateur
+   */
+  async getBoostsSentToday(userId) {
+    try {
+      // Obtenir le début de la journée actuelle (minuit)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const boostsQuery = query(
+        collection(db, this.collectionName),
+        where('fromUserId', '==', userId)
+      );
+
+      const snapshot = await getDocs(boostsQuery);
+      let todayCount = 0;
+
+      snapshot.forEach((doc) => {
+        const boostData = doc.data();
+        const createdAt = boostData.createdAt?.toDate();
+        if (createdAt && createdAt >= today) {
+          todayCount++;
+        }
+      });
+
+      return todayCount;
+    } catch (error) {
+      console.error('Erreur getBoostsSentToday:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Obtenir le nombre de boosts restants aujourd'hui
+   */
+  async getRemainingBoostsToday(userId) {
+    const sentToday = await this.getBoostsSentToday(userId);
+    return {
+      remaining: Math.max(0, DAILY_BOOST_LIMIT - sentToday),
+      limit: DAILY_BOOST_LIMIT,
+      sentToday
+    };
   }
 
   /**
@@ -82,6 +129,12 @@ class BoostService {
 
       if (!BOOST_TYPES[type]) {
         throw new Error('Type de Boost invalide');
+      }
+
+      // Vérifier la limite quotidienne
+      const { remaining } = await this.getRemainingBoostsToday(fromUser.uid);
+      if (remaining <= 0) {
+        throw new Error('Limite quotidienne atteinte (2 boosts/jour). Revenez demain !');
       }
 
       // Creer le document Boost
