@@ -32,7 +32,11 @@ import {
   Trophy,
   Flag,
   Shield,
-  Zap
+  Zap,
+  UserPlus,
+  UserMinus,
+  Crown,
+  Award
 } from 'lucide-react';
 
 // 🎯 COMPOSANTS DÉFIS
@@ -127,6 +131,13 @@ const CampaignDetailPage = () => {
   const [campaignChallenges, setCampaignChallenges] = useState([]);
   const [showChallengeModal, setShowChallengeModal] = useState(false);
 
+  // 👥 États Équipe
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [searchMemberTerm, setSearchMemberTerm] = useState('');
+  const [memberContributions, setMemberContributions] = useState({});
+
   // 🔥 CHARGEMENT DES DONNÉES
   useEffect(() => {
     if (!campaignId || !user?.uid) return;
@@ -195,6 +206,15 @@ const CampaignDetailPage = () => {
         console.log('🎯 [CAMPAIGN-DETAIL] Defis charges:', challenges.length);
         setCampaignChallenges(challenges);
 
+        // 5. Charger tous les utilisateurs pour l'équipe
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const usersData = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        console.log('👥 [CAMPAIGN-DETAIL] Utilisateurs chargés:', usersData.length);
+        setAllUsers(usersData);
+
       } catch (error) {
         console.error('❌ [CAMPAIGN-DETAIL] Erreur chargement:', error);
         setError(error.message);
@@ -209,6 +229,61 @@ const CampaignDetailPage = () => {
       if (unsubQuests) unsubQuests();
     };
   }, [campaignId, user?.uid]);
+
+  // 👥 CONSTRUCTION DE L'ÉQUIPE ET CONTRIBUTIONS
+  useEffect(() => {
+    if (!campaign || !allUsers.length) return;
+
+    // Récupérer les IDs des membres de la campagne
+    const memberIds = campaign.members || [];
+
+    // Ajouter le créateur s'il n'est pas déjà dans la liste
+    if (campaign.createdBy && !memberIds.includes(campaign.createdBy)) {
+      memberIds.unshift(campaign.createdBy);
+    }
+
+    // Construire la liste des membres avec leurs infos
+    const members = memberIds.map(memberId => {
+      const userInfo = allUsers.find(u => u.id === memberId);
+      return {
+        id: memberId,
+        displayName: userInfo?.displayName || userInfo?.email || 'Utilisateur',
+        email: userInfo?.email,
+        photoURL: userInfo?.photoURL,
+        synergia_role: userInfo?.synergia_role,
+        isCreator: memberId === campaign.createdBy
+      };
+    });
+
+    setTeamMembers(members);
+
+    // Calculer les contributions de chaque membre
+    const contributions = {};
+    memberIds.forEach(memberId => {
+      const memberQuests = campaignQuests.filter(quest => {
+        const assignedTo = Array.isArray(quest.assignedTo)
+          ? quest.assignedTo
+          : (quest.assignedTo ? [quest.assignedTo] : []);
+        return assignedTo.includes(memberId);
+      });
+
+      const completedQuests = memberQuests.filter(q =>
+        ['completed', 'validated'].includes(q.status)
+      );
+
+      const xpEarned = completedQuests.reduce((sum, q) => sum + (q.xpReward || 0), 0);
+
+      contributions[memberId] = {
+        totalQuests: memberQuests.length,
+        completedQuests: completedQuests.length,
+        inProgressQuests: memberQuests.filter(q => q.status === 'in_progress').length,
+        xpEarned
+      };
+    });
+
+    setMemberContributions(contributions);
+    console.log('👥 [CAMPAIGN-DETAIL] Équipe constituée:', members.length, 'membres');
+  }, [campaign, allUsers, campaignQuests]);
 
   // 📊 CALCUL DES STATISTIQUES
   const stats = {
@@ -412,11 +487,76 @@ const CampaignDetailPage = () => {
   };
 
   // 🔍 FILTRER LES QUÊTES DISPONIBLES
-  const availableQuests = allQuests.filter(quest => 
-    !quest.projectId && 
+  const availableQuests = allQuests.filter(quest =>
+    !quest.projectId &&
     (quest.title?.toLowerCase().includes(searchQuestTerm.toLowerCase()) ||
      quest.description?.toLowerCase().includes(searchQuestTerm.toLowerCase()))
   );
+
+  // 👥 AJOUTER UN MEMBRE À L'ÉQUIPE
+  const handleAddMember = async (userId) => {
+    try {
+      console.log('👥 [ADD-MEMBER] Ajout membre:', userId, 'à la campagne:', campaignId);
+
+      const currentMembers = campaign.members || [];
+      if (currentMembers.includes(userId)) {
+        alert('Ce membre fait déjà partie de l\'équipe');
+        return;
+      }
+
+      const campaignRef = doc(db, 'projects', campaignId);
+      await updateDoc(campaignRef, {
+        members: [...currentMembers, userId],
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [ADD-MEMBER] Membre ajouté avec succès');
+      setShowAddMemberModal(false);
+      setSearchMemberTerm('');
+
+    } catch (error) {
+      console.error('❌ [ADD-MEMBER] Erreur ajout membre:', error);
+      alert('Erreur lors de l\'ajout du membre');
+    }
+  };
+
+  // 👥 RETIRER UN MEMBRE DE L'ÉQUIPE
+  const handleRemoveMember = async (userId) => {
+    if (userId === campaign.createdBy) {
+      alert('Impossible de retirer le créateur de la campagne');
+      return;
+    }
+
+    if (!confirm('Êtes-vous sûr de vouloir retirer ce membre de l\'équipe ?')) return;
+
+    try {
+      console.log('👥 [REMOVE-MEMBER] Retrait membre:', userId);
+
+      const currentMembers = campaign.members || [];
+      const newMembers = currentMembers.filter(id => id !== userId);
+
+      const campaignRef = doc(db, 'projects', campaignId);
+      await updateDoc(campaignRef, {
+        members: newMembers,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [REMOVE-MEMBER] Membre retiré avec succès');
+
+    } catch (error) {
+      console.error('❌ [REMOVE-MEMBER] Erreur retrait membre:', error);
+      alert('Erreur lors du retrait du membre');
+    }
+  };
+
+  // 🔍 FILTRER LES UTILISATEURS DISPONIBLES (pas encore dans l'équipe)
+  const availableUsers = allUsers.filter(u => {
+    const currentMembers = campaign?.members || [];
+    const isAlreadyMember = currentMembers.includes(u.id) || u.id === campaign?.createdBy;
+    const matchesSearch = u.displayName?.toLowerCase().includes(searchMemberTerm.toLowerCase()) ||
+                          u.email?.toLowerCase().includes(searchMemberTerm.toLowerCase());
+    return !isAlreadyMember && matchesSearch;
+  });
 
   if (loading) {
     return (
@@ -815,22 +955,161 @@ const CampaignDetailPage = () => {
               </div>
             )}
 
-            {/* Onglet Équipe */}
+            {/* 👥 Onglet Équipe */}
             {activeTab === 'team' && (
-              <motion.div
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                  <Shield className="h-6 w-6 text-purple-400" />
-                  Équipe de la campagne
-                </h3>
-                <div className="text-center py-12">
-                  <Shield className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Fonctionnalité de gestion d'équipe à venir</p>
+              <div className="space-y-6">
+                {/* Header avec action */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                    <Shield className="h-6 w-6 text-purple-400" />
+                    Équipe de la campagne
+                    <span className="text-sm font-normal text-gray-400">
+                      ({teamMembers.length} membre{teamMembers.length > 1 ? 's' : ''})
+                    </span>
+                  </h3>
+                  <button
+                    onClick={() => setShowAddMemberModal(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-blue-700 transition-all duration-200 flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Ajouter un membre
+                  </button>
                 </div>
-              </motion.div>
+
+                {/* Stats de l'équipe */}
+                <motion.div
+                  className="grid grid-cols-1 md:grid-cols-4 gap-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-purple-400">{teamMembers.length}</div>
+                    <div className="text-sm text-gray-400">Membres</div>
+                  </div>
+                  <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-400">
+                      {Object.values(memberContributions).reduce((sum, c) => sum + c.totalQuests, 0)}
+                    </div>
+                    <div className="text-sm text-gray-400">Quêtes assignées</div>
+                  </div>
+                  <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-green-400">
+                      {Object.values(memberContributions).reduce((sum, c) => sum + c.completedQuests, 0)}
+                    </div>
+                    <div className="text-sm text-gray-400">Quêtes terminées</div>
+                  </div>
+                  <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-bold text-yellow-400">
+                      {Object.values(memberContributions).reduce((sum, c) => sum + c.xpEarned, 0)} XP
+                    </div>
+                    <div className="text-sm text-gray-400">XP total gagné</div>
+                  </div>
+                </motion.div>
+
+                {/* Liste des membres */}
+                {teamMembers.length === 0 ? (
+                  <motion.div
+                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-12 text-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Users className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                    <h4 className="text-xl font-bold text-white mb-2">Aucun membre dans l'équipe</h4>
+                    <p className="text-gray-400 mb-6">
+                      Ajoutez des membres pour constituer votre équipe de campagne
+                    </p>
+                    <button
+                      onClick={() => setShowAddMemberModal(true)}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Ajouter un membre
+                    </button>
+                  </motion.div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {teamMembers.map((member, index) => {
+                      const contribution = memberContributions[member.id] || {
+                        totalQuests: 0,
+                        completedQuests: 0,
+                        inProgressQuests: 0,
+                        xpEarned: 0
+                      };
+
+                      return (
+                        <motion.div
+                          key={member.id}
+                          className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-700/50 transition-all duration-200"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <div className="flex items-start gap-4">
+                            {/* Avatar */}
+                            <div className="relative">
+                              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-xl overflow-hidden">
+                                {member.photoURL ? (
+                                  <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" />
+                                ) : (
+                                  member.displayName?.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              {member.isCreator && (
+                                <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                                  <Crown className="w-3 h-3 text-white" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Infos membre */}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="text-lg font-bold text-white">{member.displayName}</h4>
+                                {member.isCreator && (
+                                  <span className="px-2 py-0.5 bg-yellow-900/30 text-yellow-400 text-xs rounded-full border border-yellow-500/30">
+                                    Chef de campagne
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-400 mb-3">{member.email}</p>
+
+                              {/* Stats du membre */}
+                              <div className="grid grid-cols-4 gap-2">
+                                <div className="bg-gray-700/30 rounded-lg p-2 text-center">
+                                  <div className="text-lg font-bold text-blue-400">{contribution.totalQuests}</div>
+                                  <div className="text-xs text-gray-500">Quêtes</div>
+                                </div>
+                                <div className="bg-gray-700/30 rounded-lg p-2 text-center">
+                                  <div className="text-lg font-bold text-green-400">{contribution.completedQuests}</div>
+                                  <div className="text-xs text-gray-500">Terminées</div>
+                                </div>
+                                <div className="bg-gray-700/30 rounded-lg p-2 text-center">
+                                  <div className="text-lg font-bold text-orange-400">{contribution.inProgressQuests}</div>
+                                  <div className="text-xs text-gray-500">En cours</div>
+                                </div>
+                                <div className="bg-gray-700/30 rounded-lg p-2 text-center">
+                                  <div className="text-lg font-bold text-yellow-400">{contribution.xpEarned}</div>
+                                  <div className="text-xs text-gray-500">XP</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            {!member.isCreator && (
+                              <button
+                                onClick={() => handleRemoveMember(member.id)}
+                                className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-all duration-200"
+                                title="Retirer de l'équipe"
+                              >
+                                <UserMinus className="h-5 w-5" />
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* 🎯 Onglet Défis */}
@@ -1010,6 +1289,109 @@ const CampaignDetailPage = () => {
           campaignId={campaignId}
           campaignTitle={campaign?.title}
         />
+
+        {/* 👥 MODAL AJOUT MEMBRE */}
+        <AnimatePresence>
+          {showAddMemberModal && (
+            <motion.div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddMemberModal(false)}
+            >
+              <motion.div
+                className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                    <UserPlus className="h-6 w-6 text-purple-400" />
+                    Ajouter un membre à l'équipe
+                  </h2>
+                  <button
+                    onClick={() => setShowAddMemberModal(false)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
+                  >
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* Recherche */}
+                <div className="mb-6">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher un utilisateur..."
+                      value={searchMemberTerm}
+                      onChange={(e) => setSearchMemberTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-200"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-400 mt-2">
+                    {availableUsers.length} utilisateur(s) disponible(s)
+                  </p>
+                </div>
+
+                {/* Liste des utilisateurs disponibles */}
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {availableUsers.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Users className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400">
+                        {searchMemberTerm
+                          ? 'Aucun utilisateur trouvé'
+                          : 'Tous les utilisateurs sont déjà membres de l\'équipe'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    availableUsers.map((userItem) => (
+                      <div
+                        key={userItem.id}
+                        className="bg-gray-700/30 rounded-lg p-4 hover:bg-gray-700/50 transition-all duration-200 cursor-pointer"
+                        onClick={() => handleAddMember(userItem.id)}
+                      >
+                        <div className="flex items-center gap-4">
+                          {/* Avatar */}
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
+                            {userItem.photoURL ? (
+                              <img src={userItem.photoURL} alt={userItem.displayName} className="w-full h-full object-cover" />
+                            ) : (
+                              (userItem.displayName || userItem.email)?.charAt(0).toUpperCase()
+                            )}
+                          </div>
+
+                          {/* Info utilisateur */}
+                          <div className="flex-1">
+                            <h4 className="font-bold text-white">
+                              {userItem.displayName || 'Utilisateur'}
+                            </h4>
+                            <p className="text-sm text-gray-400">{userItem.email}</p>
+                            {userItem.synergia_role && (
+                              <span className="text-xs text-purple-400">
+                                {userItem.synergia_role}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Bouton ajouter */}
+                          <button className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex-shrink-0">
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Layout>
   );
