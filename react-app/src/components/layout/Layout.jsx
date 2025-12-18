@@ -37,6 +37,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     ]},
     { section: 'ÉQUIPE', items: [
       { path: '/team', label: 'Équipe', icon: '👥' },
+      { path: '/pool', label: 'Cagnotte', icon: '💰' },
       { path: '/settings', label: 'Paramètres', icon: '⚙️' }
     ]},
     { section: 'OUTILS', items: [

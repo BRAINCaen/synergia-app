@@ -16,6 +16,7 @@ import {
 import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useGamificationSync } from '../shared/hooks/useGamificationSync.js';
+import { useTeamPool } from '../shared/hooks/useTeamPool.js';
 import { calculateLevel, getXPProgress, getRankForLevel } from '../core/services/levelService.js';
 import xpHistoryService from '../core/services/xpHistoryService.js';
 
@@ -34,6 +35,12 @@ const Dashboard = () => {
   // États pour les stats personnelles (Module 7)
   const [xpStats, setXpStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // Hook pour la cagnotte d'équipe (Module 8)
+  const { stats: poolStats, loading: poolLoading } = useTeamPool({
+    autoInit: true,
+    realTimeUpdates: true
+  });
 
   // Charger les stats XP
   useEffect(() => {
@@ -469,6 +476,65 @@ const Dashboard = () => {
               </div>
             </motion.div>
           </div>
+
+          {/* 💰 WIDGET CAGNOTTE D'ÉQUIPE */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.42 }}
+            className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-xl p-6 mb-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-600/30 rounded-xl">
+                  <span className="text-2xl">💰</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Cagnotte d'Équipe</h3>
+                  <p className="text-sm text-gray-400">Niveau {poolStats?.currentLevel || 'BRONZE'}</p>
+                </div>
+              </div>
+              <a
+                href="/pool"
+                className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 rounded-lg text-purple-300 text-sm transition-all"
+              >
+                Voir plus →
+              </a>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-white">{poolStats?.totalXP?.toLocaleString() || 0}</div>
+                <div className="text-xs text-gray-400">XP Total</div>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-green-400">+{poolStats?.weeklyContributions || 0}</div>
+                <div className="text-xs text-gray-400">Cette semaine</div>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-blue-400">{poolStats?.contributorsCount || 0}</div>
+                <div className="text-xs text-gray-400">Contributeurs</div>
+              </div>
+            </div>
+
+            {/* Barre de progression */}
+            {poolStats?.nextLevel && (
+              <div className="mt-4">
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Vers {poolStats.nextLevel}</span>
+                  <span>{poolStats.progressToNext?.progress || 0}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${poolStats.progressToNext?.progress || 0}%` }}
+                    transition={{ duration: 1 }}
+                    className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+          </motion.div>
 
           {/* BADGES */}
           {gamification.badges.length > 0 && (
