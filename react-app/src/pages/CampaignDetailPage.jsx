@@ -677,7 +677,7 @@ const CampaignDetailPage = () => {
                 </motion.div>
 
                 {/* Métadonnées */}
-                <motion.div 
+                <motion.div
                   className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -688,7 +688,7 @@ const CampaignDetailPage = () => {
                     <div>
                       <div className="text-sm text-gray-400 mb-1">Date de création</div>
                       <div className="text-white">
-                        {campaign.createdAt 
+                        {campaign.createdAt
                           ? campaign.createdAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
                           : 'Non définie'
                         }
@@ -697,21 +697,172 @@ const CampaignDetailPage = () => {
                     <div>
                       <div className="text-sm text-gray-400 mb-1">Dernière mise à jour</div>
                       <div className="text-white">
-                        {campaign.updatedAt 
+                        {campaign.updatedAt
                           ? campaign.updatedAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
                           : 'Non définie'
                         }
                       </div>
                     </div>
-                    <div>
-                      <div className="text-sm text-gray-400 mb-1">Créée par</div>
-                      <div className="text-white font-mono text-sm">{campaign.createdBy}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-400 mb-1">Membres de l'équipe</div>
-                      <div className="text-white">{campaign.members?.length || 0} membre(s)</div>
-                    </div>
                   </div>
+                </motion.div>
+
+                {/* 👑 Chef de campagne */}
+                <motion.div
+                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                    <Crown className="h-5 w-5 text-yellow-400" />
+                    Chef de campagne
+                  </h3>
+                  {(() => {
+                    const creator = teamMembers.find(m => m.isCreator);
+                    const creatorContrib = creator ? memberContributions[creator.id] : null;
+
+                    if (!creator) {
+                      return (
+                        <div className="text-gray-400">Chargement...</div>
+                      );
+                    }
+
+                    return (
+                      <div className="flex items-center gap-6">
+                        {/* Avatar du créateur */}
+                        <div className="relative">
+                          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center text-white font-bold text-2xl overflow-hidden ring-4 ring-yellow-500/30">
+                            {creator.photoURL ? (
+                              <img src={creator.photoURL} alt={creator.displayName} className="w-full h-full object-cover" />
+                            ) : (
+                              creator.displayName?.charAt(0).toUpperCase() || '?'
+                            )}
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg">
+                            <Crown className="w-4 h-4 text-white" />
+                          </div>
+                        </div>
+
+                        {/* Infos du créateur */}
+                        <div className="flex-1">
+                          <h4 className="text-xl font-bold text-white mb-1">{creator.displayName || 'Utilisateur'}</h4>
+                          <p className="text-gray-400 text-sm mb-3">{creator.email}</p>
+                          {creator.synergia_role && (
+                            <span className="px-3 py-1 bg-purple-900/30 text-purple-400 text-xs rounded-full border border-purple-500/30">
+                              {creator.synergia_role}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Stats du créateur */}
+                        {creatorContrib && (
+                          <div className="flex gap-4">
+                            <div className="bg-gray-700/30 rounded-lg p-4 text-center">
+                              <div className="text-2xl font-bold text-blue-400">{creatorContrib.totalQuests}</div>
+                              <div className="text-xs text-gray-500">Quêtes</div>
+                            </div>
+                            <div className="bg-gray-700/30 rounded-lg p-4 text-center">
+                              <div className="text-2xl font-bold text-green-400">{creatorContrib.completedQuests}</div>
+                              <div className="text-xs text-gray-500">Terminées</div>
+                            </div>
+                            <div className="bg-gray-700/30 rounded-lg p-4 text-center">
+                              <div className="text-2xl font-bold text-yellow-400">{creatorContrib.xpEarned}</div>
+                              <div className="text-xs text-gray-500">XP</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </motion.div>
+
+                {/* 👥 Participants */}
+                <motion.div
+                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                      <Users className="h-5 w-5 text-blue-400" />
+                      Participants
+                      <span className="text-sm font-normal text-gray-400">
+                        ({teamMembers.length} membre{teamMembers.length > 1 ? 's' : ''})
+                      </span>
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab('team')}
+                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      Voir tout →
+                    </button>
+                  </div>
+
+                  {teamMembers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                      <p className="text-gray-400">Aucun participant pour le moment</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {teamMembers.map((member, index) => {
+                        const contrib = memberContributions[member.id] || { completedQuests: 0, xpEarned: 0 };
+
+                        return (
+                          <motion.div
+                            key={member.id}
+                            className="bg-gray-700/30 rounded-lg p-4 flex items-center gap-4"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.25 + index * 0.05 }}
+                          >
+                            {/* Avatar */}
+                            <div className="relative flex-shrink-0">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold overflow-hidden ${
+                                member.isCreator
+                                  ? 'bg-gradient-to-br from-yellow-500 to-orange-600 ring-2 ring-yellow-500/50'
+                                  : 'bg-gradient-to-br from-purple-600 to-blue-600'
+                              }`}>
+                                {member.photoURL ? (
+                                  <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" />
+                                ) : (
+                                  member.displayName?.charAt(0).toUpperCase() || '?'
+                                )}
+                              </div>
+                              {member.isCreator && (
+                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
+                                  <Crown className="w-2.5 h-2.5 text-white" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Infos */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium text-white truncate">{member.displayName || 'Utilisateur'}</h4>
+                                {member.isCreator && (
+                                  <span className="px-1.5 py-0.5 bg-yellow-900/30 text-yellow-400 text-[10px] rounded-full border border-yellow-500/30 flex-shrink-0">
+                                    Chef
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                <span className="flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3 text-green-400" />
+                                  {contrib.completedQuests} quêtes
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Star className="w-3 h-3 text-yellow-400" />
+                                  {contrib.xpEarned} XP
+                                </span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </motion.div>
               </div>
             )}
