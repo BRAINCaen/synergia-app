@@ -227,17 +227,53 @@ const TeamPoolPage = () => {
     visible: { opacity: 1, y: 0 }
   };
 
+  // État de chargement
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full"
-        />
+        <div className="text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-400">Chargement de la cagnotte...</p>
+        </div>
       </div>
     );
   }
+
+  // Erreur
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800/50 border border-red-500/30 rounded-xl p-8 text-center max-w-md">
+          <span className="text-5xl mb-4 block">❌</span>
+          <h2 className="text-xl font-bold text-white mb-2">Erreur de chargement</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={refreshPoolData}
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Valeurs par défaut si stats est vide
+  const safeStats = {
+    totalXP: stats?.totalXP || 0,
+    currentLevel: stats?.currentLevel || 'BRONZE',
+    nextLevel: stats?.nextLevel || 'SILVER',
+    progressToNext: stats?.progressToNext || { progress: 0, xpNeeded: 1000 },
+    contributorsCount: stats?.contributorsCount || 0,
+    totalContributions: stats?.totalContributions || 0,
+    weeklyContributions: stats?.weeklyContributions || 0,
+    monthlyContributions: stats?.monthlyContributions || 0,
+    averageContribution: stats?.averageContribution || 0
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
@@ -255,7 +291,7 @@ const TeamPoolPage = () => {
               Cagnotte d'Équipe
             </h1>
             <p className="text-gray-400 mt-2">
-              XP collectifs pour des récompenses partagées • Taux: {autoContributionRate}%
+              XP collectifs pour des récompenses partagées • Taux: {autoContributionRate || 20}%
             </p>
           </div>
           <div className="flex gap-3 mt-4 md:mt-0">
@@ -306,41 +342,41 @@ const TeamPoolPage = () => {
             {/* Montant principal */}
             <div className="text-center md:text-left mb-6 md:mb-0">
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-5xl">{getLevelEmoji(stats.currentLevel)}</span>
-                <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${getLevelGradient(stats.currentLevel)} text-white text-sm font-bold`}>
-                  Niveau {stats.currentLevel}
+                <span className="text-5xl">{getLevelEmoji(safeStats.currentLevel)}</span>
+                <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${getLevelGradient(safeStats.currentLevel)} text-white text-sm font-bold`}>
+                  Niveau {safeStats.currentLevel}
                 </div>
               </div>
               <motion.div
-                key={stats.totalXP}
+                key={safeStats.totalXP}
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 className="text-5xl md:text-6xl font-black text-white mb-2"
               >
-                {stats.totalXP?.toLocaleString() || 0} <span className="text-3xl">XP</span>
+                {safeStats.totalXP.toLocaleString()} <span className="text-3xl">XP</span>
               </motion.div>
               <p className="text-white/80">
-                {stats.contributorsCount || 0} contributeurs • {stats.totalContributions || 0} contributions
+                {safeStats.contributorsCount} contributeurs • {safeStats.totalContributions} contributions
               </p>
             </div>
 
             {/* Progression niveau suivant */}
-            {stats.nextLevel && (
+            {safeStats.nextLevel && (
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 w-full md:w-80">
                 <div className="flex justify-between text-white/80 text-sm mb-2">
-                  <span>Vers {stats.nextLevel}</span>
-                  <span>{stats.progressToNext?.progress || 0}%</span>
+                  <span>Vers {safeStats.nextLevel}</span>
+                  <span>{safeStats.progressToNext.progress}%</span>
                 </div>
                 <div className="w-full bg-white/20 rounded-full h-3 mb-2">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${stats.progressToNext?.progress || 0}%` }}
+                    animate={{ width: `${safeStats.progressToNext.progress}%` }}
                     transition={{ duration: 1, delay: 0.5 }}
-                    className={`h-3 rounded-full bg-gradient-to-r ${getLevelGradient(stats.nextLevel)}`}
+                    className={`h-3 rounded-full bg-gradient-to-r ${getLevelGradient(safeStats.nextLevel)}`}
                   />
                 </div>
                 <p className="text-white/60 text-sm text-center">
-                  Encore {stats.progressToNext?.xpNeeded?.toLocaleString() || 0} XP
+                  Encore {safeStats.progressToNext.xpNeeded?.toLocaleString() || 0} XP
                 </p>
               </div>
             )}
@@ -352,9 +388,9 @@ const TeamPoolPage = () => {
           {/* Stats rapides */}
           <motion.div variants={itemVariants} className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Cette semaine', value: stats.weeklyContributions || 0, icon: '📅', gradient: 'from-blue-500 to-cyan-500' },
-              { label: 'Ce mois', value: stats.monthlyContributions || 0, icon: '📆', gradient: 'from-green-500 to-emerald-500' },
-              { label: 'Moyenne', value: stats.averageContribution || 0, icon: '📈', gradient: 'from-purple-500 to-pink-500' },
+              { label: 'Cette semaine', value: safeStats.weeklyContributions, icon: '📅', gradient: 'from-blue-500 to-cyan-500' },
+              { label: 'Ce mois', value: safeStats.monthlyContributions, icon: '📆', gradient: 'from-green-500 to-emerald-500' },
+              { label: 'Moyenne', value: safeStats.averageContribution, icon: '📈', gradient: 'from-purple-500 to-pink-500' },
               { label: 'Accessibles', value: affordableRewards.length, icon: '🎁', gradient: 'from-yellow-500 to-orange-500' }
             ].map((stat, index) => (
               <motion.div
@@ -542,8 +578,8 @@ const TeamPoolPage = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { icon: '🎯', title: 'Contribution Auto', desc: `${autoContributionRate}% de tes XP vont automatiquement à la cagnotte` },
-              { icon: '💪', title: 'Garde tes XP', desc: `Tu gardes ${100 - autoContributionRate}% pour tes récompenses perso` },
+              { icon: '🎯', title: 'Contribution Auto', desc: `${autoContributionRate || 20}% de tes XP vont automatiquement à la cagnotte` },
+              { icon: '💪', title: 'Garde tes XP', desc: `Tu gardes ${100 - (autoContributionRate || 20)}% pour tes récompenses perso` },
               { icon: '🎁', title: 'Récompenses', desc: 'Les admins achètent des récompenses pour toute l\'équipe' }
             ].map((item, index) => (
               <div key={index} className="flex items-start gap-3">
@@ -652,12 +688,12 @@ const TeamPoolPage = () => {
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <span className="text-gray-400">Cagnotte actuelle</span>
-                  <span className="text-white font-semibold">{stats.totalXP?.toLocaleString()} XP</span>
+                  <span className="text-white font-semibold">{safeStats.totalXP.toLocaleString()} XP</span>
                 </div>
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-600">
                   <span className="text-gray-400">Après achat</span>
                   <span className="text-green-400 font-semibold">
-                    {((stats.totalXP || 0) - (selectedReward.cost || 0)).toLocaleString()} XP
+                    {(safeStats.totalXP - (selectedReward.cost || 0)).toLocaleString()} XP
                   </span>
                 </div>
               </div>
