@@ -1,7 +1,7 @@
 // ==========================================
 // react-app/src/shared/hooks/useSkillTree.js
-// HOOK SKILL TREE - SYNERGIA v4.0
-// Module Skill Tree: Arbre de competences
+// HOOK SKILL TREE RPG - SYNERGIA v5.0
+// Système de compétences avec choix de talents
 // ==========================================
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,50 +9,94 @@ import { useAuthStore } from '../stores/authStore.js';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 import {
-  skillTreeService,
+  skillService,
+  SKILL_BRANCHES,
   SKILLS,
-  SKILL_BRANCHES
-} from '../../core/services/skillTreeService.js';
-import { calculateLevel } from '../../core/services/levelService.js';
+  TIER_CONFIG,
+  getSkillLevel,
+  getBranchProgress,
+  getUnspentTalentPoints,
+  calculateActiveBonus,
+  getNextTierXP
+} from '../../core/services/skillService.js';
 
 /**
- * Hook pour gerer l'arbre de competences
+ * 🎮 Hook pour gérer l'arbre de compétences RPG
+ * - Progression automatique via quêtes
+ * - Choix de talents à chaque palier
+ * - Calcul des bonus actifs
  */
 export const useSkillTree = (options = {}) => {
   const { realTime = true } = options;
   const { user } = useAuthStore();
 
-  // Etats
+  // États
   const [loading, setLoading] = useState(true);
-  const [unlocking, setUnlocking] = useState(false);
-  const [unlockedSkills, setUnlockedSkills] = useState([]);
-  const [skillPoints, setSkillPoints] = useState(0);
-  const [totalPointsSpent, setTotalPointsSpent] = useState(0);
-  const [userLevel, setUserLevel] = useState(1);
+  const [processing, setProcessing] = useState(false);
+  const [userSkills, setUserSkills] = useState({});
   const [error, setError] = useState(null);
-  const [lastUnlock, setLastUnlock] = useState(null);
+  const [lastTalentChoice, setLastTalentChoice] = useState(null);
 
-  // Calculer les points disponibles
-  const availablePoints = useMemo(() => {
-    return skillTreeService.calculateAvailablePoints(userLevel, totalPointsSpent);
-  }, [userLevel, totalPointsSpent]);
+  // ===============================================
+  // DONNÉES CALCULÉES
+  // ===============================================
 
-  // Obtenir les stats globales
+  // Points de talent non dépensés (choix disponibles)
+  const unspentPoints = useMemo(() => {
+    return getUnspentTalentPoints(userSkills);
+  }, [userSkills]);
+
+  // Nombre total de points non dépensés
+  const totalUnspentPoints = useMemo(() => {
+    return unspentPoints.reduce((acc, sp) => acc + sp.pendingChoices, 0);
+  }, [unspentPoints]);
+
+  // Bonus actifs calculés
+  const activeBonus = useMemo(() => {
+    return calculateActiveBonus(userSkills);
+  }, [userSkills]);
+
+  // Stats globales par branche
+  const branchStats = useMemo(() => {
+    const stats = {};
+
+    Object.entries(SKILL_BRANCHES).forEach(([branchId, branch]) => {
+      const progress = getBranchProgress(branchId, userSkills);
+      stats[branchId] = {
+        ...branch,
+        ...progress
+      };
+    });
+
+    return stats;
+  }, [userSkills]);
+
+  // Stats globales toutes branches
   const globalStats = useMemo(() => {
-    return skillTreeService.getGlobalStats(unlockedSkills);
-  }, [unlockedSkills]);
+    const allSkillIds = Object.keys(SKILLS);
+    let totalXP = 0;
+    let totalTalents = 0;
+    let maxTalents = allSkillIds.length * 3; // 3 tiers par skill
 
-  // Competences disponibles au deblocage
-  const availableSkills = useMemo(() => {
-    return skillTreeService.getAvailableSkills(unlockedSkills, availablePoints);
-  }, [unlockedSkills, availablePoints]);
+    Object.values(userSkills).forEach(skill => {
+      totalXP += skill.xp || 0;
+      totalTalents += (skill.talents || []).length;
+    });
 
-  // Competences presque disponibles
-  const almostAvailableSkills = useMemo(() => {
-    return skillTreeService.getAlmostAvailableSkills(unlockedSkills, availablePoints);
-  }, [unlockedSkills, availablePoints]);
+    return {
+      totalXP,
+      totalTalents,
+      maxTalents,
+      talentProgress: Math.round((totalTalents / maxTalents) * 100),
+      skillsStarted: Object.keys(userSkills).length,
+      totalSkills: allSkillIds.length
+    };
+  }, [userSkills]);
 
-  // Charger les donnees en temps reel
+  // ===============================================
+  // CHARGEMENT TEMPS RÉEL
+  // ===============================================
+
   useEffect(() => {
     if (!user?.uid) {
       setLoading(false);
@@ -64,11 +108,10 @@ export const useSkillTree = (options = {}) => {
       const loadData = async () => {
         setLoading(true);
         try {
-          const skills = await skillTreeService.getUserSkills(user.uid);
-          setUnlockedSkills(skills.unlockedSkills);
-          setTotalPointsSpent(skills.totalPointsSpent);
+          const skills = await skillService.getUserSkills(user.uid);
+          setUserSkills(skills);
         } catch (err) {
-          console.error('Erreur chargement skill tree:', err);
+          console.error('❌ Erreur chargement skills:', err);
           setError(err.message);
         } finally {
           setLoading(false);
@@ -78,28 +121,18 @@ export const useSkillTree = (options = {}) => {
       return;
     }
 
-    // Temps reel avec onSnapshot
+    // Temps réel avec onSnapshot
     const userRef = doc(db, 'users', user.uid);
 
     const unsubscribe = onSnapshot(userRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-
-        // Gamification data
-        const gamification = data.gamification || {};
-        const totalXp = gamification.totalXp || 0;
-        const level = calculateLevel(totalXp);
-        setUserLevel(level);
-
-        // Skill tree data
-        const skillTree = data.skillTree || {};
-        setUnlockedSkills(skillTree.unlockedSkills || []);
-        setTotalPointsSpent(skillTree.totalPointsSpent || 0);
+        const skills = data.skills || {};
+        setUserSkills(skills);
       }
-
       setLoading(false);
     }, (err) => {
-      console.error('Erreur subscription skill tree:', err);
+      console.error('❌ Erreur subscription skills:', err);
       setError(err.message);
       setLoading(false);
     });
@@ -107,29 +140,29 @@ export const useSkillTree = (options = {}) => {
     return () => unsubscribe();
   }, [user?.uid, realTime]);
 
-  /**
-   * Verifier si une competence peut etre debloquee
-   */
-  const canUnlock = useCallback((skillId) => {
-    return skillTreeService.canUnlockSkill(skillId, unlockedSkills, availablePoints);
-  }, [unlockedSkills, availablePoints]);
+  // ===============================================
+  // ACTIONS
+  // ===============================================
 
   /**
-   * Debloquer une competence
+   * 🎯 Choisir un talent pour un skill à un tier donné
    */
-  const unlockSkill = useCallback(async (skillId) => {
-    if (!user?.uid) return { success: false, error: 'Non connecte' };
-    if (unlocking) return { success: false, error: 'Deblocage en cours' };
+  const chooseTalent = useCallback(async (skillId, tier, talentId) => {
+    if (!user?.uid) return { success: false, error: 'Non connecté' };
+    if (processing) return { success: false, error: 'Traitement en cours' };
 
-    setUnlocking(true);
+    setProcessing(true);
     setError(null);
 
     try {
-      const result = await skillTreeService.unlockSkill(user.uid, skillId);
+      const result = await skillService.chooseTalent(user.uid, skillId, tier, talentId);
 
       if (result.success) {
-        setLastUnlock({
-          skill: result.skill,
+        setLastTalentChoice({
+          skillId,
+          tier,
+          talentId,
+          talent: result.talent,
           timestamp: new Date()
         });
       } else {
@@ -138,87 +171,175 @@ export const useSkillTree = (options = {}) => {
 
       return result;
     } catch (err) {
-      console.error('Erreur deblocage skill:', err);
+      console.error('❌ Erreur choix talent:', err);
       setError(err.message);
       return { success: false, error: err.message };
     } finally {
-      setUnlocking(false);
+      setProcessing(false);
     }
-  }, [user?.uid, unlocking]);
+  }, [user?.uid, processing]);
 
   /**
-   * Verifier si une competence est debloquee
+   * ➕ Ajouter de l'XP à un skill (pour tests/admin)
    */
-  const isUnlocked = useCallback((skillId) => {
-    return unlockedSkills.includes(skillId);
-  }, [unlockedSkills]);
+  const addSkillXP = useCallback(async (skillId, amount) => {
+    if (!user?.uid) return { success: false, error: 'Non connecté' };
+
+    try {
+      return await skillService.addSkillXP(user.uid, skillId, amount);
+    } catch (err) {
+      console.error('❌ Erreur ajout XP skill:', err);
+      return { success: false, error: err.message };
+    }
+  }, [user?.uid]);
+
+  // ===============================================
+  // GETTERS
+  // ===============================================
 
   /**
-   * Obtenir le statut d'une competence
+   * 📊 Obtenir les infos d'un skill pour l'utilisateur
    */
-  const getSkillStatus = useCallback((skillId) => {
-    if (isUnlocked(skillId)) return 'unlocked';
+  const getSkillInfo = useCallback((skillId) => {
+    const skillDef = SKILLS[skillId];
+    if (!skillDef) return null;
 
-    const check = canUnlock(skillId);
-    if (check.canUnlock) return 'available';
+    const userSkill = userSkills[skillId] || { xp: 0, talents: [] };
+    const level = getSkillLevel(userSkill.xp);
+    const nextTierXP = getNextTierXP(userSkill.xp);
 
-    // Verifier si prereqs manquants ou points manquants
-    const skill = SKILLS[skillId];
-    if (!skill) return 'locked';
+    // Calculer les tiers atteints vs talents choisis
+    const tiersReached = level;
+    const talentsChosen = userSkill.talents?.length || 0;
+    const pendingChoices = tiersReached - talentsChosen;
 
-    const hasPrereqs = skill.requires.every(req => unlockedSkills.includes(req));
-    if (!hasPrereqs) return 'locked';
+    // Progression vers le prochain tier
+    let progressToNext = 0;
+    if (level < 3 && nextTierXP) {
+      const currentTierXP = level === 0 ? 0 : TIER_CONFIG[level].xpRequired;
+      progressToNext = Math.round(((userSkill.xp - currentTierXP) / (nextTierXP - currentTierXP)) * 100);
+    } else if (level >= 3) {
+      progressToNext = 100;
+    }
 
-    return 'needs_points';
-  }, [isUnlocked, canUnlock, unlockedSkills]);
+    return {
+      ...skillDef,
+      xp: userSkill.xp,
+      level,
+      tiersReached,
+      talentsChosen,
+      pendingChoices,
+      chosenTalents: userSkill.talents || [],
+      progressToNext,
+      nextTierXP,
+      isMaxed: level >= 3 && talentsChosen >= 3
+    };
+  }, [userSkills]);
 
   /**
-   * Obtenir la progression d'une branche
+   * 🌳 Obtenir les skills d'une branche avec leur statut
    */
-  const getBranchProgress = useCallback((branchId) => {
-    return skillTreeService.getBranchProgress(branchId, unlockedSkills);
-  }, [unlockedSkills]);
+  const getBranchSkills = useCallback((branchId) => {
+    const branch = SKILL_BRANCHES[branchId];
+    if (!branch) return [];
+
+    return branch.skills.map(skillId => getSkillInfo(skillId)).filter(Boolean);
+  }, [getSkillInfo]);
 
   /**
-   * Obtenir les competences d'une branche avec leur statut
+   * 🎁 Obtenir les talents disponibles pour un skill à un tier
    */
-  const getBranchSkillsWithStatus = useCallback((branchId) => {
-    const branchSkills = skillTreeService.getSkillsByBranch(branchId);
+  const getAvailableTalents = useCallback((skillId, tier) => {
+    const skillDef = SKILLS[skillId];
+    if (!skillDef) return [];
 
-    return branchSkills.map(skill => ({
-      ...skill,
-      status: getSkillStatus(skill.id),
-      checkResult: canUnlock(skill.id)
+    const tierData = skillDef.tiers?.[tier];
+    if (!tierData) return [];
+
+    const userSkill = userSkills[skillId] || { xp: 0, talents: [] };
+    const chosenTalents = userSkill.talents || [];
+
+    // Vérifier si ce tier a déjà un talent choisi
+    const hasTierTalent = chosenTalents.some(t => t.tier === tier);
+    if (hasTierTalent) return [];
+
+    return tierData.options.map(talent => ({
+      ...talent,
+      tier,
+      skillId
     }));
-  }, [getSkillStatus, canUnlock]);
+  }, [userSkills]);
+
+  /**
+   * ✅ Vérifier si un talent est choisi
+   */
+  const isTalentChosen = useCallback((skillId, talentId) => {
+    const userSkill = userSkills[skillId] || { talents: [] };
+    return userSkill.talents?.some(t => t.id === talentId) || false;
+  }, [userSkills]);
+
+  /**
+   * 🔍 Obtenir tous les skills avec choix de talent en attente
+   */
+  const getSkillsWithPendingChoices = useCallback(() => {
+    return unspentPoints.map(sp => ({
+      ...getSkillInfo(sp.skillId),
+      pendingTiers: sp.pendingTiers
+    }));
+  }, [unspentPoints, getSkillInfo]);
+
+  /**
+   * 🎯 Obtenir le résumé des bonus par type
+   */
+  const getBonusSummary = useCallback(() => {
+    const summary = {};
+
+    Object.entries(activeBonus).forEach(([type, value]) => {
+      // Formatter le nom du bonus
+      const name = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      summary[type] = {
+        name,
+        value,
+        formatted: type.includes('xp') || type.includes('bonus')
+          ? `+${value}%`
+          : `+${value}`
+      };
+    });
+
+    return summary;
+  }, [activeBonus]);
 
   return {
-    // Etats
+    // États
     loading,
-    unlocking,
+    processing,
     error,
-    lastUnlock,
+    lastTalentChoice,
 
-    // Donnees
-    unlockedSkills,
-    availablePoints,
-    totalPointsSpent,
-    userLevel,
+    // Données utilisateur
+    userSkills,
+    unspentPoints,
+    totalUnspentPoints,
+    activeBonus,
+    branchStats,
     globalStats,
-    availableSkills,
-    almostAvailableSkills,
 
     // Actions
-    unlockSkill,
-    canUnlock,
-    isUnlocked,
-    getSkillStatus,
-    getBranchProgress,
-    getBranchSkillsWithStatus,
+    chooseTalent,
+    addSkillXP,
+
+    // Getters
+    getSkillInfo,
+    getBranchSkills,
+    getAvailableTalents,
+    isTalentChosen,
+    getSkillsWithPendingChoices,
+    getBonusSummary,
 
     // Constantes
+    SKILL_BRANCHES,
     SKILLS,
-    SKILL_BRANCHES
+    TIER_CONFIG
   };
 };
 
