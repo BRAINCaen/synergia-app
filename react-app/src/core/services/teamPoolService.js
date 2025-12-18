@@ -3,11 +3,11 @@
 // SYSTÈME DE CAGNOTTE COLLECTIVE XP POUR L'ÉQUIPE
 // ==========================================
 
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   addDoc,
   collection,
   query,
@@ -19,6 +19,8 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+// 🔔 IMPORT NOTIFICATION SERVICE
+import { notificationService } from './notificationService.js';
 
 /**
  * 🏆 SERVICE DE CAGNOTTE COLLECTIVE ÉQUIPE
@@ -229,15 +231,16 @@ class TeamPoolService {
           contributed: contributionAmount,
           newPoolTotal: newTotalXP,
           newLevel,
+          previousLevel: poolData.currentLevel,
           levelChanged: newLevel !== poolData.currentLevel
         };
       });
-      
+
       console.log(`✅ [TEAM-POOL] Contribution réussie: +${contributionAmount} XP`);
-      
-      // Si le niveau a changé, déclencher un événement
+
+      // Si le niveau a changé, déclencher un événement + notification
       if (result.levelChanged) {
-        this.triggerPoolLevelUpEvent(result.newLevel, result.newPoolTotal);
+        this.triggerPoolLevelUpEvent(result.newLevel, result.newPoolTotal, result.previousLevel);
       }
       
       return { success: true, ...result };
@@ -262,9 +265,9 @@ class TeamPoolService {
   /**
    * 🎉 DÉCLENCHER ÉVÉNEMENT DE NIVEAU SUPÉRIEUR
    */
-  triggerPoolLevelUpEvent(newLevel, totalXP) {
+  triggerPoolLevelUpEvent(newLevel, totalXP, previousLevel = 'BRONZE') {
     console.log(`🎉 [TEAM-POOL] NIVEAU SUPÉRIEUR! ${newLevel} (${totalXP} XP)`);
-    
+
     // Émettre un événement global
     const event = new CustomEvent('teamPoolLevelUp', {
       detail: {
@@ -273,10 +276,17 @@ class TeamPoolService {
         timestamp: new Date().toISOString()
       }
     });
-    
+
     window.dispatchEvent(event);
-    
-    // TODO: Envoyer des notifications push à tous les membres
+
+    // 🔔 ENVOYER NOTIFICATIONS À TOUS LES MEMBRES
+    notificationService.notifyPoolLevelUp({
+      newLevel,
+      previousLevel,
+      totalXP
+    }).catch(err => {
+      console.warn('⚠️ [TEAM-POOL] Erreur notification level up (non bloquant):', err);
+    });
   }
 
   /**
@@ -337,6 +347,25 @@ class TeamPoolService {
       });
       
       console.log(`✅ [TEAM-POOL] Récompense achetée! Nouvelle cagnotte: ${result.newPoolTotal} XP`);
+
+      // 🔔 NOTIFICATION À TOUTE L'ÉQUIPE
+      try {
+        // Récupérer le nom de l'acheteur
+        const adminDoc = await getDoc(doc(db, 'users', adminUserId));
+        const adminName = adminDoc.exists()
+          ? (adminDoc.data().displayName || adminDoc.data().email?.split('@')[0] || 'Un admin')
+          : 'Un admin';
+
+        await notificationService.notifyPoolRewardPurchased({
+          rewardName: rewardData.name,
+          rewardIcon: rewardData.icon,
+          cost: rewardData.cost,
+          purchasedByName: adminName
+        });
+      } catch (notifError) {
+        console.warn('⚠️ [TEAM-POOL] Erreur notification achat (non bloquant):', notifError);
+      }
+
       return { success: true, ...result };
       
     } catch (error) {
