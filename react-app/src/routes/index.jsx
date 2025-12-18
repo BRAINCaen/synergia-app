@@ -25,6 +25,7 @@ import ProfileCustomizationPage from '../pages/ProfileCustomizationPage.jsx'; //
 import PulsePage from '../pages/PulsePage.jsx'; // 💗 MODULE PULSE
 import SkillTreePage from '../pages/SkillTreePage.jsx'; // 🌳 MODULE SKILL TREE
 import MentoringPage from '../pages/MentoringPage.jsx'; // 🎓 MODULE MENTORING
+import CheckpointsPage from '../pages/CheckpointsPage.jsx'; // 🏁 MODULE CHECKPOINTS
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
@@ -46,6 +47,7 @@ import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
 import AdminRanksPage from '../pages/AdminRanksPage.jsx'; // 🎖️ MODULE RANGS
 import AdminSyncPage from '../pages/AdminSyncPage.jsx';
+import AdminCheckpointsPage from '../pages/AdminCheckpointsPage.jsx'; // 🏁 ADMIN CHECKPOINTS
 import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
@@ -90,6 +92,7 @@ const AppRoutes = () => {
         <Route path="/team" element={<TeamPage />} />
         <Route path="/pulse" element={<PulsePage />} /> {/* 💗 MODULE PULSE */}
         <Route path="/mentoring" element={<MentoringPage />} /> {/* 🎓 MODULE MENTORING */}
+        <Route path="/checkpoints" element={<CheckpointsPage />} /> {/* 🏁 MODULE CHECKPOINTS */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<ProfilePage />} />
         <Route path="/customization" element={<ProfileCustomizationPage />} /> {/* 🎨 MODULE 13 */}
@@ -117,6 +120,7 @@ const AppRoutes = () => {
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
         <Route path="/admin/ranks" element={<AdminRanksPage />} /> {/* 🎖️ MODULE RANGS */}
         <Route path="/admin/sync" element={<AdminSyncPage />} />
+        <Route path="/admin/checkpoints" element={<AdminCheckpointsPage />} /> {/* 🏁 ADMIN CHECKPOINTS */}
       </Route>
 
       {/* Redirection par défaut */}
