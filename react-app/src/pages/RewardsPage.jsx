@@ -296,14 +296,33 @@ const RewardsPage = () => {
     }
   };
 
+  // 🔄 RAFRAÎCHIR PROFIL UTILISATEUR (pour XP dépensables après contribution)
+  const refreshUserProfile = async () => {
+    if (!user?.uid) return;
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        setUserProfile(userDoc.data());
+        console.log('✅ Profil utilisateur rafraîchi');
+      }
+    } catch (err) {
+      console.error('❌ Erreur refresh profil:', err);
+    }
+  };
+
   // 💰 CONTRIBUTION MANUELLE
   const handleContribution = async () => {
     const result = await contributeManually(contributionAmount);
     if (result.success) {
       setShowContributionModal(false);
       setContributionAmount(100);
-      loadTopContributors();
-      refreshPoolData();
+
+      // ✅ RAFRAÎCHIR TOUTES LES DONNÉES IMMÉDIATEMENT
+      await Promise.all([
+        loadTopContributors(),
+        refreshPoolData(),
+        refreshUserProfile()  // 🔥 Rafraîchir les XP dépensables
+      ]);
     } else {
       alert(`❌ Erreur: ${result.error}`);
     }
