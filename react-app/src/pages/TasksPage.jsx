@@ -47,15 +47,16 @@ import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 // 📊 FIREBASE
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDoc,
   serverTimestamp,
   where,
   getDocs
@@ -95,6 +96,9 @@ const TasksPage = () => {
   
   // 💬 ÉTAT POUR LES COMMENTAIRES
   const [taskComments, setTaskComments] = useState({});
+
+  // 👥 ÉTAT POUR LES NOMS D'UTILISATEURS (historique groupé)
+  const [usersInfo, setUsersInfo] = useState({});
   
   // Filtres
   const [searchTerm, setSearchTerm] = useState('');
@@ -184,6 +188,56 @@ const TasksPage = () => {
     };
   }, [tasks, user?.uid]);
 
+  // 👥 CHARGEMENT DES NOMS UTILISATEURS POUR L'HISTORIQUE
+  useEffect(() => {
+    if (!tasks.length) return;
+
+    const loadUsersInfo = async () => {
+      // Collecter tous les userIds uniques des quêtes terminées
+      const completedTasks = tasks.filter(t =>
+        ['completed', 'validated', 'cancelled'].includes(t.status)
+      );
+
+      const userIds = new Set();
+      completedTasks.forEach(task => {
+        const assignedTo = Array.isArray(task.assignedTo)
+          ? task.assignedTo
+          : (task.assignedTo ? [task.assignedTo] : []);
+        assignedTo.forEach(id => {
+          if (id && id.trim()) userIds.add(id);
+        });
+      });
+
+      // Charger les infos des utilisateurs
+      const newUsersInfo = { ...usersInfo };
+
+      for (const userId of userIds) {
+        if (!newUsersInfo[userId]) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              newUsersInfo[userId] = {
+                name: userData.displayName || userData.email || 'Utilisateur',
+                email: userData.email,
+                photoURL: userData.photoURL
+              };
+            } else {
+              newUsersInfo[userId] = { name: 'Utilisateur inconnu' };
+            }
+          } catch (error) {
+            console.error('Erreur chargement utilisateur:', userId, error);
+            newUsersInfo[userId] = { name: 'Utilisateur' };
+          }
+        }
+      }
+
+      setUsersInfo(newUsersInfo);
+    };
+
+    loadUsersInfo();
+  }, [tasks]);
+
   // 🔍 FILTRAGE ET TRI
   useEffect(() => {
     let filtered = [...tasks];
@@ -192,7 +246,10 @@ const TasksPage = () => {
     if (activeTab === 'my_tasks') {
       filtered = filtered.filter(task => {
         const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : (task.assignedTo ? [task.assignedTo] : []);
-        return assignedTo.includes(user?.uid);
+        const isAssignedToMe = assignedTo.includes(user?.uid);
+        // ✅ CORRECTION : Exclure les quêtes terminées de "Mes Quêtes"
+        const isCompleted = ['completed', 'validated', 'cancelled'].includes(task.status);
+        return isAssignedToMe && !isCompleted;
       });
     } else if (activeTab === 'available') {
       filtered = filtered.filter(task => {
@@ -428,9 +485,12 @@ const TasksPage = () => {
 
   // 📊 CALCUL DES STATISTIQUES
   const stats = useMemo(() => {
+    // ✅ CORRECTION : Exclure les quêtes terminées du compteur "Mes Quêtes"
     const myTasks = tasks.filter(t => {
       const assignedTo = Array.isArray(t.assignedTo) ? t.assignedTo : (t.assignedTo ? [t.assignedTo] : []);
-      return assignedTo.includes(user?.uid);
+      const isAssignedToMe = assignedTo.includes(user?.uid);
+      const isCompleted = ['completed', 'validated', 'cancelled'].includes(t.status);
+      return isAssignedToMe && !isCompleted;
     });
     
     const available = tasks.filter(t => {
@@ -461,6 +521,60 @@ const TasksPage = () => {
       totalXP: tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)
     };
   }, [tasks, user?.uid]);
+
+  // 📊 GROUPER L'HISTORIQUE PAR UTILISATEUR
+  const historyGroupedByUser = useMemo(() => {
+    if (activeTab !== 'history') return {};
+
+    const completedTasks = tasks.filter(t =>
+      ['completed', 'validated', 'cancelled'].includes(t.status)
+    );
+
+    const grouped = {};
+
+    completedTasks.forEach(task => {
+      const assignedTo = Array.isArray(task.assignedTo)
+        ? task.assignedTo
+        : (task.assignedTo ? [task.assignedTo] : []);
+
+      // Si pas d'assignés, mettre dans "Non assigné"
+      if (assignedTo.length === 0) {
+        if (!grouped['unassigned']) {
+          grouped['unassigned'] = {
+            userName: 'Quêtes non assignées',
+            userPhoto: null,
+            tasks: []
+          };
+        }
+        grouped['unassigned'].tasks.push(task);
+        return;
+      }
+
+      // Ajouter la quête pour chaque utilisateur assigné
+      assignedTo.forEach(userId => {
+        if (!userId || !userId.trim()) return;
+
+        if (!grouped[userId]) {
+          const userInfo = usersInfo[userId] || { name: 'Chargement...' };
+          grouped[userId] = {
+            userName: userInfo.name,
+            userPhoto: userInfo.photoURL,
+            userEmail: userInfo.email,
+            tasks: []
+          };
+        }
+        grouped[userId].tasks.push(task);
+      });
+    });
+
+    // Trier les utilisateurs par nombre de quêtes (décroissant)
+    return Object.entries(grouped)
+      .sort((a, b) => b[1].tasks.length - a[1].tasks.length)
+      .reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {});
+  }, [tasks, activeTab, usersInfo]);
 
   return (
     <Layout>
@@ -702,7 +816,7 @@ const TasksPage = () => {
           ) : (
             <>
               {/* Vue Cartes */}
-              {viewMode === 'cards' && (
+              {viewMode === 'cards' && activeTab !== 'history' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <AnimatePresence>
                     {filteredTasks.map(task => (
@@ -723,8 +837,69 @@ const TasksPage = () => {
                 </div>
               )}
 
+              {/* 📜 VUE HISTORIQUE GROUPÉE PAR UTILISATEUR */}
+              {viewMode === 'cards' && activeTab === 'history' && (
+                <div className="space-y-8">
+                  {Object.entries(historyGroupedByUser).map(([userId, userGroup]) => (
+                    <motion.div
+                      key={userId}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
+                    >
+                      {/* En-tête utilisateur */}
+                      <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-700/50">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
+                          {userGroup.userPhoto ? (
+                            <img src={userGroup.userPhoto} alt={userGroup.userName} className="w-full h-full object-cover" />
+                          ) : (
+                            userGroup.userName.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-bold text-white">{userGroup.userName}</h3>
+                          {userGroup.userEmail && (
+                            <p className="text-sm text-gray-400">{userGroup.userEmail}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-purple-400">{userGroup.tasks.length}</div>
+                          <div className="text-sm text-gray-400">quête{userGroup.tasks.length > 1 ? 's' : ''} terminée{userGroup.tasks.length > 1 ? 's' : ''}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-yellow-400">
+                            {userGroup.tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)}
+                          </div>
+                          <div className="text-sm text-gray-400">XP total</div>
+                        </div>
+                      </div>
+
+                      {/* Grille des quêtes de cet utilisateur */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <AnimatePresence>
+                          {userGroup.tasks.map(task => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              commentCount={taskComments[task.id]?.length || 0}
+                              isHistoryMode={true}
+                              onViewDetails={handleViewDetails}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              onStatusChange={handleStatusChange}
+                              onVolunteer={handleVolunteer}
+                              onUnvolunteer={handleUnvolunteer}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
               {/* Vue Liste */}
-              {viewMode === 'list' && (
+              {viewMode === 'list' && activeTab !== 'history' && (
                 <div className="space-y-2">
                   <AnimatePresence>
                     {filteredTasks.map(task => (
@@ -743,6 +918,59 @@ const TasksPage = () => {
                       />
                     ))}
                   </AnimatePresence>
+                </div>
+              )}
+
+              {/* 📜 VUE LISTE HISTORIQUE GROUPÉE PAR UTILISATEUR */}
+              {viewMode === 'list' && activeTab === 'history' && (
+                <div className="space-y-6">
+                  {Object.entries(historyGroupedByUser).map(([userId, userGroup]) => (
+                    <motion.div
+                      key={userId}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
+                    >
+                      {/* En-tête utilisateur compact */}
+                      <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-700/50">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold overflow-hidden">
+                          {userGroup.userPhoto ? (
+                            <img src={userGroup.userPhoto} alt={userGroup.userName} className="w-full h-full object-cover" />
+                          ) : (
+                            userGroup.userName.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-white">{userGroup.userName}</h3>
+                        </div>
+                        <span className="text-purple-400 font-medium">{userGroup.tasks.length} quête(s)</span>
+                        <span className="text-yellow-400 font-medium">
+                          {userGroup.tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)} XP
+                        </span>
+                      </div>
+
+                      {/* Liste des quêtes */}
+                      <div className="space-y-2">
+                        <AnimatePresence>
+                          {userGroup.tasks.map(task => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              viewMode="list"
+                              commentCount={taskComments[task.id]?.length || 0}
+                              isHistoryMode={true}
+                              onViewDetails={handleViewDetails}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              onStatusChange={handleStatusChange}
+                              onVolunteer={handleVolunteer}
+                              onUnvolunteer={handleUnvolunteer}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               )}
 
