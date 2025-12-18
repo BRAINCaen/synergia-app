@@ -103,13 +103,17 @@ export const RANKS = {
 };
 
 /**
- * 📊 CONFIGURATION DU SYSTÈME DE NIVEAUX
+ * 📊 CONFIGURATION DU SYSTÈME DE NIVEAUX - CALIBRÉ POUR ~1000 XP/MOIS
  * Formule: XP requis = BASE * niveau^EXPOSANT
- * Calibré pour ~2000 XP/mois pour un utilisateur actif
+ *
+ * OBJECTIF: Progression challengeante mais motivante
+ * - Niveau 10 = ~1 an
+ * - Niveau 20 = ~4-5 ans
+ * - Niveau 50 = Quasi-impossible (30+ ans)
  */
 const LEVEL_CONFIG = {
-  BASE_XP: 100,           // XP de base pour niveau 2
-  EXPONENT: 1.8,          // Exposant de croissance (plus haut = plus lent)
+  BASE_XP: 150,           // XP de base pour niveau 2
+  EXPONENT: 2.0,          // Exposant quadratique
   MAX_LEVEL: 100          // Niveau maximum théorique
 };
 
@@ -117,13 +121,13 @@ const LEVEL_CONFIG = {
  * 🧮 Calculer le niveau basé sur l'XP total
  * Formule inversée: niveau = floor((totalXP / BASE)^(1/EXPOSANT)) + 1
  *
- * Exemples avec calibration actuelle (~2000 XP/mois):
- * - Niveau 5:  ~1,000 XP (2-3 semaines)
- * - Niveau 10: ~4,000 XP (2 mois)
- * - Niveau 15: ~10,000 XP (5 mois)
- * - Niveau 20: ~20,000 XP (10 mois)
- * - Niveau 30: ~55,000 XP (2+ ans)
- * - Niveau 50: ~180,000 XP (7+ ans)
+ * Exemples avec calibration (~1000 XP/mois):
+ * - Niveau 5:  ~2,400 XP (~2.5 mois)
+ * - Niveau 10: ~12,000 XP (~1 an)
+ * - Niveau 15: ~29,000 XP (~2.5 ans)
+ * - Niveau 20: ~54,000 XP (~4.5 ans)
+ * - Niveau 30: ~126,000 XP (~10.5 ans)
+ * - Niveau 50: ~360,000 XP (~30 ans - LÉGENDAIRE)
  */
 export const calculateLevel = (totalXP) => {
   if (!totalXP || totalXP <= 0) return 1;
@@ -390,16 +394,20 @@ export const levelService = new LevelService();
 // 📊 TABLE DE RÉFÉRENCE DES NIVEAUX
 // ==========================================
 /**
- * Niveau | XP Requis | Rang        | Temps estimé (~2000 XP/mois)
- * -------|-----------|-------------|-----------------------------
- *   1    |     0     | Apprenti    | Départ
- *   5    |   ~1,000  | Initié      | ~2-3 semaines
- *  10    |   ~4,000  | Aventurier  | ~2 mois
- *  15    |  ~10,000  | Héros       | ~5 mois
- *  20    |  ~20,000  | Champion    | ~10 mois
- *  30    |  ~55,000  | Maître      | ~2.5 ans
- *  40    | ~115,000  | Légende     | ~5 ans
- *  50    | ~200,000  | Immortel    | ~8+ ans
+ * Niveau | XP Requis | Rang        | Temps estimé (~1000 XP/mois)
+ * -------|-----------|-------------|------------------------------
+ *   1    |       0   | Apprenti    | Départ
+ *   2    |     150   | Apprenti    | ~1 semaine
+ *   3    |     600   | Apprenti    | ~3 semaines
+ *   5    |   2,400   | Initié      | ~2.5 mois
+ *  10    |  12,150   | Aventurier  | ~1 an
+ *  15    |  29,400   | Héros       | ~2.5 ans
+ *  20    |  54,150   | Champion    | ~4.5 ans
+ *  30    | 126,150   | Maître      | ~10.5 ans
+ *  40    | 228,150   | Légende     | ~19 ans
+ *  50    | 360,150   | Immortel    | ~30 ans (LÉGENDAIRE!)
+ *
+ * NOTE: Atteindre Immortel est un exploit quasi-impossible!
  */
 
 export default levelService;
