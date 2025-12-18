@@ -118,6 +118,28 @@ class TeamPoolService {
         return { success: true, contributed: 0, reason: 'no_contribution' };
       }
 
+      // ✅ VÉRIFIER ET DÉDUIRE LES XP POUR CONTRIBUTION MANUELLE
+      if (isManual) {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+          return { success: false, error: 'Utilisateur non trouvé' };
+        }
+
+        const userData = userDoc.data();
+        const totalXP = userData.gamification?.totalXp || 0;
+        const totalSpentXP = userData.gamification?.totalSpentXp || 0;
+        const spendableXP = totalXP - totalSpentXP;
+
+        if (spendableXP < contributionAmount) {
+          return {
+            success: false,
+            error: `XP insuffisants (${spendableXP} disponibles, ${contributionAmount} requis)`
+          };
+        }
+      }
+
       // Utiliser une transaction pour garantir la cohérence
       const result = await runTransaction(db, async (transaction) => {
         // 1. Récupérer l'état actuel de la cagnotte
@@ -165,7 +187,25 @@ class TeamPoolService {
         };
         
         transaction.set(contributionRef, contributionData);
-        
+
+        // 6. ✅ DÉDUIRE LES XP DU COMPTE UTILISATEUR (contribution manuelle uniquement)
+        if (isManual) {
+          const userRef = doc(db, 'users', userId);
+          const userDoc = await transaction.get(userRef);
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const currentSpentXP = userData.gamification?.totalSpentXp || 0;
+
+            transaction.update(userRef, {
+              'gamification.totalSpentXp': currentSpentXP + contributionAmount,
+              'gamification.lastPoolContribution': serverTimestamp()
+            });
+
+            console.log(`💸 [TEAM-POOL] XP déduits du compte: ${contributionAmount} XP`);
+          }
+        }
+
         return {
           contributed: contributionAmount,
           newPoolTotal: newTotalXP,
