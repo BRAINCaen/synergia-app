@@ -24,11 +24,12 @@ import { RewardDetailModal, PurchaseSuccessAnimation, WishlistCard } from '../co
 // 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
+import { useTeamPool } from '../shared/hooks/useTeamPool.js';
 
 // 📊 FIREBASE IMPORTS
-import { 
+import {
   collection, query, orderBy, where, getDocs, doc, getDoc,
-  addDoc, updateDoc, deleteDoc, serverTimestamp, onSnapshot
+  addDoc, updateDoc, deleteDoc, serverTimestamp, onSnapshot, limit
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -70,6 +71,25 @@ const RewardsPage = () => {
   const [purchasedReward, setPurchasedReward] = useState(null);
   const [wishlistReward, setWishlistReward] = useState(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+
+  // 💰 ÉTATS CAGNOTTE ÉQUIPE (MODULE 8)
+  const [showContributionModal, setShowContributionModal] = useState(false);
+  const [contributionAmount, setContributionAmount] = useState(100);
+  const [topContributors, setTopContributors] = useState([]);
+
+  // 🏆 HOOK CAGNOTTE
+  const {
+    stats: poolStats,
+    loading: poolLoading,
+    contributing,
+    contributeManually,
+    refreshPoolData,
+    autoContributionRate
+  } = useTeamPool({
+    autoInit: true,
+    realTimeUpdates: true,
+    enableContributions: true
+  });
 
   // ==========================================
   // 📊 CATALOGUES DE RÉCOMPENSES PAR DÉFAUT
@@ -231,11 +251,84 @@ const RewardsPage = () => {
       console.log('✅ Demandes utilisateur chargées:', requests.length);
 
       console.log('✅ Toutes les données chargées avec succès');
+
+      // Charger top contributeurs
+      await loadTopContributors();
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
       alert('Erreur de chargement: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 💰 CHARGER TOP CONTRIBUTEURS
+  const loadTopContributors = async () => {
+    try {
+      const q = query(
+        collection(db, 'teamContributions'),
+        orderBy('amount', 'desc'),
+        limit(10)
+      );
+      const snapshot = await getDocs(q);
+
+      const contributorMap = new Map();
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const existing = contributorMap.get(data.userId) || {
+          total: 0,
+          count: 0,
+          email: data.userEmail
+        };
+        existing.total += data.amount;
+        existing.count += 1;
+        contributorMap.set(data.userId, existing);
+      });
+
+      const sorted = Array.from(contributorMap.entries())
+        .map(([userId, data]) => ({ userId, ...data }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+      setTopContributors(sorted);
+    } catch (err) {
+      console.error('Erreur chargement contributeurs:', err);
+    }
+  };
+
+  // 💰 CONTRIBUTION MANUELLE
+  const handleContribution = async () => {
+    const result = await contributeManually(contributionAmount);
+    if (result.success) {
+      setShowContributionModal(false);
+      setContributionAmount(100);
+      loadTopContributors();
+      refreshPoolData();
+    } else {
+      alert(`❌ Erreur: ${result.error}`);
+    }
+  };
+
+  // 🎨 COULEURS PAR NIVEAU POOL
+  const getPoolLevelGradient = (level) => {
+    switch (level) {
+      case 'BRONZE': return 'from-amber-600 to-amber-800';
+      case 'SILVER': return 'from-gray-300 to-gray-500';
+      case 'GOLD': return 'from-yellow-400 to-amber-500';
+      case 'PLATINUM': return 'from-purple-400 to-purple-600';
+      case 'DIAMOND': return 'from-cyan-400 to-blue-500';
+      default: return 'from-gray-400 to-gray-600';
+    }
+  };
+
+  const getPoolLevelEmoji = (level) => {
+    switch (level) {
+      case 'BRONZE': return '🥉';
+      case 'SILVER': return '🥈';
+      case 'GOLD': return '🥇';
+      case 'PLATINUM': return '💎';
+      case 'DIAMOND': return '👑';
+      default: return '🏆';
     }
   };
 
@@ -701,6 +794,127 @@ const RewardsPage = () => {
             </button>
           </div>
 
+          {/* 💰 SECTION CAGNOTTE ÉQUIPE - Affichée uniquement dans l'onglet équipe */}
+          {activeTab === 'team' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              {/* Hero Card Cagnotte */}
+              <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-500 rounded-2xl p-6 mb-6 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-20">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl" />
+                  <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-300 rounded-full blur-3xl" />
+                </div>
+
+                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between">
+                  <div className="text-center md:text-left mb-4 md:mb-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-4xl">{getPoolLevelEmoji(poolStats?.currentLevel || 'BRONZE')}</span>
+                      <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${getPoolLevelGradient(poolStats?.currentLevel || 'BRONZE')} text-white text-sm font-bold`}>
+                        Niveau {poolStats?.currentLevel || 'BRONZE'}
+                      </div>
+                    </div>
+                    <div className="text-4xl md:text-5xl font-black text-white mb-2">
+                      {(poolStats?.totalXP || teamPoolXP || 0).toLocaleString()} <span className="text-2xl">XP</span>
+                    </div>
+                    <p className="text-white/80">
+                      {poolStats?.contributorsCount || 0} contributeurs • Taux: {autoContributionRate || 20}%
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => setShowContributionModal(true)}
+                      className="px-6 py-3 bg-white/20 backdrop-blur-sm rounded-xl text-white font-semibold hover:bg-white/30 transition-all flex items-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Contribuer
+                    </button>
+                    {poolStats?.nextLevel && (
+                      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
+                        <div className="flex justify-between text-white/80 text-xs mb-1">
+                          <span>Vers {poolStats.nextLevel}</span>
+                          <span>{poolStats.progressToNext?.progress || 0}%</span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-2">
+                          <div
+                            style={{ width: `${poolStats.progressToNext?.progress || 0}%` }}
+                            className={`h-2 rounded-full bg-gradient-to-r ${getPoolLevelGradient(poolStats.nextLevel)}`}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Top Contributeurs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4">
+                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-yellow-400" />
+                    Top Contributeurs
+                  </h3>
+                  <div className="space-y-2">
+                    {topContributors.length === 0 ? (
+                      <p className="text-gray-400 text-sm">Aucun contributeur</p>
+                    ) : (
+                      topContributors.map((contributor, index) => (
+                        <div key={contributor.userId} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">
+                              {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅'}
+                            </span>
+                            <span className="text-gray-300 text-sm truncate max-w-[120px]">
+                              {contributor.email?.split('@')[0] || 'Anonyme'}
+                            </span>
+                          </div>
+                          <span className="text-green-400 font-semibold text-sm">
+                            +{contributor.total?.toLocaleString()} XP
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Info système */}
+                <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4">
+                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-purple-400" />
+                    Comment ça marche ?
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl">🎯</span>
+                      <div>
+                        <p className="text-white text-sm font-medium">Contribution Auto</p>
+                        <p className="text-gray-400 text-xs">{autoContributionRate || 20}% de tes XP vont à la cagnotte</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl">💪</span>
+                      <div>
+                        <p className="text-white text-sm font-medium">Garde tes XP</p>
+                        <p className="text-gray-400 text-xs">Tu gardes {100 - (autoContributionRate || 20)}% pour tes récompenses perso</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl">🎁</span>
+                      <div>
+                        <p className="text-white text-sm font-medium">Récompenses</p>
+                        <p className="text-gray-400 text-xs">Achetez des récompenses pour toute l'équipe !</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* 🔍 FILTRES */}
           <div className="flex flex-col md:flex-row gap-4 mb-8">
             <div className="flex-1 relative">
@@ -1125,6 +1339,71 @@ const RewardsPage = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 💰 MODAL CONTRIBUTION */}
+      <AnimatePresence>
+        {showContributionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowContributionModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-800 border border-white/20 rounded-xl p-6 w-full max-w-md"
+              onClick={e => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Plus className="w-6 h-6 text-green-400" />
+                Contribuer à la Cagnotte
+              </h2>
+
+              <div className="mb-6">
+                <label className="text-gray-400 text-sm mb-2 block">Montant XP</label>
+                <input
+                  type="number"
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(Math.max(10, parseInt(e.target.value) || 0))}
+                  min="10"
+                  step="10"
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white text-xl font-bold text-center focus:border-green-500 focus:outline-none transition-all"
+                />
+                <div className="flex gap-2 mt-3">
+                  {[50, 100, 250, 500].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => setContributionAmount(amount)}
+                      className="flex-1 py-2 bg-slate-700 rounded-lg text-gray-300 hover:bg-slate-600 transition-all text-sm"
+                    >
+                      {amount}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowContributionModal(false)}
+                  className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleContribution}
+                  disabled={contributing}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50"
+                >
+                  {contributing ? 'En cours...' : `Contribuer ${contributionAmount} XP`}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

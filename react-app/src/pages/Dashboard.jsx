@@ -495,10 +495,10 @@ const Dashboard = () => {
                 </div>
               </div>
               <a
-                href="/pool"
+                href="/rewards"
                 className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 rounded-lg text-purple-300 text-sm transition-all"
               >
-                Voir plus →
+                Récompenses →
               </a>
             </div>
 

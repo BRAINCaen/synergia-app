@@ -20,7 +20,6 @@ import BadgesPage from '../pages/BadgesPage.jsx';
 import GamificationPage from '../pages/GamificationPage.jsx';
 import RewardsPage from '../pages/RewardsPage.jsx';
 import BoostsPage from '../pages/BoostsPage.jsx';
-import TeamPoolPage from '../pages/TeamPoolPage.jsx'; // 🏆 MODULE 8 - CAGNOTTE
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
@@ -78,7 +77,6 @@ const AppRoutes = () => {
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
         <Route path="/boosts" element={<BoostsPage />} />
-        <Route path="/pool" element={<TeamPoolPage />} /> {/* 🏆 MODULE 8 - CAGNOTTE */}
 
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
