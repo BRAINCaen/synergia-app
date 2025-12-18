@@ -142,24 +142,49 @@ class TeamPoolService {
 
       // Utiliser une transaction pour garantir la cohérence
       const result = await runTransaction(db, async (transaction) => {
-        // 1. Récupérer l'état actuel de la cagnotte
+        // =====================================================
+        // 🔍 PHASE 1: TOUTES LES LECTURES D'ABORD (règle Firebase)
+        // =====================================================
+
+        // 1a. Récupérer l'état actuel de la cagnotte
         const poolRef = doc(db, this.COLLECTION_NAME, 'main');
         const poolDoc = await transaction.get(poolRef);
-        
+
         if (!poolDoc.exists()) {
           throw new Error('Cagnotte non initialisée');
         }
-        
+
         const poolData = poolDoc.data();
-        
+
+        // 1b. Récupérer l'utilisateur si contribution manuelle (lecture AVANT toute écriture)
+        let userRef = null;
+        let userData = null;
+
+        if (isManual) {
+          userRef = doc(db, 'users', userId);
+          const userDoc = await transaction.get(userRef);
+
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+          }
+        }
+
+        // =====================================================
+        // 📊 PHASE 2: CALCULS
+        // =====================================================
+
         // 2. Calculer les nouvelles valeurs
         const newTotalXP = (poolData.totalXP || 0) + contributionAmount;
         const newContributorsCount = poolData.contributorsCount || 0;
         const newTotalContributions = (poolData.totalContributions || 0) + 1;
-        
+
         // 3. Déterminer le nouveau niveau
         const newLevel = this.calculatePoolLevel(newTotalXP);
-        
+
+        // =====================================================
+        // ✏️ PHASE 3: TOUTES LES ÉCRITURES
+        // =====================================================
+
         // 4. Mettre à jour la cagnotte
         const poolUpdates = {
           totalXP: newTotalXP,
@@ -170,9 +195,9 @@ class TeamPoolService {
           'statistics.monthlyContributions': (poolData.statistics?.monthlyContributions || 0) + contributionAmount,
           'statistics.averageContribution': Math.round(newTotalXP / newTotalContributions)
         };
-        
+
         transaction.update(poolRef, poolUpdates);
-        
+
         // 5. Enregistrer la contribution individuelle
         const contributionRef = doc(collection(db, this.CONTRIBUTIONS_COLLECTION));
         const contributionData = {
@@ -185,25 +210,19 @@ class TeamPoolService {
           poolTotalAfter: newTotalXP,
           poolLevelAfter: newLevel
         };
-        
+
         transaction.set(contributionRef, contributionData);
 
         // 6. ✅ DÉDUIRE LES XP DU COMPTE UTILISATEUR (contribution manuelle uniquement)
-        if (isManual) {
-          const userRef = doc(db, 'users', userId);
-          const userDoc = await transaction.get(userRef);
+        if (isManual && userRef && userData) {
+          const currentSpentXP = userData.gamification?.totalSpentXp || 0;
 
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            const currentSpentXP = userData.gamification?.totalSpentXp || 0;
+          transaction.update(userRef, {
+            'gamification.totalSpentXp': currentSpentXP + contributionAmount,
+            'gamification.lastPoolContribution': serverTimestamp()
+          });
 
-            transaction.update(userRef, {
-              'gamification.totalSpentXp': currentSpentXP + contributionAmount,
-              'gamification.lastPoolContribution': serverTimestamp()
-            });
-
-            console.log(`💸 [TEAM-POOL] XP déduits du compte: ${contributionAmount} XP`);
-          }
+          console.log(`💸 [TEAM-POOL] XP déduits du compte: ${contributionAmount} XP`);
         }
 
         return {
