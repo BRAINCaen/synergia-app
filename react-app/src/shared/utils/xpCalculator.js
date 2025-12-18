@@ -3,6 +3,12 @@
 // CALCULATEUR XP POUR TÂCHES - FICHIER MANQUANT CRÉÉ
 // ==========================================
 
+import {
+  calculateLevel as calcLevelFromService,
+  getXPForLevel as getXPForLevelFromService,
+  getXPProgress as getXPProgressFromService
+} from '../../core/services/levelService.js';
+
 /**
  * 🏆 CONFIGURATION XP DE BASE
  */
@@ -158,54 +164,30 @@ export const calculateLevelBonusXP = (baseXP, userLevel) => {
 
 /**
  * 🔢 SYSTÈME DE NIVEAU BASÉ SUR L'XP
+ * Utilise le système calibré depuis levelService.js
+ * (~1000 XP/mois, niveau 30 atteignable en ~4 ans)
  */
 
 // Calculer le niveau d'un utilisateur selon son XP total
 export const calculateLevel = (totalXP) => {
-  if (totalXP < 100) return 1;
-  if (totalXP < 250) return 2;
-  if (totalXP < 500) return 3;
-  if (totalXP < 850) return 4;
-  if (totalXP < 1300) return 5;
-  if (totalXP < 1900) return 6;
-  if (totalXP < 2600) return 7;
-  if (totalXP < 3500) return 8;
-  if (totalXP < 4600) return 9;
-  if (totalXP < 6000) return 10;
-  
-  // Au-delà du niveau 10
-  return Math.floor(10 + (totalXP - 6000) / 1000);
+  return calcLevelFromService(totalXP);
 };
 
 // Calculer l'XP nécessaire pour le prochain niveau
 export const getXPForNextLevel = (currentLevel) => {
-  const levelThresholds = [0, 100, 250, 500, 850, 1300, 1900, 2600, 3500, 4600, 6000];
-  
-  if (currentLevel < levelThresholds.length) {
-    return levelThresholds[currentLevel];
-  }
-  
-  // Au-delà du niveau 10
-  return 6000 + (currentLevel - 10) * 1000;
+  return getXPForLevelFromService(currentLevel + 1);
 };
 
 // Calculer les progrès vers le prochain niveau
 export const calculateLevelProgress = (totalXP) => {
-  const currentLevel = calculateLevel(totalXP);
-  const currentLevelXP = getXPForNextLevel(currentLevel - 1);
-  const nextLevelXP = getXPForNextLevel(currentLevel);
-  
-  const progressXP = totalXP - currentLevelXP;
-  const neededXP = nextLevelXP - currentLevelXP;
-  const percentage = Math.round((progressXP / neededXP) * 100);
-  
+  const progress = getXPProgressFromService(totalXP);
   return {
-    currentLevel,
-    totalXP,
-    progressXP,
-    neededXP,
-    percentage: Math.max(0, Math.min(100, percentage)),
-    nextLevelXP
+    currentLevel: progress.level,
+    totalXP: totalXP,
+    progressXP: progress.progressXP,
+    neededXP: progress.xpToNextLevel,
+    percentage: progress.progressPercent,
+    nextLevelXP: progress.nextLevelXP
   };
 };
 

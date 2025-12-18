@@ -3,11 +3,11 @@
 // Service Gamification COMPLET avec toutes les méthodes
 // ==========================================
 
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   onSnapshot,
   collection,
   query,
@@ -20,6 +20,7 @@ import {
   increment
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel as calcLevel, getXPForLevel as getXPForLvl } from './levelService.js';
 
 class GamificationService {
   constructor() {
@@ -105,16 +106,18 @@ class GamificationService {
 
   /**
    * 📊 CALCULER LE NIVEAU BASÉ SUR L'XP
+   * Utilise le nouveau système de niveaux calibré
    */
   calculateLevel(totalXp) {
-    return Math.floor(totalXp / 100) + 1;
+    return calcLevel(totalXp);
   }
 
   /**
    * 📈 XP REQUIS POUR UN NIVEAU
+   * Utilise le nouveau système de niveaux calibré
    */
   getXpForLevel(level) {
-    return (level - 1) * 100;
+    return getXPForLvl(level);
   }
 
   /**

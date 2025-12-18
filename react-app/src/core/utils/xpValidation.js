@@ -3,6 +3,8 @@
 // UTILITAIRE DE VALIDATION DES DONNÉES XP
 // ==========================================
 
+import { calculateLevel, getXPProgress } from '../services/levelService.js';
+
 /**
  * 🔍 VALIDER ET CORRIGER LES DONNÉES XP
  * 
@@ -43,14 +45,14 @@ export const validateAndFixXPData = (gamificationData) => {
   const weeklyXp = Math.min(rawWeeklyXp, totalXp);
   const monthlyXp = Math.min(rawMonthlyXp, totalXp);
   
-  // 🎯 CALCUL DU NIVEAU CORRECT
-  // Formule: 100 XP par niveau, donc niveau = floor(totalXp / 100) + 1
-  const correctLevel = Math.floor(totalXp / 100) + 1;
-  
+  // 🎯 CALCUL DU NIVEAU CORRECT (nouveau système calibré)
+  const correctLevel = calculateLevel(totalXp);
+  const progress = getXPProgress(totalXp);
+
   // 📈 CALCUL DE LA PROGRESSION
-  const currentLevelXp = totalXp % 100; // XP dans le niveau actuel
-  const xpForNextLevel = 100; // Toujours 100 XP pour passer au niveau suivant
-  const progressToNext = Math.round((currentLevelXp / xpForNextLevel) * 100);
+  const currentLevelXp = progress.progressXP;
+  const xpForNextLevel = progress.xpToNextLevel;
+  const progressToNext = progress.progressPercent;
   
   // 🏆 AUTRES STATISTIQUES
   const tasksCompleted = Math.max(0, gamificationData.tasksCompleted || 0);
@@ -183,7 +185,7 @@ export const checkDataIntegrity = (gamificationData) => {
   const weeklyXp = gamificationData.weeklyXp || 0;
   const monthlyXp = gamificationData.monthlyXp || 0;
   const level = gamificationData.level || 1;
-  const expectedLevel = Math.floor(totalXp / 100) + 1;
+  const expectedLevel = calculateLevel(totalXp);
   
   // Vérifications
   if (weeklyXp > totalXp) {

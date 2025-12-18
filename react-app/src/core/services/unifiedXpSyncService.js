@@ -3,10 +3,10 @@
 // SERVICE DE SYNCHRONISATION XP UNIFIÉ - CODE COMPLET
 // ==========================================
 
-import { 
-  doc, 
-  getDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  updateDoc,
   onSnapshot,
   serverTimestamp,
   writeBatch,
@@ -15,6 +15,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel } from './levelService.js';
 
 /**
  * 🚀 SERVICE DE SYNCHRONISATION XP UNIFIÉ - VERSION COMPLÈTE
@@ -182,9 +183,9 @@ class UnifiedXpSyncService {
       const userData = userSnap.data();
       const currentGamification = userData.gamification || this.getDefaultGamificationData();
       
-      // Calculer les nouvelles valeurs
+      // Calculer les nouvelles valeurs avec le nouveau système de niveaux
       const newTotalXp = currentGamification.totalXp + xpAmount;
-      const newLevel = Math.floor(newTotalXp / 100) + 1;
+      const newLevel = calculateLevel(newTotalXp);
       const newWeeklyXp = (currentGamification.weeklyXp || 0) + xpAmount;
       const newMonthlyXp = (currentGamification.monthlyXp || 0) + xpAmount;
       
@@ -333,8 +334,8 @@ class UnifiedXpSyncService {
       ...data
     };
     
-    // Corriger le niveau basé sur l'XP
-    const calculatedLevel = Math.floor(validated.totalXp / 100) + 1;
+    // Corriger le niveau basé sur l'XP (nouveau système calibré)
+    const calculatedLevel = calculateLevel(validated.totalXp);
     if (validated.level !== calculatedLevel) {
       validated.level = calculatedLevel;
     }

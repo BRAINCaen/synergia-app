@@ -3,20 +3,21 @@
 // SERVICE SYNCHRONISATION XP GLOBAL - GARANTIT LA COHÉRENCE
 // ==========================================
 
-import { 
-  doc, 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  updateDoc, 
-  getDoc, 
+import {
+  doc,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  getDoc,
   getDocs,
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel } from './levelService.js';
 
 /**
  * 🔄 SERVICE DE SYNCHRONISATION XP GLOBAL
@@ -137,8 +138,8 @@ class XpSyncService {
       issues.push('missing_monthlyXp');
     }
     
-    // 2. Vérifier cohérence level/XP
-    const expectedLevel = Math.floor((gamification.totalXp || 0) / 100) + 1;
+    // 2. Vérifier cohérence level/XP (nouveau système calibré)
+    const expectedLevel = calculateLevel(gamification.totalXp || 0);
     if (gamification.level !== expectedLevel) {
       issues.push('incorrect_level');
     }
@@ -175,11 +176,11 @@ class XpSyncService {
           
         case 'missing_level':
           const totalXp = gamification.totalXp || 0;
-          corrections['gamification.level'] = Math.floor(totalXp / 100) + 1;
+          corrections['gamification.level'] = calculateLevel(totalXp);
           break;
-          
+
         case 'incorrect_level':
-          const correctLevel = Math.floor((gamification.totalXp || 0) / 100) + 1;
+          const correctLevel = calculateLevel(gamification.totalXp || 0);
           corrections['gamification.level'] = correctLevel;
           break;
           
@@ -321,7 +322,7 @@ class XpSyncService {
       const currentXp = userData.gamification?.totalXp || 0;
       const currentLevel = userData.gamification?.level || 1;
       const newTotalXp = currentXp + xpAmount;
-      const newLevel = Math.floor(newTotalXp / 100) + 1;
+      const newLevel = calculateLevel(newTotalXp);
       
       // Préparer la mise à jour avec métadonnées de sync
       const updates = {

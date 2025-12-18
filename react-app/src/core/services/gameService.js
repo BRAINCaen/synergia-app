@@ -3,15 +3,16 @@
 // Service Gamification COMPLET - Version Corrigée
 // ==========================================
 
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   onSnapshot,
-  serverTimestamp 
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel as calcLevel, getXPForLevel as getXPForLvl } from './levelService.js';
 
 class GameService {
   constructor() {
@@ -258,16 +259,15 @@ class GameService {
   }
 
   // 🧮 Calculer le niveau basé sur l'XP total
+  // Utilise le nouveau système de niveaux calibré (~1000 XP/mois, ~4 ans max)
   calculateLevel(totalXP) {
-    // Formule: niveau = floor(sqrt(totalXP / 100))
-    // Niveau 1: 100 XP, Niveau 2: 400 XP, Niveau 3: 900 XP, etc.
-    return Math.floor(Math.sqrt(totalXP / 100)) + 1;
+    return calcLevel(totalXP);
   }
 
   // 📈 Calculer l'XP nécessaire pour le prochain niveau
+  // Utilise le nouveau système de niveaux calibré
   getXPForNextLevel(currentLevel) {
-    const nextLevel = currentLevel + 1;
-    return Math.pow(nextLevel - 1, 2) * 100;
+    return getXPForLvl(currentLevel + 1);
   }
 
   // 🎨 Déterminer la rareté d'un niveau

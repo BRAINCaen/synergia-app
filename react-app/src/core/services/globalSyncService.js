@@ -4,11 +4,11 @@
 // Firebase = Source unique de vérité pour TOUS les utilisateurs
 // ==========================================
 
-import { 
-  doc, 
-  onSnapshot, 
-  updateDoc, 
-  setDoc, 
+import {
+  doc,
+  onSnapshot,
+  updateDoc,
+  setDoc,
   serverTimestamp,
   collection,
   getDocs,
@@ -16,6 +16,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel } from './levelService.js';
 
 /**
  * 🌐 SERVICE DE SYNCHRONISATION GLOBALE
@@ -177,9 +178,9 @@ class GlobalSyncService {
       }
     };
     
-    // ✅ CALCULS AUTOMATIQUES (logique unifiée)
+    // ✅ CALCULS AUTOMATIQUES (nouveau système de niveaux calibré)
     const totalXp = standardData.gamification.totalXp;
-    const calculatedLevel = Math.floor(totalXp / 100) + 1;
+    const calculatedLevel = calculateLevel(totalXp);
     const tasksCompleted = standardData.gamification.tasksCompleted;
     const tasksCreated = standardData.gamification.tasksCreated;
     const badgesCount = (standardData.gamification.badges || []).length;
