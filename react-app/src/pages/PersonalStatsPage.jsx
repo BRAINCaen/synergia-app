@@ -8,11 +8,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart3, TrendingUp, TrendingDown, Calendar, Zap, Trophy, Flame,
-  Target, Star, Clock, RefreshCw, Award, Crown, Sparkles, Minus
+  Target, Star, Clock, RefreshCw, Award, Crown, Sparkles, Minus, Download
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { ExportDropdown } from '../components/export/ExportButton.jsx';
 
 // Services
 import xpHistoryService from '../core/services/xpHistoryService.js';
@@ -129,14 +130,19 @@ const PersonalStatsPage = () => {
                 </p>
               </div>
 
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Actualiser
-              </button>
+              <div className="flex items-center gap-3">
+                {/* 📥 MODULE 17: Export des donnees */}
+                <ExportDropdown buttonLabel="Exporter" />
+
+                <button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </button>
+              </div>
             </div>
           </div>
 
