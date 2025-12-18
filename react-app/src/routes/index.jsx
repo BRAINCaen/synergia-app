@@ -24,6 +24,7 @@ import ChallengesPage from '../pages/ChallengesPage.jsx'; // 🎯 MODULE 10
 import ProfileCustomizationPage from '../pages/ProfileCustomizationPage.jsx'; // 🎨 MODULE 13
 import PulsePage from '../pages/PulsePage.jsx'; // 💗 MODULE PULSE
 import SkillTreePage from '../pages/SkillTreePage.jsx'; // 🌳 MODULE SKILL TREE
+import MentoringPage from '../pages/MentoringPage.jsx'; // 🎓 MODULE MENTORING
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
@@ -87,6 +88,7 @@ const AppRoutes = () => {
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
         <Route path="/pulse" element={<PulsePage />} /> {/* 💗 MODULE PULSE */}
+        <Route path="/mentoring" element={<MentoringPage />} /> {/* 🎓 MODULE MENTORING */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<ProfilePage />} />
         <Route path="/customization" element={<ProfileCustomizationPage />} /> {/* 🎨 MODULE 13 */}
