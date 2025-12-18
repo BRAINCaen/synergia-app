@@ -1,281 +1,16 @@
 // ==========================================
 // 📁 react-app/src/components/layout/Layout.jsx
-// LAYOUT AVEC MENU COMPLET + GODMOD + NOTIFICATIONS
+// LAYOUT AVEC MENU COMPLET + GODMOD + NOTIFICATIONS v2.0
+// MODULE 6 - SYSTÈME DE NOTIFICATIONS AMÉLIORÉ
 // ==========================================
 
 import React, { useState, useEffect, memo, useRef, useCallback } from 'react';
 import { Menu, X, Bell, Check, Trash2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../shared/stores/authStore.js';
-import notificationService from '../../core/services/notificationService.js';
+import useNotificationToast from '../../shared/hooks/useNotificationToast.js';
+import { NotificationCenter, NotificationToast } from '../notifications';
 
-// 🔔 COMPOSANT CENTRE DE NOTIFICATIONS
-const NotificationCenter = memo(({ isOpen, onClose, notifications, onMarkAsRead, onMarkAllAsRead, onDelete, onNavigate }) => {
-  if (!isOpen) return null;
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const now = new Date();
-    const diff = now - date;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'À l\'instant';
-    if (minutes < 60) return `Il y a ${minutes} min`;
-    if (hours < 24) return `Il y a ${hours}h`;
-    if (days < 7) return `Il y a ${days}j`;
-    return date.toLocaleDateString('fr-FR');
-  };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  return (
-    <div 
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 999999,
-        animation: 'fadeIn 0.2s ease-out'
-      }}
-    >
-      {/* Overlay */}
-      <div 
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(4px)'
-        }}
-      />
-
-      {/* Panel */}
-      <div 
-        style={{
-          position: 'absolute',
-          top: '100px',
-          right: '24px',
-          width: '420px',
-          maxWidth: '90vw',
-          maxHeight: '70vh',
-          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)',
-          borderRadius: '20px',
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideDown 0.3s ease-out',
-          border: '1px solid rgba(75, 85, 99, 0.3)'
-        }}
-      >
-        {/* Header */}
-        <div 
-          style={{
-            padding: '20px',
-            borderBottom: '1px solid rgba(75, 85, 99, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Bell style={{ width: '20px', height: '20px', color: 'white' }} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: 'white' }}>
-                Notifications
-              </h3>
-              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(156, 163, 175, 1)' }}>
-                {unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Tout est lu'}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {unreadCount > 0 && (
-              <button
-                onClick={onMarkAllAsRead}
-                style={{
-                  padding: '8px 12px',
-                  background: 'rgba(34, 197, 94, 0.1)',
-                  border: '1px solid rgba(34, 197, 94, 0.3)',
-                  borderRadius: '8px',
-                  color: '#22c55e',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <Check style={{ width: '14px', height: '14px' }} />
-                Tout lire
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              style={{
-                width: '32px',
-                height: '32px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: '#f87171'
-              }}
-            >
-              <X style={{ width: '16px', height: '16px' }} />
-            </button>
-          </div>
-        </div>
-
-        {/* Liste des notifications */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-          {notifications.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '40px 20px',
-              color: 'rgba(156, 163, 175, 1)'
-            }}>
-              <Bell style={{ width: '48px', height: '48px', marginBottom: '12px', opacity: 0.3 }} />
-              <p style={{ margin: 0 }}>Aucune notification</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {notifications.map((notif) => (
-                <div
-                  key={notif.id}
-                  style={{
-                    padding: '14px',
-                    background: notif.read 
-                      ? 'rgba(31, 41, 55, 0.3)' 
-                      : 'rgba(59, 130, 246, 0.1)',
-                    border: notif.read
-                      ? '1px solid rgba(75, 85, 99, 0.2)'
-                      : '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => {
-                    if (!notif.read) onMarkAsRead(notif.id);
-                    if (notif.link) {
-                      onNavigate(notif.link);
-                      onClose();
-                    }
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    <span style={{ fontSize: '24px' }}>{notif.icon || '🔔'}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <h4 style={{
-                          margin: 0,
-                          fontSize: '14px',
-                          fontWeight: notif.read ? '500' : '600',
-                          color: notif.read ? 'rgba(209, 213, 219, 1)' : 'white'
-                        }}>
-                          {notif.title}
-                        </h4>
-                        {!notif.read && (
-                          <div style={{
-                            width: '8px',
-                            height: '8px',
-                            background: '#3b82f6',
-                            borderRadius: '50%'
-                          }} />
-                        )}
-                      </div>
-                      <p style={{
-                        margin: 0,
-                        fontSize: '13px',
-                        color: 'rgba(156, 163, 175, 1)',
-                        lineHeight: '1.4'
-                      }}>
-                        {notif.message}
-                      </p>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginTop: '8px'
-                      }}>
-                        <span style={{ fontSize: '11px', color: 'rgba(107, 114, 128, 1)' }}>
-                          {formatDate(notif.createdAt)}
-                        </span>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          {notif.link && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigate(notif.link);
-                                onClose();
-                              }}
-                              style={{
-                                padding: '4px',
-                                background: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                color: 'rgba(96, 165, 250, 1)'
-                              }}
-                              title="Voir"
-                            >
-                              <ExternalLink style={{ width: '14px', height: '14px' }} />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDelete(notif.id);
-                            }}
-                            style={{
-                              padding: '4px',
-                              background: 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: 'rgba(248, 113, 113, 1)'
-                            }}
-                            title="Supprimer"
-                          >
-                            <Trash2 style={{ width: '14px', height: '14px' }} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Styles */}
-        <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-      </div>
-    </div>
-  );
-});
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD
 const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail }) => {
@@ -601,29 +336,23 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
 const Layout = memo(({ children }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const menuOpenRef = useRef(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  // 🔔 CHARGER LES NOTIFICATIONS
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    console.log('🔔 [LAYOUT] Abonnement aux notifications...');
-    
-    const unsubscribe = notificationService.subscribeToNotifications(user.uid, (notifs) => {
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.read).length);
-      console.log(`🔔 [LAYOUT] ${notifs.length} notifications, ${notifs.filter(n => !n.read).length} non lues`);
-    });
-
-    return () => {
-      console.log('🔔 [LAYOUT] Désabonnement notifications');
-      unsubscribe();
-    };
-  }, [user?.uid]);
+  // 🔔 MODULE 6: Hook de notifications avec toasts
+  const {
+    toasts,
+    notifications,
+    unreadCount,
+    dismissToast,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification
+  } = useNotificationToast(user?.uid, {
+    maxToasts: 3,
+    soundEnabled: true
+  });
 
   const openMenu = useCallback(() => {
     console.log('🔓 [LAYOUT] Ouverture menu demandée');
@@ -639,21 +368,6 @@ const Layout = memo(({ children }) => {
     console.log('🧭 [LAYOUT] Navigation vers:', path);
     navigate(path);
   }, [navigate]);
-
-  // 🔔 HANDLERS NOTIFICATIONS
-  const handleMarkAsRead = useCallback(async (notifId) => {
-    await notificationService.markAsRead(notifId);
-  }, []);
-
-  const handleMarkAllAsRead = useCallback(async () => {
-    if (user?.uid) {
-      await notificationService.markAllAsRead(user.uid);
-    }
-  }, [user?.uid]);
-
-  const handleDeleteNotification = useCallback(async (notifId) => {
-    await notificationService.deleteNotification(notifId);
-  }, []);
 
   // Debug logging
   if (menuOpenRef.current !== menuOpen) {
@@ -770,15 +484,21 @@ const Layout = memo(({ children }) => {
         userEmail={user?.email}
       />
 
-      {/* 🔔 CENTRE DE NOTIFICATIONS */}
+      {/* 🔔 MODULE 6: CENTRE DE NOTIFICATIONS AMÉLIORÉ */}
       <NotificationCenter
         isOpen={notifOpen}
         onClose={() => setNotifOpen(false)}
         notifications={notifications}
-        onMarkAsRead={handleMarkAsRead}
-        onMarkAllAsRead={handleMarkAllAsRead}
-        onDelete={handleDeleteNotification}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onDelete={deleteNotification}
         onNavigate={navigateFunction}
+      />
+
+      {/* 🔔 MODULE 6: TOASTS EN TEMPS RÉEL */}
+      <NotificationToast
+        toasts={toasts}
+        onDismiss={dismissToast}
       />
 
       {/* CONTENU */}
@@ -792,6 +512,5 @@ const Layout = memo(({ children }) => {
 // Noms pour React DevTools
 Layout.displayName = 'Layout';
 HamburgerMenuStable.displayName = 'HamburgerMenuStable';
-NotificationCenter.displayName = 'NotificationCenter';
 
 export default Layout;
