@@ -178,6 +178,23 @@ export const getLevelProgress = (totalXP) => {
 };
 
 /**
+ * 📊 Alias pour getLevelProgress avec noms de champs standardisés
+ * Utilisé par les hooks et composants du site
+ * @returns {Object} { level, progressXP, progressPercent, xpToNextLevel, currentLevelXP, nextLevelXP }
+ */
+export const getXPProgress = (totalXP) => {
+  const progress = getLevelProgress(totalXP);
+  return {
+    level: progress.currentLevel,
+    progressXP: progress.xpInCurrentLevel,
+    progressPercent: Math.round(progress.progress),
+    xpToNextLevel: progress.xpNeeded,
+    currentLevelXP: progress.xpForCurrentLevel,
+    nextLevelXP: progress.xpForNextLevel
+  };
+};
+
+/**
  * 🎖️ Obtenir le rang basé sur le niveau
  */
 export const getRankForLevel = (level) => {
