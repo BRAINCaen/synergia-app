@@ -113,6 +113,9 @@ const TasksPage = () => {
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState(null);
 
+  // 🔽 ÉTAT POUR LES SECTIONS DÉROULANTES DE L'HISTORIQUE
+  const [expandedUsers, setExpandedUsers] = useState({});
+
   // 🔥 CHARGEMENT DES QUÊTES
   useEffect(() => {
     if (!user?.uid) return;
@@ -399,13 +402,13 @@ const TasksPage = () => {
       const taskRef = doc(db, 'tasks', task.id);
       const currentAssignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [];
       const newAssignedTo = currentAssignedTo.filter(id => id !== user.uid);
-      
+
       await updateDoc(taskRef, {
         assignedTo: newAssignedTo,
         status: newAssignedTo.length === 0 ? 'todo' : task.status,
         updatedAt: serverTimestamp()
       });
-      
+
       console.log('✅ Désassignation réussie');
       alert('Vous vous êtes retiré de cette quête');
     } catch (error) {
@@ -413,6 +416,23 @@ const TasksPage = () => {
       alert('Erreur lors de la désassignation');
     }
   }, [user?.uid]);
+
+  // 🔽 HANDLER TOGGLE SECTION UTILISATEUR
+  const toggleUserSection = useCallback((userId) => {
+    setExpandedUsers(prev => ({
+      ...prev,
+      [userId]: !prev[userId]
+    }));
+  }, []);
+
+  // 🔽 DÉPLIER/REPLIER TOUTES LES SECTIONS
+  const toggleAllSections = useCallback((expand) => {
+    const newExpandedState = {};
+    Object.keys(historyGroupedByUser).forEach(userId => {
+      newExpandedState[userId] = expand;
+    });
+    setExpandedUsers(newExpandedState);
+  }, [historyGroupedByUser]);
 
   // 🔧 Rendu d'une quête pour la vue Kanban
   const renderKanbanTask = (task) => {
@@ -837,64 +857,122 @@ const TasksPage = () => {
                 </div>
               )}
 
-              {/* 📜 VUE HISTORIQUE GROUPÉE PAR UTILISATEUR */}
+              {/* 📜 VUE HISTORIQUE GROUPÉE PAR UTILISATEUR - ACCORDÉON */}
               {viewMode === 'cards' && activeTab === 'history' && (
-                <div className="space-y-8">
-                  {Object.entries(historyGroupedByUser).map(([userId, userGroup]) => (
-                    <motion.div
-                      key={userId}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
-                    >
-                      {/* En-tête utilisateur */}
-                      <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-700/50">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
-                          {userGroup.userPhoto ? (
-                            <img src={userGroup.userPhoto} alt={userGroup.userName} className="w-full h-full object-cover" />
-                          ) : (
-                            userGroup.userName.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-white">{userGroup.userName}</h3>
-                          {userGroup.userEmail && (
-                            <p className="text-sm text-gray-400">{userGroup.userEmail}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-purple-400">{userGroup.tasks.length}</div>
-                          <div className="text-sm text-gray-400">quête{userGroup.tasks.length > 1 ? 's' : ''} terminée{userGroup.tasks.length > 1 ? 's' : ''}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-yellow-400">
-                            {userGroup.tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)}
-                          </div>
-                          <div className="text-sm text-gray-400">XP total</div>
-                        </div>
-                      </div>
+                <div className="space-y-4">
+                  {/* 🔽 Boutons tout déplier/replier */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm text-gray-400">
+                      {Object.keys(historyGroupedByUser).length} utilisateur(s) • {filteredTasks.length} quête(s)
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleAllSections(true)}
+                        className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 hover:text-white hover:border-gray-600 transition-all flex items-center gap-2"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                        Tout déplier
+                      </button>
+                      <button
+                        onClick={() => toggleAllSections(false)}
+                        className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 hover:text-white hover:border-gray-600 transition-all flex items-center gap-2"
+                      >
+                        <ChevronDown className="w-4 h-4 rotate-180" />
+                        Tout replier
+                      </button>
+                    </div>
+                  </div>
 
-                      {/* Grille des quêtes de cet utilisateur */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Object.entries(historyGroupedByUser).map(([userId, userGroup]) => {
+                    const isExpanded = expandedUsers[userId] || false;
+
+                    return (
+                      <motion.div
+                        key={userId}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden"
+                      >
+                        {/* 🔽 En-tête utilisateur CLIQUABLE */}
+                        <button
+                          onClick={() => toggleUserSection(userId)}
+                          className="w-full flex items-center gap-4 p-4 hover:bg-gray-700/20 transition-colors cursor-pointer"
+                        >
+                          {/* Chevron animé */}
+                          <motion.div
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-gray-400"
+                          >
+                            <ChevronDown className="w-6 h-6" />
+                          </motion.div>
+
+                          {/* Avatar */}
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden flex-shrink-0">
+                            {userGroup.userPhoto ? (
+                              <img src={userGroup.userPhoto} alt={userGroup.userName} className="w-full h-full object-cover" />
+                            ) : (
+                              userGroup.userName.charAt(0).toUpperCase()
+                            )}
+                          </div>
+
+                          {/* Nom et email */}
+                          <div className="flex-1 text-left">
+                            <h3 className="text-lg font-bold text-white">{userGroup.userName}</h3>
+                            {userGroup.userEmail && (
+                              <p className="text-xs text-gray-400">{userGroup.userEmail}</p>
+                            )}
+                          </div>
+
+                          {/* Stats */}
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-purple-400">{userGroup.tasks.length}</div>
+                              <div className="text-xs text-gray-400">quête{userGroup.tasks.length > 1 ? 's' : ''}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-yellow-400">
+                                {userGroup.tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)} XP
+                              </div>
+                              <div className="text-xs text-gray-400">total</div>
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* 🔽 Contenu déroulant avec animation */}
                         <AnimatePresence>
-                          {userGroup.tasks.map(task => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              commentCount={taskComments[task.id]?.length || 0}
-                              isHistoryMode={true}
-                              onViewDetails={handleViewDetails}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              onStatusChange={handleStatusChange}
-                              onVolunteer={handleVolunteer}
-                              onUnvolunteer={handleUnvolunteer}
-                            />
-                          ))}
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.3, ease: 'easeInOut' }}
+                              className="overflow-hidden"
+                            >
+                              <div className="p-4 pt-0 border-t border-gray-700/50">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+                                  {userGroup.tasks.map(task => (
+                                    <TaskCard
+                                      key={task.id}
+                                      task={task}
+                                      commentCount={taskComments[task.id]?.length || 0}
+                                      isHistoryMode={true}
+                                      onViewDetails={handleViewDetails}
+                                      onEdit={handleEdit}
+                                      onDelete={handleDelete}
+                                      onStatusChange={handleStatusChange}
+                                      onVolunteer={handleVolunteer}
+                                      onUnvolunteer={handleUnvolunteer}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
                         </AnimatePresence>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -921,56 +999,112 @@ const TasksPage = () => {
                 </div>
               )}
 
-              {/* 📜 VUE LISTE HISTORIQUE GROUPÉE PAR UTILISATEUR */}
+              {/* 📜 VUE LISTE HISTORIQUE GROUPÉE PAR UTILISATEUR - ACCORDÉON */}
               {viewMode === 'list' && activeTab === 'history' && (
-                <div className="space-y-6">
-                  {Object.entries(historyGroupedByUser).map(([userId, userGroup]) => (
-                    <motion.div
-                      key={userId}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl p-4"
-                    >
-                      {/* En-tête utilisateur compact */}
-                      <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-700/50">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold overflow-hidden">
-                          {userGroup.userPhoto ? (
-                            <img src={userGroup.userPhoto} alt={userGroup.userName} className="w-full h-full object-cover" />
-                          ) : (
-                            userGroup.userName.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-white">{userGroup.userName}</h3>
-                        </div>
-                        <span className="text-purple-400 font-medium">{userGroup.tasks.length} quête(s)</span>
-                        <span className="text-yellow-400 font-medium">
-                          {userGroup.tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)} XP
-                        </span>
-                      </div>
+                <div className="space-y-3">
+                  {/* 🔽 Boutons tout déplier/replier */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm text-gray-400">
+                      {Object.keys(historyGroupedByUser).length} utilisateur(s) • {filteredTasks.length} quête(s)
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleAllSections(true)}
+                        className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 hover:text-white hover:border-gray-600 transition-all flex items-center gap-2"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                        Tout déplier
+                      </button>
+                      <button
+                        onClick={() => toggleAllSections(false)}
+                        className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 hover:text-white hover:border-gray-600 transition-all flex items-center gap-2"
+                      >
+                        <ChevronDown className="w-4 h-4 rotate-180" />
+                        Tout replier
+                      </button>
+                    </div>
+                  </div>
 
-                      {/* Liste des quêtes */}
-                      <div className="space-y-2">
+                  {Object.entries(historyGroupedByUser).map(([userId, userGroup]) => {
+                    const isExpanded = expandedUsers[userId] || false;
+
+                    return (
+                      <motion.div
+                        key={userId}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden"
+                      >
+                        {/* 🔽 En-tête utilisateur CLIQUABLE */}
+                        <button
+                          onClick={() => toggleUserSection(userId)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-700/20 transition-colors cursor-pointer"
+                        >
+                          {/* Chevron animé */}
+                          <motion.div
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-gray-400"
+                          >
+                            <ChevronDown className="w-5 h-5" />
+                          </motion.div>
+
+                          {/* Avatar */}
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
+                            {userGroup.userPhoto ? (
+                              <img src={userGroup.userPhoto} alt={userGroup.userName} className="w-full h-full object-cover" />
+                            ) : (
+                              userGroup.userName.charAt(0).toUpperCase()
+                            )}
+                          </div>
+
+                          {/* Nom */}
+                          <div className="flex-1 text-left">
+                            <span className="font-bold text-white">{userGroup.userName}</span>
+                          </div>
+
+                          {/* Stats compacts */}
+                          <span className="text-purple-400 font-medium text-sm">{userGroup.tasks.length} quête(s)</span>
+                          <span className="text-yellow-400 font-medium text-sm">
+                            {userGroup.tasks.reduce((sum, t) => sum + (t.xpReward || 0), 0)} XP
+                          </span>
+                        </button>
+
+                        {/* 🔽 Contenu déroulant avec animation */}
                         <AnimatePresence>
-                          {userGroup.tasks.map(task => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              viewMode="list"
-                              commentCount={taskComments[task.id]?.length || 0}
-                              isHistoryMode={true}
-                              onViewDetails={handleViewDetails}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              onStatusChange={handleStatusChange}
-                              onVolunteer={handleVolunteer}
-                              onUnvolunteer={handleUnvolunteer}
-                            />
-                          ))}
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.3, ease: 'easeInOut' }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-3 pb-3 pt-0 border-t border-gray-700/50">
+                                <div className="space-y-2 pt-3">
+                                  {userGroup.tasks.map(task => (
+                                    <TaskCard
+                                      key={task.id}
+                                      task={task}
+                                      viewMode="list"
+                                      commentCount={taskComments[task.id]?.length || 0}
+                                      isHistoryMode={true}
+                                      onViewDetails={handleViewDetails}
+                                      onEdit={handleEdit}
+                                      onDelete={handleDelete}
+                                      onStatusChange={handleStatusChange}
+                                      onVolunteer={handleVolunteer}
+                                      onUnvolunteer={handleUnvolunteer}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
                         </AnimatePresence>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
 
