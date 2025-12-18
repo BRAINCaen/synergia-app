@@ -1,17 +1,18 @@
 // ==========================================
-// 📁 react-app/src/core/services/levelService.js
-// SERVICE NIVEAUX & RANGS - SYNERGIA v4.0 - MODULE 4
-// Formule calibrée pour progression sur 2+ ans
+// react-app/src/core/services/levelService.js
+// SERVICE NIVEAUX & RANGS - SYNERGIA v5.0
+// Formule calibrée: 30 niveaux/an, max 100 niveaux
+// Rangs configurables par admin via Firebase
 // ==========================================
 
-import { doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 /**
- * 🎖️ SYSTÈME DE RANGS
- * Chaque rang représente un palier de progression
+ * 🎖️ RANGS PAR DÉFAUT (utilisés si pas de config Firebase)
+ * Configurables par admin via /admin/ranks
  */
-export const RANKS = {
+export const DEFAULT_RANKS = {
   apprenti: {
     id: 'apprenti',
     name: 'Apprenti',
@@ -19,9 +20,10 @@ export const RANKS = {
     color: 'from-gray-400 to-gray-500',
     textColor: 'text-gray-300',
     minLevel: 1,
-    maxLevel: 4,
+    maxLevel: 9,
     description: 'Nouveau membre de la guilde',
-    perks: ['Accès aux quêtes de base']
+    perks: ['Accès aux quêtes de base'],
+    boost: 1.0
   },
   initie: {
     id: 'initie',
@@ -29,10 +31,11 @@ export const RANKS = {
     icon: '⚔️',
     color: 'from-green-500 to-emerald-600',
     textColor: 'text-green-400',
-    minLevel: 5,
-    maxLevel: 9,
+    minLevel: 10,
+    maxLevel: 19,
     description: 'A prouvé sa valeur',
-    perks: ['Peut créer des défis', 'Badge Initié']
+    perks: ['Peut créer des défis', 'Badge Initié'],
+    boost: 1.05
   },
   aventurier: {
     id: 'aventurier',
@@ -40,10 +43,11 @@ export const RANKS = {
     icon: '🏹',
     color: 'from-blue-500 to-cyan-600',
     textColor: 'text-blue-400',
-    minLevel: 10,
-    maxLevel: 14,
+    minLevel: 20,
+    maxLevel: 29,
     description: 'Membre confirmé de la guilde',
-    perks: ['Quêtes avancées', 'Boost x1.1', 'Badge Aventurier']
+    perks: ['Quêtes avancées', 'Boost x1.1', 'Badge Aventurier'],
+    boost: 1.1
   },
   heros: {
     id: 'heros',
@@ -51,10 +55,11 @@ export const RANKS = {
     icon: '🛡️',
     color: 'from-purple-500 to-violet-600',
     textColor: 'text-purple-400',
-    minLevel: 15,
-    maxLevel: 19,
+    minLevel: 30,
+    maxLevel: 44,
     description: 'Reconnu pour ses exploits',
-    perks: ['Mentor de nouveaux membres', 'Boost x1.2', 'Badge Héros']
+    perks: ['Mentor de nouveaux membres', 'Boost x1.15', 'Badge Héros'],
+    boost: 1.15
   },
   champion: {
     id: 'champion',
@@ -62,10 +67,11 @@ export const RANKS = {
     icon: '🏆',
     color: 'from-yellow-500 to-orange-600',
     textColor: 'text-yellow-400',
-    minLevel: 20,
-    maxLevel: 29,
+    minLevel: 45,
+    maxLevel: 59,
     description: 'Pilier de la guilde',
-    perks: ['Campagnes exclusives', 'Boost x1.3', 'Badge Champion']
+    perks: ['Campagnes exclusives', 'Boost x1.2', 'Badge Champion'],
+    boost: 1.2
   },
   maitre: {
     id: 'maitre',
@@ -73,10 +79,11 @@ export const RANKS = {
     icon: '👑',
     color: 'from-orange-500 to-red-600',
     textColor: 'text-orange-400',
-    minLevel: 30,
-    maxLevel: 39,
+    minLevel: 60,
+    maxLevel: 74,
     description: 'Expert reconnu',
-    perks: ['Valider les défis', 'Boost x1.5', 'Badge Maître']
+    perks: ['Valider les défis', 'Boost x1.3', 'Badge Maître'],
+    boost: 1.3
   },
   legende: {
     id: 'legende',
@@ -84,10 +91,11 @@ export const RANKS = {
     icon: '✨',
     color: 'from-pink-500 to-rose-600',
     textColor: 'text-pink-400',
-    minLevel: 40,
-    maxLevel: 49,
+    minLevel: 75,
+    maxLevel: 89,
     description: 'Nom gravé dans l\'histoire',
-    perks: ['Récompenses légendaires', 'Boost x1.75', 'Badge Légende']
+    perks: ['Récompenses légendaires', 'Boost x1.5', 'Badge Légende'],
+    boost: 1.5
   },
   immortel: {
     id: 'immortel',
@@ -95,64 +103,77 @@ export const RANKS = {
     icon: '🌟',
     color: 'from-amber-400 via-yellow-500 to-amber-600',
     textColor: 'text-amber-400',
-    minLevel: 50,
-    maxLevel: 999,
+    minLevel: 90,
+    maxLevel: 99,
     description: 'A transcendé tous les défis',
-    perks: ['Statut spécial', 'Boost x2.0', 'Badge Immortel', 'Profil doré']
+    perks: ['Statut spécial', 'Boost x1.75', 'Badge Immortel', 'Profil doré'],
+    boost: 1.75
+  },
+  transcendant: {
+    id: 'transcendant',
+    name: 'Transcendant',
+    icon: '💎',
+    color: 'from-cyan-400 via-blue-500 to-purple-600',
+    textColor: 'text-cyan-300',
+    minLevel: 100,
+    maxLevel: 100,
+    description: 'Le sommet absolu - Maître parmi les Maîtres',
+    perks: ['Tous les privilèges', 'Boost x2.0', 'Badge Transcendant', 'Aura spéciale'],
+    boost: 2.0
   }
 };
 
+// Cache local des rangs (chargés depuis Firebase ou défauts)
+let cachedRanks = { ...DEFAULT_RANKS };
+let ranksLoaded = false;
+let ranksListener = null;
+
 /**
- * 📊 CONFIGURATION DU SYSTÈME DE NIVEAUX - CALIBRÉ POUR ~1000 XP/MOIS
- * Formule: XP requis = BASE * niveau^EXPOSANT
+ * 📊 CONFIGURATION DU SYSTÈME DE NIVEAUX
+ * Formule linéaire: XP = 500 × (niveau - 1)
  *
- * OBJECTIF: Durée max réaliste = 4 ans (~48,000 XP)
- * - Niveau 20 = ~1.7 ans (objectif moyen terme)
- * - Niveau 30 = ~4 ans (accomplissement majeur)
- * - Niveau 40+ = Légendaire (très rare)
+ * Objectif: ~30 niveaux/an avec 1000-1500 XP/mois
+ * - Niveau 30: ~1 an
+ * - Niveau 60: ~2 ans
+ * - Niveau 90: ~3 ans
+ * - Niveau 100: ~3.3 ans (max réaliste)
  */
 const LEVEL_CONFIG = {
-  BASE_XP: 100,           // XP de base pour niveau 2
-  EXPONENT: 1.8,          // Exposant de croissance
-  MAX_LEVEL: 100          // Niveau maximum théorique
+  XP_PER_LEVEL: 500,    // XP fixe par niveau
+  MAX_LEVEL: 100        // Niveau maximum
 };
 
 /**
  * 🧮 Calculer le niveau basé sur l'XP total
- * Formule inversée: niveau = floor((totalXP / BASE)^(1/EXPOSANT)) + 1
+ * Formule: niveau = floor(totalXP / 500) + 1
  *
- * Exemples avec calibration (~1000 XP/mois, durée max 4 ans):
- * - Niveau 5:  ~1,100 XP (~1 mois)
- * - Niveau 10: ~5,100 XP (~5 mois)
- * - Niveau 15: ~11,700 XP (~1 an)
- * - Niveau 20: ~20,500 XP (~1.7 ans)
- * - Niveau 30: ~45,500 XP (~3.8 ans) ← Objectif 4 ans
- * - Niveau 40: ~79,400 XP (~6.6 ans - LÉGENDAIRE)
- * - Niveau 50: ~122,000 XP (~10 ans - MYTHIQUE)
+ * Exemples (~1250 XP/mois = 30 niveaux/an):
+ * - Niveau 10:  4,500 XP (~3-4 mois)
+ * - Niveau 30: 14,500 XP (~1 an)
+ * - Niveau 60: 29,500 XP (~2 ans)
+ * - Niveau 90: 44,500 XP (~3 ans)
+ * - Niveau 100: 49,500 XP (~3.3 ans)
  */
 export const calculateLevel = (totalXP) => {
   if (!totalXP || totalXP <= 0) return 1;
 
-  const { BASE_XP, EXPONENT } = LEVEL_CONFIG;
-  const level = Math.floor(Math.pow(totalXP / BASE_XP, 1 / EXPONENT)) + 1;
+  const { XP_PER_LEVEL, MAX_LEVEL } = LEVEL_CONFIG;
+  const level = Math.floor(totalXP / XP_PER_LEVEL) + 1;
 
-  return Math.min(level, LEVEL_CONFIG.MAX_LEVEL);
+  return Math.min(level, MAX_LEVEL);
 };
 
 /**
  * 📈 Calculer l'XP requis pour atteindre un niveau
- * Formule: XP = BASE * (niveau - 1)^EXPOSANT
+ * Formule: XP = 500 × (niveau - 1)
  */
 export const getXPForLevel = (level) => {
   if (level <= 1) return 0;
-
-  const { BASE_XP, EXPONENT } = LEVEL_CONFIG;
-  return Math.floor(BASE_XP * Math.pow(level - 1, EXPONENT));
+  return LEVEL_CONFIG.XP_PER_LEVEL * (level - 1);
 };
 
 /**
  * 📊 Calculer la progression vers le prochain niveau
- * @returns {Object} { currentXP, xpForCurrentLevel, xpForNextLevel, progress, xpNeeded }
  */
 export const getLevelProgress = (totalXP) => {
   const currentLevel = calculateLevel(totalXP);
@@ -160,10 +181,15 @@ export const getLevelProgress = (totalXP) => {
   const xpForNextLevel = getXPForLevel(currentLevel + 1);
 
   const xpInCurrentLevel = totalXP - xpForCurrentLevel;
-  const xpRequiredForNext = xpForNextLevel - xpForCurrentLevel;
+  const xpRequiredForNext = LEVEL_CONFIG.XP_PER_LEVEL;
 
-  const progress = Math.min((xpInCurrentLevel / xpRequiredForNext) * 100, 100);
-  const xpNeeded = xpForNextLevel - totalXP;
+  const progress = currentLevel >= LEVEL_CONFIG.MAX_LEVEL
+    ? 100
+    : Math.min((xpInCurrentLevel / xpRequiredForNext) * 100, 100);
+
+  const xpNeeded = currentLevel >= LEVEL_CONFIG.MAX_LEVEL
+    ? 0
+    : xpForNextLevel - totalXP;
 
   return {
     currentLevel,
@@ -173,14 +199,13 @@ export const getLevelProgress = (totalXP) => {
     xpInCurrentLevel,
     xpRequiredForNext,
     progress: Math.round(progress * 100) / 100,
-    xpNeeded: Math.max(0, xpNeeded)
+    xpNeeded: Math.max(0, xpNeeded),
+    isMaxLevel: currentLevel >= LEVEL_CONFIG.MAX_LEVEL
   };
 };
 
 /**
- * 📊 Alias pour getLevelProgress avec noms de champs standardisés
- * Utilisé par les hooks et composants du site
- * @returns {Object} { level, progressXP, progressPercent, xpToNextLevel, currentLevelXP, nextLevelXP }
+ * 📊 Alias pour getLevelProgress
  */
 export const getXPProgress = (totalXP) => {
   const progress = getLevelProgress(totalXP);
@@ -190,23 +215,113 @@ export const getXPProgress = (totalXP) => {
     progressPercent: Math.round(progress.progress),
     xpToNextLevel: progress.xpNeeded,
     currentLevelXP: progress.xpForCurrentLevel,
-    nextLevelXP: progress.xpForNextLevel
+    nextLevelXP: progress.xpForNextLevel,
+    isMaxLevel: progress.isMaxLevel
   };
 };
+
+// ==========================================
+// 🎖️ GESTION DES RANGS (CONFIGURABLES)
+// ==========================================
+
+/**
+ * 🔄 Charger les rangs depuis Firebase
+ */
+export const loadRanksFromFirebase = async () => {
+  try {
+    const ranksDoc = await getDoc(doc(db, 'config', 'ranks'));
+
+    if (ranksDoc.exists()) {
+      const data = ranksDoc.data();
+      if (data.ranks && Object.keys(data.ranks).length > 0) {
+        cachedRanks = data.ranks;
+        console.log('✅ [RANKS] Rangs chargés depuis Firebase');
+      }
+    } else {
+      // Créer la config par défaut dans Firebase
+      await setDoc(doc(db, 'config', 'ranks'), {
+        ranks: DEFAULT_RANKS,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp()
+      });
+      console.log('✅ [RANKS] Config par défaut créée dans Firebase');
+    }
+
+    ranksLoaded = true;
+    return cachedRanks;
+  } catch (error) {
+    console.error('❌ [RANKS] Erreur chargement:', error);
+    return DEFAULT_RANKS;
+  }
+};
+
+/**
+ * 🔔 Écouter les changements de rangs en temps réel
+ */
+export const subscribeToRanks = (callback) => {
+  if (ranksListener) {
+    ranksListener();
+  }
+
+  ranksListener = onSnapshot(doc(db, 'config', 'ranks'), (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.ranks) {
+        cachedRanks = data.ranks;
+        ranksLoaded = true;
+        console.log('🔄 [RANKS] Rangs mis à jour en temps réel');
+        if (callback) callback(cachedRanks);
+      }
+    }
+  }, (error) => {
+    console.error('❌ [RANKS] Erreur listener:', error);
+  });
+
+  return ranksListener;
+};
+
+/**
+ * 📋 Obtenir tous les rangs (depuis cache ou défauts)
+ */
+export const getRanks = () => {
+  return ranksLoaded ? cachedRanks : DEFAULT_RANKS;
+};
+
+/**
+ * Alias pour compatibilité
+ */
+export const RANKS = new Proxy({}, {
+  get: (target, prop) => {
+    const ranks = getRanks();
+    return ranks[prop];
+  },
+  ownKeys: () => {
+    return Object.keys(getRanks());
+  },
+  getOwnPropertyDescriptor: (target, prop) => {
+    const ranks = getRanks();
+    if (prop in ranks) {
+      return { enumerable: true, configurable: true, value: ranks[prop] };
+    }
+    return undefined;
+  }
+});
 
 /**
  * 🎖️ Obtenir le rang basé sur le niveau
  */
 export const getRankForLevel = (level) => {
-  const ranks = Object.values(RANKS);
+  const ranks = getRanks();
+  const ranksList = Object.values(ranks);
 
-  for (const rank of ranks) {
+  for (const rank of ranksList) {
     if (level >= rank.minLevel && level <= rank.maxLevel) {
       return rank;
     }
   }
 
-  return RANKS.apprenti;
+  // Fallback au premier rang
+  return ranksList[0] || DEFAULT_RANKS.apprenti;
 };
 
 /**
@@ -221,11 +336,15 @@ export const getRankForXP = (totalXP) => {
  * 🎯 Obtenir le prochain rang
  */
 export const getNextRank = (currentRank) => {
-  const rankOrder = ['apprenti', 'initie', 'aventurier', 'heros', 'champion', 'maitre', 'legende', 'immortel'];
+  const ranks = getRanks();
+  const rankOrder = Object.keys(ranks).sort((a, b) =>
+    ranks[a].minLevel - ranks[b].minLevel
+  );
+
   const currentIndex = rankOrder.indexOf(currentRank?.id || 'apprenti');
 
   if (currentIndex < rankOrder.length - 1) {
-    return RANKS[rankOrder[currentIndex + 1]];
+    return ranks[rankOrder[currentIndex + 1]];
   }
 
   return null; // Déjà au rang max
@@ -239,7 +358,6 @@ export const getFullProgressInfo = (totalXP) => {
   const currentRank = getRankForLevel(levelProgress.currentLevel);
   const nextRank = getNextRank(currentRank);
 
-  // Calculer la progression vers le prochain rang
   let rankProgress = 100;
   let xpToNextRank = 0;
 
@@ -260,39 +378,134 @@ export const getFullProgressInfo = (totalXP) => {
     nextRank,
     rankProgress: Math.round(rankProgress * 100) / 100,
     xpToNextRank: Math.max(0, xpToNextRank),
-    levelsToNextRank: nextRank ? nextRank.minLevel - levelProgress.currentLevel : 0
+    levelsToNextRank: nextRank ? nextRank.minLevel - levelProgress.currentLevel : 0,
+    xpBoost: currentRank?.boost || 1.0
   };
 };
 
 /**
  * 📋 Générer la grille de niveaux (pour affichage)
  */
-export const generateLevelGrid = (maxLevel = 50) => {
+export const generateLevelGrid = (maxLevel = 100) => {
   const grid = [];
 
   for (let level = 1; level <= maxLevel; level++) {
     const xpRequired = getXPForLevel(level);
     const rank = getRankForLevel(level);
-    const xpToNext = getXPForLevel(level + 1) - xpRequired;
+    const xpToNext = level < LEVEL_CONFIG.MAX_LEVEL ? LEVEL_CONFIG.XP_PER_LEVEL : 0;
 
     grid.push({
       level,
       xpRequired,
       xpToNext,
       rank: rank.name,
-      rankIcon: rank.icon
+      rankIcon: rank.icon,
+      rankId: rank.id
     });
   }
 
   return grid;
 };
 
+// ==========================================
+// 🔧 SERVICE ADMIN - MODIFICATION DES RANGS
+// ==========================================
+
 /**
- * 🔄 SERVICE DE MISE À JOUR DES NIVEAUX
+ * 💾 Sauvegarder un rang modifié (ADMIN ONLY)
  */
+export const updateRank = async (rankId, updates) => {
+  try {
+    const currentRanks = getRanks();
+
+    if (!currentRanks[rankId]) {
+      throw new Error(`Rang "${rankId}" non trouvé`);
+    }
+
+    const updatedRanks = {
+      ...currentRanks,
+      [rankId]: {
+        ...currentRanks[rankId],
+        ...updates,
+        id: rankId // Préserver l'ID
+      }
+    };
+
+    await setDoc(doc(db, 'config', 'ranks'), {
+      ranks: updatedRanks,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    cachedRanks = updatedRanks;
+    console.log(`✅ [RANKS] Rang "${rankId}" mis à jour`);
+
+    return updatedRanks[rankId];
+  } catch (error) {
+    console.error('❌ [RANKS] Erreur mise à jour:', error);
+    throw error;
+  }
+};
+
+/**
+ * 💾 Sauvegarder tous les rangs (ADMIN ONLY)
+ */
+export const saveAllRanks = async (ranks) => {
+  try {
+    await setDoc(doc(db, 'config', 'ranks'), {
+      ranks,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    cachedRanks = ranks;
+    console.log('✅ [RANKS] Tous les rangs sauvegardés');
+
+    return ranks;
+  } catch (error) {
+    console.error('❌ [RANKS] Erreur sauvegarde:', error);
+    throw error;
+  }
+};
+
+/**
+ * 🔄 Réinitialiser les rangs par défaut (ADMIN ONLY)
+ */
+export const resetRanksToDefault = async () => {
+  try {
+    await setDoc(doc(db, 'config', 'ranks'), {
+      ranks: DEFAULT_RANKS,
+      updatedAt: serverTimestamp(),
+      resetAt: serverTimestamp()
+    });
+
+    cachedRanks = { ...DEFAULT_RANKS };
+    console.log('✅ [RANKS] Rangs réinitialisés par défaut');
+
+    return DEFAULT_RANKS;
+  } catch (error) {
+    console.error('❌ [RANKS] Erreur réinitialisation:', error);
+    throw error;
+  }
+};
+
+// ==========================================
+// 🔄 SERVICE DE MISE À JOUR DES NIVEAUX
+// ==========================================
+
 class LevelService {
   constructor() {
     this.cache = new Map();
+    this.initialized = false;
+  }
+
+  /**
+   * 🚀 Initialiser le service (charger les rangs)
+   */
+  async initialize() {
+    if (this.initialized) return;
+
+    await loadRanksFromFirebase();
+    this.initialized = true;
+    console.log('✅ [LEVEL SERVICE] Initialisé');
   }
 
   /**
@@ -300,6 +513,10 @@ class LevelService {
    */
   async updateUserLevel(userId) {
     try {
+      if (!this.initialized) {
+        await this.initialize();
+      }
+
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
 
@@ -311,26 +528,22 @@ class LevelService {
       const userData = userDoc.data();
       const totalXP = userData.gamification?.totalXp || userData.totalXp || 0;
 
-      // Calculer le nouveau niveau avec la nouvelle formule
       const newLevel = calculateLevel(totalXP);
       const oldLevel = userData.gamification?.level || userData.level || 1;
-
-      // Obtenir le rang
       const rank = getRankForLevel(newLevel);
 
-      // Mettre à jour si le niveau a changé
       if (newLevel !== oldLevel) {
         await updateDoc(userRef, {
           'gamification.level': newLevel,
           'gamification.rank': rank.id,
           'gamification.rankName': rank.name,
           'gamification.rankIcon': rank.icon,
+          'gamification.xpBoost': rank.boost || 1.0,
           'gamification.levelUpdatedAt': serverTimestamp()
         });
 
         console.log(`🎉 [LEVEL] ${userId}: Niveau ${oldLevel} → ${newLevel} (${rank.name})`);
 
-        // Émettre un événement si level up
         if (newLevel > oldLevel && typeof window !== 'undefined') {
           const event = new CustomEvent('userLevelUp', {
             detail: {
@@ -338,7 +551,8 @@ class LevelService {
               oldLevel,
               newLevel,
               rank: rank.id,
-              rankName: rank.name
+              rankName: rank.name,
+              rankIcon: rank.icon
             }
           });
           window.dispatchEvent(event);
@@ -370,6 +584,10 @@ class LevelService {
    */
   async getUserLevelData(userId) {
     try {
+      if (!this.initialized) {
+        await this.initialize();
+      }
+
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
 
@@ -388,20 +606,8 @@ class LevelService {
     }
   }
 
-  /**
-   * Données par défaut
-   */
   getDefaultLevelData() {
     return getFullProgressInfo(0);
-  }
-
-  /**
-   * Migrer tous les utilisateurs vers la nouvelle formule
-   */
-  async migrateAllUsersToNewFormula() {
-    console.log('🔄 [LEVEL] Migration vers nouvelle formule...');
-    // Cette méthode serait appelée une fois pour recalculer tous les niveaux
-    // Implémentation à faire via une Cloud Function ou script admin
   }
 }
 
@@ -412,29 +618,16 @@ export const levelService = new LevelService();
 // 💰 HELPER XP DÉPENSABLES (BOUTIQUE)
 // ==========================================
 
-/**
- * 🛒 Calculer les XP dépensables d'un utilisateur
- * Formule: totalXp - totalSpentXp = XP restants pour achats
- * @param {Object} gamificationData - Données gamification de l'utilisateur
- * @returns {number} XP dépensables
- */
 export const getSpendableXP = (gamificationData) => {
   const totalXP = gamificationData?.totalXp || 0;
   const totalSpentXP = gamificationData?.totalSpentXp || 0;
   return Math.max(0, totalXP - totalSpentXP);
 };
 
-/**
- * 💰 Vérifier si l'utilisateur peut acheter une récompense
- * @param {Object} gamificationData - Données gamification
- * @param {number} cost - Coût de la récompense
- * @returns {Object} { canAfford, spendableXP, missing }
- */
 export const canAffordReward = (gamificationData, cost) => {
   const spendableXP = getSpendableXP(gamificationData);
   const canAfford = spendableXP >= cost;
   const missing = canAfford ? 0 : cost - spendableXP;
-
   return { canAfford, spendableXP, missing };
 };
 
@@ -442,25 +635,20 @@ export const canAffordReward = (gamificationData, cost) => {
 // 📊 TABLE DE RÉFÉRENCE DES NIVEAUX
 // ==========================================
 /**
- * Calibration: BASE=100, EXPONENT=1.8, ~1000 XP/mois
- * Durée max réaliste: ~4 ans (niveau 30 accessible)
+ * Calibration: 500 XP/niveau, ~1250 XP/mois = 30 niveaux/an
  *
- * Niveau | XP Requis | Rang        | Temps estimé
- * -------|-----------|-------------|------------------------------
- *   1    |       0   | Apprenti    | Départ
- *   2    |     100   | Apprenti    | ~3 jours
- *   3    |     348   | Apprenti    | ~10 jours
- *   5    |   1,213   | Initié      | ~1.2 mois
- *  10    |   5,154   | Aventurier  | ~5 mois
- *  15    |  11,780   | Héros       | ~1 an
- *  20    |  20,540   | Champion    | ~1.7 ans
- *  25    |  31,550   | Champion    | ~2.6 ans
- *  30    |  45,550   | Maître      | ~3.8 ans ← MAX RÉALISTE
- *  40    |  79,400   | Légende     | ~6.6 ans (RARE)
- *  50    | 122,000   | Immortel    | ~10 ans (MYTHIQUE!)
- *
- * NOTE: Niveau 30 = accomplissement majeur (~4 ans)
- *       Niveau 40+ = Réservé aux légendes de la guilde!
+ * Niveau | XP Requis | Rang         | Temps estimé
+ * -------|-----------|--------------|------------------------------
+ *   1    |       0   | Apprenti     | Départ
+ *   5    |   2,000   | Apprenti     | ~1.5 mois
+ *  10    |   4,500   | Initié       | ~3-4 mois
+ *  20    |   9,500   | Aventurier   | ~7-8 mois
+ *  30    |  14,500   | Héros        | ~1 an
+ *  45    |  22,000   | Champion     | ~1.5 ans
+ *  60    |  29,500   | Maître       | ~2 ans
+ *  75    |  37,000   | Légende      | ~2.5 ans
+ *  90    |  44,500   | Immortel     | ~3 ans
+ * 100    |  49,500   | Transcendant | ~3.3 ans (MAX!)
  */
 
 export default levelService;

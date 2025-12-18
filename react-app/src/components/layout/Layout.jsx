@@ -59,6 +59,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/admin/analytics', label: 'Analytics Admin', icon: '📊' },
       { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
       { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
+      { path: '/admin/ranks', label: 'Gestion des Rangs', icon: '🎖️' },
       { path: '/admin/sync', label: 'Synchronisation', icon: '🔄' }
     ]}
   ];
