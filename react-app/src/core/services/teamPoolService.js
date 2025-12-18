@@ -32,8 +32,8 @@ class TeamPoolService {
     
     // 🎯 CONFIGURATION DU SYSTÈME
     this.CONFIG = {
-      // Pourcentage automatique des XP versés à la cagnotte (5% par défaut)
-      AUTO_CONTRIBUTION_RATE: 0.05,
+      // Pourcentage automatique des XP versés à la cagnotte (20% par défaut)
+      AUTO_CONTRIBUTION_RATE: 0.2,
       
       // XP minimum requis pour contribuer automatiquement
       MIN_XP_FOR_AUTO_CONTRIBUTION: 50,

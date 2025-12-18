@@ -434,8 +434,8 @@ const AdminTaskValidationPage = () => {
       // ✅ 5. CONTRIBUTION DIRECTE AU POOL ÉQUIPE
       try {
         console.log('💰 Contribution directe au pool équipe...');
-        const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
-        console.log(`💰 Contribution calculée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+        const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.2));
+        console.log(`💰 Contribution calculée: ${contributionAmount} XP (20% de ${xpToAdd})`);
         
         const poolResult = await teamPoolService.contributeToPool(
           odot,
@@ -661,8 +661,8 @@ const AdminTaskValidationPage = () => {
         
         // ✅ CONTRIBUTION AU POOL ÉQUIPE
         try {
-          const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
-          console.log(`💰 Contribution forcée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+          const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.2));
+          console.log(`💰 Contribution forcée: ${contributionAmount} XP (20% de ${xpToAdd})`);
           
           await teamPoolService.contributeToPool(
             odot,
