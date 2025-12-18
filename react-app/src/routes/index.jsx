@@ -13,6 +13,7 @@ import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
 import CampaignDetailPage from '../pages/CampaignDetailPage.jsx';
 import AnalyticsPage from '../pages/AnalyticsPage.jsx';
+import PersonalStatsPage from '../pages/PersonalStatsPage.jsx'; // 📊 MODULE 7
 import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
 import BadgesPage from '../pages/BadgesPage.jsx';
@@ -68,7 +69,8 @@ const AppRoutes = () => {
         <Route path="/projects/:id" element={<CampaignDetailPage />} />
         
         <Route path="/analytics" element={<AnalyticsPage />} />
-        
+        <Route path="/stats" element={<PersonalStatsPage />} /> {/* 📊 MODULE 7 */}
+
         {/* GAMIFICATION */}
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/badges" element={<BadgesPage />} />
