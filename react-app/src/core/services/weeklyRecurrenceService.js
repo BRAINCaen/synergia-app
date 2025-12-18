@@ -51,20 +51,22 @@ class WeeklyRecurrenceService {
   }
 
   /**
-   * 🎯 CRÉER UNE TÂCHE RÉCURRENTE AVEC JOURS SPÉCIFIQUES
-   * Exemple: "Nettoyer la cuisine" tous les lundis
+   * 🎯 CRÉER UNE TÂCHE RÉCURRENTE
+   * Supporte: daily, weekly, biweekly, monthly
    */
-  async createWeeklyRecurringTask(taskData) {
+  async createRecurringTask(taskData) {
     try {
-      console.log('🎯 Création tâche récurrente hebdomadaire:', taskData.title);
+      const recurrenceType = taskData.recurrenceType || 'weekly';
+      console.log(`🎯 Création tâche récurrente [${recurrenceType}]:`, taskData.title);
 
       // 🛡️ VALIDATION
-      if (!taskData.recurrenceDays || taskData.recurrenceDays.length === 0) {
-        throw new Error('Au moins un jour de récurrence doit être spécifié');
+      if ((recurrenceType === 'weekly' || recurrenceType === 'biweekly') &&
+          (!taskData.recurrenceDays || taskData.recurrenceDays.length === 0)) {
+        throw new Error('Au moins un jour de récurrence doit être spécifié pour les récurrences hebdomadaires');
       }
 
-      if (!taskData.title || !taskData.userId) {
-        throw new Error('Titre et userId sont obligatoires');
+      if (!taskData.title) {
+        throw new Error('Titre est obligatoire');
       }
 
       // 📝 CRÉER LE TEMPLATE DE RÉCURRENCE
@@ -72,56 +74,83 @@ class WeeklyRecurrenceService {
         // Données de base
         title: taskData.title,
         description: taskData.description || '',
-        userId: taskData.userId,
-        createdBy: taskData.createdBy || taskData.userId,
-        
+        createdBy: taskData.createdBy,
+
         // Configuration de récurrence
         isRecurring: true,
-        recurrenceType: 'weekly',
-        recurrenceDays: taskData.recurrenceDays, // ['monday', 'wednesday', etc.]
-        
+        recurrenceType: recurrenceType,
+        recurrenceInterval: taskData.recurrenceInterval || 1,
+        recurrenceDays: taskData.recurrenceDays || [], // ['monday', 'wednesday', etc.]
+        recurrenceEndDate: taskData.recurrenceEndDate || null,
+
         // Paramètres de la tâche
         difficulty: taskData.difficulty || 'medium',
         priority: taskData.priority || 'medium',
         xpReward: taskData.xpReward || 25,
-        estimatedTime: taskData.estimatedTime || 1,
+        estimatedHours: taskData.estimatedHours || 1,
         roleId: taskData.roleId || null,
         category: taskData.category || 'general',
-        
+        openToVolunteers: taskData.openToVolunteers || false,
+        requiredSkills: taskData.requiredSkills || [],
+        tags: taskData.tags || [],
+
         // Métadonnées
         isTemplate: true,
         isActive: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        
+
+        // Pour monthly: jour du mois où créer
+        monthlyDayOfMonth: new Date().getDate(),
+
         // Statistiques
         totalInstances: 0,
         completedInstances: 0,
-        lastInstanceCreated: null,
-        nextScheduledDays: taskData.recurrenceDays
+        lastInstanceCreated: null
       };
 
       // Sauvegarder le template
       const templateRef = await addDoc(
-        collection(db, this.RECURRING_TEMPLATES_COLLECTION), 
+        collection(db, this.RECURRING_TEMPLATES_COLLECTION),
         templateData
       );
 
       console.log('✅ Template récurrence créé:', templateRef.id);
 
-      // 🗓️ CRÉER LA PREMIÈRE INSTANCE POUR AUJOURD'HUI SI APPLICABLE
+      // 🗓️ CRÉER LA PREMIÈRE INSTANCE SI APPLICABLE
       const today = new Date();
       const todayWeekday = this.WEEKDAY_MAP[today.getDay()];
-      
-      if (taskData.recurrenceDays.includes(todayWeekday)) {
-        console.log(`📅 Création instance immédiate (aujourd'hui = ${todayWeekday})`);
+      let shouldCreateNow = false;
+
+      if (recurrenceType === 'daily') {
+        shouldCreateNow = true;
+      } else if (recurrenceType === 'weekly' || recurrenceType === 'biweekly') {
+        shouldCreateNow = taskData.recurrenceDays?.includes(todayWeekday);
+      } else if (recurrenceType === 'monthly') {
+        shouldCreateNow = true; // Créer la première instance maintenant
+      }
+
+      if (shouldCreateNow) {
+        console.log(`📅 Création instance immédiate`);
         await this.createTaskInstance(templateRef.id, templateData, today);
+      }
+
+      // Message de résumé
+      let message = '';
+      if (recurrenceType === 'daily') {
+        message = `Quête récurrente créée: tous les ${taskData.recurrenceInterval > 1 ? taskData.recurrenceInterval + ' jours' : 'jours'}`;
+      } else if (recurrenceType === 'weekly') {
+        message = `Quête récurrente créée: ${taskData.recurrenceDays?.map(day => this.WEEKDAY_NAMES[day]).join(', ')}`;
+      } else if (recurrenceType === 'biweekly') {
+        message = `Quête récurrente créée: toutes les 2 semaines le ${taskData.recurrenceDays?.map(day => this.WEEKDAY_NAMES[day]).join(', ')}`;
+      } else if (recurrenceType === 'monthly') {
+        message = `Quête récurrente créée: tous les mois le ${today.getDate()}`;
       }
 
       return {
         success: true,
         templateId: templateRef.id,
-        message: `Tâche récurrente créée pour ${taskData.recurrenceDays.map(day => this.WEEKDAY_NAMES[day]).join(', ')}`
+        message
       };
 
     } catch (error) {
@@ -131,8 +160,16 @@ class WeeklyRecurrenceService {
   }
 
   /**
+   * 🎯 ALIAS pour compatibilité avec l'ancien nom
+   */
+  async createWeeklyRecurringTask(taskData) {
+    return this.createRecurringTask({ ...taskData, recurrenceType: 'weekly' });
+  }
+
+  /**
    * 🔄 VÉRIFIER ET CRÉER LES INSTANCES MANQUANTES
    * À exécuter quotidiennement pour maintenir les tâches à jour
+   * Gère: daily, weekly, biweekly, monthly
    */
   async processScheduledTasks() {
     try {
@@ -141,14 +178,14 @@ class WeeklyRecurrenceService {
       const today = new Date();
       const todayWeekday = this.WEEKDAY_MAP[today.getDay()];
       const todayString = today.toISOString().split('T')[0];
+      const todayDayOfMonth = today.getDate();
 
       console.log(`📅 Aujourd'hui: ${this.WEEKDAY_NAMES[todayWeekday]} (${todayString})`);
 
-      // Récupérer tous les templates actifs
+      // Récupérer tous les templates actifs (tous types de récurrence)
       const templatesQuery = query(
         collection(db, this.RECURRING_TEMPLATES_COLLECTION),
-        where('isActive', '==', true),
-        where('recurrenceType', '==', 'weekly')
+        where('isActive', '==', true)
       );
 
       const templatesSnapshot = await getDocs(templatesQuery);
@@ -157,23 +194,95 @@ class WeeklyRecurrenceService {
       for (const templateDoc of templatesSnapshot.docs) {
         const templateData = templateDoc.data();
         const templateId = templateDoc.id;
+        const recurrenceType = templateData.recurrenceType || 'weekly';
+        const recurrenceInterval = templateData.recurrenceInterval || 1;
 
-        // Vérifier si ce template doit créer une tâche aujourd'hui
-        if (templateData.recurrenceDays && templateData.recurrenceDays.includes(todayWeekday)) {
-          
+        // Vérifier si la date de fin est dépassée
+        if (templateData.recurrenceEndDate) {
+          const endDate = new Date(templateData.recurrenceEndDate);
+          if (today > endDate) {
+            console.log(`⏹️ Récurrence terminée: ${templateData.title}`);
+            continue;
+          }
+        }
+
+        let shouldCreateToday = false;
+
+        // 📅 DAILY - Tous les X jours
+        if (recurrenceType === 'daily') {
+          if (templateData.lastInstanceCreated) {
+            const lastDate = templateData.lastInstanceCreated.toDate ?
+              templateData.lastInstanceCreated.toDate() : new Date(templateData.lastInstanceCreated);
+            const daysSinceLastInstance = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+            shouldCreateToday = daysSinceLastInstance >= recurrenceInterval;
+          } else {
+            shouldCreateToday = true; // Première instance
+          }
+        }
+
+        // 📅 WEEKLY - Chaque semaine certains jours
+        else if (recurrenceType === 'weekly') {
+          if (templateData.recurrenceDays && templateData.recurrenceDays.includes(todayWeekday)) {
+            // Vérifier l'intervalle de semaines
+            if (recurrenceInterval > 1 && templateData.lastInstanceCreated) {
+              const lastDate = templateData.lastInstanceCreated.toDate ?
+                templateData.lastInstanceCreated.toDate() : new Date(templateData.lastInstanceCreated);
+              const weeksSinceLastInstance = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24 * 7));
+              shouldCreateToday = weeksSinceLastInstance >= recurrenceInterval;
+            } else {
+              shouldCreateToday = true;
+            }
+          }
+        }
+
+        // 📅 BIWEEKLY - Toutes les 2 semaines certains jours
+        else if (recurrenceType === 'biweekly') {
+          if (templateData.recurrenceDays && templateData.recurrenceDays.includes(todayWeekday)) {
+            if (templateData.lastInstanceCreated) {
+              const lastDate = templateData.lastInstanceCreated.toDate ?
+                templateData.lastInstanceCreated.toDate() : new Date(templateData.lastInstanceCreated);
+              const daysSinceLastInstance = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+              shouldCreateToday = daysSinceLastInstance >= 14; // 2 semaines
+            } else {
+              shouldCreateToday = true;
+            }
+          }
+        }
+
+        // 📅 MONTHLY - Chaque mois (même jour du mois)
+        else if (recurrenceType === 'monthly') {
+          const templateCreatedDate = templateData.createdAt?.toDate ?
+            templateData.createdAt.toDate() : new Date(templateData.createdAt || Date.now());
+          const templateDayOfMonth = templateData.monthlyDayOfMonth || templateCreatedDate.getDate();
+
+          // Créer le même jour du mois
+          if (todayDayOfMonth === templateDayOfMonth) {
+            if (templateData.lastInstanceCreated) {
+              const lastDate = templateData.lastInstanceCreated.toDate ?
+                templateData.lastInstanceCreated.toDate() : new Date(templateData.lastInstanceCreated);
+              const monthsSinceLastInstance =
+                (today.getFullYear() - lastDate.getFullYear()) * 12 +
+                (today.getMonth() - lastDate.getMonth());
+              shouldCreateToday = monthsSinceLastInstance >= recurrenceInterval;
+            } else {
+              shouldCreateToday = true;
+            }
+          }
+        }
+
+        // Créer l'instance si nécessaire
+        if (shouldCreateToday) {
           // Vérifier si une instance existe déjà pour aujourd'hui
           const existingInstanceQuery = query(
             collection(db, this.TASKS_COLLECTION),
             where('templateId', '==', templateId),
-            where('scheduledDate', '==', todayString),
-            where('status', '!=', 'archived')
+            where('scheduledDate', '==', todayString)
           );
 
           const existingSnapshot = await getDocs(existingInstanceQuery);
 
           if (existingSnapshot.empty) {
-            // Créer la nouvelle instance
-            console.log(`📝 Création instance pour: ${templateData.title}`);
+            console.log(`📝 Création instance [${recurrenceType}]: ${templateData.title}`);
             await this.createTaskInstance(templateId, templateData, today);
             processedCount++;
           } else {
@@ -206,11 +315,13 @@ class WeeklyRecurrenceService {
         difficulty: templateData.difficulty,
         priority: templateData.priority,
         xpReward: templateData.xpReward,
-        estimatedTime: templateData.estimatedTime,
-        userId: templateData.userId,
+        estimatedHours: templateData.estimatedHours || templateData.estimatedTime || 1,
         createdBy: templateData.createdBy,
         roleId: templateData.roleId,
         category: templateData.category,
+        openToVolunteers: templateData.openToVolunteers || false,
+        requiredSkills: templateData.requiredSkills || [],
+        tags: templateData.tags || [],
 
         // Métadonnées d'instance
         templateId: templateId,
@@ -218,23 +329,23 @@ class WeeklyRecurrenceService {
         scheduledDate: dateString,
         scheduledWeekday: weekday,
         dueDate: dateString,
-        
-        // Statut
+
+        // Statut - Si ouverte aux volontaires, pas d'assignation
         status: 'todo',
-        assignedTo: templateData.userId,
-        
+        assignedTo: templateData.openToVolunteers ? [] : [],
+
         // Timestamps
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         instanceCreatedAt: serverTimestamp(),
-        
+
         // Progression
         completedAt: null,
         validatedBy: null,
-        
+
         // Récurrence
         isRecurring: false, // L'instance elle-même n'est pas récurrente
-        parentRecurrenceType: 'weekly',
+        parentRecurrenceType: templateData.recurrenceType || 'weekly',
         parentRecurrenceDays: templateData.recurrenceDays
       };
 
