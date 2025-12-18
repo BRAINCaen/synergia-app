@@ -1,6 +1,7 @@
 // ==========================================
 // react-app/src/pages/CheckpointsPage.jsx
 // Page principale des Checkpoints trimestriels
+// CONFORME CHARTE GRAPHIQUE SYNERGIA v3.5
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -19,7 +20,8 @@ import {
   Sparkles,
   AlertCircle,
   Lock,
-  History
+  History,
+  RefreshCw
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import { useAuthStore } from '../shared/stores/authStore';
@@ -41,28 +43,24 @@ const STEPS = [
     id: 'recap',
     label: 'Récap',
     icon: Trophy,
-    status: CHECKPOINT_STATUS.REFLECTION,
     description: 'Ton parcours ce trimestre'
   },
   {
     id: 'reflection',
     label: 'Auto-réflexion',
     icon: Brain,
-    status: CHECKPOINT_STATUS.REFLECTION,
     description: 'Prends le temps de réfléchir'
   },
   {
     id: 'feedback',
     label: 'Feedbacks',
     icon: Users,
-    status: CHECKPOINT_STATUS.FEEDBACK,
     description: 'Retours de tes collègues'
   },
   {
     id: 'goals',
     label: 'Objectifs',
     icon: Target,
-    status: CHECKPOINT_STATUS.REVIEW,
     description: 'Tes défis à venir'
   }
 ];
@@ -226,12 +224,11 @@ const CheckpointsPage = () => {
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-96">
-          <motion.div
-            className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          />
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Chargement du checkpoint...</p>
+          </div>
         </div>
       </Layout>
     );
@@ -241,44 +238,44 @@ const CheckpointsPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25">
-              <Flag size={28} className="text-white" />
-            </div>
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white">Checkpoint</h1>
+              <h1 className="text-4xl font-bold text-white flex items-center gap-3 mb-2">
+                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl">
+                  <Flag className="w-8 h-8 text-white" />
+                </div>
+                Checkpoint
+              </h1>
               <div className="flex items-center gap-2 text-gray-400">
                 <Calendar size={16} />
                 <span>{CHECKPOINT_QUARTERS[checkpoint?.quarter]?.label} {checkpoint?.year}</span>
               </div>
             </div>
-          </div>
 
-          {/* Bouton historique */}
-          {pastCheckpoints.length > 0 && (
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-300 transition-colors"
-            >
-              <History size={18} />
-              Historique
-            </button>
-          )}
-        </motion.div>
+            <div className="flex items-center gap-3">
+              {/* Bouton historique */}
+              {pastCheckpoints.length > 0 && (
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-gray-300 transition-colors"
+                >
+                  <History size={18} />
+                  Historique
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Erreur */}
         {error && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 p-4 bg-red-500/20 rounded-xl border border-red-500/30"
+            className="mb-6 flex items-center gap-3 p-4 bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30 rounded-xl"
           >
             <AlertCircle size={20} className="text-red-400" />
             <span className="text-red-300">{error}</span>
@@ -296,7 +293,7 @@ const CheckpointsPage = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center p-8 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl border border-green-500/30"
+            className="mb-8 text-center p-8 bg-gradient-to-br from-green-500/20 to-emerald-600/10 border border-green-500/30 rounded-2xl"
           >
             <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
               <CheckCircle size={32} className="text-white" />
@@ -318,12 +315,11 @@ const CheckpointsPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700/50"
+          className="mb-6 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between relative">
             {/* Ligne de connexion */}
-            <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-700">
+            <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-700 mx-16">
               <motion.div
                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
                 initial={{ width: '0%' }}
@@ -352,7 +348,7 @@ const CheckpointsPage = () => {
                         : isActive
                         ? 'bg-gradient-to-r from-indigo-500 to-purple-500 ring-4 ring-indigo-500/30'
                         : isLocked
-                        ? 'bg-gray-700 opacity-50'
+                        ? 'bg-gray-800 opacity-50'
                         : 'bg-gray-700 hover:bg-gray-600'
                     }`}
                     whileHover={!isLocked ? { scale: 1.05 } : {}}
@@ -381,8 +377,8 @@ const CheckpointsPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700/50"
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl p-6"
         >
           <AnimatePresence mode="wait">
             {/* Étape 0: Récap */}
@@ -399,7 +395,7 @@ const CheckpointsPage = () => {
                 />
 
                 {!isCompleted && (
-                  <div className="flex justify-end mt-6">
+                  <div className="flex justify-end mt-6 pt-6 border-t border-gray-700/50">
                     <button
                       onClick={() => setCurrentStep(1)}
                       className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-white font-medium transition-all"
@@ -448,7 +444,7 @@ const CheckpointsPage = () => {
                 />
 
                 {checkpoint?.peerFeedback?.receivedFeedbacks?.length >= checkpoint?.peerFeedback?.minRequired && (
-                  <div className="flex justify-end mt-6">
+                  <div className="flex justify-end mt-6 pt-6 border-t border-gray-700/50">
                     <button
                       onClick={() => setCurrentStep(3)}
                       className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-white font-medium transition-all"
@@ -478,7 +474,7 @@ const CheckpointsPage = () => {
                 />
 
                 {!isCompleted && checkpoint?.status === CHECKPOINT_STATUS.REVIEW && (
-                  <div className="mt-6 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/30">
+                  <div className="mt-6 p-4 bg-gradient-to-br from-yellow-500/20 to-orange-500/10 border border-yellow-500/30 rounded-xl">
                     <div className="flex items-center gap-3">
                       <Clock size={20} className="text-yellow-400" />
                       <div>
@@ -500,15 +496,15 @@ const CheckpointsPage = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex justify-between"
+            className="mt-6 flex justify-between items-center"
           >
             <button
               onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
               disabled={currentStep === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
                 currentStep === 0
                   ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                  : 'bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300'
               }`}
             >
               <ChevronLeft size={18} />
@@ -529,7 +525,7 @@ const CheckpointsPage = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700/50"
+              className="mt-6 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl p-6"
             >
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <History size={20} className="text-indigo-400" />
@@ -540,13 +536,13 @@ const CheckpointsPage = () => {
                 {pastCheckpoints.map((cp) => (
                   <div
                     key={cp.id}
-                    className="flex items-center justify-between p-4 bg-gray-700/30 rounded-xl"
+                    className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-700/50 rounded-xl"
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         cp.status === CHECKPOINT_STATUS.COMPLETED
-                          ? 'bg-green-500/20'
-                          : 'bg-gray-600'
+                          ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20'
+                          : 'bg-gray-700'
                       }`}>
                         {cp.status === CHECKPOINT_STATUS.COMPLETED ? (
                           <CheckCircle size={20} className="text-green-400" />
@@ -569,8 +565,8 @@ const CheckpointsPage = () => {
 
                     <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                       cp.status === CHECKPOINT_STATUS.COMPLETED
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-gray-600 text-gray-400'
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : 'bg-gray-700 text-gray-400'
                     }`}>
                       {cp.status === CHECKPOINT_STATUS.COMPLETED ? 'Terminé' : 'Incomplet'}
                     </div>

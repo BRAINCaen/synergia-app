@@ -1,6 +1,7 @@
 // ==========================================
 // react-app/src/components/checkpoints/CheckpointRecap.jsx
 // Récap automatique des accomplissements du trimestre
+// CONFORME CHARTE GRAPHIQUE SYNERGIA v3.5
 // ==========================================
 
 import React from 'react';
@@ -51,10 +52,10 @@ const CheckpointRecap = ({ recap, userName }) => {
     >
       {/* Header avec période */}
       <motion.div
-        className="text-center p-6 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl border border-indigo-500/30"
+        className="text-center p-6 bg-gradient-to-br from-indigo-500/20 to-purple-500/10 border border-indigo-500/30 rounded-2xl"
         variants={itemVariants}
       >
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/30 rounded-full mb-4">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/20 border border-indigo-500/30 rounded-full mb-4">
           <Calendar size={18} className="text-indigo-400" />
           <span className="text-indigo-300 font-medium">{period?.label}</span>
         </div>
@@ -72,7 +73,7 @@ const CheckpointRecap = ({ recap, userName }) => {
         variants={itemVariants}
       >
         {/* Quêtes accomplies */}
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 text-center">
+        <div className="bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30 rounded-xl p-4 text-center">
           <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
             <Trophy size={24} className="text-white" />
           </div>
@@ -81,7 +82,7 @@ const CheckpointRecap = ({ recap, userName }) => {
         </div>
 
         {/* XP gagnés */}
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 text-center">
+        <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4 text-center">
           <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
             <Zap size={24} className="text-white" />
           </div>
@@ -90,7 +91,7 @@ const CheckpointRecap = ({ recap, userName }) => {
         </div>
 
         {/* Boosts reçus */}
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 text-center">
+        <div className="bg-gradient-to-br from-pink-500/20 to-rose-500/10 border border-pink-500/30 rounded-xl p-4 text-center">
           <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
             <Sparkles size={24} className="text-white" />
           </div>
@@ -99,7 +100,7 @@ const CheckpointRecap = ({ recap, userName }) => {
         </div>
 
         {/* Badges débloqués */}
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 text-center">
+        <div className="bg-gradient-to-br from-purple-500/20 to-violet-500/10 border border-purple-500/30 rounded-xl p-4 text-center">
           <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-purple-500 to-violet-500 rounded-xl flex items-center justify-center">
             <Award size={24} className="text-white" />
           </div>
@@ -110,7 +111,7 @@ const CheckpointRecap = ({ recap, userName }) => {
 
       {/* Niveau actuel */}
       <motion.div
-        className="bg-gradient-to-r from-yellow-500/10 to-amber-500/10 rounded-xl p-6 border border-yellow-500/30"
+        className="bg-gradient-to-br from-yellow-500/20 to-amber-500/10 border border-yellow-500/30 rounded-xl p-6"
         variants={itemVariants}
       >
         <div className="flex items-center justify-between">
@@ -133,7 +134,7 @@ const CheckpointRecap = ({ recap, userName }) => {
       {/* Quêtes accomplies - Liste */}
       {quests?.list && quests.list.length > 0 && (
         <motion.div
-          className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50"
+          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-xl p-6"
           variants={itemVariants}
         >
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -144,7 +145,7 @@ const CheckpointRecap = ({ recap, userName }) => {
             {quests.list.map((quest, index) => (
               <motion.div
                 key={quest.id || index}
-                className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-colors"
+                className="flex items-center justify-between p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-700/50 transition-colors"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -170,7 +171,7 @@ const CheckpointRecap = ({ recap, userName }) => {
       {/* Boosts par type */}
       {boosts?.byType && Object.keys(boosts.byType).length > 0 && (
         <motion.div
-          className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50"
+          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-xl p-6"
           variants={itemVariants}
         >
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -205,7 +206,7 @@ const CheckpointRecap = ({ recap, userName }) => {
       {/* Badges débloqués */}
       {badges?.list && badges.list.length > 0 && (
         <motion.div
-          className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50"
+          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-xl p-6"
           variants={itemVariants}
         >
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -216,7 +217,7 @@ const CheckpointRecap = ({ recap, userName }) => {
             {badges.list.map((badge, index) => (
               <div
                 key={badge.id || index}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 rounded-full border border-purple-500/30"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 border border-purple-500/30 rounded-full"
               >
                 <span className="text-xl">{badge.emoji || '🏆'}</span>
                 <span className="text-purple-300 font-medium">{badge.name || badge.title}</span>
@@ -229,7 +230,7 @@ const CheckpointRecap = ({ recap, userName }) => {
       {/* Stats supplémentaires */}
       {stats && (
         <motion.div
-          className="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50"
+          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-xl p-6"
           variants={itemVariants}
         >
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -237,12 +238,12 @@ const CheckpointRecap = ({ recap, userName }) => {
             Statistiques
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg">
               <span className="text-gray-400">XP moyen par quête</span>
               <span className="text-white font-medium">{stats.averageXpPerQuest} XP</span>
             </div>
             {stats.mostActiveMonth && (
-              <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg">
                 <span className="text-gray-400">Mois le plus actif</span>
                 <span className="text-white font-medium">
                   {stats.mostActiveMonth.month} ({stats.mostActiveMonth.count} quêtes)
