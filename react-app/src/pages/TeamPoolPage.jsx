@@ -335,7 +335,7 @@ const TeamPoolPage = () => {
               <h4 className="text-white font-medium mb-3">💡 Comment ça marche ?</h4>
               <ul className="text-sm text-gray-400 space-y-2">
                 <li>• {autoContributionRate}% de tes XP vont automatiquement à la cagnotte</li>
-                <li>• Tu gardes 95% de tes XP pour tes récompenses perso</li>
+                <li>• Tu gardes {100 - autoContributionRate}% de tes XP pour tes récompenses perso</li>
                 <li>• Plus l'équipe est active, plus la cagnotte grandit</li>
                 <li>• Les admins peuvent acheter des récompenses pour tous</li>
               </ul>
