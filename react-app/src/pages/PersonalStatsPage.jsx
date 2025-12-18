@@ -1,29 +1,18 @@
 // ==========================================
 // 📁 react-app/src/pages/PersonalStatsPage.jsx
 // PAGE STATISTIQUES PERSONNELLES - SYNERGIA v4.0 - MODULE 7
+// CONFORME CHARTE GRAPHIQUE SYNERGIA v3.5
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  BarChart3, TrendingUp, Calendar, Zap, Trophy, Flame,
-  Target, Star, Clock, RefreshCw, ChevronLeft, ChevronRight,
-  Award, Crown, Sparkles, Users, Gift, BadgeCheck
+  BarChart3, TrendingUp, TrendingDown, Calendar, Zap, Trophy, Flame,
+  Target, Star, Clock, RefreshCw, Award, Crown, Sparkles, Minus
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-
-// Composants de stats Module 7
-import {
-  XPChart,
-  XPLineChart,
-  XPSourcesPieChart,
-  StatCard,
-  RecordCard,
-  StreakCard,
-  TodayXPCard
-} from '../components/stats';
 
 // Services
 import xpHistoryService from '../core/services/xpHistoryService.js';
@@ -43,7 +32,7 @@ const PersonalStatsPage = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [gamificationData, setGamificationData] = useState({});
-  const [viewMode, setViewMode] = useState('week'); // week, month
+  const [viewMode, setViewMode] = useState('week');
   const [refreshing, setRefreshing] = useState(false);
 
   // Charger les données utilisateur
@@ -81,7 +70,6 @@ const PersonalStatsPage = () => {
   // Rafraîchir les données
   const handleRefresh = async () => {
     if (!user?.uid || refreshing) return;
-
     setRefreshing(true);
     try {
       const xpStats = await xpHistoryService.calculateXPStats(user.uid);
@@ -98,27 +86,26 @@ const PersonalStatsPage = () => {
     const level = calculateLevel(totalXP);
     const progress = getXPProgress(totalXP);
     const rank = getRankForLevel(level);
-
     return { level, progress, rank, totalXP };
   }, [gamificationData]);
 
   // Données pour les graphiques
   const chartData = useMemo(() => {
     if (!stats) return { week: [], month: [] };
-
     return {
       week: stats.last7Days || [],
       month: stats.last30Days || []
     };
   }, [stats]);
 
+  // État de chargement
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
           <div className="text-center">
-            <RefreshCw className="w-12 h-12 animate-spin text-purple-500 mx-auto mb-4" />
-            <p className="text-gray-400">Chargement des statistiques...</p>
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-400 text-lg">Chargement des statistiques...</p>
           </div>
         </div>
       </Layout>
@@ -127,255 +114,468 @@ const PersonalStatsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-white/10">
-          <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+        <div className="max-w-7xl mx-auto">
+
+          {/* Header */}
+          <div className="mb-8">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/20">
-                  <BarChart3 className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-white">
-                    Mes Statistiques
-                  </h1>
-                  <p className="text-gray-400 mt-1">
-                    Suivez votre progression et vos performances
-                  </p>
-                </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">
+                  📈 Mes Statistiques
+                </h1>
+                <p className="text-gray-400">
+                  Suivez votre progression et vos performances
+                </p>
               </div>
 
-              {/* Bouton rafraîchir */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white transition-colors disabled:opacity-50"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 Actualiser
-              </motion.button>
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Contenu principal */}
-        <div className="max-w-7xl mx-auto px-6 py-8">
+          {/* Stats Grid Principal */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* XP Total */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl p-6 text-white"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Zap className="w-6 h-6" />
+                <h3 className="text-sm font-medium opacity-90">XP Total</h3>
+              </div>
+              <div className="text-3xl font-bold mb-1">{levelInfo.totalXP.toLocaleString()}</div>
+              <div className="text-sm opacity-75">Niveau {levelInfo.level}</div>
+            </motion.div>
 
-          {/* Section 1: Stats principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard
-              title="XP Total"
-              value={levelInfo.totalXP}
-              subtitle={`Niveau ${levelInfo.level}`}
-              icon={Zap}
-              color="yellow"
-              delay={0}
-            />
-            <StatCard
-              title="XP Cette Semaine"
-              value={stats?.weekXP || 0}
-              subtitle={`Moyenne: ${stats?.dailyAverage || 0}/jour`}
-              icon={TrendingUp}
-              color="green"
-              trend={stats?.weekXP > (stats?.monthXP / 4) ? 'up' : 'stable'}
-              delay={0.1}
-            />
-            <StatCard
-              title="XP Ce Mois"
-              value={stats?.monthXP || 0}
-              subtitle={`${stats?.activeDays || 0} jours actifs`}
-              icon={Calendar}
-              color="blue"
-              delay={0.2}
-            />
-            <StatCard
-              title="Rang"
-              value={levelInfo.rank?.name || 'Apprenti'}
-              subtitle={`${levelInfo.rank?.icon || '🌱'} ${levelInfo.progress?.progressPercent || 0}% vers niveau ${levelInfo.level + 1}`}
-              icon={Crown}
-              color="purple"
-              delay={0.3}
-            />
+            {/* XP Semaine */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-6 text-white"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <TrendingUp className="w-6 h-6" />
+                <h3 className="text-sm font-medium opacity-90">Cette Semaine</h3>
+              </div>
+              <div className="text-3xl font-bold mb-1">{(stats?.weekXP || 0).toLocaleString()}</div>
+              <div className="text-sm opacity-75">Moy. {stats?.dailyAverage || 0}/jour</div>
+            </motion.div>
+
+            {/* XP Mois */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-6 text-white"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Calendar className="w-6 h-6" />
+                <h3 className="text-sm font-medium opacity-90">Ce Mois</h3>
+              </div>
+              <div className="text-3xl font-bold mb-1">{(stats?.monthXP || 0).toLocaleString()}</div>
+              <div className="text-sm opacity-75">{stats?.activeDays || 0} jours actifs</div>
+            </motion.div>
+
+            {/* Rang */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Crown className="w-6 h-6" />
+                <h3 className="text-sm font-medium opacity-90">Rang Actuel</h3>
+              </div>
+              <div className="text-3xl font-bold mb-1">{levelInfo.rank?.icon || '🌱'}</div>
+              <div className="text-sm opacity-75">{levelInfo.rank?.name || 'Apprenti'}</div>
+            </motion.div>
           </div>
 
-          {/* Section 2: XP Aujourd'hui + Série */}
+          {/* Section XP Aujourd'hui + Série */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <TodayXPCard
-              todayXP={stats?.todayXP || 0}
-              dailyGoal={50}
-              eventsToday={chartData.week[chartData.week.length - 1]?.eventsCount || 0}
-              delay={0.4}
-            />
-            <StreakCard
-              currentStreak={stats?.currentStreak || gamificationData?.loginStreak || 0}
-              longestStreak={stats?.longestStreak || stats?.currentStreak || 0}
-              delay={0.5}
-            />
-          </div>
-
-          {/* Section 3: Graphiques */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Graphique principal XP */}
+            {/* XP Aujourd'hui */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="lg:col-span-2 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-white/10 rounded-2xl p-6"
+              transition={{ delay: 0.3 }}
+              className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6"
             >
-              {/* Toggle week/month */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <BarChart3 className="w-5 h-5 text-purple-400" />
-                  <h3 className="text-lg font-bold text-white">Évolution XP</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-yellow-600/20 rounded-lg">
+                  <Zap className="w-6 h-6 text-yellow-400" />
                 </div>
-
-                <div className="flex bg-white/10 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('week')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                      viewMode === 'week'
-                        ? 'bg-purple-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    7 jours
-                  </button>
-                  <button
-                    onClick={() => setViewMode('month')}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                      viewMode === 'month'
-                        ? 'bg-purple-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    30 jours
-                  </button>
+                <div>
+                  <h3 className="font-semibold text-white">XP Aujourd'hui</h3>
+                  <p className="text-sm text-gray-400">Objectif journalier : 50 XP</p>
                 </div>
               </div>
 
-              {/* Graphique */}
-              <AnimatePresence mode="wait">
-                {viewMode === 'week' ? (
-                  <motion.div
-                    key="week"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <XPChart data={chartData.week} height={160} />
-                  </motion.div>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-4xl font-bold text-white">{stats?.todayXP || 0}</span>
+                <span className="text-xl text-gray-500">/ 50 XP</span>
+              </div>
+
+              {/* Barre de progression */}
+              <div className="h-3 bg-gray-700 rounded-full overflow-hidden mb-3">
+                <motion.div
+                  className={`h-full rounded-full ${
+                    (stats?.todayXP || 0) >= 50
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-400'
+                      : 'bg-gradient-to-r from-yellow-500 to-orange-400'
+                  }`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(((stats?.todayXP || 0) / 50) * 100, 100)}%` }}
+                  transition={{ duration: 1 }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">
+                  {chartData.week[chartData.week.length - 1]?.eventsCount || 0} actions aujourd'hui
+                </span>
+                {(stats?.todayXP || 0) >= 50 ? (
+                  <span className="text-green-400 font-medium flex items-center gap-1">
+                    <Award className="w-4 h-4" />
+                    Objectif atteint !
+                  </span>
                 ) : (
-                  <motion.div
-                    key="month"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <XPLineChart data={chartData.month} height={160} />
-                  </motion.div>
+                  <span className="text-gray-400">
+                    Encore {50 - (stats?.todayXP || 0)} XP
+                  </span>
                 )}
-              </AnimatePresence>
-
-              {/* Résumé */}
-              <div className="mt-6 pt-4 border-t border-white/10 grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-white">
-                    {viewMode === 'week' ? stats?.weekXP || 0 : stats?.monthXP || 0}
-                  </div>
-                  <div className="text-xs text-gray-500">XP gagnés</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">
-                    {stats?.dailyAverage || 0}
-                  </div>
-                  <div className="text-xs text-gray-500">Moyenne/jour</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-400">
-                    {stats?.bestDay?.xp || 0}
-                  </div>
-                  <div className="text-xs text-gray-500">Record journée</div>
-                </div>
               </div>
             </motion.div>
 
-            {/* Sources d'XP */}
+            {/* Série */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-white/10 rounded-2xl p-6"
+              transition={{ delay: 0.35 }}
+              className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6"
             >
-              <div className="flex items-center gap-3 mb-6">
-                <Target className="w-5 h-5 text-blue-400" />
-                <h3 className="text-lg font-bold text-white">Sources d'XP</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-3 rounded-lg ${
+                  (stats?.currentStreak || 0) >= 7
+                    ? 'bg-orange-600/20'
+                    : 'bg-blue-600/20'
+                }`}>
+                  <Flame className={`w-6 h-6 ${
+                    (stats?.currentStreak || 0) >= 7
+                      ? 'text-orange-400'
+                      : 'text-blue-400'
+                  }`} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Série Actuelle</h3>
+                  <p className="text-sm text-gray-400">Jours consécutifs d'activité</p>
+                </div>
               </div>
 
-              <XPSourcesPieChart
-                data={stats?.sourceBreakdown || {}}
-                size={140}
-              />
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-4xl font-bold text-white">
+                  {stats?.currentStreak || gamificationData?.loginStreak || 0}
+                </span>
+                <span className="text-xl text-gray-500">
+                  jour{(stats?.currentStreak || 0) > 1 ? 's' : ''}
+                </span>
+                {(stats?.currentStreak || 0) >= 7 && (
+                  <motion.span
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                    className="text-2xl"
+                  >
+                    🔥
+                  </motion.span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                <span className="text-sm text-gray-500">Meilleure série</span>
+                <div className="flex items-center gap-1.5">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <span className="text-lg font-bold text-yellow-400">
+                    {stats?.longestStreak || stats?.currentStreak || 0} jours
+                  </span>
+                </div>
+              </div>
             </motion.div>
           </div>
 
-          {/* Section 4: Records personnels */}
+          {/* Graphique XP */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="mb-8"
+            transition={{ delay: 0.4 }}
+            className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 mb-8"
           >
-            <div className="flex items-center gap-3 mb-4">
-              <Trophy className="w-5 h-5 text-yellow-400" />
-              <h3 className="text-lg font-bold text-white">Records Personnels</h3>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-purple-600/20 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Évolution XP</h3>
+                  <p className="text-sm text-gray-400">Progression sur les derniers jours</p>
+                </div>
+              </div>
+
+              {/* Toggle semaine/mois */}
+              <div className="flex bg-gray-700/50 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('week')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'week'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  7 jours
+                </button>
+                <button
+                  onClick={() => setViewMode('month')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'month'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  30 jours
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <RecordCard
-                title="Meilleure journée"
-                value={`${stats?.bestDay?.xp || 0} XP`}
-                date={stats?.bestDay?.date ? new Date(stats.bestDay.date).toLocaleDateString('fr-FR') : 'N/A'}
-                icon={Star}
-                color="yellow"
-                delay={0.1}
-              />
-              <RecordCard
-                title="Plus longue série"
-                value={`${stats?.longestStreak || 0} jours`}
-                icon={Flame}
-                color="purple"
-                delay={0.2}
-              />
-              <RecordCard
-                title="Total actions"
-                value={stats?.totalEvents || 0}
-                icon={Target}
-                color="green"
-                delay={0.3}
-              />
-              <RecordCard
-                title="Jours actifs"
-                value={stats?.activeDays || 0}
-                icon={Calendar}
-                color="blue"
-                delay={0.4}
-              />
+            {/* Graphique barres */}
+            {viewMode === 'week' && chartData.week.length > 0 && (
+              <div>
+                {/* Tendance */}
+                <div className="flex items-center gap-2 mb-4">
+                  {(() => {
+                    const firstHalf = chartData.week.slice(0, 3);
+                    const secondHalf = chartData.week.slice(4);
+                    const firstAvg = firstHalf.reduce((s, d) => s + (d.xpGained || 0), 0) / (firstHalf.length || 1);
+                    const secondAvg = secondHalf.reduce((s, d) => s + (d.xpGained || 0), 0) / (secondHalf.length || 1);
+                    const trend = secondAvg > firstAvg * 1.1 ? 'up' : secondAvg < firstAvg * 0.9 ? 'down' : 'stable';
+
+                    if (trend === 'up') return (
+                      <>
+                        <TrendingUp className="w-4 h-4 text-green-400" />
+                        <span className="text-sm text-green-400 font-medium">Tendance positive</span>
+                      </>
+                    );
+                    if (trend === 'down') return (
+                      <>
+                        <TrendingDown className="w-4 h-4 text-red-400" />
+                        <span className="text-sm text-red-400 font-medium">Tendance négative</span>
+                      </>
+                    );
+                    return (
+                      <>
+                        <Minus className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-400 font-medium">Tendance stable</span>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Barres */}
+                <div className="flex items-end gap-2 h-40 mb-4">
+                  {chartData.week.map((item, index) => {
+                    const maxValue = Math.max(...chartData.week.map(d => d.xpGained || 0), 1);
+                    const percentage = ((item.xpGained || 0) / maxValue) * 100;
+                    const isToday = index === chartData.week.length - 1;
+
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center gap-2">
+                        <span className="text-xs text-gray-500">{item.xpGained || 0}</span>
+                        <motion.div
+                          className={`w-full rounded-t-md ${
+                            isToday
+                              ? 'bg-gradient-to-t from-yellow-500 to-amber-400'
+                              : 'bg-gradient-to-t from-blue-600 to-purple-500'
+                          }`}
+                          style={{ minHeight: 4 }}
+                          initial={{ height: 0 }}
+                          animate={{ height: `${Math.max(percentage, 3)}%` }}
+                          transition={{ duration: 0.5, delay: index * 0.05 }}
+                        />
+                        <span className={`text-xs ${isToday ? 'text-yellow-400 font-bold' : 'text-gray-500'}`}>
+                          {item.dayName}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Graphique ligne 30 jours */}
+            {viewMode === 'month' && chartData.month.length > 0 && (
+              <div className="h-40 relative">
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  className="w-full h-full"
+                >
+                  <defs>
+                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgba(139, 92, 246, 0.3)" />
+                      <stop offset="100%" stopColor="rgba(139, 92, 246, 0)" />
+                    </linearGradient>
+                    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#8B5CF6" />
+                      <stop offset="100%" stopColor="#EC4899" />
+                    </linearGradient>
+                  </defs>
+
+                  {[25, 50, 75].map(y => (
+                    <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="rgba(75, 85, 99, 0.3)" strokeWidth="0.5" />
+                  ))}
+
+                  {(() => {
+                    const maxValue = Math.max(...chartData.month.map(d => d.xpGained || 0), 1);
+                    const points = chartData.month.map((d, i) => {
+                      const x = (i / (chartData.month.length - 1)) * 100;
+                      const y = 100 - ((d.xpGained || 0) / maxValue) * 100;
+                      return `${x},${y}`;
+                    }).join(' ');
+
+                    return (
+                      <>
+                        <motion.polygon
+                          points={`0,100 ${points} 100,100`}
+                          fill="url(#areaGrad)"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 1 }}
+                        />
+                        <motion.polyline
+                          points={points}
+                          fill="none"
+                          stroke="url(#lineGrad)"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 1.5 }}
+                        />
+                      </>
+                    );
+                  })()}
+                </svg>
+              </div>
+            )}
+
+            {/* Résumé */}
+            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-700">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">
+                  {viewMode === 'week' ? (stats?.weekXP || 0) : (stats?.monthXP || 0)}
+                </div>
+                <div className="text-xs text-gray-500">XP gagnés</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-400">{stats?.dailyAverage || 0}</div>
+                <div className="text-xs text-gray-500">Moyenne/jour</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-400">{stats?.bestDay?.xp || 0}</div>
+                <div className="text-xs text-gray-500">Record journée</div>
+              </div>
             </div>
           </motion.div>
 
-          {/* Section 5: Progression vers niveau suivant */}
+          {/* Records Personnels */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9 }}
-            className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-2xl p-6"
+            transition={{ delay: 0.45 }}
+            className="mb-8"
+          >
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-400" />
+              Records Personnels
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Meilleure journée */}
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-600/20 rounded-lg">
+                    <Star className="w-5 h-5 text-yellow-400" />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-white">{stats?.bestDay?.xp || 0} XP</div>
+                    <div className="text-sm text-gray-400">Meilleure journée</div>
+                    <div className="text-xs text-gray-500">
+                      {stats?.bestDay?.date ? new Date(stats.bestDay.date).toLocaleDateString('fr-FR') : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Plus longue série */}
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-600/20 rounded-lg">
+                    <Flame className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-white">{stats?.longestStreak || 0} jours</div>
+                    <div className="text-sm text-gray-400">Plus longue série</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total actions */}
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-600/20 rounded-lg">
+                    <Target className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-white">{stats?.totalEvents || 0}</div>
+                    <div className="text-sm text-gray-400">Total actions</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Jours actifs */}
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-600/20 rounded-lg">
+                    <Calendar className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-white">{stats?.activeDays || 0}</div>
+                    <div className="text-sm text-gray-400">Jours actifs</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Progression Niveau */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center text-2xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center text-2xl">
                   {levelInfo.rank?.icon || '🌱'}
                 </div>
                 <div>
@@ -397,21 +597,16 @@ const PersonalStatsPage = () => {
             </div>
 
             {/* Barre de progression */}
-            <div className="relative h-4 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-4 bg-gray-700 rounded-full overflow-hidden mb-4">
               <motion.div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${levelInfo.progress?.progressPercent || 0}%` }}
-                transition={{ duration: 1, delay: 1 }}
+                transition={{ duration: 1 }}
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-bold text-white drop-shadow">
-                  {levelInfo.progress?.progressPercent || 0}%
-                </span>
-              </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">
                 Encore <span className="text-purple-400 font-medium">{levelInfo.progress?.xpToNextLevel || 0} XP</span> pour le niveau suivant
               </span>
@@ -420,6 +615,7 @@ const PersonalStatsPage = () => {
               </span>
             </div>
           </motion.div>
+
         </div>
       </div>
     </Layout>
