@@ -425,15 +425,6 @@ const TasksPage = () => {
     }));
   }, []);
 
-  // 🔽 DÉPLIER/REPLIER TOUTES LES SECTIONS
-  const toggleAllSections = useCallback((expand) => {
-    const newExpandedState = {};
-    Object.keys(historyGroupedByUser).forEach(userId => {
-      newExpandedState[userId] = expand;
-    });
-    setExpandedUsers(newExpandedState);
-  }, [historyGroupedByUser]);
-
   // 🔧 Rendu d'une quête pour la vue Kanban
   const renderKanbanTask = (task) => {
     const statusInfo = QUEST_STATUS[task.status] || QUEST_STATUS.todo;
@@ -595,6 +586,15 @@ const TasksPage = () => {
         return acc;
       }, {});
   }, [tasks, activeTab, usersInfo]);
+
+  // 🔽 DÉPLIER/REPLIER TOUTES LES SECTIONS (défini après historyGroupedByUser)
+  const toggleAllSections = useCallback((expand) => {
+    const newExpandedState = {};
+    Object.keys(historyGroupedByUser).forEach(userId => {
+      newExpandedState[userId] = expand;
+    });
+    setExpandedUsers(newExpandedState);
+  }, [historyGroupedByUser]);
 
   return (
     <Layout>
