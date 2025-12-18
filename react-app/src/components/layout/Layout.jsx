@@ -23,15 +23,13 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
 
   const menuItems = [
     { section: 'PRINCIPAL', items: [
-      { path: '/dashboard', label: 'Dashboard', icon: '🏠' },
+      { path: '/dashboard', label: 'Mon Aventure', icon: '🚀' },
       { path: '/infos', label: 'Info', icon: 'ℹ️' },
       { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
       { path: '/projects', label: 'Campagnes', icon: '🎯' },
       { path: '/analytics', label: 'Analytics', icon: '📊' }
     ]},
     { section: 'GAMIFICATION', items: [
-      { path: '/gamification', label: 'Gamification', icon: '🎮' },
-      { path: '/stats', label: 'Mes Stats', icon: '📈' }, // 📊 MODULE 7
       { path: '/badges', label: 'Badges', icon: '🏆' },
       { path: '/leaderboard', label: 'Classement', icon: '🥇' },
       { path: '/rewards', label: 'Recompenses', icon: '🎁' },
