@@ -31,6 +31,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     ]},
     { section: 'GAMIFICATION', items: [
       { path: '/badges', label: 'Badges', icon: '🏆' },
+      { path: '/challenges', label: 'Défis', icon: '🎯' },
       { path: '/leaderboard', label: 'Classement', icon: '🥇' },
       { path: '/rewards', label: 'Recompenses', icon: '🎁' },
       { path: '/boosts', label: 'Boosts', icon: '⚡' }

@@ -17,6 +17,7 @@ import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useGamificationSync } from '../shared/hooks/useGamificationSync.js';
 import { useTeamPool } from '../shared/hooks/useTeamPool.js';
+import { useChallenges } from '../shared/hooks/useChallenges.js';
 import { calculateLevel, getXPProgress, getRankForLevel } from '../core/services/levelService.js';
 import xpHistoryService from '../core/services/xpHistoryService.js';
 
@@ -38,6 +39,12 @@ const Dashboard = () => {
 
   // Hook pour la cagnotte d'équipe (Module 8)
   const { stats: poolStats, loading: poolLoading } = useTeamPool({
+    autoInit: true,
+    realTimeUpdates: true
+  });
+
+  // Hook pour les défis (Module 10)
+  const { stats: challengeStats, challenges, loading: challengesLoading } = useChallenges({
     autoInit: true,
     realTimeUpdates: true
   });
@@ -532,6 +539,71 @@ const Dashboard = () => {
                     className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500"
                   />
                 </div>
+              </div>
+            )}
+          </motion.div>
+
+          {/* 🎯 WIDGET DÉFIS PERSONNELS (MODULE 10) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.44 }}
+            className="bg-gradient-to-r from-pink-600/20 to-purple-600/20 border border-pink-500/30 rounded-xl p-6 mb-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-pink-600/30 rounded-xl">
+                  <Target className="w-6 h-6 text-pink-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Mes Défis</h3>
+                  <p className="text-sm text-gray-400">
+                    {challengeStats?.active || 0} en cours • {challengeStats?.completed || 0} accomplis
+                  </p>
+                </div>
+              </div>
+              <a
+                href="/challenges"
+                className="px-4 py-2 bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/30 rounded-lg text-pink-300 text-sm transition-all"
+              >
+                Voir tout →
+              </a>
+            </div>
+
+            <div className="grid grid-cols-4 gap-3">
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-blue-400">{challengeStats?.active || 0}</div>
+                <div className="text-xs text-gray-400">En cours</div>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-yellow-400">{(challengeStats?.pending || 0) + (challengeStats?.pendingValidation || 0)}</div>
+                <div className="text-xs text-gray-400">En attente</div>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-green-400">{challengeStats?.completed || 0}</div>
+                <div className="text-xs text-gray-400">Accomplis</div>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-amber-400">+{challengeStats?.totalXpEarned || 0}</div>
+                <div className="text-xs text-gray-400">XP gagnés</div>
+              </div>
+            </div>
+
+            {/* Défis actifs rapides */}
+            {challenges?.filter(c => c.status === 'active').slice(0, 2).length > 0 && (
+              <div className="mt-4 space-y-2">
+                {challenges.filter(c => c.status === 'active').slice(0, 2).map(challenge => (
+                  <div key={challenge.id} className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
+                    <span className="text-xl">{challenge.typeInfo?.emoji || '🎯'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate">{challenge.title}</p>
+                      <p className="text-xs text-gray-400">{challenge.difficultyInfo?.label} • +{challenge.xpReward} XP</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${challenge.difficultyInfo?.color} bg-gray-700/50`}>
+                      {challenge.difficultyInfo?.emoji}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </motion.div>
