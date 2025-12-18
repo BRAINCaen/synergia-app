@@ -30,7 +30,7 @@ export const SKILL_BRANCHES = {
     textColor: 'text-pink-400',
     description: 'Accueil, service client, gestion des relations',
     roles: ['Game Master', 'Gestion des Avis', 'Relations B2B'],
-    skills: ['accueil_client', 'gestion_conflits', 'satisfaction_client', 'fidelisation']
+    skills: ['accueil_client', 'gestion_crise', 'diplomatie', 'fidelisation']
   },
   technique: {
     id: 'technique',
@@ -40,9 +40,9 @@ export const SKILL_BRANCHES = {
     gradient: 'from-blue-500/20 to-cyan-600/20',
     color: 'from-blue-500 to-cyan-600',
     textColor: 'text-blue-400',
-    description: 'Maintenance, bricolage, résolution de pannes',
-    roles: ['Entretien & Maintenance'],
-    skills: ['maintenance_preventive', 'reparation_urgente', 'bricolage', 'electronique']
+    description: 'Maintenance, bricolage, stocks, résolution de pannes',
+    roles: ['Entretien & Maintenance', 'Gestion des Stocks'],
+    skills: ['maintenance', 'diagnostic', 'bricolage', 'securite', 'gestion_stocks']
   },
   communication: {
     id: 'communication',
@@ -52,9 +52,9 @@ export const SKILL_BRANCHES = {
     gradient: 'from-purple-500/20 to-violet-600/20',
     color: 'from-purple-500 to-violet-600',
     textColor: 'text-purple-400',
-    description: 'Réseaux sociaux, rédaction, visibilité',
+    description: 'Réseaux sociaux, rédaction, visuel, visibilité',
     roles: ['Création de Contenu', 'Communication & Réseaux Sociaux'],
-    skills: ['reseaux_sociaux', 'redaction', 'photo_video', 'strategie_com']
+    skills: ['reseaux_sociaux', 'redaction', 'veille', 'storytelling', 'visuel']
   },
   organisation: {
     id: 'organisation',
@@ -64,9 +64,9 @@ export const SKILL_BRANCHES = {
     gradient: 'from-green-500/20 to-emerald-600/20',
     color: 'from-green-500 to-emerald-600',
     textColor: 'text-green-400',
-    description: 'Plannings, stocks, rigueur administrative',
-    roles: ['Organisation Interne', 'Gestion des Stocks'],
-    skills: ['gestion_planning', 'gestion_stocks', 'procedures', 'reporting']
+    description: 'Plannings, RH, administratif, procédures',
+    roles: ['Organisation Interne', 'Ressources Humaines', 'Administratif'],
+    skills: ['planning', 'rigueur_admin', 'coordination', 'rh', 'administratif']
   },
   creativite: {
     id: 'creativite',
@@ -78,7 +78,7 @@ export const SKILL_BRANCHES = {
     textColor: 'text-orange-400',
     description: 'Design, improvisation, innovation',
     roles: ['Création de Contenu', 'Game Master'],
-    skills: ['game_design', 'improvisation', 'decoration', 'innovation']
+    skills: ['design_graphique', 'improvisation', 'innovation', 'ambiance']
   },
   pedagogie: {
     id: 'pedagogie',
@@ -90,7 +90,7 @@ export const SKILL_BRANCHES = {
     textColor: 'text-teal-400',
     description: 'Formation, mentorat, transmission',
     roles: ['Mentorat & Formation'],
-    skills: ['formation_nouveaux', 'mentorat', 'documentation', 'evaluation']
+    skills: ['formation', 'mentorat', 'documentation', 'feedback']
   },
   commercial: {
     id: 'commercial',
@@ -102,7 +102,7 @@ export const SKILL_BRANCHES = {
     textColor: 'text-yellow-400',
     description: 'Partenariats, négociation, B2B',
     roles: ['Partenariats & Référencement', 'Relations B2B'],
-    skills: ['prospection', 'negociation', 'partenariats', 'upselling']
+    skills: ['negociation', 'partenariats', 'seo_visibilite']
   }
 };
 
@@ -479,8 +479,9 @@ export const SKILLS = {
   gestion_stocks: {
     id: 'gestion_stocks',
     name: 'Gestion Stocks',
+    emoji: '📦',
     icon: '📦',
-    branch: 'organisation',
+    branch: 'technique',
     description: 'Inventaire, commandes, approvisionnement',
     tiers: {
       1: {
@@ -978,6 +979,99 @@ export const SKILL_ACHIEVEMENTS = {
       const skillCount = Object.keys(SKILLS).length;
       const tier2Count = Object.values(userSkills).filter(s => s.unlockedTiers?.includes(2)).length;
       return tier2Count >= skillCount;
+    }
+  },
+
+  // ============================================
+  // 📱 NOUVEAU SKILL COMMUNICATION - VISUEL
+  // ============================================
+  visuel: {
+    id: 'visuel',
+    name: 'Visuel',
+    emoji: '🎬',
+    icon: '🎬',
+    branch: 'communication',
+    description: 'Création visuelle, photos, vidéos, montage',
+    tiers: {
+      1: {
+        options: [
+          { id: 'a', emoji: '📸', name: 'Photographe', description: '+8% XP sur quêtes photo/vidéo', bonus: { xp_visuel: 8 } },
+          { id: 'b', emoji: '🎥', name: 'Vidéaste', description: 'Accès outils montage', bonus: { xp_communication: 3 } },
+          { id: 'c', emoji: '✨', name: 'Créatif', description: '+3% XP global', bonus: { xp_global: 3 } }
+        ]
+      },
+      2: {
+        options: [
+          { id: 'a', emoji: '🏆', name: 'Réalisateur', description: 'Badge "Réalisateur"', bonus: { badge: 'realisateur' } },
+          { id: 'b', emoji: '📊', name: 'Content Creator', description: '+5% XP branche Communication', bonus: { xp_communication: 5 } }
+        ]
+      },
+      3: {
+        options: [
+          { id: 'a', emoji: '🌟', name: 'Directeur Artistique', description: '+20% XP toute branche Communication', bonus: { xp_communication: 20 }, isUltimate: true }
+        ]
+      }
+    }
+  },
+
+  // ============================================
+  // 📋 NOUVEAUX SKILLS ORGANISATION - RH & ADMINISTRATIF
+  // ============================================
+  rh: {
+    id: 'rh',
+    name: 'Ressources Humaines',
+    emoji: '👥',
+    icon: '👥',
+    branch: 'organisation',
+    description: 'Gestion du personnel, recrutement, bien-être',
+    tiers: {
+      1: {
+        options: [
+          { id: 'a', emoji: '🤝', name: 'Accueillant', description: '+8% XP sur quêtes RH', bonus: { xp_rh: 8 } },
+          { id: 'b', emoji: '📋', name: 'Organisateur', description: 'Planning équipe', bonus: { xp_organisation: 3 } },
+          { id: 'c', emoji: '💬', name: 'Communicant', description: '+3% XP global', bonus: { xp_global: 3 } }
+        ]
+      },
+      2: {
+        options: [
+          { id: 'a', emoji: '🏆', name: 'Coach', description: 'Badge "Coach équipe"', bonus: { badge: 'coach_equipe' } },
+          { id: 'b', emoji: '📊', name: 'Gestionnaire RH', description: '+5% XP branche Organisation', bonus: { xp_organisation: 5 } }
+        ]
+      },
+      3: {
+        options: [
+          { id: 'a', emoji: '🌟', name: 'DRH', description: '+20% XP toute branche Organisation + Badge ultime', bonus: { xp_organisation: 20 }, isUltimate: true }
+        ]
+      }
+    }
+  },
+
+  administratif: {
+    id: 'administratif',
+    name: 'Administratif',
+    emoji: '📑',
+    icon: '📑',
+    branch: 'organisation',
+    description: 'Gestion administrative, comptabilité, documents',
+    tiers: {
+      1: {
+        options: [
+          { id: 'a', emoji: '📝', name: 'Méthodique', description: '+8% XP sur quêtes admin', bonus: { xp_administratif: 8 } },
+          { id: 'b', emoji: '📁', name: 'Archiviste', description: 'Templates documents', bonus: { xp_organisation: 3 } },
+          { id: 'c', emoji: '✅', name: 'Rigoureux', description: '+3% XP global', bonus: { xp_global: 3 } }
+        ]
+      },
+      2: {
+        options: [
+          { id: 'a', emoji: '🏆', name: 'Gestionnaire', description: 'Badge "Gestionnaire"', bonus: { badge: 'gestionnaire' } },
+          { id: 'b', emoji: '📊', name: 'Comptable', description: '+5% XP branche Organisation', bonus: { xp_organisation: 5 } }
+        ]
+      },
+      3: {
+        options: [
+          { id: 'a', emoji: '🌟', name: 'Directeur Admin', description: '+20% XP toute branche Organisation + Badge ultime', bonus: { xp_organisation: 20 }, isUltimate: true }
+        ]
+      }
     }
   }
 };
