@@ -38,6 +38,7 @@ import { createTaskSafely } from '../../core/services/taskCreationFix.js';
 import storageService from '../../core/services/storageService.js';
 import { db } from '../../core/firebase.js';
 import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { SKILLS, SKILL_BRANCHES } from '../../core/services/skillService.js';
 
 
 /**
@@ -176,7 +177,8 @@ const NewTaskModal = ({
     recurrenceDays: [],
     recurrenceEndDate: '',
     tags: [],
-    attachments: []
+    attachments: [],
+    requiredSkills: []
   });
 
   // Charger les données si mode édition
@@ -201,7 +203,8 @@ const NewTaskModal = ({
         recurrenceDays: task.recurrenceDays || [],
         recurrenceEndDate: task.recurrenceEndDate || '',
         tags: Array.isArray(task.tags) ? task.tags : [],
-        attachments: Array.isArray(task.attachments) ? task.attachments : []
+        attachments: Array.isArray(task.attachments) ? task.attachments : [],
+        requiredSkills: Array.isArray(task.requiredSkills) ? task.requiredSkills : []
       });
     }
   }, [task, mode]);
@@ -371,6 +374,7 @@ const NewTaskModal = ({
         recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? formData.recurrenceEndDate : null,
         tags: Array.isArray(formData.tags) ? formData.tags : [],
         attachments: attachments,
+        requiredSkills: Array.isArray(formData.requiredSkills) ? formData.requiredSkills : [],
         createdBy: user.uid,
         createdByName: user.displayName || user.email || 'Utilisateur',
         assignedTo: []
@@ -618,9 +622,93 @@ const NewTaskModal = ({
                 </select>
               </div>
 
+              {/* 🌳 Compétences requises */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Zap className="w-4 h-4 inline mr-2 text-purple-600" />
+                  Compétences développées (optionnel)
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Sélectionnez les compétences que cette quête permet de développer. L'XP sera distribué automatiquement.
+                </p>
+
+                <div className="space-y-3 max-h-64 overflow-y-auto border-2 border-gray-200 rounded-xl p-3">
+                  {Object.entries(SKILL_BRANCHES).map(([branchId, branch]) => (
+                    <div key={branchId} className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <span>{branch.emoji}</span>
+                        <span>{branch.name}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pl-6">
+                        {branch.skills?.map(skillId => {
+                          const skill = SKILLS[skillId];
+                          if (!skill) return null;
+
+                          const isSelected = formData.requiredSkills.includes(skillId);
+
+                          return (
+                            <button
+                              key={skillId}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  requiredSkills: isSelected
+                                    ? prev.requiredSkills.filter(id => id !== skillId)
+                                    : [...prev.requiredSkills, skillId]
+                                }));
+                              }}
+                              className={`
+                                flex items-center gap-2 p-2 rounded-lg text-left text-sm transition-all
+                                ${isSelected
+                                  ? 'bg-purple-100 border-2 border-purple-500 text-purple-700'
+                                  : 'bg-gray-50 border-2 border-transparent hover:border-gray-300 text-gray-600'
+                                }
+                              `}
+                            >
+                              <span>{skill.emoji}</span>
+                              <span className="truncate">{skill.name}</span>
+                              {isSelected && <CheckCircle className="w-4 h-4 ml-auto text-purple-600" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Afficher les skills sélectionnés */}
+                {formData.requiredSkills.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="text-xs text-gray-500">Sélectionnés :</span>
+                    {formData.requiredSkills.map(skillId => {
+                      const skill = SKILLS[skillId];
+                      return skill ? (
+                        <span
+                          key={skillId}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs"
+                        >
+                          {skill.emoji} {skill.name}
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              requiredSkills: prev.requiredSkills.filter(id => id !== skillId)
+                            }))}
+                            className="hover:text-purple-900"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
+
                 {/* Date d'échéance */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
