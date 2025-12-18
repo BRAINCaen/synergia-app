@@ -409,6 +409,36 @@ class LevelService {
 export const levelService = new LevelService();
 
 // ==========================================
+// 💰 HELPER XP DÉPENSABLES (BOUTIQUE)
+// ==========================================
+
+/**
+ * 🛒 Calculer les XP dépensables d'un utilisateur
+ * Formule: totalXp - totalSpentXp = XP restants pour achats
+ * @param {Object} gamificationData - Données gamification de l'utilisateur
+ * @returns {number} XP dépensables
+ */
+export const getSpendableXP = (gamificationData) => {
+  const totalXP = gamificationData?.totalXp || 0;
+  const totalSpentXP = gamificationData?.totalSpentXp || 0;
+  return Math.max(0, totalXP - totalSpentXP);
+};
+
+/**
+ * 💰 Vérifier si l'utilisateur peut acheter une récompense
+ * @param {Object} gamificationData - Données gamification
+ * @param {number} cost - Coût de la récompense
+ * @returns {Object} { canAfford, spendableXP, missing }
+ */
+export const canAffordReward = (gamificationData, cost) => {
+  const spendableXP = getSpendableXP(gamificationData);
+  const canAfford = spendableXP >= cost;
+  const missing = canAfford ? 0 : cost - spendableXP;
+
+  return { canAfford, spendableXP, missing };
+};
+
+// ==========================================
 // 📊 TABLE DE RÉFÉRENCE DES NIVEAUX
 // ==========================================
 /**

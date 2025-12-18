@@ -4,11 +4,11 @@
 // ✅ SYSTÈME 2 COMPTEURS : totalXp (prestige) + spendableXp (dépensables)
 // ==========================================
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Trophy, Search, Filter, Star, Gift, Coins, Users, Target, 
-  Plus, Edit2, Trash2, Settings, AlertCircle, Check, X, 
+import {
+  Trophy, Search, Filter, Star, Gift, Coins, Users, Target,
+  Plus, Edit2, Trash2, Settings, AlertCircle, Check, X,
   ShoppingCart, Clock, User, Calendar, TrendingUp, Crown,
   Shield, Eye, EyeOff, Package, Zap, Heart, Coffee, Gamepad2,
   MapPin, Camera, Music, Book, Palette, Dumbbell, ChefHat, Save
@@ -17,6 +17,9 @@ import notificationService from '../core/services/notificationService.js';
 
 // 🎯 IMPORT DU LAYOUT
 import Layout from '../components/layout/Layout.jsx';
+
+// 🛒 COMPOSANTS BOUTIQUE MODULE 5
+import { RewardDetailModal, PurchaseSuccessAnimation, WishlistCard } from '../components/shop';
 
 // 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -59,6 +62,14 @@ const RewardsPage = () => {
     icon: '🎁',
     isAvailable: true
   });
+
+  // 🛒 ÉTATS BOUTIQUE MODULE 5
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailReward, setDetailReward] = useState(null);
+  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+  const [purchasedReward, setPurchasedReward] = useState(null);
+  const [wishlistReward, setWishlistReward] = useState(null);
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
   // ==========================================
   // 📊 CATALOGUES DE RÉCOMPENSES PAR DÉFAUT
@@ -245,6 +256,47 @@ const RewardsPage = () => {
   };
 
   // ==========================================
+  // 🛒 HANDLERS BOUTIQUE MODULE 5
+  // ==========================================
+
+  // Ouvrir le modal de détail
+  const handleOpenDetail = useCallback((reward) => {
+    setDetailReward(reward);
+    setShowDetailModal(true);
+  }, []);
+
+  // Fermer le modal de détail
+  const handleCloseDetail = useCallback(() => {
+    setShowDetailModal(false);
+    setDetailReward(null);
+  }, []);
+
+  // Définir comme objectif (wishlist)
+  const handleSetWishlist = useCallback((reward) => {
+    setWishlistReward(reward);
+    // Sauvegarder dans localStorage pour persistance
+    localStorage.setItem('synergia_wishlist', JSON.stringify(reward));
+  }, []);
+
+  // Retirer l'objectif
+  const handleRemoveWishlist = useCallback(() => {
+    setWishlistReward(null);
+    localStorage.removeItem('synergia_wishlist');
+  }, []);
+
+  // Charger wishlist depuis localStorage au démarrage
+  useEffect(() => {
+    const saved = localStorage.getItem('synergia_wishlist');
+    if (saved) {
+      try {
+        setWishlistReward(JSON.parse(saved));
+      } catch (e) {
+        console.warn('⚠️ Erreur chargement wishlist:', e);
+      }
+    }
+  }, []);
+
+  // ==========================================
   // 🎁 DEMANDER UNE RÉCOMPENSE
   // ✅ Vérification avec spendableXp pour récompenses individuelles
   // ==========================================
@@ -255,25 +307,7 @@ const RewardsPage = () => {
       return;
     }
 
-    // ✅ SYSTÈME 2 COMPTEURS : utiliser spendableXp pour les achats individuels
-    const userSpendableXP = getSpendableXP();
-    const userTotalXP = userProfile?.gamification?.totalXp || 0;
-    const requiredXP = reward.type === 'team' ? teamPoolXP : userSpendableXP;
-
-    if (requiredXP < reward.xpCost) {
-      if (reward.type === 'team') {
-        alert(`XP insuffisants !\nPool équipe: ${teamPoolXP} XP\nRequis: ${reward.xpCost} XP\nManque: ${reward.xpCost - teamPoolXP} XP`);
-      } else {
-        alert(`XP dépensables insuffisants !\n\n🛒 XP dépensables: ${userSpendableXP} XP\nRequis: ${reward.xpCost} XP\nManque: ${reward.xpCost - userSpendableXP} XP\n\n💎 Vos XP de prestige (${userTotalXP} XP) restent intacts pour les classements !`);
-      }
-      return;
-    }
-
-    const confirmMsg = reward.type === 'team'
-      ? `Demander ${reward.name} pour ${reward.xpCost} XP du pool équipe ?`
-      : `Demander ${reward.name} pour ${reward.xpCost} de vos XP dépensables ?\n\n💡 Vos XP de prestige (${userTotalXP} XP) resteront intacts !`;
-
-    if (!confirm(confirmMsg)) return;
+    setIsPurchasing(true);
 
     try {
       await addDoc(collection(db, 'rewardRequests'), {
@@ -302,13 +336,26 @@ const RewardsPage = () => {
         console.warn('⚠️ [NOTIF] Erreur notification admins:', notifError);
       }
 
-      alert('✅ Demande envoyée ! Un admin va la valider.');
-      loadAllData();
+      // Fermer le modal de détail et afficher l'animation de succès
+      setShowDetailModal(false);
+      setDetailReward(null);
+      setPurchasedReward(reward);
+      setShowPurchaseSuccess(true);
+
+      await loadAllData();
     } catch (error) {
       console.error('❌ Erreur demande:', error);
       alert('Erreur lors de la demande');
+    } finally {
+      setIsPurchasing(false);
     }
   };
+
+  // Fermer l'animation de succès
+  const handleClosePurchaseSuccess = useCallback(() => {
+    setShowPurchaseSuccess(false);
+    setPurchasedReward(null);
+  }, []);
 
   // ==========================================
   // 🎨 CRÉER UNE RÉCOMPENSE (ADMIN)
@@ -596,6 +643,18 @@ const RewardsPage = () => {
             </div>
           </div>
 
+          {/* 🎯 CARTE OBJECTIF (WISHLIST) */}
+          {wishlistReward && (
+            <div className="mb-6">
+              <WishlistCard
+                targetReward={wishlistReward}
+                currentXP={userSpendableXP}
+                onRemoveTarget={handleRemoveWishlist}
+                onViewReward={handleOpenDetail}
+              />
+            </div>
+          )}
+
           {/* 🛡️ BOUTON ADMIN */}
           {userIsAdmin && (
             <div className="mb-6 flex gap-4">
@@ -693,13 +752,23 @@ const RewardsPage = () => {
                   key={reward.id}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl overflow-hidden transition-all duration-300 ${
+                  whileHover={{ scale: canAfford ? 1.02 : 1 }}
+                  className={`relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl overflow-hidden transition-all duration-300 cursor-pointer ${
                     canAfford ? 'hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-400/50' : 'opacity-60'
                   }`}
+                  onClick={() => handleOpenDetail(reward)}
                 >
                   {/* Header gradient */}
                   <div className={`h-2 bg-gradient-to-r ${getRewardColor(reward)}`}></div>
-                  
+
+                  {/* Badge wishlist */}
+                  {wishlistReward?.id === reward.id && (
+                    <div className="absolute top-4 right-4 bg-pink-500/80 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 z-10">
+                      <Target className="w-3 h-3" />
+                      Objectif
+                    </div>
+                  )}
+
                   <div className="p-6">
                     {/* Icône et nom */}
                     <div className="flex items-start justify-between mb-4">
@@ -708,50 +777,77 @@ const RewardsPage = () => {
                         <div>
                           <h3 className="text-lg font-bold text-white">{reward.name}</h3>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            reward.type === 'team' 
-                              ? 'bg-purple-500/20 text-purple-300' 
+                            reward.type === 'team'
+                              ? 'bg-purple-500/20 text-purple-300'
                               : 'bg-blue-500/20 text-blue-300'
                           }`}>
                             {reward.type === 'team' ? '👥 Équipe' : '👤 Individuelle'}
                           </span>
                         </div>
                       </div>
-                      
-                      {/* Actions admin */}
-                      {userIsAdmin && (
-                        <div className="flex gap-1">
+
+                      {/* Actions admin + wishlist */}
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        {/* Bouton wishlist */}
+                        {reward.type === 'individual' && !canAfford && (
                           <button
-                            onClick={() => {
-                              setSelectedReward(reward);
-                              setRewardForm({
-                                name: reward.name,
-                                description: reward.description,
-                                type: reward.type,
-                                category: reward.category,
-                                xpCost: reward.xpCost,
-                                icon: reward.icon,
-                                isAvailable: reward.isAvailable !== false
-                              });
-                              setShowEditModal(true);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (wishlistReward?.id === reward.id) {
+                                handleRemoveWishlist();
+                              } else {
+                                handleSetWishlist(reward);
+                              }
                             }}
-                            className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                            className={`p-1 transition-colors ${
+                              wishlistReward?.id === reward.id
+                                ? 'text-pink-400 hover:text-pink-300'
+                                : 'text-gray-400 hover:text-pink-400'
+                            }`}
+                            title={wishlistReward?.id === reward.id ? 'Retirer objectif' : 'Définir comme objectif'}
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Target className="w-4 h-4" />
                           </button>
-                          {reward.isFirebase && (
+                        )}
+                        {userIsAdmin && (
+                          <>
                             <button
-                              onClick={() => handleDeleteReward(reward)}
-                              className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedReward(reward);
+                                setRewardForm({
+                                  name: reward.name,
+                                  description: reward.description,
+                                  type: reward.type,
+                                  category: reward.category,
+                                  xpCost: reward.xpCost,
+                                  icon: reward.icon,
+                                  isAvailable: reward.isAvailable !== false
+                                });
+                                setShowEditModal(true);
+                              }}
+                              className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Edit2 className="w-4 h-4" />
                             </button>
-                          )}
-                        </div>
-                      )}
+                            {reward.isFirebase && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteReward(reward);
+                                }}
+                                className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     {/* Description */}
-                    <p className="text-gray-400 text-sm mb-4">{reward.description}</p>
+                    <p className="text-gray-400 text-sm mb-4 line-clamp-2">{reward.description}</p>
 
                     {/* Coût et bouton */}
                     <div className="flex items-center justify-between">
@@ -759,9 +855,14 @@ const RewardsPage = () => {
                         <span className="text-2xl font-bold text-white">{reward.xpCost.toLocaleString()}</span>
                         <span className="text-gray-400 ml-1">XP</span>
                       </div>
-                      
+
                       <button
-                        onClick={() => handleRequestReward(reward)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (canAfford) {
+                            handleOpenDetail(reward);
+                          }
+                        }}
                         disabled={!canAfford}
                         className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                           canAfford
@@ -769,7 +870,7 @@ const RewardsPage = () => {
                             : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        {canAfford ? 'Demander' : 'XP insuffisants'}
+                        {canAfford ? 'Voir détails' : 'XP insuffisants'}
                       </button>
                     </div>
                   </div>
@@ -1028,6 +1129,25 @@ const RewardsPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 🛒 MODAL DÉTAILS RÉCOMPENSE - MODULE 5 */}
+      <RewardDetailModal
+        isOpen={showDetailModal}
+        onClose={handleCloseDetail}
+        reward={detailReward}
+        userSpendableXP={userSpendableXP}
+        userTotalXP={userTotalXP}
+        teamPoolXP={teamPoolXP}
+        onPurchase={handleRequestReward}
+        isPurchasing={isPurchasing}
+      />
+
+      {/* 🎉 ANIMATION SUCCÈS ACHAT - MODULE 5 */}
+      <PurchaseSuccessAnimation
+        isVisible={showPurchaseSuccess}
+        reward={purchasedReward}
+        onComplete={handleClosePurchaseSuccess}
+      />
     </Layout>
   );
 };
