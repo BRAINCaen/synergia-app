@@ -47,15 +47,24 @@ const TeamChallengeCard = ({
   const rewardInfo = TEAM_CHALLENGE_REWARDS[challenge.rewardLevel] || TEAM_CHALLENGE_REWARDS.medium;
   const statusInfo = TEAM_CHALLENGE_STATUS[challenge.status] || TEAM_CHALLENGE_STATUS.active;
 
-  // Calculer la progression
-  const progress = Math.min(100, Math.round((challenge.currentValue / challenge.targetValue) * 100));
+  // Calculer la progression - utiliser floor pour ne pas arrondir à 100% avant d'y être
+  const rawProgress = (challenge.currentValue / challenge.targetValue) * 100;
+  const progress = challenge.currentValue >= challenge.targetValue
+    ? 100
+    : Math.min(99, Math.floor(rawProgress)); // Jamais 100% tant que pas atteint
   const isCompleted = challenge.status === 'completed';
   const isActive = challenge.status === 'active';
 
-  // Formater les nombres
-  const formatNumber = (num) => {
+  // Formater les nombres - plus de précision pour montrer la vraie progression
+  const formatNumber = (num, target = null) => {
+    // Si on compare avec une cible, montrer plus de détails près de l'objectif
+    if (target && num >= 1000 && num < target && (target - num) < 100) {
+      // Proche de l'objectif mais pas encore atteint : montrer le nombre exact
+      return num.toLocaleString();
+    }
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    if (num >= 10000) return (num / 1000).toFixed(1) + 'K';
+    if (num >= 1000) return (num / 1000).toFixed(2) + 'K'; // Plus de précision pour les milliers
     return num.toString();
   };
 
@@ -118,7 +127,7 @@ const TeamChallengeCard = ({
                 />
               </div>
               <span className="text-sm text-gray-400 flex-shrink-0">
-                {formatNumber(challenge.currentValue)}/{formatNumber(challenge.targetValue)}
+                {formatNumber(challenge.currentValue, challenge.targetValue)}/{formatNumber(challenge.targetValue)}
               </span>
             </div>
           </div>
@@ -189,7 +198,7 @@ const TeamChallengeCard = ({
                 Progression
               </span>
               <span className="text-white font-bold">
-                {formatNumber(challenge.currentValue)} / {formatNumber(challenge.targetValue)} {challenge.unit}
+                {formatNumber(challenge.currentValue, challenge.targetValue)} / {formatNumber(challenge.targetValue)} {challenge.unit}
               </span>
             </div>
 

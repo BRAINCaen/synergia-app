@@ -403,18 +403,16 @@ const ChallengesPage = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredChallenges
-                    .filter(c => activeFilter !== 'all' || c.status !== 'active')
-                    .map((challenge) => (
-                      <TeamChallengeCard
-                        key={challenge.id}
-                        challenge={challenge}
-                        onContribute={challenge.status === 'active' ? handleContribute : null}
-                        onUpdateValue={userIsAdmin ? handleUpdateValue : null}
-                        onDelete={userIsAdmin ? handleDelete : null}
-                        isAdmin={userIsAdmin}
-                      />
-                    ))}
+                  {filteredChallenges.map((challenge) => (
+                    <TeamChallengeCard
+                      key={challenge.id}
+                      challenge={challenge}
+                      onContribute={challenge.status === 'active' ? handleContribute : null}
+                      onUpdateValue={userIsAdmin ? handleUpdateValue : null}
+                      onDelete={userIsAdmin ? handleDelete : null}
+                      isAdmin={userIsAdmin}
+                    />
+                  ))}
                 </div>
               )}
             </div>
