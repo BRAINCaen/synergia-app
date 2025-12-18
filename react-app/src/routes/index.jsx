@@ -12,7 +12,6 @@ import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
 import CampaignDetailPage from '../pages/CampaignDetailPage.jsx';
-import AnalyticsPage from '../pages/AnalyticsPage.jsx';
 import PersonalStatsPage from '../pages/PersonalStatsPage.jsx'; // 📊 MODULE 7
 import ProfilePage from '../pages/ProfilePage.jsx';
 import LeaderboardPage from '../pages/LeaderboardPage.jsx';
@@ -42,7 +41,6 @@ import AdminPage from '../pages/AdminPage.jsx';
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx';
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx';
 import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUTÉ
-import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
 import AdminRanksPage from '../pages/AdminRanksPage.jsx'; // 🎖️ MODULE RANGS
@@ -75,8 +73,7 @@ const AppRoutes = () => {
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
         <Route path="/projects/:id" element={<CampaignDetailPage />} />
-        
-        <Route path="/analytics" element={<AnalyticsPage />} />
+
         <Route path="/stats" element={<PersonalStatsPage />} /> {/* 📊 MODULE 7 */}
 
         {/* GAMIFICATION */}
@@ -115,7 +112,6 @@ const AppRoutes = () => {
         <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
         <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUTÉ */}
-        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
         <Route path="/admin/ranks" element={<AdminRanksPage />} /> {/* 🎖️ MODULE RANGS */}

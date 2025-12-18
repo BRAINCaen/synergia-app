@@ -27,8 +27,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/dashboard', label: 'Mon Aventure', icon: '🚀' },
       { path: '/infos', label: 'Info', icon: 'ℹ️' },
       { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
-      { path: '/projects', label: 'Campagnes', icon: '🎯' },
-      { path: '/analytics', label: 'Analytics', icon: '📊' }
+      { path: '/projects', label: 'Campagnes', icon: '🎯' }
     ]},
     { section: 'GAMIFICATION', items: [
       { path: '/badges', label: 'Badges', icon: '🏆' },
@@ -55,10 +54,9 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     { section: 'ADMIN', items: [
       { path: '/admin', label: 'Dashboard Admin', icon: '👑' },
       { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
-      { path: '/admin/objective-validation', label: 'Validation Objectifs', icon: '🎯' },
+      { path: '/admin/objective-validation', label: 'Gestion Campagnes', icon: '🎯' },
       { path: '/admin/checkpoints', label: 'Checkpoints', icon: '🏁' },
       { path: '/admin/rewards', label: 'Validation Récompenses', icon: '🎁' },
-      { path: '/admin/analytics', label: 'Analytics Admin', icon: '📊' },
       { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
       { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
       { path: '/admin/ranks', label: 'Gestion des Rangs', icon: '🎖️' },
