@@ -23,6 +23,7 @@ import BoostsPage from '../pages/BoostsPage.jsx';
 import ChallengesPage from '../pages/ChallengesPage.jsx'; // 🎯 MODULE 10
 import ProfileCustomizationPage from '../pages/ProfileCustomizationPage.jsx'; // 🎨 MODULE 13
 import PulsePage from '../pages/PulsePage.jsx'; // 💗 MODULE PULSE
+import SkillTreePage from '../pages/SkillTreePage.jsx'; // 🌳 MODULE SKILL TREE
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
@@ -81,6 +82,7 @@ const AppRoutes = () => {
         <Route path="/rewards" element={<RewardsPage />} />
         <Route path="/boosts" element={<BoostsPage />} />
         <Route path="/challenges" element={<ChallengesPage />} /> {/* 🎯 MODULE 10 */}
+        <Route path="/skills" element={<SkillTreePage />} /> {/* 🌳 MODULE SKILL TREE */}
 
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
