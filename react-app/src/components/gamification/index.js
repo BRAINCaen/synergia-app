@@ -274,19 +274,29 @@ const XPDisplay = ({ currentXp = 0, recentGain = 0 }) => {
   );
 };
 
+// ✅ IMPORTS DES NOUVEAUX COMPOSANTS
+import BadgeLeaderboard from './BadgeLeaderboard.jsx';
+import ProfileBadges from './ProfileBadges.jsx';
+
 // ✅ EXPORTS SÉCURISÉS - Un seul export par composant
 export { Leaderboard };
 export { BadgeCollection };
 export { LevelProgress };
 export { XPDisplay };
 
+// 🆕 NOUVEAUX EXPORTS
+export { BadgeLeaderboard };
+export { ProfileBadges };
+
 // ✅ Export default pour compatibilité
 export default {
   Leaderboard,
-  BadgeCollection, 
+  BadgeCollection,
   LevelProgress,
-  XPDisplay
+  XPDisplay,
+  BadgeLeaderboard,
+  ProfileBadges
 };
 
 console.log('✅ Gamification index - Tous les composants exports sécurisés');
-console.log('🔧 Types disponibles:', typeof Leaderboard, typeof BadgeCollection);
+console.log('🔧 Types disponibles:', typeof Leaderboard, typeof BadgeCollection, typeof BadgeLeaderboard, typeof ProfileBadges);
