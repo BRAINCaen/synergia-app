@@ -5,11 +5,12 @@
 // ==========================================
 
 import React, { useState, useEffect, memo, useRef, useCallback } from 'react';
-import { Menu, X, Bell, Check, Trash2, ExternalLink } from 'lucide-react';
+import { Menu, X, Bell, Check, Trash2, ExternalLink, Sun, Moon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import useNotificationToast from '../../shared/hooks/useNotificationToast.js';
 import { NotificationCenter, NotificationToast } from '../notifications';
+import { useTheme } from '../../shared/hooks/useTheme.js';
 
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD
@@ -341,6 +342,9 @@ const Layout = memo(({ children }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
+  // 🎨 MODULE 16: Theme hook
+  const { isDark, toggleTheme } = useTheme();
+
   // 🔔 MODULE 6: Hook de notifications avec toasts
   const {
     toasts,
@@ -416,6 +420,40 @@ const Layout = memo(({ children }) => {
         }}
       >
         <Menu style={{ width: '28px', height: '28px', color: 'white' }} />
+      </button>
+
+      {/* 🎨 MODULE 16: BOUTON THEME */}
+      <button
+        onClick={toggleTheme}
+        style={{
+          position: 'fixed',
+          top: '24px',
+          right: '92px',
+          zIndex: 999998,
+          width: '56px',
+          height: '56px',
+          background: isDark
+            ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
+            : 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
+          border: 'none',
+          borderRadius: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: isDark
+            ? '0 15px 30px -8px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+            : '0 15px 30px -8px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          backdropFilter: 'blur(10px)'
+        }}
+        title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+      >
+        {isDark ? (
+          <Moon style={{ width: '24px', height: '24px', color: '#fcd34d' }} />
+        ) : (
+          <Sun style={{ width: '24px', height: '24px', color: 'white' }} />
+        )}
       </button>
 
       {/* 🔔 BOUTON NOTIFICATIONS */}
