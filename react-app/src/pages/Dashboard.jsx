@@ -17,7 +17,7 @@ import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { useGamificationSync } from '../shared/hooks/useGamificationSync.js';
 import { useTeamPool } from '../shared/hooks/useTeamPool.js';
-import { useChallenges } from '../shared/hooks/useChallenges.js';
+import { useTeamChallenges } from '../shared/hooks/useTeamChallenges.js';
 import { calculateLevel, getXPProgress, getRankForLevel } from '../core/services/levelService.js';
 import xpHistoryService from '../core/services/xpHistoryService.js';
 
@@ -43,8 +43,8 @@ const Dashboard = () => {
     realTimeUpdates: true
   });
 
-  // Hook pour les défis (Module 10)
-  const { stats: challengeStats, challenges, loading: challengesLoading } = useChallenges({
+  // Hook pour les défis d'équipe (Module 10)
+  const { stats: challengeStats, activeChallenges, loading: challengesLoading } = useTeamChallenges({
     autoInit: true,
     realTimeUpdates: true
   });
@@ -553,10 +553,10 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-pink-600/30 rounded-xl">
-                  <Target className="w-6 h-6 text-pink-400" />
+                  <Users className="w-6 h-6 text-pink-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">Mes Défis</h3>
+                  <h3 className="font-semibold text-white">Defis d'Equipe</h3>
                   <p className="text-sm text-gray-400">
                     {challengeStats?.active || 0} en cours • {challengeStats?.completed || 0} accomplis
                   </p>
@@ -576,7 +576,7 @@ const Dashboard = () => {
                 <div className="text-xs text-gray-400">En cours</div>
               </div>
               <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-yellow-400">{(challengeStats?.pending || 0) + (challengeStats?.pendingValidation || 0)}</div>
+                <div className="text-2xl font-bold text-yellow-400">{challengeStats?.pending || 0}</div>
                 <div className="text-xs text-gray-400">En attente</div>
               </div>
               <div className="bg-gray-800/50 rounded-lg p-3 text-center">
@@ -585,25 +585,33 @@ const Dashboard = () => {
               </div>
               <div className="bg-gray-800/50 rounded-lg p-3 text-center">
                 <div className="text-2xl font-bold text-amber-400">+{challengeStats?.totalXpEarned || 0}</div>
-                <div className="text-xs text-gray-400">XP gagnés</div>
+                <div className="text-xs text-gray-400">XP Equipe</div>
               </div>
             </div>
 
-            {/* Défis actifs rapides */}
-            {challenges?.filter(c => c.status === 'active').slice(0, 2).length > 0 && (
+            {/* Defis actifs */}
+            {activeChallenges?.length > 0 && (
               <div className="mt-4 space-y-2">
-                {challenges.filter(c => c.status === 'active').slice(0, 2).map(challenge => (
-                  <div key={challenge.id} className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
-                    <span className="text-xl">{challenge.typeInfo?.emoji || '🎯'}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{challenge.title}</p>
-                      <p className="text-xs text-gray-400">{challenge.difficultyInfo?.label} • +{challenge.xpReward} XP</p>
+                {activeChallenges.slice(0, 2).map(challenge => {
+                  const progress = Math.round((challenge.currentValue / challenge.targetValue) * 100);
+                  return (
+                    <div key={challenge.id} className="bg-gray-800/50 rounded-lg p-3">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xl">{challenge.typeInfo?.emoji || '🎯'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white truncate">{challenge.title}</p>
+                          <p className="text-xs text-gray-400">{challenge.currentValue}/{challenge.targetValue} {challenge.unit} • +{challenge.xpReward} XP</p>
+                        </div>
+                      </div>
+                      <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, progress)}%` }}
+                        />
+                      </div>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${challenge.difficultyInfo?.color} bg-gray-700/50`}>
-                      {challenge.difficultyInfo?.emoji}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </motion.div>
