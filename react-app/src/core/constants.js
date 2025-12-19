@@ -135,8 +135,7 @@ export const NAVIGATION_STRUCTURE = {
   admin: {
     label: 'Administration',
     routes: [
-      { path: ROUTES.ADMIN, label: 'Dashboard Admin', icon: '🛡️', priority: 1 },
-      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Quêtes', icon: '✅', priority: 2 },
+      { path: ROUTES.ADMIN_TASK_VALIDATION, label: 'Validation Quêtes', icon: '✅', priority: 1 },
       { path: ROUTES.ADMIN_OBJECTIVE_VALIDATION, label: 'Validation Objectifs', icon: '🎯', priority: 3 },
       { path: ROUTES.ADMIN_ROLE_PERMISSIONS, label: 'Permissions', icon: '🔐', priority: 4 },
       { path: ROUTES.ADMIN_REWARDS, label: 'Récompenses', icon: '🎁', priority: 5 },

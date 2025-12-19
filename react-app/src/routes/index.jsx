@@ -36,7 +36,6 @@ import PlanningAdvancedPage from '../pages/PlanningAdvancedPage.jsx';
 import GodModPage from '../pages/GodModPage.jsx';
 
 // Pages admin
-import AdminPage from '../pages/AdminPage.jsx';
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx';
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx';
 import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUTÉ
@@ -107,7 +106,6 @@ const AppRoutes = () => {
 
       {/* Routes admin - Nécessitent authentification + rôle admin */}
       <Route element={<AdminRoute />}>
-        <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
         <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUTÉ */}
