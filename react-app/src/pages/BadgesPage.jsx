@@ -5,12 +5,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Trophy, Award, Star, Target, Zap, Crown, Shield, Gem, Medal, Gift,
   Search, Filter, Grid, List, Lock, Unlock, Calendar, Users, CheckCircle,
   Clock, Eye, MoreVertical, Flame, BookOpen, Briefcase, Heart, ThumbsUp,
   Settings, RefreshCw, Download, Plus, Edit, Trash2, UserPlus, Send,
-  Save, X, Upload, AlertCircle, Check, XOctagon
+  Save, X, Upload, AlertCircle, Check, XOctagon,
+  // 💡 BOÎTE À IDÉES
+  Lightbulb, ThumbsDown, MessageSquare, TrendingUp, Sparkles
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
@@ -19,6 +21,9 @@ import Layout from '../components/layout/Layout.jsx';
 // 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
+
+// 💡 SERVICE BOÎTE À IDÉES
+import { ideaService, IDEA_XP, IDEA_STATUS, IDEA_CATEGORIES } from '../core/services/ideaService.js';
 
 // 📊 FIREBASE IMPORTS
 import { 
@@ -59,6 +64,14 @@ const BadgesPage = () => {
     requirements: {},
     isActive: true
   });
+
+  // 💡 ÉTATS BOÎTE À IDÉES
+  const [ideas, setIdeas] = useState([]);
+  const [ideasLoading, setIdeasLoading] = useState(false);
+  const [showIdeaBox, setShowIdeaBox] = useState(false);
+  const [showNewIdeaModal, setShowNewIdeaModal] = useState(false);
+  const [ideaForm, setIdeaForm] = useState({ title: '', description: '', category: 'feature' });
+  const [ideaStats, setIdeaStats] = useState({ total: 0, pending: 0, adopted: 0, implemented: 0 });
 
   // 🏆 TOUS LES BADGES PAR DÉFAUT
   const DEFAULT_BADGES = [
@@ -102,10 +115,115 @@ const BadgesPage = () => {
   useEffect(() => {
     loadUserBadges();
     loadAllBadges();
+    loadIdeas();
     if (userIsAdmin) {
       loadAllUsers();
     }
   }, [user, userIsAdmin]);
+
+  // 💡 CHARGER LES IDÉES
+  const loadIdeas = async () => {
+    try {
+      setIdeasLoading(true);
+      const [allIdeas, stats] = await Promise.all([
+        ideaService.getAllIdeas({ sortBy: 'votes' }),
+        ideaService.getIdeaStats()
+      ]);
+      setIdeas(allIdeas);
+      setIdeaStats(stats);
+      console.log('✅ Idées chargées:', allIdeas.length);
+    } catch (error) {
+      console.error('❌ Erreur chargement idées:', error);
+    } finally {
+      setIdeasLoading(false);
+    }
+  };
+
+  // 💡 SOUMETTRE UNE IDÉE
+  const handleSubmitIdea = async (e) => {
+    e.preventDefault();
+    if (!ideaForm.title.trim()) {
+      alert('Le titre est requis');
+      return;
+    }
+
+    try {
+      const result = await ideaService.submitIdea(
+        user.uid,
+        user.displayName || user.email,
+        ideaForm
+      );
+      alert(`✅ Idée soumise ! +${result.xpAwarded} XP`);
+      setShowNewIdeaModal(false);
+      setIdeaForm({ title: '', description: '', category: 'feature' });
+      loadIdeas();
+    } catch (error) {
+      console.error('❌ Erreur soumission idée:', error);
+      alert('Erreur lors de la soumission');
+    }
+  };
+
+  // 💡 VOTER POUR UNE IDÉE
+  const handleVoteIdea = async (ideaId) => {
+    try {
+      const result = await ideaService.voteForIdea(ideaId, user.uid, user.displayName || user.email);
+      if (result.becamePopular) {
+        alert('🔥 Cette idée est maintenant populaire !');
+      }
+      loadIdeas();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  // 💡 RETIRER SON VOTE
+  const handleRemoveVote = async (ideaId) => {
+    try {
+      await ideaService.removeVote(ideaId, user.uid);
+      loadIdeas();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  // 💡 ADOPTER UNE IDÉE (ADMIN)
+  const handleAdoptIdea = async (ideaId) => {
+    const comment = prompt('Commentaire (optionnel):');
+    try {
+      const result = await ideaService.adoptIdea(ideaId, user.uid, user.displayName, comment || '');
+      alert(`✅ Idée adoptée ! L'auteur gagne +${IDEA_XP.ADOPTED} XP`);
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  // 💡 MARQUER COMME IMPLÉMENTÉE (ADMIN)
+  const handleImplementIdea = async (ideaId) => {
+    try {
+      const result = await ideaService.markAsImplemented(ideaId, user.uid, user.displayName);
+      if (result.isAuthorImplementing) {
+        alert(`✅ Idée implémentée par l'auteur ! +${IDEA_XP.IMPLEMENTED} XP bonus`);
+      } else {
+        alert('✅ Idée marquée comme implémentée');
+      }
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  // 💡 REJETER UNE IDÉE (ADMIN)
+  const handleRejectIdea = async (ideaId) => {
+    const reason = prompt('Raison du rejet (optionnel):');
+    try {
+      await ideaService.rejectIdea(ideaId, user.uid, user.displayName, reason || '');
+      alert('Idée rejetée');
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
 
   // 🔄 CHARGER LES BADGES DE L'UTILISATEUR
   const loadUserBadges = async () => {
@@ -490,6 +608,237 @@ const BadgesPage = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* 💡 SECTION BOÎTE À IDÉES */}
+          <div className="mb-8">
+            <button
+              onClick={() => setShowIdeaBox(!showIdeaBox)}
+              className={`w-full p-4 rounded-xl border transition-all duration-300 flex items-center justify-between ${
+                showIdeaBox
+                  ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-400/50'
+                  : 'bg-white/5 border-white/20 hover:border-yellow-400/30'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                  <Lightbulb className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-white">Boîte à Idées</h2>
+                  <p className="text-gray-400 text-sm">
+                    {ideaStats.total} idées • {ideaStats.adopted} adoptées • {ideaStats.implemented} implémentées
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm font-medium">
+                  +{IDEA_XP.SUBMIT} XP / idée
+                </span>
+                {showIdeaBox ? (
+                  <X className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <Plus className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+            </button>
+
+            {/* Contenu Boîte à Idées */}
+            <AnimatePresence>
+              {showIdeaBox && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 bg-white/5 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+                    {/* Header + Bouton Nouvelle Idée */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-yellow-400" />
+                          Workflow des idées
+                        </h3>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                          <span>1. Soumettre (+{IDEA_XP.SUBMIT} XP)</span>
+                          <span>→</span>
+                          <span>2. Votes équipe</span>
+                          <span>→</span>
+                          <span>3. Review Maître</span>
+                          <span>→</span>
+                          <span>4. Adoptée (+{IDEA_XP.ADOPTED} XP)</span>
+                          <span>→</span>
+                          <span>5. Implémentée (+{IDEA_XP.IMPLEMENTED} XP)</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowNewIdeaModal(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center gap-2"
+                      >
+                        <Lightbulb className="w-4 h-4" />
+                        Nouvelle Idée
+                      </button>
+                    </div>
+
+                    {/* Badges liés aux idées */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">💡</div>
+                        <div className="font-medium text-white">Innovateur</div>
+                        <div className="text-xs text-gray-400">1 idée adoptée</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">🏗️</div>
+                        <div className="font-medium text-white">Bâtisseur</div>
+                        <div className="text-xs text-gray-400">1 idée implémentée par vous</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">🌟</div>
+                        <div className="font-medium text-white">Visionnaire</div>
+                        <div className="text-xs text-gray-400">5 idées adoptées</div>
+                      </div>
+                    </div>
+
+                    {/* Liste des idées */}
+                    {ideasLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="w-8 h-8 border-4 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
+                      </div>
+                    ) : ideas.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Lightbulb className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                        <p className="text-gray-400">Aucune idée pour le moment</p>
+                        <p className="text-sm text-gray-500">Soyez le premier à proposer une idée !</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {ideas.map((idea) => {
+                          const hasVoted = idea.votes?.some(v => v.oderId === user?.uid);
+                          const isAuthor = idea.authorId === user?.uid;
+                          const categoryConfig = IDEA_CATEGORIES[idea.category?.toUpperCase()] || IDEA_CATEGORIES.OTHER;
+
+                          return (
+                            <div
+                              key={idea.id}
+                              className={`p-4 rounded-lg border transition-all ${
+                                idea.status === IDEA_STATUS.IMPLEMENTED
+                                  ? 'bg-green-500/10 border-green-500/30'
+                                  : idea.status === IDEA_STATUS.ADOPTED
+                                  ? 'bg-purple-500/10 border-purple-500/30'
+                                  : idea.status === IDEA_STATUS.REJECTED
+                                  ? 'bg-red-500/10 border-red-500/30 opacity-50'
+                                  : (idea.voteCount || 0) >= 5
+                                  ? 'bg-yellow-500/10 border-yellow-500/30'
+                                  : 'bg-white/5 border-white/10'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-lg">{categoryConfig.icon}</span>
+                                    <h4 className="font-medium text-white">{idea.title}</h4>
+                                    {idea.status === IDEA_STATUS.IMPLEMENTED && (
+                                      <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs rounded-full">Implémentée</span>
+                                    )}
+                                    {idea.status === IDEA_STATUS.ADOPTED && (
+                                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">Adoptée</span>
+                                    )}
+                                    {idea.status === IDEA_STATUS.REJECTED && (
+                                      <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs rounded-full">Rejetée</span>
+                                    )}
+                                    {(idea.voteCount || 0) >= 5 && idea.status === IDEA_STATUS.POPULAR && (
+                                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 text-xs rounded-full flex items-center gap-1">
+                                        <TrendingUp className="w-3 h-3" /> Populaire
+                                      </span>
+                                    )}
+                                  </div>
+                                  {idea.description && (
+                                    <p className="text-sm text-gray-400 mb-2">{idea.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                                    <span>Par {idea.authorName}</span>
+                                    {idea.createdAt && (
+                                      <span>{new Date(idea.createdAt).toLocaleDateString('fr-FR')}</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Votes et Actions */}
+                                <div className="flex items-center gap-2 ml-4">
+                                  {/* Compteur de votes */}
+                                  <div className="flex items-center gap-1 px-3 py-1 bg-white/10 rounded-full">
+                                    <ThumbsUp className={`w-4 h-4 ${hasVoted ? 'text-yellow-400' : 'text-gray-400'}`} />
+                                    <span className="text-white font-medium">{idea.voteCount || 0}</span>
+                                  </div>
+
+                                  {/* Bouton voter (si pas auteur et pas terminé) */}
+                                  {!isAuthor && ![IDEA_STATUS.IMPLEMENTED, IDEA_STATUS.REJECTED].includes(idea.status) && (
+                                    <button
+                                      onClick={() => hasVoted ? handleRemoveVote(idea.id) : handleVoteIdea(idea.id)}
+                                      className={`p-2 rounded-lg transition-colors ${
+                                        hasVoted
+                                          ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'
+                                          : 'bg-white/10 text-gray-400 hover:bg-white/20 hover:text-white'
+                                      }`}
+                                      title={hasVoted ? 'Retirer mon vote' : 'Voter pour cette idée'}
+                                    >
+                                      {hasVoted ? <ThumbsDown className="w-4 h-4" /> : <ThumbsUp className="w-4 h-4" />}
+                                    </button>
+                                  )}
+
+                                  {/* Actions Admin */}
+                                  {userIsAdmin && idea.status !== IDEA_STATUS.IMPLEMENTED && idea.status !== IDEA_STATUS.REJECTED && (
+                                    <div className="flex gap-1">
+                                      {idea.status !== IDEA_STATUS.ADOPTED && (
+                                        <button
+                                          onClick={() => handleAdoptIdea(idea.id)}
+                                          className="p-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors"
+                                          title="Adopter cette idée"
+                                        >
+                                          <Check className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      {idea.status === IDEA_STATUS.ADOPTED && (
+                                        <button
+                                          onClick={() => handleImplementIdea(idea.id)}
+                                          className="p-2 bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors"
+                                          title="Marquer comme implémentée"
+                                        >
+                                          <CheckCircle className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => handleRejectIdea(idea.id)}
+                                        className="p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+                                        title="Rejeter cette idée"
+                                      >
+                                        <XOctagon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Commentaire de review */}
+                              {idea.reviewComment && (
+                                <div className="mt-3 pt-3 border-t border-white/10">
+                                  <p className="text-sm text-gray-400 flex items-center gap-2">
+                                    <MessageSquare className="w-4 h-4" />
+                                    <span className="font-medium">{idea.reviewerName}:</span>
+                                    {idea.reviewComment}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 🛡️ BOUTON ADMIN */}
@@ -1036,6 +1385,93 @@ const BadgesPage = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* 💡 MODAL NOUVELLE IDÉE */}
+          {showNewIdeaModal && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-slate-800 border border-yellow-400/30 rounded-xl p-6 max-w-md w-full"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                    <Lightbulb className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Nouvelle Idée</h3>
+                    <p className="text-sm text-gray-400">+{IDEA_XP.SUBMIT} XP automatiquement</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmitIdea} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Titre *</label>
+                    <input
+                      type="text"
+                      value={ideaForm.title}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, title: e.target.value })}
+                      placeholder="Résumé de votre idée..."
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <textarea
+                      value={ideaForm.description}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, description: e.target.value })}
+                      placeholder="Détaillez votre idée..."
+                      rows={4}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Catégorie</label>
+                    <select
+                      value={ideaForm.category}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, category: e.target.value })}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50"
+                    >
+                      {Object.entries(IDEA_CATEGORIES).map(([key, cat]) => (
+                        <option key={key} value={cat.id} className="bg-slate-800">
+                          {cat.icon} {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                    <h4 className="font-medium text-yellow-300 mb-2">Gamification</h4>
+                    <ul className="text-sm text-gray-400 space-y-1">
+                      <li>• Soumettre une idée: <span className="text-yellow-400">+{IDEA_XP.SUBMIT} XP</span></li>
+                      <li>• Si adoptée: <span className="text-purple-400">+{IDEA_XP.ADOPTED} XP</span> + Badge "Innovateur"</li>
+                      <li>• Si implémentée par vous: <span className="text-green-400">+{IDEA_XP.IMPLEMENTED} XP</span> + Badge "Bâtisseur"</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowNewIdeaModal(false)}
+                      className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                      Soumettre
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
             </div>
           )}
         </div>
