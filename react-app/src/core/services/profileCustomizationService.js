@@ -1,11 +1,45 @@
 // ==========================================
 // react-app/src/core/services/profileCustomizationService.js
 // SERVICE PERSONNALISATION PROFIL - SYNERGIA v4.0
-// Module 13: Avatars, Titres, Bannieres
+// Module 13: Avatars, Titres, Bannieres + Avatar Builder
 // ==========================================
 
 import { doc, updateDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase.js';
+
+// Import du nouveau systeme d'avatar builder
+import {
+  CHARACTER_CLASSES,
+  COLOR_VARIANTS,
+  HEADGEAR,
+  WEAPONS,
+  COMPANIONS,
+  EFFECTS,
+  EMBLEMS,
+  BACKGROUNDS,
+  isUnlocked,
+  getUnlockText,
+  getUnlockProgress,
+  getCategoryItems,
+  getUnlockStats as getAvatarBuilderUnlockStats,
+  DEFAULT_AVATAR_CONFIG
+} from './avatarDefinitions.js';
+
+// Re-export pour faciliter l'acces
+export {
+  CHARACTER_CLASSES,
+  COLOR_VARIANTS,
+  HEADGEAR,
+  WEAPONS,
+  COMPANIONS,
+  EFFECTS,
+  EMBLEMS,
+  BACKGROUNDS,
+  isUnlocked,
+  getUnlockText,
+  getUnlockProgress,
+  DEFAULT_AVATAR_CONFIG
+};
 
 // ==========================================
 // AVATARS DEBLOCABLES
@@ -790,6 +824,150 @@ class ProfileCustomizationService {
         total: banners.length,
         unlocked: banners.filter(b => b.isUnlocked).length
       }
+    };
+  }
+
+  // ==========================================
+  // AVATAR BUILDER - NOUVEAU SYSTEME
+  // ==========================================
+
+  /**
+   * Obtenir la configuration d'avatar builder d'un utilisateur
+   */
+  async getAvatarBuilderConfig(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        return DEFAULT_AVATAR_CONFIG;
+      }
+
+      const data = userDoc.data();
+      return data.avatarBuilder || DEFAULT_AVATAR_CONFIG;
+    } catch (error) {
+      console.error('Erreur recuperation avatar builder:', error);
+      return DEFAULT_AVATAR_CONFIG;
+    }
+  }
+
+  /**
+   * Sauvegarder la configuration d'avatar builder
+   */
+  async saveAvatarBuilderConfig(userId, config, userStats) {
+    try {
+      // Verifier que tous les elements sont debloques
+      const categories = [
+        { key: 'class', items: CHARACTER_CLASSES },
+        { key: 'color', items: COLOR_VARIANTS },
+        { key: 'headgear', items: HEADGEAR },
+        { key: 'weapon', items: WEAPONS },
+        { key: 'companion', items: COMPANIONS },
+        { key: 'effect', items: EFFECTS },
+        { key: 'emblem', items: EMBLEMS },
+        { key: 'background', items: BACKGROUNDS }
+      ];
+
+      for (const cat of categories) {
+        const itemId = config[cat.key];
+        const item = cat.items[itemId];
+
+        if (item && !isUnlocked(item, userStats)) {
+          return {
+            success: false,
+            error: `Element "${item.name}" non debloque dans ${cat.key}`
+          };
+        }
+      }
+
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        avatarBuilder: config,
+        updatedAt: new Date()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur sauvegarde avatar builder:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Obtenir les statistiques de deblocage pour l'avatar builder
+   */
+  getAvatarBuilderUnlockStats(userStats) {
+    return getAvatarBuilderUnlockStats(userStats);
+  }
+
+  /**
+   * Obtenir les items d'une categorie avec statut de deblocage
+   */
+  getAvatarBuilderCategoryItems(category, userStats) {
+    return getCategoryItems(category, userStats);
+  }
+
+  /**
+   * S'abonner aux changements d'avatar builder
+   */
+  subscribeToAvatarBuilder(userId, callback) {
+    const userRef = doc(db, 'users', userId);
+
+    return onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        callback(data.avatarBuilder || DEFAULT_AVATAR_CONFIG);
+      }
+    });
+  }
+
+  /**
+   * Obtenir les elements recommandes (prochains a debloquer)
+   */
+  getRecommendedItems(userStats) {
+    const recommendations = [];
+    const categories = [
+      { key: 'classes', items: CHARACTER_CLASSES, label: 'Classe' },
+      { key: 'colors', items: COLOR_VARIANTS, label: 'Couleur' },
+      { key: 'headgear', items: HEADGEAR, label: 'Coiffe' },
+      { key: 'weapons', items: WEAPONS, label: 'Arme' },
+      { key: 'companions', items: COMPANIONS, label: 'Compagnon' },
+      { key: 'effects', items: EFFECTS, label: 'Effet' }
+    ];
+
+    categories.forEach(cat => {
+      Object.values(cat.items).forEach(item => {
+        if (!isUnlocked(item, userStats)) {
+          const progress = getUnlockProgress(item, userStats);
+          if (progress >= 50 && progress < 100) {
+            recommendations.push({
+              ...item,
+              category: cat.label,
+              categoryKey: cat.key,
+              progress,
+              unlockText: getUnlockText(item)
+            });
+          }
+        }
+      });
+    });
+
+    // Trier par progression (les plus proches en premier)
+    return recommendations.sort((a, b) => b.progress - a.progress).slice(0, 5);
+  }
+
+  /**
+   * Convertir les stats utilisateur du format existant vers le format avatar builder
+   */
+  normalizeUserStats(userData) {
+    return {
+      level: userData?.level || userData?.gamification?.level || 1,
+      totalXp: userData?.totalXp || userData?.gamification?.totalXp || 0,
+      tasksCompleted: userData?.tasksCompleted || userData?.stats?.tasksCompleted || 0,
+      badgesCount: userData?.badgesCount || userData?.badges?.length || 0,
+      currentStreak: userData?.streak || userData?.gamification?.streak || 0,
+      challengesCompleted: userData?.challengesCompleted || 0,
+      specialEvents: userData?.specialEvents || []
     };
   }
 }
