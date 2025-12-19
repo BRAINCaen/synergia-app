@@ -52,12 +52,23 @@ class BadgeTriggerService {
     // Écouter les événements Firebase existants
     const firebaseEvents = [
       'taskCompleted',
-      'taskCreated', 
+      'taskCreated',
       'projectCompleted',
       'levelUp',
       'xpGained',
       'roleAssigned',
-      'loginStreak'
+      'loginStreak',
+      // 💖 NOUVEAUX ÉVÉNEMENTS BOOST
+      'boostSent',
+      'boostReceived',
+      // 🎯 NOUVEAUX ÉVÉNEMENTS DÉFIS
+      'challengeCreated',
+      'challengeCompleted',
+      'hardChallengeCompleted',
+      // ⚔️ NOUVEAUX ÉVÉNEMENTS CAMPAGNES
+      'campaignJoined',
+      'campaignCompleted',
+      'campaignLed'
     ];
 
     firebaseEvents.forEach(eventType => {
@@ -185,6 +196,75 @@ class BadgeTriggerService {
             ...activityContext,
             type: 'engagement',
             streakDays: eventData.streakDays
+          };
+          break;
+
+        // 💖 ÉVÉNEMENTS BOOST
+        case 'boostSent':
+          activityContext = {
+            ...activityContext,
+            type: 'boost',
+            boostsSent: eventData.totalBoostsSent || 1,
+            boostType: eventData.boostType
+          };
+          break;
+
+        case 'boostReceived':
+          activityContext = {
+            ...activityContext,
+            type: 'boost',
+            boostsReceived: eventData.totalBoostsReceived || 1
+          };
+          break;
+
+        // 🎯 ÉVÉNEMENTS DÉFIS
+        case 'challengeCreated':
+          activityContext = {
+            ...activityContext,
+            type: 'challenge',
+            challengesCreated: eventData.totalChallengesCreated || 1
+          };
+          break;
+
+        case 'challengeCompleted':
+          activityContext = {
+            ...activityContext,
+            type: 'challenge',
+            challengesCompleted: eventData.totalChallengesCompleted || 1,
+            difficulty: eventData.difficulty
+          };
+          break;
+
+        case 'hardChallengeCompleted':
+          activityContext = {
+            ...activityContext,
+            type: 'challenge',
+            hardChallengesCompleted: eventData.totalHardChallengesCompleted || 1
+          };
+          break;
+
+        // ⚔️ ÉVÉNEMENTS CAMPAGNES
+        case 'campaignJoined':
+          activityContext = {
+            ...activityContext,
+            type: 'campaign',
+            campaignsJoined: eventData.totalCampaignsJoined || 1
+          };
+          break;
+
+        case 'campaignCompleted':
+          activityContext = {
+            ...activityContext,
+            type: 'campaign',
+            campaignsCompleted: eventData.totalCampaignsCompleted || 1
+          };
+          break;
+
+        case 'campaignLed':
+          activityContext = {
+            ...activityContext,
+            type: 'campaign',
+            campaignsLed: eventData.totalCampaignsLed || 1
           };
           break;
       }
@@ -446,6 +526,105 @@ class BadgeTriggerService {
       eventListeners: Array.from(this.eventListeners.keys()),
       totalListeners: Array.from(this.eventListeners.values()).reduce((sum, handlers) => sum + handlers.length, 0)
     };
+  }
+
+  // ===========================================
+  // 🎯 MÉTHODES UTILITAIRES POUR TRIGGERS
+  // ===========================================
+
+  /**
+   * 💖 TRIGGER BOOST ENVOYÉ
+   */
+  triggerBoostSent(userId, totalBoostsSent, boostType = 'encouragement') {
+    this.simulateEvent('boostSent', {
+      userId,
+      totalBoostsSent,
+      boostType,
+      timestamp: Date.now()
+    });
+    console.log('💖 [BADGE-TRIGGER] Boost envoyé:', totalBoostsSent);
+  }
+
+  /**
+   * 💖 TRIGGER BOOST REÇU
+   */
+  triggerBoostReceived(userId, totalBoostsReceived) {
+    this.simulateEvent('boostReceived', {
+      userId,
+      totalBoostsReceived,
+      timestamp: Date.now()
+    });
+    console.log('💖 [BADGE-TRIGGER] Boost reçu:', totalBoostsReceived);
+  }
+
+  /**
+   * 🎯 TRIGGER DÉFI CRÉÉ
+   */
+  triggerChallengeCreated(userId, totalChallengesCreated) {
+    this.simulateEvent('challengeCreated', {
+      userId,
+      totalChallengesCreated,
+      timestamp: Date.now()
+    });
+    console.log('🎯 [BADGE-TRIGGER] Défi créé:', totalChallengesCreated);
+  }
+
+  /**
+   * 🎯 TRIGGER DÉFI COMPLÉTÉ
+   */
+  triggerChallengeCompleted(userId, totalChallengesCompleted, difficulty = 'medium') {
+    this.simulateEvent('challengeCompleted', {
+      userId,
+      totalChallengesCompleted,
+      difficulty,
+      timestamp: Date.now()
+    });
+    console.log('🎯 [BADGE-TRIGGER] Défi complété:', totalChallengesCompleted);
+
+    // Si difficile, trigger supplémentaire
+    if (difficulty === 'hard') {
+      this.simulateEvent('hardChallengeCompleted', {
+        userId,
+        totalHardChallengesCompleted: totalChallengesCompleted,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  /**
+   * ⚔️ TRIGGER CAMPAGNE REJOINTE
+   */
+  triggerCampaignJoined(userId, totalCampaignsJoined) {
+    this.simulateEvent('campaignJoined', {
+      userId,
+      totalCampaignsJoined,
+      timestamp: Date.now()
+    });
+    console.log('⚔️ [BADGE-TRIGGER] Campagne rejointe:', totalCampaignsJoined);
+  }
+
+  /**
+   * ⚔️ TRIGGER CAMPAGNE COMPLÉTÉE
+   */
+  triggerCampaignCompleted(userId, totalCampaignsCompleted) {
+    this.simulateEvent('campaignCompleted', {
+      userId,
+      totalCampaignsCompleted,
+      timestamp: Date.now()
+    });
+    console.log('⚔️ [BADGE-TRIGGER] Campagne complétée:', totalCampaignsCompleted);
+  }
+
+  /**
+   * ⚔️ TRIGGER CAMPAGNE MENÉE (leader)
+   */
+  triggerCampaignLed(userId, totalCampaignsLed) {
+    this.simulateEvent('campaignLed', {
+      userId,
+      totalCampaignsLed,
+      timestamp: Date.now()
+    });
+    console.log('⚔️ [BADGE-TRIGGER] Campagne menée:', totalCampaignsLed);
   }
 }
 

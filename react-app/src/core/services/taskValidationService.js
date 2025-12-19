@@ -27,6 +27,9 @@ import { db, storage } from '../firebase.js';
 // ✅ IMPORT DU SERVICE DE NOTIFICATIONS
 import notificationService from './notificationService.js';
 
+// 🌳 IMPORT DU SERVICE DE SKILLS
+import { skillService } from './skillService.js';
+
 /**
  * 🎯 SERVICE DE VALIDATION DES QUÊTES
  * Gère la soumission, l'upload des preuves et la validation par les admins
@@ -344,7 +347,7 @@ class TaskValidationService {
 
       const validationRef = doc(db, this.COLLECTION_NAME, validationId);
       const validationDoc = await getDoc(validationRef);
-      
+
       if (!validationDoc.exists()) {
         throw new Error('Validation introuvable');
       }
@@ -368,6 +371,36 @@ class TaskValidationService {
           adminComment: adminComment,
           updatedAt: serverTimestamp()
         });
+
+        // 🌳 DISTRIBUER L'XP AUX COMPÉTENCES
+        try {
+          // Récupérer les infos de la tâche pour les requiredSkills
+          const taskDoc = await getDoc(doc(db, 'tasks', validationData.taskId));
+          if (taskDoc.exists()) {
+            const taskData = taskDoc.data();
+            const requiredSkills = taskData.requiredSkills || taskData.skills || [];
+
+            if (requiredSkills.length > 0) {
+              console.log('🌳 [SKILLS] Distribution XP skills:', {
+                userId: validationData.userId,
+                xpAmount: validationData.xpAmount,
+                skills: requiredSkills
+              });
+
+              const skillResults = await skillService.distributeQuestSkillXP(
+                validationData.userId,
+                validationData.xpAmount,
+                requiredSkills
+              );
+
+              console.log('🌳 [SKILLS] XP distribué:', skillResults);
+            } else {
+              console.log('🌳 [SKILLS] Aucun skill requis pour cette quête');
+            }
+          }
+        } catch (skillError) {
+          console.warn('⚠️ [SKILLS] Erreur distribution XP skills (non bloquante):', skillError);
+        }
       }
 
       // 🔔 Notifier l'utilisateur

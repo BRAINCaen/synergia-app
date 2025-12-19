@@ -1,20 +1,29 @@
 // ==========================================
 // 📁 react-app/src/pages/InfosPage.jsx
-// PAGE INFORMATIONS ÉQUIPE AVEC AFFICHAGE DES VALIDEURS (NOMS RÉELS)
+// PAGE INFORMATIONS ÉQUIPE + BOÎTE À IDÉES
 // ==========================================
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Info, Plus, Upload, X, Edit, Trash2, Check, AlertCircle, 
-  Loader, Send, CheckCircle, Eye, Bell, Users, ChevronDown, ChevronUp
+import {
+  Info, Plus, Upload, X, Edit, Trash2, Check, AlertCircle,
+  Loader, Send, CheckCircle, Eye, Bell, Users, ChevronDown, ChevronUp,
+  // 💡 BOÎTE À IDÉES
+  Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, TrendingUp, Sparkles, XOctagon
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
 import infosService from '../core/services/infosService.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { isAdmin as checkIsAdmin } from '../core/services/adminService.js';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+
+// 💡 SERVICE BOÎTE À IDÉES
+import { ideaService, IDEA_XP, IDEA_STATUS, IDEA_CATEGORIES } from '../core/services/ideaService.js';
+
+// 🏆 BADGES LIÉS AUX IDÉES
+import { UNIFIED_BADGE_DEFINITIONS, BADGE_CATEGORIES } from '../core/services/unifiedBadgeSystem.js';
 
 const InfosPage = () => {
   const { user } = useAuthStore();
@@ -24,8 +33,17 @@ const InfosPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingInfo, setEditingInfo] = useState(null);
   const [listenerId, setListenerId] = useState(null);
-  
+
+  // 💡 ÉTATS BOÎTE À IDÉES
+  const [ideas, setIdeas] = useState([]);
+  const [ideasLoading, setIdeasLoading] = useState(false);
+  const [showIdeaBox, setShowIdeaBox] = useState(false);
+  const [showNewIdeaModal, setShowNewIdeaModal] = useState(false);
+  const [ideaForm, setIdeaForm] = useState({ title: '', description: '', category: 'feature' });
+  const [ideaStats, setIdeaStats] = useState({ total: 0, pending: 0, adopted: 0, implemented: 0 });
+
   const isAdmin = infosService.isAdmin(user);
+  const userIsAdmin = checkIsAdmin(user);
 
   useEffect(() => {
     if (!user) return;
@@ -38,10 +56,116 @@ const InfosPage = () => {
     });
 
     setListenerId(id);
+    loadIdeas();
+
     return () => {
       if (id) infosService.stopListening(id);
     };
   }, [user]);
+
+  // 💡 CHARGER LES IDÉES
+  const loadIdeas = async () => {
+    try {
+      setIdeasLoading(true);
+      const [allIdeas, stats] = await Promise.all([
+        ideaService.getAllIdeas({ sortBy: 'votes' }),
+        ideaService.getIdeaStats()
+      ]);
+      setIdeas(allIdeas);
+      setIdeaStats(stats);
+      console.log('✅ Idées chargées:', allIdeas.length);
+    } catch (error) {
+      console.error('❌ Erreur chargement idées:', error);
+    } finally {
+      setIdeasLoading(false);
+    }
+  };
+
+  // 💡 SOUMETTRE UNE IDÉE
+  const handleSubmitIdea = async (e) => {
+    e.preventDefault();
+    if (!ideaForm.title.trim()) {
+      alert('Le titre est requis');
+      return;
+    }
+
+    try {
+      const result = await ideaService.submitIdea(
+        user.uid,
+        user.displayName || user.email,
+        ideaForm
+      );
+      alert(`✅ Idée soumise ! +${result.xpAwarded} XP`);
+      setShowNewIdeaModal(false);
+      setIdeaForm({ title: '', description: '', category: 'feature' });
+      loadIdeas();
+    } catch (error) {
+      console.error('❌ Erreur soumission idée:', error);
+      alert('Erreur lors de la soumission');
+    }
+  };
+
+  // 💡 VOTER POUR UNE IDÉE
+  const handleVoteIdea = async (ideaId) => {
+    try {
+      const result = await ideaService.voteForIdea(ideaId, user.uid, user.displayName || user.email);
+      if (result.becamePopular) {
+        alert('🔥 Cette idée est maintenant populaire !');
+      }
+      loadIdeas();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  // 💡 RETIRER SON VOTE
+  const handleRemoveVote = async (ideaId) => {
+    try {
+      await ideaService.removeVote(ideaId, user.uid);
+      loadIdeas();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  // 💡 ADOPTER UNE IDÉE (ADMIN)
+  const handleAdoptIdea = async (ideaId) => {
+    const comment = prompt('Commentaire (optionnel):');
+    try {
+      const result = await ideaService.adoptIdea(ideaId, user.uid, user.displayName, comment || '');
+      alert(`✅ Idée adoptée ! L'auteur gagne +${IDEA_XP.ADOPTED} XP`);
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  // 💡 MARQUER COMME IMPLÉMENTÉE (ADMIN)
+  const handleImplementIdea = async (ideaId) => {
+    try {
+      const result = await ideaService.markAsImplemented(ideaId, user.uid, user.displayName);
+      if (result.isAuthorImplementing) {
+        alert(`✅ Idée implémentée par l'auteur ! +${IDEA_XP.IMPLEMENTED} XP bonus`);
+      } else {
+        alert('✅ Idée marquée comme implémentée');
+      }
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  // 💡 REJETER UNE IDÉE (ADMIN)
+  const handleRejectIdea = async (ideaId) => {
+    const reason = prompt('Raison du rejet (optionnel):');
+    try {
+      await ideaService.rejectIdea(ideaId, user.uid, user.displayName, reason || '');
+      alert('Idée rejetée');
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -60,7 +184,7 @@ const InfosPage = () => {
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4 md:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          
+
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -92,6 +216,234 @@ const InfosPage = () => {
             </div>
           </motion.div>
 
+          {/* 💡 SECTION BOÎTE À IDÉES */}
+          <div className="mb-8">
+            <button
+              onClick={() => setShowIdeaBox(!showIdeaBox)}
+              className={`w-full p-4 rounded-xl border transition-all duration-300 flex items-center justify-between ${
+                showIdeaBox
+                  ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-400/50'
+                  : 'bg-white/5 border-white/20 hover:border-yellow-400/30'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                  <Lightbulb className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-bold text-white">Boîte à Idées</h2>
+                  <p className="text-gray-400 text-sm">
+                    {ideaStats.total} idées • {ideaStats.adopted} adoptées • {ideaStats.implemented} implémentées
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm font-medium">
+                  +{IDEA_XP.SUBMIT} XP / idée
+                </span>
+                {showIdeaBox ? (
+                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+            </button>
+
+            {/* Contenu Boîte à Idées */}
+            <AnimatePresence>
+              {showIdeaBox && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 bg-white/5 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+                    {/* Header + Bouton Nouvelle Idée */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-yellow-400" />
+                          Workflow des idées
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-400">
+                          <span>1. Soumettre (+{IDEA_XP.SUBMIT} XP)</span>
+                          <span className="hidden md:inline">→</span>
+                          <span>2. Votes équipe</span>
+                          <span className="hidden md:inline">→</span>
+                          <span>3. Review Admin</span>
+                          <span className="hidden md:inline">→</span>
+                          <span>4. Adoptée (+{IDEA_XP.ADOPTED} XP)</span>
+                          <span className="hidden md:inline">→</span>
+                          <span>5. Implémentée (+{IDEA_XP.IMPLEMENTED} XP)</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowNewIdeaModal(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center gap-2 whitespace-nowrap"
+                      >
+                        <Lightbulb className="w-4 h-4" />
+                        Nouvelle Idée
+                      </button>
+                    </div>
+
+                    {/* Badges liés aux idées - depuis le système unifié */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+                      {Object.values(UNIFIED_BADGE_DEFINITIONS)
+                        .filter(b => b.category === BADGE_CATEGORIES.IDEAS)
+                        .slice(0, 4)
+                        .map(badge => (
+                          <div key={badge.id} className="text-center">
+                            <div className="text-3xl mb-2">{badge.icon}</div>
+                            <div className="font-medium text-white text-sm">{badge.name}</div>
+                            <div className="text-xs text-gray-400">{badge.description}</div>
+                          </div>
+                        ))
+                      }
+                    </div>
+
+                    {/* Liste des idées */}
+                    {ideasLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="w-8 h-8 border-4 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
+                      </div>
+                    ) : ideas.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Lightbulb className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                        <p className="text-gray-400">Aucune idée pour le moment</p>
+                        <p className="text-sm text-gray-500">Soyez le premier à proposer une idée !</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                        {ideas.map((idea) => {
+                          const hasVoted = idea.votes?.some(v => v.oderId === user?.uid);
+                          const isAuthor = idea.authorId === user?.uid;
+                          const categoryConfig = IDEA_CATEGORIES[idea.category?.toUpperCase()] || IDEA_CATEGORIES.OTHER;
+
+                          return (
+                            <div
+                              key={idea.id}
+                              className={`p-4 rounded-lg border transition-all ${
+                                idea.status === IDEA_STATUS.IMPLEMENTED
+                                  ? 'bg-green-500/10 border-green-500/30'
+                                  : idea.status === IDEA_STATUS.ADOPTED
+                                  ? 'bg-purple-500/10 border-purple-500/30'
+                                  : idea.status === IDEA_STATUS.REJECTED
+                                  ? 'bg-red-500/10 border-red-500/30 opacity-50'
+                                  : (idea.voteCount || 0) >= 5
+                                  ? 'bg-yellow-500/10 border-yellow-500/30'
+                                  : 'bg-white/5 border-white/10'
+                              }`}
+                            >
+                              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <span className="text-lg">{categoryConfig.icon}</span>
+                                    <h4 className="font-medium text-white">{idea.title}</h4>
+                                    {idea.status === IDEA_STATUS.IMPLEMENTED && (
+                                      <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs rounded-full">Implémentée</span>
+                                    )}
+                                    {idea.status === IDEA_STATUS.ADOPTED && (
+                                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">Adoptée</span>
+                                    )}
+                                    {idea.status === IDEA_STATUS.REJECTED && (
+                                      <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs rounded-full">Rejetée</span>
+                                    )}
+                                    {(idea.voteCount || 0) >= 5 && idea.status === IDEA_STATUS.POPULAR && (
+                                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 text-xs rounded-full flex items-center gap-1">
+                                        <TrendingUp className="w-3 h-3" /> Populaire
+                                      </span>
+                                    )}
+                                  </div>
+                                  {idea.description && (
+                                    <p className="text-sm text-gray-400 mb-2">{idea.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                                    <span>Par {idea.authorName}</span>
+                                    {idea.createdAt && (
+                                      <span>{new Date(idea.createdAt).toLocaleDateString('fr-FR')}</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Votes et Actions */}
+                                <div className="flex items-center gap-2">
+                                  {/* Compteur de votes */}
+                                  <div className="flex items-center gap-1 px-3 py-1 bg-white/10 rounded-full">
+                                    <ThumbsUp className={`w-4 h-4 ${hasVoted ? 'text-yellow-400' : 'text-gray-400'}`} />
+                                    <span className="text-white font-medium">{idea.voteCount || 0}</span>
+                                  </div>
+
+                                  {/* Bouton voter (si pas auteur et pas terminé) */}
+                                  {!isAuthor && ![IDEA_STATUS.IMPLEMENTED, IDEA_STATUS.REJECTED].includes(idea.status) && (
+                                    <button
+                                      onClick={() => hasVoted ? handleRemoveVote(idea.id) : handleVoteIdea(idea.id)}
+                                      className={`p-2 rounded-lg transition-colors ${
+                                        hasVoted
+                                          ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'
+                                          : 'bg-white/10 text-gray-400 hover:bg-white/20 hover:text-white'
+                                      }`}
+                                      title={hasVoted ? 'Retirer mon vote' : 'Voter pour cette idée'}
+                                    >
+                                      {hasVoted ? <ThumbsDown className="w-4 h-4" /> : <ThumbsUp className="w-4 h-4" />}
+                                    </button>
+                                  )}
+
+                                  {/* Actions Admin */}
+                                  {userIsAdmin && idea.status !== IDEA_STATUS.IMPLEMENTED && idea.status !== IDEA_STATUS.REJECTED && (
+                                    <div className="flex gap-1">
+                                      {idea.status !== IDEA_STATUS.ADOPTED && (
+                                        <button
+                                          onClick={() => handleAdoptIdea(idea.id)}
+                                          className="p-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors"
+                                          title="Adopter cette idée"
+                                        >
+                                          <Check className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      {idea.status === IDEA_STATUS.ADOPTED && (
+                                        <button
+                                          onClick={() => handleImplementIdea(idea.id)}
+                                          className="p-2 bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors"
+                                          title="Marquer comme implémentée"
+                                        >
+                                          <CheckCircle className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => handleRejectIdea(idea.id)}
+                                        className="p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+                                        title="Rejeter cette idée"
+                                      >
+                                        <XOctagon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Commentaire de review */}
+                              {idea.reviewComment && (
+                                <div className="mt-3 pt-3 border-t border-white/10">
+                                  <p className="text-sm text-gray-400 flex items-center gap-2">
+                                    <MessageSquare className="w-4 h-4" />
+                                    <span className="font-medium">{idea.reviewerName}:</span>
+                                    {idea.reviewComment}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* LISTE DES INFORMATIONS */}
           <div className="space-y-4">
             <AnimatePresence mode="popLayout">
               {infos.length === 0 ? (
@@ -118,8 +470,8 @@ const InfosPage = () => {
                       }
                     }}
                     onValidate={async (id) => await infosService.validateInfo(
-                      id, 
-                      user.uid, 
+                      id,
+                      user.uid,
                       user.displayName || user.email,
                       user.photoURL
                     )}
@@ -130,6 +482,7 @@ const InfosPage = () => {
           </div>
         </div>
 
+        {/* MODAL CRÉATION/ÉDITION INFO */}
         <AnimatePresence>
           {showCreateModal && (
             <CreateInfoModal
@@ -137,6 +490,103 @@ const InfosPage = () => {
               user={user}
               onClose={() => { setShowCreateModal(false); setEditingInfo(null); }}
             />
+          )}
+        </AnimatePresence>
+
+        {/* 💡 MODAL NOUVELLE IDÉE */}
+        <AnimatePresence>
+          {showNewIdeaModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+              onClick={() => setShowNewIdeaModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gradient-to-br from-gray-900 to-purple-900 border border-yellow-400/30 rounded-xl p-6 max-w-md w-full"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                    <Lightbulb className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Nouvelle Idée</h3>
+                    <p className="text-sm text-gray-400">+{IDEA_XP.SUBMIT} XP automatiquement</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmitIdea} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Titre *</label>
+                    <input
+                      type="text"
+                      value={ideaForm.title}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, title: e.target.value })}
+                      placeholder="Résumé de votre idée..."
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <textarea
+                      value={ideaForm.description}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, description: e.target.value })}
+                      placeholder="Détaillez votre idée..."
+                      rows={4}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Catégorie</label>
+                    <select
+                      value={ideaForm.category}
+                      onChange={(e) => setIdeaForm({ ...ideaForm, category: e.target.value })}
+                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50"
+                    >
+                      {Object.entries(IDEA_CATEGORIES).map(([key, cat]) => (
+                        <option key={key} value={cat.id} className="bg-gray-900">
+                          {cat.icon} {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                    <h4 className="font-medium text-yellow-300 mb-2">Gamification</h4>
+                    <ul className="text-sm text-gray-400 space-y-1">
+                      <li>• Soumettre une idée: <span className="text-yellow-400">+{IDEA_XP.SUBMIT} XP</span></li>
+                      <li>• Si adoptée: <span className="text-purple-400">+{IDEA_XP.ADOPTED} XP</span> + Badge "Innovateur"</li>
+                      <li>• Si implémentée par vous: <span className="text-green-400">+{IDEA_XP.IMPLEMENTED} XP</span> + Badge "Bâtisseur"</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowNewIdeaModal(false)}
+                      className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                      Soumettre
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -149,10 +599,10 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
   const isValidated = info.validatedBy?.[user.uid];
   const canEdit = isAdmin || isAuthor;
   const canDelete = isAdmin || isAuthor;
-  
+
   // ✅ ÉTAT POUR AFFICHER/MASQUER LA LISTE DES VALIDEURS
   const [showValidators, setShowValidators] = useState(false);
-  
+
   // ✅ ÉTAT POUR STOCKER LES INFOS DES VALIDEURS (AVEC VRAIS NOMS)
   const [validatorsWithNames, setValidatorsWithNames] = useState([]);
   const [loadingValidators, setLoadingValidators] = useState(false);
@@ -166,29 +616,29 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
       }
 
       setLoadingValidators(true);
-      
+
       const validators = [];
-      
+
       for (const [odot, data] of Object.entries(info.validatedBy)) {
         try {
           // Récupérer les infos utilisateur depuis Firebase
           const userRef = doc(db, 'users', odot);
           const userSnap = await getDoc(userRef);
-          
+
           let userName = 'Utilisateur';
           let userAvatar = null;
           let validatedAt = null;
-          
+
           // Récupérer le nom depuis Firebase
           if (userSnap.exists()) {
             const userData = userSnap.data();
-            userName = userData.profile?.displayName || 
-                       userData.displayName || 
-                       userData.email?.split('@')[0] || 
+            userName = userData.profile?.displayName ||
+                       userData.displayName ||
+                       userData.email?.split('@')[0] ||
                        'Utilisateur';
             userAvatar = userData.profile?.photoURL || userData.photoURL || null;
           }
-          
+
           // Gérer la date de validation (ancien format string ou nouveau format objet)
           if (typeof data === 'string') {
             validatedAt = data;
@@ -202,14 +652,14 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
               userAvatar = data.userAvatar;
             }
           }
-          
+
           validators.push({
             odot: odot,
             userName,
             userAvatar,
             validatedAt
           });
-          
+
         } catch (error) {
           console.warn('⚠️ Erreur récupération valideur:', odot, error);
           // Fallback en cas d'erreur
@@ -221,14 +671,14 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
           });
         }
       }
-      
+
       // Trier par date de validation (plus récent en premier)
       validators.sort((a, b) => {
         const dateA = a.validatedAt ? new Date(a.validatedAt) : new Date(0);
         const dateB = b.validatedAt ? new Date(b.validatedAt) : new Date(0);
         return dateB - dateA;
       });
-      
+
       setValidatorsWithNames(validators);
       setLoadingValidators(false);
     };
@@ -253,7 +703,7 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
       if (minutes < 60) return `Il y a ${minutes} min`;
       if (hours < 24) return `Il y a ${hours}h`;
       if (days < 7) return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
-      
+
       return date.toLocaleDateString('fr-FR', {
         day: 'numeric',
         month: 'short'
@@ -277,8 +727,8 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
         <div className="flex items-center gap-3 flex-1">
           {/* ✅ AVATAR AVEC PHOTO DE PROFIL */}
           {info.authorAvatar ? (
-            <img 
-              src={info.authorAvatar} 
+            <img
+              src={info.authorAvatar}
               alt={info.authorName}
               className="w-10 h-10 rounded-full object-cover border-2 border-purple-500/50"
             />
@@ -287,7 +737,7 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
               {info.authorName?.charAt(0) || '?'}
             </div>
           )}
-          
+
           <div>
             <p className="text-white font-semibold">{info.authorName}</p>
             <p className="text-white/40 text-sm">
@@ -370,7 +820,7 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
               <Eye className="w-4 h-4" />
               Vu par {validatorCount} personne{validatorCount > 1 ? 's' : ''} :
             </p>
-            
+
             {loadingValidators ? (
               <div className="flex items-center justify-center py-4">
                 <Loader className="w-5 h-5 text-purple-400 animate-spin" />
@@ -379,14 +829,14 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                 {validatorsWithNames.map((validator, index) => (
-                  <div 
+                  <div
                     key={validator.odot || index}
                     className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2"
                   >
                     {/* Avatar du valideur */}
                     {validator.userAvatar ? (
-                      <img 
-                        src={validator.userAvatar} 
+                      <img
+                        src={validator.userAvatar}
                         alt={validator.userName}
                         className="w-6 h-6 rounded-full object-cover border border-green-500/50"
                       />
@@ -395,7 +845,7 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
                         {validator.userName?.charAt(0) || '?'}
                       </div>
                     )}
-                    
+
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">
                         {validator.userName}
@@ -404,7 +854,7 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
                         {formatValidationDate(validator.validatedAt)}
                       </p>
                     </div>
-                    
+
                     <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                   </div>
                 ))}
@@ -475,13 +925,13 @@ const CreateInfoModal = ({ info, user, onClose }) => {
       if (file) {
         console.log('📤 [MODAL] Upload du fichier...');
         setUploadStatus('Upload du fichier en cours...');
-        
+
         try {
           mediaData = await infosService.uploadFile(file, user.uid, (progress) => {
             console.log('📊 [MODAL] Progression:', progress.toFixed(1) + '%');
             setUploadProgress(progress);
           });
-          
+
           console.log('✅ [MODAL] Upload terminé:', mediaData);
           setUploadStatus('Fichier uploadé, création de l\'information...');
         } catch (uploadError) {
@@ -502,15 +952,15 @@ const CreateInfoModal = ({ info, user, onClose }) => {
           console.log('➕ [MODAL] Création nouvelle info');
           await infosService.createInfo({ text: text.trim(), media: mediaData }, user);
         }
-        
+
         console.log('✅ [MODAL] Information enregistrée avec succès');
         setUploadStatus('Terminé !');
-        
+
         // Petit délai pour montrer le succès
         setTimeout(() => {
           onClose();
         }, 500);
-        
+
       } catch (firestoreError) {
         console.error('❌ [MODAL] Erreur Firestore:', firestoreError);
         throw new Error('Erreur lors de l\'enregistrement: ' + firestoreError.message);
@@ -544,9 +994,9 @@ const CreateInfoModal = ({ info, user, onClose }) => {
           <h2 className="text-2xl font-bold text-white">
             {info ? 'Modifier l\'information' : 'Nouvelle information'}
           </h2>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors" 
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
             disabled={uploading}
           >
             <X className="w-6 h-6 text-white/60" />
@@ -567,7 +1017,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
 
         <div className="mb-6">
           <label className="block text-white/80 mb-2 font-semibold">Fichier (optionnel)</label>
-          
+
           {filePreview ? (
             <div className="relative rounded-xl overflow-hidden bg-black/20">
               {fileType === 'image' ? (
@@ -620,7 +1070,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
                 <span className="text-purple-400 text-sm font-bold">{Math.round(uploadProgress)}%</span>
               )}
             </div>
-            
+
             {uploadProgress > 0 && (
               <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden mb-2">
                 <motion.div
@@ -631,7 +1081,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
                 />
               </div>
             )}
-            
+
             <div className="flex items-center gap-2 text-white/60 text-xs">
               <Loader className="w-4 h-4 animate-spin" />
               <span>Ne fermez pas cette fenêtre...</span>

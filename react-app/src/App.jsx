@@ -11,6 +11,9 @@ import LoadingScreen from './components/ui/LoadingScreen.jsx';
 // ✅ IMPORT DU ROUTER COMPLET AVEC TOUTES LES PAGES
 import AppRoutes from './routes/index.jsx';
 
+// 🎨 MODULE 16: THEME PROVIDER
+import { ThemeProvider } from './shared/providers/ThemeProvider.jsx';
+
 const App = () => {
   const [appReady, setAppReady] = useState(false);
   const [error, setError] = useState(null);
@@ -118,19 +121,22 @@ const App = () => {
   // Application principale avec toutes les fonctionnalités
   return (
     <Router>
-      <Suspense 
-        fallback={
-          <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Chargement de la page...</p>
+      {/* 🎨 MODULE 16: THEME PROVIDER */}
+      <ThemeProvider>
+        <Suspense
+          fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-300">Chargement de la page...</p>
+              </div>
             </div>
-          </div>
-        }
-      >
-        {/* ✅ ROUTER COMPLET AVEC TOUTES LES PAGES */}
-        <AppRoutes />
-      </Suspense>
+          }
+        >
+          {/* ✅ ROUTER COMPLET AVEC TOUTES LES PAGES */}
+          <AppRoutes />
+        </Suspense>
+      </ThemeProvider>
     </Router>
   );
 };

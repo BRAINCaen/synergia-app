@@ -8,11 +8,11 @@ import { db } from '../core/firebase.js';
 
 /**
  * 🔄 MIGRATION : INITIALISER LE POOL ÉQUIPE
- * 
- * Ce script calcule 50% de tous les XP existants de tous les utilisateurs
+ *
+ * Ce script calcule 20% de tous les XP existants de tous les utilisateurs
  * et initialise le pool équipe avec cette valeur.
- * 
- * À EXÉCUTER UNE SEULE FOIS lors de la mise en place du système 50/50.
+ *
+ * À EXÉCUTER UNE SEULE FOIS lors de la mise en place du système.
  */
 export const migrateTeamPool = async () => {
   try {
@@ -37,10 +37,10 @@ export const migrateTeamPool = async () => {
     
     console.log(`📊 [MIGRATION] Total XP utilisateurs: ${totalUserXP} XP (${userCount} utilisateurs)`);
     
-    // 3. Calculer 50% pour le pool équipe
-    const teamPoolXP = Math.floor(totalUserXP * 0.5);
-    
-    console.log(`💎 [MIGRATION] Pool équipe à initialiser: ${teamPoolXP} XP (50% de ${totalUserXP})`);
+    // 3. Calculer 20% pour le pool équipe
+    const teamPoolXP = Math.floor(totalUserXP * 0.2);
+
+    console.log(`💎 [MIGRATION] Pool équipe à initialiser: ${teamPoolXP} XP (20% de ${totalUserXP})`);
     
     // 4. Créer/Initialiser le pool équipe
     const poolRef = doc(db, 'teamPool', 'main');
@@ -49,7 +49,7 @@ export const migrateTeamPool = async () => {
       totalXP: teamPoolXP,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      description: 'Pool collectif d\'XP pour récompenses d\'équipe - 50% des XP gagnés',
+      description: 'Pool collectif d\'XP pour récompenses d\'équipe - 20% des XP gagnés',
       migration: {
         migratedAt: serverTimestamp(),
         migratedFrom: {
@@ -57,7 +57,7 @@ export const migrateTeamPool = async () => {
           userCount,
           calculatedPoolXP: teamPoolXP
         },
-        note: 'Pool initialisé avec 50% des XP existants de tous les utilisateurs'
+        note: 'Pool initialisé avec 20% des XP existants de tous les utilisateurs'
       }
     });
     
@@ -69,7 +69,7 @@ export const migrateTeamPool = async () => {
       totalUserXP,
       teamPoolXP,
       userCount,
-      message: `Migration réussie ! Pool équipe initialisé avec ${teamPoolXP} XP (50% de ${totalUserXP} XP au total)`
+      message: `Migration réussie ! Pool équipe initialisé avec ${teamPoolXP} XP (20% de ${totalUserXP} XP au total)`
     };
     
   } catch (error) {
@@ -106,12 +106,12 @@ export const previewTeamPoolMigration = async () => {
       });
     });
     
-    const teamPoolXP = Math.floor(totalUserXP * 0.5);
-    
+    const teamPoolXP = Math.floor(totalUserXP * 0.2);
+
     console.log('📊 [PREVIEW] Résumé:');
     console.log(`   Total utilisateurs: ${userDetails.length}`);
     console.log(`   Total XP utilisateurs: ${totalUserXP}`);
-    console.log(`   Pool équipe (50%): ${teamPoolXP}`);
+    console.log(`   Pool équipe (20%): ${teamPoolXP}`);
     
     return {
       totalUserXP,

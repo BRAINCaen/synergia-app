@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { calculateLevel, getXPProgress } from '../../core/services/levelService.js';
 
 // ✅ GAMESTORE ULTRA-CORRIGÉ - Export unique et propre
 const useGameStore = create(
@@ -67,15 +68,15 @@ const useGameStore = create(
         try {
           const state = get();
           const newTotalXp = state.userStats.totalXp + amount;
-          const newCurrentXp = state.userStats.currentXp + amount;
-          
-          // Calcul niveau simple
-          const newLevel = Math.floor(newTotalXp / 100) + 1;
-          
+
+          // Utiliser le nouveau système de niveaux calibré
+          const newLevel = calculateLevel(newTotalXp);
+          const progress = getXPProgress(newTotalXp);
+
           const updatedStats = {
             ...state.userStats,
             totalXp: newTotalXp,
-            currentXp: newCurrentXp % 100,
+            currentXp: progress.progressXP,
             level: newLevel
           };
 

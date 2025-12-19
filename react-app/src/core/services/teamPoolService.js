@@ -3,11 +3,11 @@
 // SYSTÈME DE CAGNOTTE COLLECTIVE XP POUR L'ÉQUIPE
 // ==========================================
 
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   addDoc,
   collection,
   query,
@@ -19,6 +19,8 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+// 🔔 IMPORT NOTIFICATION SERVICE
+import { notificationService } from './notificationService.js';
 
 /**
  * 🏆 SERVICE DE CAGNOTTE COLLECTIVE ÉQUIPE
@@ -32,8 +34,8 @@ class TeamPoolService {
     
     // 🎯 CONFIGURATION DU SYSTÈME
     this.CONFIG = {
-      // Pourcentage automatique des XP versés à la cagnotte (5% par défaut)
-      AUTO_CONTRIBUTION_RATE: 0.05,
+      // Pourcentage automatique des XP versés à la cagnotte (20% par défaut)
+      AUTO_CONTRIBUTION_RATE: 0.2,
       
       // XP minimum requis pour contribuer automatiquement
       MIN_XP_FOR_AUTO_CONTRIBUTION: 50,
@@ -118,26 +120,73 @@ class TeamPoolService {
         return { success: true, contributed: 0, reason: 'no_contribution' };
       }
 
+      // ✅ VÉRIFIER ET DÉDUIRE LES XP POUR CONTRIBUTION MANUELLE
+      if (isManual) {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+          return { success: false, error: 'Utilisateur non trouvé' };
+        }
+
+        const userData = userDoc.data();
+        const totalXP = userData.gamification?.totalXp || 0;
+        const totalSpentXP = userData.gamification?.totalSpentXp || 0;
+        const spendableXP = totalXP - totalSpentXP;
+
+        if (spendableXP < contributionAmount) {
+          return {
+            success: false,
+            error: `XP insuffisants (${spendableXP} disponibles, ${contributionAmount} requis)`
+          };
+        }
+      }
+
       // Utiliser une transaction pour garantir la cohérence
       const result = await runTransaction(db, async (transaction) => {
-        // 1. Récupérer l'état actuel de la cagnotte
+        // =====================================================
+        // 🔍 PHASE 1: TOUTES LES LECTURES D'ABORD (règle Firebase)
+        // =====================================================
+
+        // 1a. Récupérer l'état actuel de la cagnotte
         const poolRef = doc(db, this.COLLECTION_NAME, 'main');
         const poolDoc = await transaction.get(poolRef);
-        
+
         if (!poolDoc.exists()) {
           throw new Error('Cagnotte non initialisée');
         }
-        
+
         const poolData = poolDoc.data();
-        
+
+        // 1b. Récupérer l'utilisateur si contribution manuelle (lecture AVANT toute écriture)
+        let userRef = null;
+        let userData = null;
+
+        if (isManual) {
+          userRef = doc(db, 'users', userId);
+          const userDoc = await transaction.get(userRef);
+
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+          }
+        }
+
+        // =====================================================
+        // 📊 PHASE 2: CALCULS
+        // =====================================================
+
         // 2. Calculer les nouvelles valeurs
         const newTotalXP = (poolData.totalXP || 0) + contributionAmount;
         const newContributorsCount = poolData.contributorsCount || 0;
         const newTotalContributions = (poolData.totalContributions || 0) + 1;
-        
+
         // 3. Déterminer le nouveau niveau
         const newLevel = this.calculatePoolLevel(newTotalXP);
-        
+
+        // =====================================================
+        // ✏️ PHASE 3: TOUTES LES ÉCRITURES
+        // =====================================================
+
         // 4. Mettre à jour la cagnotte
         const poolUpdates = {
           totalXP: newTotalXP,
@@ -148,9 +197,9 @@ class TeamPoolService {
           'statistics.monthlyContributions': (poolData.statistics?.monthlyContributions || 0) + contributionAmount,
           'statistics.averageContribution': Math.round(newTotalXP / newTotalContributions)
         };
-        
+
         transaction.update(poolRef, poolUpdates);
-        
+
         // 5. Enregistrer la contribution individuelle
         const contributionRef = doc(collection(db, this.CONTRIBUTIONS_COLLECTION));
         const contributionData = {
@@ -163,22 +212,35 @@ class TeamPoolService {
           poolTotalAfter: newTotalXP,
           poolLevelAfter: newLevel
         };
-        
+
         transaction.set(contributionRef, contributionData);
-        
+
+        // 6. ✅ DÉDUIRE LES XP DU COMPTE UTILISATEUR (contribution manuelle uniquement)
+        if (isManual && userRef && userData) {
+          const currentSpentXP = userData.gamification?.totalSpentXp || 0;
+
+          transaction.update(userRef, {
+            'gamification.totalSpentXp': currentSpentXP + contributionAmount,
+            'gamification.lastPoolContribution': serverTimestamp()
+          });
+
+          console.log(`💸 [TEAM-POOL] XP déduits du compte: ${contributionAmount} XP`);
+        }
+
         return {
           contributed: contributionAmount,
           newPoolTotal: newTotalXP,
           newLevel,
+          previousLevel: poolData.currentLevel,
           levelChanged: newLevel !== poolData.currentLevel
         };
       });
-      
+
       console.log(`✅ [TEAM-POOL] Contribution réussie: +${contributionAmount} XP`);
-      
-      // Si le niveau a changé, déclencher un événement
+
+      // Si le niveau a changé, déclencher un événement + notification
       if (result.levelChanged) {
-        this.triggerPoolLevelUpEvent(result.newLevel, result.newPoolTotal);
+        this.triggerPoolLevelUpEvent(result.newLevel, result.newPoolTotal, result.previousLevel);
       }
       
       return { success: true, ...result };
@@ -203,9 +265,9 @@ class TeamPoolService {
   /**
    * 🎉 DÉCLENCHER ÉVÉNEMENT DE NIVEAU SUPÉRIEUR
    */
-  triggerPoolLevelUpEvent(newLevel, totalXP) {
+  triggerPoolLevelUpEvent(newLevel, totalXP, previousLevel = 'BRONZE') {
     console.log(`🎉 [TEAM-POOL] NIVEAU SUPÉRIEUR! ${newLevel} (${totalXP} XP)`);
-    
+
     // Émettre un événement global
     const event = new CustomEvent('teamPoolLevelUp', {
       detail: {
@@ -214,10 +276,17 @@ class TeamPoolService {
         timestamp: new Date().toISOString()
       }
     });
-    
+
     window.dispatchEvent(event);
-    
-    // TODO: Envoyer des notifications push à tous les membres
+
+    // 🔔 ENVOYER NOTIFICATIONS À TOUS LES MEMBRES
+    notificationService.notifyPoolLevelUp({
+      newLevel,
+      previousLevel,
+      totalXP
+    }).catch(err => {
+      console.warn('⚠️ [TEAM-POOL] Erreur notification level up (non bloquant):', err);
+    });
   }
 
   /**
@@ -278,6 +347,25 @@ class TeamPoolService {
       });
       
       console.log(`✅ [TEAM-POOL] Récompense achetée! Nouvelle cagnotte: ${result.newPoolTotal} XP`);
+
+      // 🔔 NOTIFICATION À TOUTE L'ÉQUIPE
+      try {
+        // Récupérer le nom de l'acheteur
+        const adminDoc = await getDoc(doc(db, 'users', adminUserId));
+        const adminName = adminDoc.exists()
+          ? (adminDoc.data().displayName || adminDoc.data().email?.split('@')[0] || 'Un admin')
+          : 'Un admin';
+
+        await notificationService.notifyPoolRewardPurchased({
+          rewardName: rewardData.name,
+          rewardIcon: rewardData.icon,
+          cost: rewardData.cost,
+          purchasedByName: adminName
+        });
+      } catch (notifError) {
+        console.warn('⚠️ [TEAM-POOL] Erreur notification achat (non bloquant):', notifError);
+      }
+
       return { success: true, ...result };
       
     } catch (error) {

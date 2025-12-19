@@ -274,19 +274,45 @@ const XPDisplay = ({ currentXp = 0, recentGain = 0 }) => {
   );
 };
 
+// ✅ IMPORTS DES NOUVEAUX COMPOSANTS
+import BadgeLeaderboard from './BadgeLeaderboard.jsx';
+import ProfileBadges from './ProfileBadges.jsx';
+
+// 🆕 MODULE 4: NIVEAUX & RANGS
+import RankCard, { RankBadge, AllRanksDisplay } from './RankCard.jsx';
+import LevelProgressCard, { LevelBadge, LevelGrid, XPGainAnimation } from './LevelProgressCard.jsx';
+
 // ✅ EXPORTS SÉCURISÉS - Un seul export par composant
 export { Leaderboard };
 export { BadgeCollection };
 export { LevelProgress };
 export { XPDisplay };
 
+// 🆕 EXPORTS BADGES (Module 3)
+export { BadgeLeaderboard };
+export { ProfileBadges };
+
+// 🆕 EXPORTS NIVEAUX & RANGS (Module 4)
+export { RankCard, RankBadge, AllRanksDisplay };
+export { LevelProgressCard, LevelBadge, LevelGrid, XPGainAnimation };
+
 // ✅ Export default pour compatibilité
 export default {
   Leaderboard,
-  BadgeCollection, 
+  BadgeCollection,
   LevelProgress,
-  XPDisplay
+  XPDisplay,
+  BadgeLeaderboard,
+  ProfileBadges,
+  // Module 4
+  RankCard,
+  RankBadge,
+  AllRanksDisplay,
+  LevelProgressCard,
+  LevelBadge,
+  LevelGrid,
+  XPGainAnimation
 };
 
-console.log('✅ Gamification index - Tous les composants exports sécurisés');
-console.log('🔧 Types disponibles:', typeof Leaderboard, typeof BadgeCollection);
+console.log('✅ Gamification index - Module 4 (Niveaux & Rangs) ajouté');
+console.log('🔧 Composants:', 'RankCard, LevelProgressCard, AllRanksDisplay');

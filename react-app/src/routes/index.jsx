@@ -12,12 +12,18 @@ import InfosPage from '../pages/InfosPage.jsx';
 import TasksPage from '../pages/TasksPage.jsx';
 import CampaignsPage from '../pages/CampaignsPage.jsx';
 import CampaignDetailPage from '../pages/CampaignDetailPage.jsx';
-import AnalyticsPage from '../pages/AnalyticsPage.jsx';
+import PersonalStatsPage from '../pages/PersonalStatsPage.jsx'; // 📊 MODULE 7
 import ProfilePage from '../pages/ProfilePage.jsx';
-import LeaderboardPage from '../pages/LeaderboardPage.jsx';
 import BadgesPage from '../pages/BadgesPage.jsx';
 import GamificationPage from '../pages/GamificationPage.jsx';
 import RewardsPage from '../pages/RewardsPage.jsx';
+import BoostsPage from '../pages/BoostsPage.jsx';
+import ChallengesPage from '../pages/ChallengesPage.jsx'; // 🎯 MODULE 10
+import ProfileCustomizationPage from '../pages/ProfileCustomizationPage.jsx'; // 🎨 MODULE 13
+import PulsePage from '../pages/PulsePage.jsx'; // 💗 MODULE PULSE
+import SkillTreePage from '../pages/SkillTreePage.jsx'; // 🌳 MODULE SKILL TREE
+import MentoringPage from '../pages/MentoringPage.jsx'; // 🎓 MODULE MENTORING
+import CheckpointsPage from '../pages/CheckpointsPage.jsx'; // 🏁 MODULE CHECKPOINTS
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
 import TimeTrackPage from '../pages/TimeTrackPage.jsx';
@@ -30,14 +36,15 @@ import PlanningAdvancedPage from '../pages/PlanningAdvancedPage.jsx';
 import GodModPage from '../pages/GodModPage.jsx';
 
 // Pages admin
-import AdminPage from '../pages/AdminPage.jsx';
 import AdminTaskValidationPage from '../pages/AdminTaskValidationPage.jsx';
 import AdminObjectiveValidationPage from '../pages/AdminObjectiveValidationPage.jsx';
 import AdminRewardsPage from '../pages/AdminRewardsPage.jsx'; // ✅ AJOUTÉ
-import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx';
 import AdminSettingsPage from '../pages/AdminSettingsPage.jsx';
 import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
+import AdminRanksPage from '../pages/AdminRanksPage.jsx'; // 🎖️ MODULE RANGS
 import AdminSyncPage from '../pages/AdminSyncPage.jsx';
+import AdminCheckpointsPage from '../pages/AdminCheckpointsPage.jsx'; // 🏁 ADMIN CHECKPOINTS
+import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'; // 📊 ADMIN ANALYTICS
 import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
@@ -65,19 +72,25 @@ const AppRoutes = () => {
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/campaigns/:id" element={<CampaignDetailPage />} />
         <Route path="/projects/:id" element={<CampaignDetailPage />} />
-        
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        
+
+        <Route path="/stats" element={<PersonalStatsPage />} /> {/* 📊 MODULE 7 */}
+
         {/* GAMIFICATION */}
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/badges" element={<BadgesPage />} />
-        <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
-        
+        <Route path="/boosts" element={<BoostsPage />} />
+        <Route path="/challenges" element={<ChallengesPage />} /> {/* 🎯 MODULE 10 */}
+        <Route path="/skills" element={<SkillTreePage />} /> {/* 🌳 MODULE SKILL TREE */}
+
         {/* ÉQUIPE */}
         <Route path="/team" element={<TeamPage />} />
+        <Route path="/pulse" element={<PulsePage />} /> {/* 💗 MODULE PULSE */}
+        <Route path="/mentoring" element={<MentoringPage />} /> {/* 🎓 MODULE MENTORING */}
+        <Route path="/checkpoints" element={<CheckpointsPage />} /> {/* 🏁 MODULE CHECKPOINTS */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<ProfilePage />} />
+        <Route path="/customization" element={<ProfileCustomizationPage />} /> {/* 🎨 MODULE 13 */}
         
         {/* OUTILS */}
         <Route path="/onboarding" element={<OnboardingPage />} />
@@ -93,14 +106,15 @@ const AppRoutes = () => {
 
       {/* Routes admin - Nécessitent authentification + rôle admin */}
       <Route element={<AdminRoute />}>
-        <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/task-validation" element={<AdminTaskValidationPage />} />
         <Route path="/admin/objective-validation" element={<AdminObjectiveValidationPage />} />
         <Route path="/admin/rewards" element={<AdminRewardsPage />} /> {/* ✅ AJOUTÉ */}
-        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
         <Route path="/admin/role-permissions" element={<AdminRolePermissionsPage />} />
+        <Route path="/admin/ranks" element={<AdminRanksPage />} /> {/* 🎖️ MODULE RANGS */}
         <Route path="/admin/sync" element={<AdminSyncPage />} />
+        <Route path="/admin/checkpoints" element={<AdminCheckpointsPage />} /> {/* 🏁 ADMIN CHECKPOINTS */}
+        <Route path="/admin/analytics" element={<AdminAnalyticsPage />} /> {/* 📊 ADMIN ANALYTICS */}
       </Route>
 
       {/* Redirection par défaut */}

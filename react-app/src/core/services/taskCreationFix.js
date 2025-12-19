@@ -3,12 +3,13 @@
 // CORRECTION URGENTE - CREATEDBY UNDEFINED
 // ==========================================
 
-import { 
-  collection, 
-  addDoc, 
+import {
+  collection,
+  addDoc,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import weeklyRecurrenceService from './weeklyRecurrenceService.js';
 
 /**
  * 🚨 FONCTION URGENTE DE CRÉATION DE TÂCHE
@@ -138,16 +139,54 @@ export const createTaskSafely = async (taskData, userContext = null) => {
     };
     
     console.log('🛡️ [EMERGENCY] Données nettoyées:', cleanedTaskData);
-    
+
     // 🔍 VALIDATION FINALE STRICTE
     const requiredFields = ['title', 'createdBy', 'status', 'priority'];
     const missingFields = requiredFields.filter(field => !cleanedTaskData[field]);
-    
+
     if (missingFields.length > 0) {
       throw new Error(`Champs obligatoires manquants: ${missingFields.join(', ')}`);
     }
-    
-    // 🚀 CRÉATION DANS FIREBASE
+
+    // 🔄 GESTION DES TÂCHES RÉCURRENTES
+    if (taskData.isRecurring && taskData.recurrenceType && taskData.recurrenceType !== 'none') {
+      console.log('🔄 [RECURRING] Création tâche récurrente...');
+
+      try {
+        const recurrenceResult = await weeklyRecurrenceService.createRecurringTask({
+          title: cleanedTaskData.title,
+          description: cleanedTaskData.description,
+          difficulty: cleanedTaskData.difficulty,
+          priority: cleanedTaskData.priority,
+          category: cleanedTaskData.category,
+          xpReward: cleanedTaskData.xpReward,
+          estimatedHours: cleanedTaskData.estimatedHours,
+          roleId: taskData.roleId || null,
+          openToVolunteers: cleanedTaskData.openToVolunteers,
+          requiredSkills: taskData.requiredSkills || [],
+          tags: cleanedTaskData.tags,
+          createdBy: cleanedTaskData.createdBy,
+          recurrenceType: taskData.recurrenceType,
+          recurrenceInterval: parseInt(taskData.recurrenceInterval) || 1,
+          recurrenceDays: taskData.recurrenceDays || [],
+          recurrenceEndDate: taskData.recurrenceEndDate || null
+        });
+
+        console.log('✅ [RECURRING] Tâche récurrente créée:', recurrenceResult);
+
+        return {
+          success: true,
+          isRecurring: true,
+          templateId: recurrenceResult.templateId,
+          message: recurrenceResult.message
+        };
+      } catch (recurrenceError) {
+        console.error('❌ [RECURRING] Erreur création récurrence:', recurrenceError);
+        // On continue avec création normale en cas d'erreur
+      }
+    }
+
+    // 🚀 CRÉATION DANS FIREBASE (tâche normale)
     console.log('🚀 [EMERGENCY] Envoi vers Firebase...');
     console.log('🚀 [EMERGENCY] Collection: tasks');
     console.log('🚀 [EMERGENCY] CreatedBy final:', cleanedTaskData.createdBy);

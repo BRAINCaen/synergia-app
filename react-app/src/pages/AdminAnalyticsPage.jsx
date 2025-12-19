@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
+import {
   BarChart3, TrendingUp, TrendingDown, Users, Trophy, Star, Target,
   Calendar, Download, RefreshCw, Filter, Eye, Award, CheckCircle,
   Clock, Zap, Activity, PieChart, LineChart, ArrowUp, ArrowDown,
@@ -18,7 +18,7 @@ import {
 import Layout from '../components/layout/Layout.jsx';
 
 // Firebase
-import { 
+import {
   collection, getDocs, query, where, orderBy, limit, onSnapshot,
   doc, getDoc
 } from 'firebase/firestore';
@@ -26,6 +26,9 @@ import { db } from '../core/firebase.js';
 
 // Hooks
 import { useAuthStore } from '../shared/stores/authStore.js';
+
+// Service de niveau pour calculer le level depuis l'XP
+import { calculateLevel } from '../core/services/levelService.js';
 
 // Notifications
 const showNotification = (message, type = 'info') => {
@@ -47,7 +50,7 @@ const showNotification = (message, type = 'info') => {
   `;
   notification.textContent = message;
   document.body.appendChild(notification);
-  
+
   setTimeout(() => notification.style.transform = 'translateX(0)', 100);
   setTimeout(() => {
     notification.style.transform = 'translateX(100%)';
@@ -60,7 +63,7 @@ const showNotification = (message, type = 'info') => {
  */
 const AdminAnalyticsPage = () => {
   const { user } = useAuthStore();
-  
+
   // États principaux avec VRAIES données
   const [analytics, setAnalytics] = useState({
     users: {
@@ -117,7 +120,7 @@ const AdminAnalyticsPage = () => {
       levelDistribution: {}
     }
   });
-  
+
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('all'); // today, week, month, all
   const [activeSection, setActiveSection] = useState('overview');
@@ -133,20 +136,20 @@ const AdminAnalyticsPage = () => {
     try {
       setLoading(true);
       console.log('📊 [ANALYTICS] Chargement COMPLET des données Firebase...');
-      
+
       // Calculer les timestamps pour les filtres temporels
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      
+
       // ==========================================
       // 👥 ANALYSE COMPLÈTE DES UTILISATEURS
       // ==========================================
       console.log('👥 Analyse des utilisateurs...');
       const usersRef = collection(db, 'users');
       const usersSnapshot = await getDocs(usersRef);
-      
+
       let totalUsers = 0;
       let activeUsers = 0;
       let inactiveUsers = 0;
@@ -155,27 +158,27 @@ const AdminAnalyticsPage = () => {
       let newThisMonth = 0;
       const roleDistribution = {};
       const usersList = [];
-      
+
       usersSnapshot.forEach(doc => {
         const userData = doc.data();
         const userId = doc.id;
         const createdAt = userData.createdAt?.toDate?.() || new Date();
         const lastActivity = userData.lastActivity?.toDate?.() || null;
-        
+
         totalUsers++;
-        
+
         // Statut d'activité
         if (userData.status === 'active' || !userData.status) {
           activeUsers++;
         } else {
           inactiveUsers++;
         }
-        
+
         // Nouveaux utilisateurs
         if (createdAt >= todayStart) newToday++;
         if (createdAt >= weekAgo) newThisWeek++;
         if (createdAt >= monthAgo) newThisMonth++;
-        
+
         // Distribution des rôles Synergia
         const userRoles = userData.synergiaRoles || [];
         userRoles.forEach(role => {
@@ -186,36 +189,39 @@ const AdminAnalyticsPage = () => {
           roleDistribution[roleId].count++;
           roleDistribution[roleId].users.push(userData.displayName || userData.email);
         });
-        
-        // Ajout à la liste complète
+
+        // Ajout à la liste complète - LECTURE CORRECTE DES CHAMPS FIREBASE
+        const userTotalXp = userData.gamification?.totalXp || userData.totalXp || userData.xp || 0;
+        const userLevel = calculateLevel(userTotalXp);
+
         usersList.push({
           id: userId,
           name: userData.displayName || 'Sans nom',
           email: userData.email,
-          level: userData.gamification?.level || 1,
-          xp: userData.gamification?.totalXp || 0,
-          tasksCompleted: userData.gamification?.tasksCompleted || 0,
-          badges: userData.gamification?.badgesEarned || 0,
+          level: userLevel,
+          xp: userTotalXp,
+          tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
+          badges: userData.gamification?.badgesEarned || userData.badges?.length || 0,
           roles: userRoles,
           status: userData.status || 'active',
           createdAt,
           lastActivity
         });
       });
-      
+
       // Trier les utilisateurs par XP
       usersList.sort((a, b) => b.xp - a.xp);
-      
+
       // Calculer la rétention
       const retention = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
-      
+
       // ==========================================
       // 📋 ANALYSE COMPLÈTE DES TÂCHES/QUÊTES
       // ==========================================
       console.log('📋 Analyse des tâches...');
       const tasksRef = collection(db, 'tasks');
       const tasksSnapshot = await getDocs(tasksRef);
-      
+
       let totalTasks = 0;
       let completedTasks = 0;
       let inProgressTasks = 0;
@@ -227,82 +233,95 @@ const AdminAnalyticsPage = () => {
       const tasksByProject = {};
       const tasksByPriority = {};
       const tasksByStatus = {};
-      
+
       tasksSnapshot.forEach(doc => {
         const taskData = doc.data();
         totalTasks++;
-        
-        // Statuts
-        const status = taskData.status || 'pending';
+
+        // Statuts - UTILISER LES VRAIS STATUTS SYNERGIA: todo, in_progress, completed, validated, cancelled
+        const status = taskData.status || 'todo';
         tasksByStatus[status] = (tasksByStatus[status] || 0) + 1;
-        
-        if (status === 'completed') {
+
+        if (status === 'completed' || status === 'validated') {
           completedTasks++;
-          totalXpAwarded += taskData.xpReward || 0;
-        } else if (status === 'in-progress') {
+          totalXpAwarded += taskData.xp || taskData.xpReward || 0;
+        } else if (status === 'in_progress') {
           inProgressTasks++;
-        } else if (status === 'in-review') {
+        } else if (status === 'in_review') {
           inReviewTasks++;
         } else if (status === 'cancelled') {
           cancelledTasks++;
         } else {
+          // 'todo' ou autre statut non reconnu
           pendingTasks++;
         }
-        
-        // Par utilisateur
-        const assignedTo = taskData.assignedTo || 'unassigned';
-        if (!tasksByUser[assignedTo]) {
-          tasksByUser[assignedTo] = { total: 0, completed: 0, xp: 0 };
+
+        // Par utilisateur - gérer le tableau assignedTo
+        let assignedToList = [];
+        if (Array.isArray(taskData.assignedTo)) {
+          assignedToList = taskData.assignedTo;
+        } else if (taskData.assignedTo) {
+          assignedToList = [taskData.assignedTo];
+        } else if (taskData.assigneeId) {
+          assignedToList = [taskData.assigneeId];
+        } else if (taskData.userId) {
+          assignedToList = [taskData.userId];
         }
-        tasksByUser[assignedTo].total++;
-        if (status === 'completed') {
-          tasksByUser[assignedTo].completed++;
-          tasksByUser[assignedTo].xp += taskData.xpReward || 0;
-        }
-        
+
+        assignedToList.forEach(assignedTo => {
+          if (!tasksByUser[assignedTo]) {
+            tasksByUser[assignedTo] = { total: 0, completed: 0, xp: 0 };
+          }
+          tasksByUser[assignedTo].total++;
+          if (status === 'completed' || status === 'validated') {
+            tasksByUser[assignedTo].completed++;
+            tasksByUser[assignedTo].xp += taskData.xp || taskData.xpReward || 0;
+          }
+        });
+
         // Par projet
         const projectId = taskData.projectId || 'no-project';
         if (!tasksByProject[projectId]) {
           tasksByProject[projectId] = { total: 0, completed: 0 };
         }
         tasksByProject[projectId].total++;
-        if (status === 'completed') {
+        if (status === 'completed' || status === 'validated') {
           tasksByProject[projectId].completed++;
         }
-        
+
         // Par priorité
         const priority = taskData.priority || 'normal';
         tasksByPriority[priority] = (tasksByPriority[priority] || 0) + 1;
       });
-      
+
       const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
       const averageXp = completedTasks > 0 ? Math.round(totalXpAwarded / completedTasks) : 0;
-      
+
       // ==========================================
       // 🏆 ANALYSE COMPLÈTE DES BADGES
       // ==========================================
       console.log('🏆 Analyse des badges...');
       const badgesRef = collection(db, 'badges');
       const badgesSnapshot = await getDocs(badgesRef);
-      
+
       let totalBadges = 0;
       let totalAwarded = 0;
       const badgesByRarity = {};
       const badgePopularity = [];
       const badgesByUser = {};
       const recentBadges = [];
-      
+
       badgesSnapshot.forEach(doc => {
         const badgeData = doc.data();
         totalBadges++;
-        
+
         const earnedCount = badgeData.earnedCount || 0;
         totalAwarded += earnedCount;
-        
+
         // Par rareté
         const rarity = badgeData.rarity || 'common';
         badgesByRarity[rarity] = (badgesByRarity[rarity] || 0) + 1;
-        
+
         // Popularité
         if (earnedCount > 0) {
           badgePopularity.push({
@@ -315,68 +334,68 @@ const AdminAnalyticsPage = () => {
           });
         }
       });
-      
+
       // Trier par popularité
       badgePopularity.sort((a, b) => b.earnedCount - a.earnedCount);
-      
+
       // Badges récents (simulation - à améliorer avec vraies données)
       const topRecentBadges = badgePopularity.slice(0, 5);
-      
+
       // ==========================================
       // 📁 ANALYSE COMPLÈTE DES PROJETS
       // ==========================================
       console.log('📁 Analyse des projets...');
       const projectsRef = collection(db, 'projects');
       const projectsSnapshot = await getDocs(projectsRef);
-      
+
       let totalProjects = 0;
       let activeProjects = 0;
       let completedProjects = 0;
       let pausedProjects = 0;
       const projectsList = [];
-      
+
       projectsSnapshot.forEach(doc => {
         const projectData = doc.data();
         totalProjects++;
-        
+
         const status = projectData.status || 'active';
-        if (status === 'active') activeProjects++;
-        else if (status === 'completed') completedProjects++;
-        else if (status === 'paused') pausedProjects++;
-        
+        if (status === 'active' || status === 'in_progress') activeProjects++;
+        else if (status === 'completed' || status === 'done') completedProjects++;
+        else if (status === 'paused' || status === 'on_hold') pausedProjects++;
+
         projectsList.push({
           id: doc.id,
-          name: projectData.name,
+          name: projectData.name || projectData.title,
           status,
           tasksCount: tasksByProject[doc.id]?.total || 0,
           tasksCompleted: tasksByProject[doc.id]?.completed || 0,
-          progress: tasksByProject[doc.id]?.total > 0 
-            ? Math.round((tasksByProject[doc.id].completed / tasksByProject[doc.id].total) * 100) 
+          progress: tasksByProject[doc.id]?.total > 0
+            ? Math.round((tasksByProject[doc.id].completed / tasksByProject[doc.id].total) * 100)
             : 0
         });
       });
-      
-      const projectCompletionRate = totalProjects > 0 
-        ? Math.round((completedProjects / totalProjects) * 100) 
+
+      const projectCompletionRate = totalProjects > 0
+        ? Math.round((completedProjects / totalProjects) * 100)
         : 0;
-      
+
       // ==========================================
       // 🎮 ANALYSE GAMIFICATION SYSTÈME
       // ==========================================
       console.log('🎮 Analyse gamification...');
       const totalXpSystem = usersList.reduce((sum, u) => sum + u.xp, 0);
-      const averageLevel = totalUsers > 0 
-        ? Math.round(usersList.reduce((sum, u) => sum + u.level, 0) / totalUsers) 
+      const averageLevel = totalUsers > 0
+        ? Math.round(usersList.reduce((sum, u) => sum + u.level, 0) / totalUsers)
         : 1;
-      
+
       const topPerformers = usersList.slice(0, 10);
-      
+
       const levelDistribution = usersList.reduce((acc, u) => {
         const level = u.level;
         acc[level] = (acc[level] || 0) + 1;
         return acc;
       }, {});
-      
+
       // ==========================================
       // 📊 STATISTIQUES D'ACTIVITÉ QUOTIDIENNE
       // ==========================================
@@ -387,19 +406,19 @@ const AdminAnalyticsPage = () => {
         date.setDate(date.getDate() - i);
         const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-        
+
         // Compter les utilisateurs actifs ce jour
-        const activeThisDay = usersList.filter(u => 
+        const activeThisDay = usersList.filter(u =>
           u.lastActivity && u.lastActivity >= dayStart && u.lastActivity < dayEnd
         ).length;
-        
+
         // Compter les tâches complétées ce jour
         const tasksThisDay = Array.from(tasksSnapshot.docs).filter(doc => {
           const task = doc.data();
           const completedAt = task.completedAt?.toDate?.();
           return completedAt && completedAt >= dayStart && completedAt < dayEnd;
         }).length;
-        
+
         dailyStats.push({
           date: date.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' }),
           users: activeThisDay,
@@ -407,7 +426,7 @@ const AdminAnalyticsPage = () => {
           xp: tasksThisDay * averageXp
         });
       }
-      
+
       // ==========================================
       // 📦 ASSEMBLER TOUTES LES ANALYTICS
       // ==========================================
@@ -474,10 +493,10 @@ const AdminAnalyticsPage = () => {
           levelDistribution
         }
       });
-      
+
       console.log('✅ Analytics COMPLÈTES chargées avec succès !');
       showNotification('Données analytics chargées avec succès', 'success');
-      
+
     } catch (error) {
       console.error('❌ Erreur chargement analytics:', error);
       showNotification('Erreur lors du chargement des analytics', 'error');
@@ -545,16 +564,16 @@ const AdminAnalyticsPage = () => {
         }
       }
     };
-    
+
     const dataStr = JSON.stringify(dataToExport, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = `synergia-analytics-complete-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
-    
+
     URL.revokeObjectURL(url);
     showNotification('Données complètes exportées avec succès', 'success');
   };
@@ -569,7 +588,7 @@ const AdminAnalyticsPage = () => {
       <Layout>
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-6"></div>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-500 mx-auto mb-6"></div>
             <p className="text-gray-300 text-lg">Chargement des analytics complètes...</p>
             <p className="text-gray-500 text-sm mt-2">Synchronisation avec Firebase en cours</p>
           </div>
@@ -582,16 +601,16 @@ const AdminAnalyticsPage = () => {
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
         <div className="max-w-7xl mx-auto">
-          
+
           {/* 📊 HEADER AVEC ACTIONS */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-4">
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-xl">
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-3 rounded-xl">
                   <BarChart3 className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
                     Analytics Administration Complètes
                   </h1>
                   <p className="text-gray-400 mt-2 flex items-center gap-2">
@@ -600,30 +619,30 @@ const AdminAnalyticsPage = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex space-x-3">
                 <select
                   value={timeframe}
                   onChange={(e) => setTimeframe(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="today">Aujourd'hui</option>
                   <option value="week">7 derniers jours</option>
                   <option value="month">30 derniers jours</option>
                   <option value="all">Tout le temps</option>
                 </select>
-                
-                <button 
+
+                <button
                   onClick={loadCompleteAnalytics}
                   className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-4 py-2 rounded-xl transition-all duration-200"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Actualiser</span>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={exportCompleteData}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl transition-all duration-200 shadow-lg"
+                  className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-xl transition-all duration-200 shadow-lg"
                 >
                   <Download className="w-4 h-4" />
                   <span>Exporter Tout</span>
@@ -648,7 +667,7 @@ const AdminAnalyticsPage = () => {
                     onClick={() => setActiveSection(section.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 whitespace-nowrap ${
                       activeSection === section.id
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
                     }`}
                   >
@@ -775,143 +794,101 @@ const AdminAnalyticsPage = () => {
           {/* ==================== SECTION: VUE D'ENSEMBLE ==================== */}
           {activeSection === 'overview' && (
             <div className="space-y-6">
-              {/* Activité quotidienne */}
+              {/* Analyse détaillée utilisateurs */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                    <LineChart className="w-6 h-6 text-blue-400" />
-                    Activité des 7 derniers jours
-                  </h3>
+                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                  <Users className="w-6 h-6 text-purple-400" />
+                  Analyse Détaillée des Utilisateurs
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-700/30 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm">Nouveaux aujourd'hui</p>
+                    <p className="text-2xl font-bold text-white">{analytics.users.newToday}</p>
+                  </div>
+                  <div className="bg-gray-700/30 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm">Nouveaux cette semaine</p>
+                    <p className="text-2xl font-bold text-white">{analytics.users.newThisWeek}</p>
+                  </div>
+                  <div className="bg-gray-700/30 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm">Taux de rétention</p>
+                    <p className="text-2xl font-bold text-white">{analytics.users.retention}%</p>
+                  </div>
                 </div>
-                
-                <div className="space-y-4">
-                  {analytics.activity.dailyStats.map((day, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 font-medium w-24">{day.date}</span>
-                        <div className="flex items-center gap-4 text-xs">
-                          <span className="text-blue-400">
-                            <Users className="w-3 h-3 inline mr-1" />
-                            {day.users} utilisateurs
-                          </span>
-                          <span className="text-green-400">
-                            <Target className="w-3 h-3 inline mr-1" />
-                            {day.tasks} quêtes
-                          </span>
-                          <span className="text-purple-400">
-                            <Zap className="w-3 h-3 inline mr-1" />
-                            {day.xp} XP
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
-                          <div 
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min((day.users / analytics.users.total) * 100, 100)}%` }}
-                          />
-                        </div>
-                        <div className="flex-1 bg-gray-700 rounded-full h-3 overflow-hidden">
-                          <div 
-                            className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min((day.tasks / 20) * 100, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+
+                {/* Top utilisateurs */}
+                <h4 className="text-lg font-semibold text-white mb-4">Top 10 Utilisateurs</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-700">
+                        <th className="text-left text-gray-400 font-medium p-3">Rang</th>
+                        <th className="text-left text-gray-400 font-medium p-3">Utilisateur</th>
+                        <th className="text-left text-gray-400 font-medium p-3">Niveau</th>
+                        <th className="text-left text-gray-400 font-medium p-3">XP Total</th>
+                        <th className="text-left text-gray-400 font-medium p-3">Quêtes</th>
+                        <th className="text-left text-gray-400 font-medium p-3">Badges</th>
+                        <th className="text-left text-gray-400 font-medium p-3">Rôles</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.users.list.slice(0, 10).map((user, index) => (
+                        <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
+                          <td className="p-3">
+                            <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${
+                              index === 0 ? 'bg-yellow-500 text-yellow-900' :
+                              index === 1 ? 'bg-gray-400 text-gray-900' :
+                              index === 2 ? 'bg-orange-600 text-orange-900' :
+                              'bg-gray-700 text-gray-300'
+                            }`}>
+                              {index + 1}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <div>
+                              <p className="text-white font-medium">{user.name}</p>
+                              <p className="text-gray-500 text-xs">{user.email}</p>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-bold">
+                              <Star className="w-3 h-3" />
+                              {user.level}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-yellow-400 font-bold">{user.xp.toLocaleString()}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-green-400 font-semibold">{user.tasksCompleted}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-yellow-400 font-semibold">{user.badges}</span>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex gap-1 flex-wrap">
+                              {user.roles.slice(0, 2).map((role, i) => (
+                                <span key={i} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
+                                  {typeof role === 'string' ? role : role.roleId}
+                                </span>
+                              ))}
+                              {user.roles.length > 2 && (
+                                <span className="px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">
+                                  +{user.roles.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </motion.div>
-
-              {/* Résumé des statuts */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Statuts des quêtes */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
-                >
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <PieChart className="w-5 h-5 text-green-400" />
-                    Répartition des quêtes
-                  </h3>
-                  <div className="space-y-3">
-                    {Object.entries(analytics.tasks.byStatus).map(([status, count]) => {
-                      const percentage = (count / analytics.tasks.total) * 100;
-                      const statusConfig = {
-                        completed: { color: 'green', label: 'Accomplies', icon: CheckCircle },
-                        'in-progress': { color: 'yellow', label: 'En cours', icon: Clock },
-                        'in-review': { color: 'blue', label: 'En révision', icon: Eye },
-                        pending: { color: 'gray', label: 'En attente', icon: AlertCircle },
-                        cancelled: { color: 'red', label: 'Annulées', icon: XCircle }
-                      };
-                      const config = statusConfig[status] || { color: 'gray', label: status, icon: Info };
-                      const Icon = config.icon;
-                      
-                      return (
-                        <div key={status} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 flex-1">
-                            <Icon className={`w-4 h-4 text-${config.color}-400`} />
-                            <span className="text-gray-300 text-sm">{config.label}</span>
-                            <div className="flex-1 mx-3 bg-gray-700 rounded-full h-2 overflow-hidden">
-                              <div 
-                                className={`bg-${config.color}-500 h-full rounded-full transition-all duration-500`}
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-white font-bold text-sm">{count}</span>
-                            <span className="text-gray-500 text-xs ml-1">({percentage.toFixed(1)}%)</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-
-                {/* Rôles actifs */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
-                >
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-purple-400" />
-                    Rôles Synergia les plus actifs
-                  </h3>
-                  <div className="space-y-3">
-                    {Object.entries(analytics.users.byRole)
-                      .sort(([,a], [,b]) => b.count - a.count)
-                      .slice(0, 5)
-                      .map(([roleId, roleData], index) => {
-                        const percentage = (roleData.count / analytics.users.total) * 100;
-                        const colors = ['blue', 'green', 'yellow', 'purple', 'pink'];
-                        const color = colors[index] || 'gray';
-                        
-                        return (
-                          <div key={roleId} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-300 text-sm capitalize font-medium">{roleId}</span>
-                              <span className="text-white font-bold text-sm">{roleData.count}</span>
-                            </div>
-                            <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
-                              <div 
-                                className={`bg-${color}-500 h-full rounded-full transition-all duration-500`}
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </motion.div>
-              </div>
             </div>
           )}
 
@@ -924,27 +901,9 @@ const AdminAnalyticsPage = () => {
             >
               <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                 <Users className="w-7 h-7 text-blue-400" />
-                Analyse Détaillée des Utilisateurs
+                Analyse Détaillée des Utilisateurs ({analytics.users.total})
               </h3>
 
-              {/* Stats utilisateurs */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Nouveaux aujourd'hui</p>
-                  <p className="text-2xl font-bold text-white">{analytics.users.newToday}</p>
-                </div>
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Nouveaux cette semaine</p>
-                  <p className="text-2xl font-bold text-white">{analytics.users.newThisWeek}</p>
-                </div>
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Taux de rétention</p>
-                  <p className="text-2xl font-bold text-white">{analytics.users.retention}%</p>
-                </div>
-              </div>
-
-              {/* Top utilisateurs */}
-              <h4 className="text-lg font-semibold text-white mb-4">Top 10 Utilisateurs</h4>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -959,7 +918,7 @@ const AdminAnalyticsPage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {analytics.users.list.slice(0, 10).map((user, index) => (
+                    {analytics.users.list.map((user, index) => (
                       <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
                         <td className="p-3">
                           <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${
@@ -984,7 +943,7 @@ const AdminAnalyticsPage = () => {
                           </span>
                         </td>
                         <td className="p-3">
-                          <span className="text-white font-bold">{user.xp.toLocaleString()}</span>
+                          <span className="text-yellow-400 font-bold">{user.xp.toLocaleString()}</span>
                         </td>
                         <td className="p-3">
                           <span className="text-green-400 font-semibold">{user.tasksCompleted}</span>
@@ -993,7 +952,7 @@ const AdminAnalyticsPage = () => {
                           <span className="text-yellow-400 font-semibold">{user.badges}</span>
                         </td>
                         <td className="p-3">
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-wrap">
                             {user.roles.slice(0, 2).map((role, i) => (
                               <span key={i} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
                                 {typeof role === 'string' ? role : role.roleId}
@@ -1027,7 +986,6 @@ const AdminAnalyticsPage = () => {
                   Analyse Détaillée des Quêtes
                 </h3>
 
-                {/* Stats quêtes */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-gray-700/30 rounded-lg p-4">
                     <p className="text-gray-400 text-sm">Total</p>
@@ -1047,7 +1005,6 @@ const AdminAnalyticsPage = () => {
                   </div>
                 </div>
 
-                {/* Performance par utilisateur */}
                 <h4 className="text-lg font-semibold text-white mb-4">Top 10 Contributeurs</h4>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -1061,7 +1018,7 @@ const AdminAnalyticsPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {analytics.tasks.byUser.slice(0, 10).map((userTask, index) => {
+                      {analytics.tasks.byUser.slice(0, 10).map((userTask) => {
                         const rate = userTask.total > 0 ? Math.round((userTask.completed / userTask.total) * 100) : 0;
                         return (
                           <tr key={userTask.userId} className="border-b border-gray-700/50 hover:bg-gray-700/20">
@@ -1077,7 +1034,7 @@ const AdminAnalyticsPage = () => {
                             <td className="p-3">
                               <div className="flex items-center gap-2">
                                 <div className="w-20 bg-gray-700 rounded-full h-2">
-                                  <div 
+                                  <div
                                     className="bg-green-500 h-full rounded-full"
                                     style={{ width: `${rate}%` }}
                                   />
@@ -1095,38 +1052,6 @@ const AdminAnalyticsPage = () => {
                   </table>
                 </div>
               </motion.div>
-
-              {/* Par projet */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
-              >
-                <h4 className="text-lg font-semibold text-white mb-4">Quêtes par Projet</h4>
-                <div className="space-y-3">
-                  {analytics.tasks.byProject.slice(0, 10).map((project, index) => {
-                    const rate = project.total > 0 ? Math.round((project.completed / project.total) * 100) : 0;
-                    return (
-                      <div key={project.projectId} className="flex items-center justify-between p-3 bg-gray-700/20 rounded-lg">
-                        <div className="flex-1">
-                          <p className="text-white font-medium">{project.projectName}</p>
-                          <div className="flex items-center gap-4 mt-2">
-                            <div className="flex-1 bg-gray-700 rounded-full h-2">
-                              <div 
-                                className="bg-blue-500 h-full rounded-full"
-                                style={{ width: `${rate}%` }}
-                              />
-                            </div>
-                            <span className="text-gray-400 text-sm">{project.completed}/{project.total}</span>
-                          </div>
-                        </div>
-                        <span className="text-white font-bold ml-4">{rate}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
             </div>
           )}
 
@@ -1142,7 +1067,6 @@ const AdminAnalyticsPage = () => {
                 Analyse Détaillée des Badges
               </h3>
 
-              {/* Stats badges */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm">Total badges</p>
@@ -1160,43 +1084,17 @@ const AdminAnalyticsPage = () => {
                 </div>
               </div>
 
-              {/* Par rareté */}
-              <h4 className="text-lg font-semibold text-white mb-4">Répartition par Rareté</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                {Object.entries(analytics.badges.byRarity).map(([rarity, count]) => {
-                  const rarityConfig = {
-                    common: { label: 'Commun', color: 'gray', icon: '⚪' },
-                    uncommon: { label: 'Peu commun', color: 'green', icon: '🟢' },
-                    rare: { label: 'Rare', color: 'blue', icon: '🔵' },
-                    epic: { label: 'Épique', color: 'purple', icon: '🟣' },
-                    legendary: { label: 'Légendaire', color: 'yellow', icon: '🟡' }
-                  };
-                  const config = rarityConfig[rarity] || { label: rarity, color: 'gray', icon: '⚪' };
-                  
-                  return (
-                    <div key={rarity} className={`bg-${config.color}-900/20 border border-${config.color}-500/30 rounded-lg p-4`}>
-                      <p className={`text-${config.color}-400 text-sm flex items-center gap-2`}>
-                        <span>{config.icon}</span>
-                        {config.label}
-                      </p>
-                      <p className="text-2xl font-bold text-white">{count}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Top badges */}
               <h4 className="text-lg font-semibold text-white mb-4">Top 10 Badges Les Plus Attribués</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {analytics.badges.popular.slice(0, 10).map((badge, index) => (
+                {analytics.badges.popular.slice(0, 10).map((badge) => (
                   <div key={badge.id} className="bg-gray-700/30 rounded-lg p-4 flex items-center gap-4">
-                    <div className="text-4xl">{badge.icon}</div>
+                    <div className="text-4xl">{badge.icon || '🏆'}</div>
                     <div className="flex-1">
                       <h5 className="text-white font-semibold">{badge.name}</h5>
                       <p className="text-gray-400 text-sm capitalize">{badge.rarity} - {badge.category}</p>
                       <div className="flex items-center gap-2 mt-2">
                         <div className="flex-1 bg-gray-700 rounded-full h-2">
-                          <div 
+                          <div
                             className="bg-yellow-500 h-full rounded-full"
                             style={{ width: `${Math.min((badge.earnedCount / analytics.users.total) * 100, 100)}%` }}
                           />
@@ -1222,7 +1120,6 @@ const AdminAnalyticsPage = () => {
                 Analyse Détaillée des Projets
               </h3>
 
-              {/* Stats projets */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm">Total projets</p>
@@ -1242,24 +1139,24 @@ const AdminAnalyticsPage = () => {
                 </div>
               </div>
 
-              {/* Liste des projets */}
               <h4 className="text-lg font-semibold text-white mb-4">Tous les Projets</h4>
               <div className="space-y-3">
-                {analytics.projects.list.map((project, index) => {
+                {analytics.projects.list.map((project) => {
                   const statusConfig = {
-                    active: { color: 'green', label: 'Actif', icon: Zap },
-                    completed: { color: 'blue', label: 'Terminé', icon: CheckCircle },
-                    paused: { color: 'yellow', label: 'En pause', icon: Clock }
+                    active: { color: 'green', label: 'Actif' },
+                    in_progress: { color: 'green', label: 'En cours' },
+                    completed: { color: 'blue', label: 'Terminé' },
+                    done: { color: 'blue', label: 'Terminé' },
+                    paused: { color: 'yellow', label: 'En pause' },
+                    on_hold: { color: 'yellow', label: 'En pause' }
                   };
-                  const config = statusConfig[project.status] || { color: 'gray', label: project.status, icon: Info };
-                  const Icon = config.icon;
-                  
+                  const config = statusConfig[project.status] || { color: 'gray', label: project.status };
+
                   return (
                     <div key={project.id} className="bg-gray-700/20 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h5 className="text-white font-semibold text-lg">{project.name}</h5>
-                        <span className={`px-3 py-1 bg-${config.color}-900/30 border border-${config.color}-500/50 text-${config.color}-400 rounded-lg text-sm font-medium flex items-center gap-1`}>
-                          <Icon className="w-4 h-4" />
+                        <span className={`px-3 py-1 bg-${config.color}-900/30 border border-${config.color}-500/50 text-${config.color}-400 rounded-lg text-sm font-medium`}>
                           {config.label}
                         </span>
                       </div>
@@ -1269,7 +1166,7 @@ const AdminAnalyticsPage = () => {
                         </span>
                         <div className="flex-1 flex items-center gap-2">
                           <div className="flex-1 bg-gray-700 rounded-full h-2">
-                            <div 
+                            <div
                               className={`bg-${config.color}-500 h-full rounded-full`}
                               style={{ width: `${project.progress}%` }}
                             />
@@ -1297,7 +1194,6 @@ const AdminAnalyticsPage = () => {
                   Analyse Gamification
                 </h3>
 
-                {/* Stats gamification */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <div className="bg-purple-900/20 rounded-lg p-4 border border-purple-500/30">
                     <p className="text-purple-400 text-sm">XP Total Système</p>
@@ -1313,7 +1209,6 @@ const AdminAnalyticsPage = () => {
                   </div>
                 </div>
 
-                {/* Top performers */}
                 <h4 className="text-lg font-semibold text-white mb-4">Top 10 Performers</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {analytics.gamification.topPerformers.slice(0, 10).map((user, index) => (
@@ -1360,12 +1255,12 @@ const AdminAnalyticsPage = () => {
                   {Object.entries(analytics.gamification.levelDistribution)
                     .sort(([a], [b]) => Number(a) - Number(b))
                     .map(([level, count]) => {
-                      const percentage = (count / analytics.users.total) * 100;
+                      const percentage = analytics.users.total > 0 ? (count / analytics.users.total) * 100 : 0;
                       return (
                         <div key={level} className="flex items-center gap-4">
                           <span className="text-white font-bold w-16">Niv. {level}</span>
                           <div className="flex-1 bg-gray-700 rounded-full h-3">
-                            <div 
+                            <div
                               className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full"
                               style={{ width: `${percentage}%` }}
                             />

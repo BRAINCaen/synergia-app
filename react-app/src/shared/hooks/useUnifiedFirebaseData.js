@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
 import { firebaseDataSyncService } from '../../core/services/firebaseDataSyncService.js';
+import { calculateLevel, getXPProgress } from '../../core/services/levelService.js';
 
 /**
  * 🌐 HOOK UNIFIÉ FIREBASE
@@ -245,10 +246,11 @@ export const useUnifiedFirebaseData = () => {
   const xpHistory = gamification.xpHistory || [];
   const levelUpHistory = gamification.levelUpHistory || [];
   
-  // Calculs dérivés
-  const currentLevelXp = totalXp % 100; // XP dans le niveau actuel
-  const nextLevelXpRequired = 100; // XP requis pour le niveau suivant
-  const xpProgress = (currentLevelXp / nextLevelXpRequired) * 100; // Progression en %
+  // Calculs dérivés (système calibré)
+  const xpProgressData = getXPProgress(totalXp);
+  const currentLevelXp = xpProgressData.progressXP;
+  const nextLevelXpRequired = xpProgressData.xpToNextLevel;
+  const xpProgress = xpProgressData.progressPercent;
   const nextLevel = level + 1;
   
   // Statistiques calculées

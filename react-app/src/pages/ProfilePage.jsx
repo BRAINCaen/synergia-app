@@ -51,6 +51,15 @@ import {
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
 import Layout from '../components/layout/Layout.jsx';
 
+// 🏆 IMPORTS GAMIFICATION
+import ProfileBadges from '../components/gamification/ProfileBadges.jsx';
+import BadgeLeaderboard from '../components/gamification/BadgeLeaderboard.jsx';
+
+// 🎖️ MODULE 4: NIVEAUX & RANGS
+import RankCard, { AllRanksDisplay } from '../components/gamification/RankCard.jsx';
+import LevelProgressCard from '../components/gamification/LevelProgressCard.jsx';
+import { calculateLevel, getLevelProgress, getRankForLevel } from '../core/services/levelService.js';
+
 // 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
 
@@ -203,6 +212,7 @@ const ProfilePage = () => {
     totalXp: 0,
     level: 1,
     badges: [],
+    showcaseBadges: [],
     tasksCompleted: 0,
     projectsCreated: 0,
     completionRate: 0,
@@ -309,6 +319,7 @@ const ProfilePage = () => {
           totalXp: userData.gamification?.totalXp || 0,
           level: userData.gamification?.level || 1,
           badges: userData.gamification?.badges || [],
+          showcaseBadges: userData.gamification?.showcaseBadges || [],
           tasksCompleted: userData.gamification?.tasksCompleted || 0,
           projectsCreated: userData.gamification?.projectsCreated || 0,
           completionRate: userData.gamification?.completionRate || 0,
@@ -480,36 +491,38 @@ const ProfilePage = () => {
     }));
   };
 
-  // 📊 CALCULS POUR L'AFFICHAGE
-  const level = Math.floor(userProfile.totalXp / 100) + 1;
-  const xpForNextLevel = (level * 100) - userProfile.totalXp;
-  const progressPercent = ((userProfile.totalXp % 100) / 100) * 100;
+  // 📊 CALCULS POUR L'AFFICHAGE - Nouvelle formule calibrée (Module 4)
+  const levelProgress = getLevelProgress(userProfile.totalXp);
+  const level = levelProgress.currentLevel;
+  const currentRank = getRankForLevel(level);
+  const xpForNextLevel = levelProgress.xpNeeded;
+  const progressPercent = levelProgress.progress;
 
   // 📊 STATISTIQUES HEADER
   const headerStats = [
-    { 
-      label: "XP Total", 
-      value: userProfile.totalXp.toLocaleString(), 
-      icon: Zap, 
-      color: "text-yellow-400" 
+    {
+      label: "XP Total",
+      value: userProfile.totalXp.toLocaleString(),
+      icon: Zap,
+      color: "text-yellow-400"
     },
-    { 
-      label: "Niveau", 
-      value: level, 
-      icon: Trophy, 
-      color: "text-purple-400" 
+    {
+      label: `${currentRank.icon} ${currentRank.name}`,
+      value: `Niv. ${level}`,
+      icon: Trophy,
+      color: currentRank.textColor
     },
-    { 
-      label: "Badges", 
-      value: userProfile.badges.length, 
-      icon: Award, 
-      color: "text-blue-400" 
+    {
+      label: "Badges",
+      value: userProfile.badges.length,
+      icon: Award,
+      color: "text-blue-400"
     },
-    { 
-      label: "Taux de réussite", 
-      value: `${userProfile.completionRate}%`, 
-      icon: Target, 
-      color: "text-green-400" 
+    {
+      label: "Taux de réussite",
+      value: `${userProfile.completionRate}%`,
+      icon: Target,
+      color: "text-green-400"
     }
   ];
 
@@ -758,26 +771,13 @@ const ProfilePage = () => {
                       </div>
                     )}
 
-                    {/* Progression XP */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-semibold text-white">Progression</h3>
-                        <span className="text-sm text-gray-400">
-                          Niveau {level} • {xpForNextLevel} XP pour le niveau suivant
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-3">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progressPercent}%` }}
-                          transition={{ duration: 1, ease: "easeOut" }}
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full"
-                        />
-                      </div>
-                      <p className="text-sm text-gray-400 mt-2">
-                        {userProfile.totalXp} XP au total
-                      </p>
-                    </div>
+                    {/* 🎖️ Carte de Rang (Module 4) */}
+                    <RankCard
+                      level={level}
+                      totalXP={userProfile.totalXp}
+                      showNextRank={true}
+                      className="mb-6"
+                    />
 
                     {/* Compétences */}
                     {userProfile.skills.length > 0 && (
@@ -835,30 +835,36 @@ const ProfilePage = () => {
 
                 {/* Colonne latérale - Statistiques */}
                 <div className="space-y-6">
-                  
+
+                  {/* 📈 Carte de Progression de Niveau (Module 4) */}
+                  <LevelProgressCard
+                    totalXP={userProfile.totalXp}
+                    compact={true}
+                  />
+
                   {/* Résumé des stats */}
                   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                       <BarChart3 className="w-5 h-5 text-blue-400" />
                       Statistiques
                     </h3>
-                    
+
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Tâches terminées</span>
                         <span className="text-white font-semibold">{userProfile.tasksCompleted}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Projets créés</span>
                         <span className="text-white font-semibold">{userProfile.projectsCreated}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Série actuelle</span>
                         <span className="text-yellow-400 font-semibold">{userProfile.streak} jours</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-gray-400">Membre depuis</span>
                         <span className="text-white font-semibold">
@@ -868,34 +874,17 @@ const ProfilePage = () => {
                     </div>
                   </div>
 
-                  {/* Badges récents */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <Award className="w-5 h-5 text-yellow-400" />
-                      Badges ({userProfile.badges.length})
-                    </h3>
-                    
-                    {userProfile.badges.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-3">
-                        {userProfile.badges.slice(0, 6).map((badge, index) => (
-                          <BadgeCard key={badge.id || index} badge={badge} />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-400 text-center py-4">
-                        Aucun badge obtenu pour le moment
-                      </p>
-                    )}
-                    
-                    {userProfile.badges.length > 6 && (
-                      <button
-                        onClick={() => setActiveTab('gamification')}
-                        className="w-full mt-4 px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 rounded-lg transition-colors text-sm font-medium"
-                      >
-                        Voir tous les badges ({userProfile.badges.length})
-                      </button>
-                    )}
-                  </div>
+                  {/* 🏆 Badges avec Showcase */}
+                  <ProfileBadges
+                    userId={user?.uid}
+                    badges={userProfile.badges}
+                    showcaseBadges={userProfile.showcaseBadges}
+                    isOwnProfile={true}
+                    maxRecentBadges={5}
+                    onShowcaseChange={(newShowcase) => {
+                      setUserProfile(prev => ({ ...prev, showcaseBadges: newShowcase }));
+                    }}
+                  />
 
                   {/* Paramètres rapides */}
                   <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
@@ -1142,40 +1131,92 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET GAMIFICATION ========== */}
             {activeTab === 'gamification' && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
-                  <Award className="w-6 h-6 text-orange-400 mr-3" />
-                  Paramètres de Gamification
-                </h3>
-                
-                <div className="space-y-4">
-                  {[
-                    { key: 'showXP', label: 'Afficher les points XP', icon: Award },
-                    { key: 'showBadges', label: 'Afficher les badges', icon: Shield },
-                    { key: 'publicProfile', label: 'Profil public', icon: Globe },
-                    { key: 'leaderboardVisible', label: 'Visible dans le classement', icon: Trophy }
-                  ].map(({ key, label, icon: Icon }) => (
-                    <div key={key} className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
-                      <div className="flex items-center space-x-3">
-                        <Icon className="w-5 h-5 text-orange-400" />
-                        <span className="text-white font-medium">{label}</span>
-                      </div>
-                      <button
-                        onClick={() => handlePreferenceChange('gamification', key, !formData.preferences.gamification[key])}
-                        className={`
-                          relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                          ${formData.preferences.gamification[key] ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gray-600'}
-                        `}
-                      >
-                        <span
-                          className={`
-                            inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                            ${formData.preferences.gamification[key] ? 'translate-x-6' : 'translate-x-1'}
-                          `}
-                        />
-                      </button>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Colonne principale */}
+                <div className="lg:col-span-2 space-y-8">
+
+                  {/* 🎖️ Carte de Rang complète (Module 4) */}
+                  <RankCard
+                    level={level}
+                    totalXP={userProfile.totalXp}
+                    showNextRank={true}
+                  />
+
+                  {/* 📈 Progression de Niveau détaillée (Module 4) */}
+                  <LevelProgressCard
+                    totalXP={userProfile.totalXp}
+                    showHistory={true}
+                    xpHistory={userProfile.xpHistory || []}
+                  />
+
+                  {/* 🏆 Tous les Rangs de la Guilde (Module 4) */}
+                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                    <AllRanksDisplay currentLevel={level} />
+                  </div>
+
+                  {/* Paramètres de gamification */}
+                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+                    <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+                      <Award className="w-6 h-6 text-orange-400 mr-3" />
+                      Paramètres de Gamification
+                    </h3>
+
+                    <div className="space-y-4">
+                      {[
+                        { key: 'showXP', label: 'Afficher les points XP', icon: Award },
+                        { key: 'showBadges', label: 'Afficher les badges', icon: Shield },
+                        { key: 'publicProfile', label: 'Profil public', icon: Globe },
+                        { key: 'leaderboardVisible', label: 'Visible dans le classement', icon: Trophy }
+                      ].map(({ key, label, icon: Icon }) => (
+                        <div key={key} className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+                          <div className="flex items-center space-x-3">
+                            <Icon className="w-5 h-5 text-orange-400" />
+                            <span className="text-white font-medium">{label}</span>
+                          </div>
+                          <button
+                            onClick={() => handlePreferenceChange('gamification', key, !formData.preferences.gamification[key])}
+                            className={`
+                              relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                              ${formData.preferences.gamification[key] ? 'bg-gradient-to-r from-orange-500 to-red-500' : 'bg-gray-600'}
+                            `}
+                          >
+                            <span
+                              className={`
+                                inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                                ${formData.preferences.gamification[key] ? 'translate-x-6' : 'translate-x-1'}
+                              `}
+                            />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* 🏆 Tous les badges avec Showcase */}
+                  <ProfileBadges
+                    userId={user?.uid}
+                    badges={userProfile.badges}
+                    showcaseBadges={userProfile.showcaseBadges}
+                    isOwnProfile={true}
+                    maxRecentBadges={12}
+                    onShowcaseChange={(newShowcase) => {
+                      setUserProfile(prev => ({ ...prev, showcaseBadges: newShowcase }));
+                    }}
+                  />
+                </div>
+
+                {/* Colonne latérale - Leaderboard */}
+                <div className="space-y-6">
+                  {/* Progression compacte */}
+                  <LevelProgressCard
+                    totalXP={userProfile.totalXp}
+                    compact={true}
+                  />
+
+                  {/* Leaderboard Badges */}
+                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                    <BadgeLeaderboard maxUsers={10} showCurrentUser={true} />
+                  </div>
                 </div>
               </div>
             )}

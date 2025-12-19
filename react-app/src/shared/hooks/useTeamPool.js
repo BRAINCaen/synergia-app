@@ -224,8 +224,15 @@ export const useTeamPool = (options = {}) => {
 
   // 🚀 INITIALISATION AUTOMATIQUE
   useEffect(() => {
-    if (autoInit && isAuthenticated) {
-      initializePool();
+    if (autoInit) {
+      // Initialiser même si pas encore authentifié (avec valeurs par défaut)
+      if (isAuthenticated) {
+        initializePool();
+      } else {
+        // Mettre fin au chargement avec valeurs par défaut si pas authentifié
+        console.log('⚠️ [USE-TEAM-POOL] Non authentifié, valeurs par défaut');
+        setLoading(false);
+      }
     }
   }, [autoInit, isAuthenticated, initializePool]);
 

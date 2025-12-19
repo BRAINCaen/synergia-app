@@ -38,6 +38,7 @@ import { createTaskSafely } from '../../core/services/taskCreationFix.js';
 import storageService from '../../core/services/storageService.js';
 import { db } from '../../core/firebase.js';
 import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { SKILLS, SKILL_BRANCHES } from '../../core/services/skillService.js';
 
 
 /**
@@ -176,7 +177,8 @@ const NewTaskModal = ({
     recurrenceDays: [],
     recurrenceEndDate: '',
     tags: [],
-    attachments: []
+    attachments: [],
+    requiredSkills: []
   });
 
   // Charger les données si mode édition
@@ -201,7 +203,8 @@ const NewTaskModal = ({
         recurrenceDays: task.recurrenceDays || [],
         recurrenceEndDate: task.recurrenceEndDate || '',
         tags: Array.isArray(task.tags) ? task.tags : [],
-        attachments: Array.isArray(task.attachments) ? task.attachments : []
+        attachments: Array.isArray(task.attachments) ? task.attachments : [],
+        requiredSkills: Array.isArray(task.requiredSkills) ? task.requiredSkills : []
       });
     }
   }, [task, mode]);
@@ -371,6 +374,7 @@ const NewTaskModal = ({
         recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? formData.recurrenceEndDate : null,
         tags: Array.isArray(formData.tags) ? formData.tags : [],
         attachments: attachments,
+        requiredSkills: Array.isArray(formData.requiredSkills) ? formData.requiredSkills : [],
         createdBy: user.uid,
         createdByName: user.displayName || user.email || 'Utilisateur',
         assignedTo: []
@@ -618,9 +622,93 @@ const NewTaskModal = ({
                 </select>
               </div>
 
+              {/* 🌳 Compétences requises */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Zap className="w-4 h-4 inline mr-2 text-purple-600" />
+                  Compétences développées (optionnel)
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Sélectionnez les compétences que cette quête permet de développer. L'XP sera distribué automatiquement.
+                </p>
+
+                <div className="space-y-3 max-h-64 overflow-y-auto border-2 border-gray-200 rounded-xl p-3">
+                  {Object.entries(SKILL_BRANCHES).map(([branchId, branch]) => (
+                    <div key={branchId} className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <span>{branch.emoji}</span>
+                        <span>{branch.name}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pl-6">
+                        {branch.skills?.map(skillId => {
+                          const skill = SKILLS[skillId];
+                          if (!skill) return null;
+
+                          const isSelected = formData.requiredSkills.includes(skillId);
+
+                          return (
+                            <button
+                              key={skillId}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  requiredSkills: isSelected
+                                    ? prev.requiredSkills.filter(id => id !== skillId)
+                                    : [...prev.requiredSkills, skillId]
+                                }));
+                              }}
+                              className={`
+                                flex items-center gap-2 p-2 rounded-lg text-left text-sm transition-all
+                                ${isSelected
+                                  ? 'bg-purple-100 border-2 border-purple-500 text-purple-700'
+                                  : 'bg-gray-50 border-2 border-transparent hover:border-gray-300 text-gray-600'
+                                }
+                              `}
+                            >
+                              <span>{skill.emoji}</span>
+                              <span className="truncate">{skill.name}</span>
+                              {isSelected && <CheckCircle className="w-4 h-4 ml-auto text-purple-600" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Afficher les skills sélectionnés */}
+                {formData.requiredSkills.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="text-xs text-gray-500">Sélectionnés :</span>
+                    {formData.requiredSkills.map(skillId => {
+                      const skill = SKILLS[skillId];
+                      return skill ? (
+                        <span
+                          key={skillId}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs"
+                        >
+                          {skill.emoji} {skill.name}
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              requiredSkills: prev.requiredSkills.filter(id => id !== skillId)
+                            }))}
+                            className="hover:text-purple-900"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
+
                 {/* Date d'échéance */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -695,6 +783,164 @@ const NewTaskModal = ({
                   </div>
                 </label>
               </div>
+
+              {/* 🔄 Options de récurrence détaillées */}
+              {formData.isRecurring && (
+                <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 space-y-4">
+                  <h4 className="text-sm font-bold text-indigo-700 flex items-center gap-2">
+                    <Repeat className="w-4 h-4" />
+                    Configuration de la récurrence
+                  </h4>
+
+                  {/* Type de récurrence */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Type de répétition
+                      </label>
+                      <select
+                        name="recurrenceType"
+                        value={formData.recurrenceType}
+                        onChange={handleInputChange}
+                        className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 transition-all"
+                      >
+                        <option value="daily">Tous les jours</option>
+                        <option value="weekly">Chaque semaine</option>
+                        <option value="biweekly">Toutes les 2 semaines</option>
+                        <option value="monthly">Chaque mois</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Intervalle
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">Tous les</span>
+                        <input
+                          type="number"
+                          name="recurrenceInterval"
+                          value={formData.recurrenceInterval}
+                          onChange={handleInputChange}
+                          min="1"
+                          max="30"
+                          className="w-20 p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 transition-all text-center"
+                        />
+                        <span className="text-sm text-gray-600">
+                          {formData.recurrenceType === 'daily' && 'jour(s)'}
+                          {formData.recurrenceType === 'weekly' && 'semaine(s)'}
+                          {formData.recurrenceType === 'biweekly' && 'quinzaine(s)'}
+                          {formData.recurrenceType === 'monthly' && 'mois'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Jours de la semaine (pour weekly/biweekly) */}
+                  {(formData.recurrenceType === 'weekly' || formData.recurrenceType === 'biweekly') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Jours de la semaine
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: 'monday', label: 'Lun', full: 'Lundi' },
+                          { id: 'tuesday', label: 'Mar', full: 'Mardi' },
+                          { id: 'wednesday', label: 'Mer', full: 'Mercredi' },
+                          { id: 'thursday', label: 'Jeu', full: 'Jeudi' },
+                          { id: 'friday', label: 'Ven', full: 'Vendredi' },
+                          { id: 'saturday', label: 'Sam', full: 'Samedi' },
+                          { id: 'sunday', label: 'Dim', full: 'Dimanche' }
+                        ].map(day => {
+                          const isSelected = formData.recurrenceDays.includes(day.id);
+                          return (
+                            <button
+                              key={day.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  recurrenceDays: isSelected
+                                    ? prev.recurrenceDays.filter(d => d !== day.id)
+                                    : [...prev.recurrenceDays, day.id]
+                                }));
+                              }}
+                              className={`
+                                px-4 py-2 rounded-lg font-medium text-sm transition-all
+                                ${isSelected
+                                  ? 'bg-indigo-600 text-white shadow-md'
+                                  : 'bg-white text-gray-600 border-2 border-gray-200 hover:border-indigo-300'
+                                }
+                              `}
+                              title={day.full}
+                            >
+                              {day.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {formData.recurrenceDays.length === 0 && (
+                        <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Sélectionnez au moins un jour
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Date de fin de récurrence */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Date de fin (optionnel)
+                    </label>
+                    <input
+                      type="date"
+                      name="recurrenceEndDate"
+                      value={formData.recurrenceEndDate}
+                      onChange={handleInputChange}
+                      className="w-full md:w-64 p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 transition-all"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Laissez vide pour une récurrence sans fin
+                    </p>
+                  </div>
+
+                  {/* Résumé de la récurrence */}
+                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                    <p className="text-sm text-indigo-700">
+                      <strong>📅 Résumé :</strong>{' '}
+                      {formData.recurrenceType === 'daily' && (
+                        <>Cette quête sera recréée tous les {formData.recurrenceInterval > 1 ? `${formData.recurrenceInterval} jours` : 'jours'}</>
+                      )}
+                      {formData.recurrenceType === 'weekly' && formData.recurrenceDays.length > 0 && (
+                        <>
+                          Cette quête sera recréée chaque{' '}
+                          {formData.recurrenceDays.map(d => {
+                            const dayNames = { monday: 'lundi', tuesday: 'mardi', wednesday: 'mercredi', thursday: 'jeudi', friday: 'vendredi', saturday: 'samedi', sunday: 'dimanche' };
+                            return dayNames[d];
+                          }).join(', ')}
+                          {formData.recurrenceInterval > 1 && ` (toutes les ${formData.recurrenceInterval} semaines)`}
+                        </>
+                      )}
+                      {formData.recurrenceType === 'biweekly' && formData.recurrenceDays.length > 0 && (
+                        <>
+                          Cette quête sera recréée toutes les 2 semaines le{' '}
+                          {formData.recurrenceDays.map(d => {
+                            const dayNames = { monday: 'lundi', tuesday: 'mardi', wednesday: 'mercredi', thursday: 'jeudi', friday: 'vendredi', saturday: 'samedi', sunday: 'dimanche' };
+                            return dayNames[d];
+                          }).join(', ')}
+                        </>
+                      )}
+                      {formData.recurrenceType === 'monthly' && (
+                        <>Cette quête sera recréée tous les {formData.recurrenceInterval > 1 ? `${formData.recurrenceInterval} mois` : 'mois'}</>
+                      )}
+                      {formData.recurrenceEndDate && (
+                        <> jusqu'au {new Date(formData.recurrenceEndDate).toLocaleDateString('fr-FR')}</>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Tags */}
               <div>

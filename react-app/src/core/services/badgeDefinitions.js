@@ -435,6 +435,256 @@ export const BADGE_DEFINITIONS = {
     condition: (stats) => {
       return stats.innovationImpact >= 95 && stats.adoptedInnovations >= 1;
     }
+  },
+
+  // 💖 BADGES BOOST - ENCOURAGEMENT D'ÉQUIPE
+  first_boost: {
+    id: 'first_boost',
+    name: 'Premier Encouragement',
+    description: 'Envoyer son premier Boost à un collègue',
+    icon: '💖',
+    rarity: 'common',
+    category: 'boost',
+    xpReward: 15,
+    condition: (stats) => {
+      return stats.boostsSent >= 1;
+    }
+  },
+
+  boost_giver: {
+    id: 'boost_giver',
+    name: 'Donneur d\'Énergie',
+    description: 'Envoyer 10 Boosts à ses collègues',
+    icon: '⚡',
+    rarity: 'uncommon',
+    category: 'boost',
+    xpReward: 50,
+    condition: (stats) => {
+      return stats.boostsSent >= 10;
+    }
+  },
+
+  boost_champion: {
+    id: 'boost_champion',
+    name: 'Champion du Boost',
+    description: 'Envoyer 50 Boosts à ses collègues',
+    icon: '🌟',
+    rarity: 'rare',
+    category: 'boost',
+    xpReward: 150,
+    condition: (stats) => {
+      return stats.boostsSent >= 50;
+    }
+  },
+
+  boost_legend: {
+    id: 'boost_legend',
+    name: 'Légende du Boost',
+    description: 'Envoyer 100 Boosts - Un vrai motivateur !',
+    icon: '👑',
+    rarity: 'epic',
+    category: 'boost',
+    xpReward: 300,
+    condition: (stats) => {
+      return stats.boostsSent >= 100;
+    }
+  },
+
+  boost_received_first: {
+    id: 'boost_received_first',
+    name: 'Première Étoile',
+    description: 'Recevoir son premier Boost',
+    icon: '✨',
+    rarity: 'common',
+    category: 'boost',
+    xpReward: 10,
+    condition: (stats) => {
+      return stats.boostsReceived >= 1;
+    }
+  },
+
+  boost_popular: {
+    id: 'boost_popular',
+    name: 'Populaire',
+    description: 'Recevoir 25 Boosts de ses collègues',
+    icon: '🔥',
+    rarity: 'rare',
+    category: 'boost',
+    xpReward: 100,
+    condition: (stats) => {
+      return stats.boostsReceived >= 25;
+    }
+  },
+
+  boost_superstar: {
+    id: 'boost_superstar',
+    name: 'Superstar',
+    description: 'Recevoir 100 Boosts - Tout le monde t\'adore !',
+    icon: '🌈',
+    rarity: 'legendary',
+    category: 'boost',
+    xpReward: 500,
+    condition: (stats) => {
+      return stats.boostsReceived >= 100;
+    }
+  },
+
+  // 🎯 BADGES DÉFIS PERSONNELS
+  first_challenge: {
+    id: 'first_challenge',
+    name: 'Premier Défi',
+    description: 'Proposer son premier défi personnel',
+    icon: '🎯',
+    rarity: 'common',
+    category: 'challenges',
+    xpReward: 20,
+    condition: (stats) => {
+      return stats.challengesCreated >= 1;
+    }
+  },
+
+  challenge_completer: {
+    id: 'challenge_completer',
+    name: 'Défi Relevé',
+    description: 'Compléter son premier défi personnel',
+    icon: '🏅',
+    rarity: 'uncommon',
+    category: 'challenges',
+    xpReward: 50,
+    condition: (stats) => {
+      return stats.challengesCompleted >= 1;
+    }
+  },
+
+  challenge_warrior: {
+    id: 'challenge_warrior',
+    name: 'Guerrier des Défis',
+    description: 'Compléter 5 défis personnels',
+    icon: '⚔️',
+    rarity: 'rare',
+    category: 'challenges',
+    xpReward: 150,
+    condition: (stats) => {
+      return stats.challengesCompleted >= 5;
+    }
+  },
+
+  challenge_master: {
+    id: 'challenge_master',
+    name: 'Maître des Défis',
+    description: 'Compléter 15 défis personnels',
+    icon: '🏆',
+    rarity: 'epic',
+    category: 'challenges',
+    xpReward: 350,
+    condition: (stats) => {
+      return stats.challengesCompleted >= 15;
+    }
+  },
+
+  challenge_legend: {
+    id: 'challenge_legend',
+    name: 'Légende des Défis',
+    description: 'Compléter 50 défis personnels',
+    icon: '👑',
+    rarity: 'legendary',
+    category: 'challenges',
+    xpReward: 1000,
+    condition: (stats) => {
+      return stats.challengesCompleted >= 50;
+    }
+  },
+
+  hard_challenge_completer: {
+    id: 'hard_challenge_completer',
+    name: 'Courageux',
+    description: 'Compléter un défi difficile',
+    icon: '💪',
+    rarity: 'rare',
+    category: 'challenges',
+    xpReward: 100,
+    condition: (stats) => {
+      return stats.hardChallengesCompleted >= 1;
+    }
+  },
+
+  // ⚔️ BADGES CAMPAGNES
+  first_campaign: {
+    id: 'first_campaign',
+    name: 'Première Campagne',
+    description: 'Participer à sa première campagne',
+    icon: '🏰',
+    rarity: 'common',
+    category: 'campaigns',
+    xpReward: 25,
+    condition: (stats) => {
+      return stats.campaignsJoined >= 1;
+    }
+  },
+
+  campaign_veteran: {
+    id: 'campaign_veteran',
+    name: 'Vétéran de Campagne',
+    description: 'Participer à 5 campagnes différentes',
+    icon: '⚔️',
+    rarity: 'uncommon',
+    category: 'campaigns',
+    xpReward: 100,
+    condition: (stats) => {
+      return stats.campaignsJoined >= 5;
+    }
+  },
+
+  campaign_winner: {
+    id: 'campaign_winner',
+    name: 'Victorieux',
+    description: 'Terminer une campagne avec succès',
+    icon: '🏆',
+    rarity: 'rare',
+    category: 'campaigns',
+    xpReward: 200,
+    condition: (stats) => {
+      return stats.campaignsCompleted >= 1;
+    }
+  },
+
+  campaign_conqueror: {
+    id: 'campaign_conqueror',
+    name: 'Conquérant',
+    description: 'Terminer 5 campagnes avec succès',
+    icon: '👑',
+    rarity: 'epic',
+    category: 'campaigns',
+    xpReward: 500,
+    condition: (stats) => {
+      return stats.campaignsCompleted >= 5;
+    }
+  },
+
+  campaign_leader: {
+    id: 'campaign_leader',
+    name: 'Meneur de Campagne',
+    description: 'Créer et mener une campagne jusqu\'à la victoire',
+    icon: '🎖️',
+    rarity: 'epic',
+    category: 'campaigns',
+    xpReward: 400,
+    condition: (stats) => {
+      return stats.campaignsLed >= 1;
+    }
+  },
+
+  campaign_legend: {
+    id: 'campaign_legend',
+    name: 'Légende des Campagnes',
+    description: 'Mener 10 campagnes victorieuses',
+    icon: '🌟',
+    rarity: 'legendary',
+    category: 'campaigns',
+    xpReward: 1500,
+    condition: (stats) => {
+      return stats.campaignsLed >= 10;
+    }
   }
 };
 
@@ -459,7 +709,10 @@ export const BADGE_STATS = {
     engagement: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'engagement').length,
     synergia_roles: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'synergia_roles').length,
     special: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'special').length,
-    excellence: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'excellence').length
+    excellence: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'excellence').length,
+    boost: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'boost').length,
+    challenges: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'challenges').length,
+    campaigns: Object.values(BADGE_DEFINITIONS).filter(b => b.category === 'campaigns').length
   },
   totalXpAvailable: Object.values(BADGE_DEFINITIONS).reduce((total, badge) => total + badge.xpReward, 0)
 };

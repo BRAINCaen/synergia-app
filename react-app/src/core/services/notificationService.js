@@ -26,25 +26,34 @@ import { db } from '../firebase.js';
  * 🔔 TYPES DE NOTIFICATIONS
  */
 const NOTIFICATION_TYPES = {
-  // Quêtes
+  // Quêtes/Tâches
   QUEST_VALIDATION_PENDING: 'quest_validation_pending',
   QUEST_APPROVED: 'quest_approved',
   QUEST_REJECTED: 'quest_rejected',
   QUEST_ASSIGNED: 'quest_assigned',
-  
+  TASK_ASSIGNED: 'task_assigned',
+
   // XP et Gamification
   XP_EARNED: 'xp_earned',
   LEVEL_UP: 'level_up',
   BADGE_EARNED: 'badge_earned',
-  
+
+  // Boosts (micro-feedback entre collègues)
+  BOOST_RECEIVED: 'boost_received',
+
   // Infos d'équipe
   NEW_INFO: 'new_info',
-  
+
   // Récompenses
   REWARD_REQUESTED: 'reward_requested',
   REWARD_APPROVED: 'reward_approved',
   REWARD_REJECTED: 'reward_rejected',
-  
+
+  // Cagnotte équipe
+  POOL_CONTRIBUTION: 'pool_contribution',
+  POOL_LEVEL_UP: 'pool_level_up',
+  POOL_REWARD_PURCHASED: 'pool_reward_purchased',
+
   // Système
   SYSTEM: 'system',
   MENTION: 'mention'
@@ -513,6 +522,41 @@ class NotificationService {
   }
 
   // ==========================================
+  // ⚡ NOTIFICATIONS BOOST
+  // ==========================================
+
+  /**
+   * ⚡ NOTIFIER UN BOOST REÇU
+   */
+  async notifyBoostReceived(userId, data) {
+    try {
+      const { boostId, boostType, boostEmoji, boostLabel, fromUserName, message, xpAmount } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.BOOST_RECEIVED,
+        title: `${boostEmoji} Boost reçu !`,
+        message: `${fromUserName} vous a envoyé un Boost ${boostLabel}${message ? ` : "${message}"` : ''} (+${xpAmount} XP)`,
+        icon: boostEmoji || '⚡',
+        link: '/boosts',
+        data: {
+          boostId,
+          boostType,
+          fromUserName,
+          xpAmount
+        },
+        priority: 'high'
+      });
+
+      console.log(`⚡ [NOTIF] Utilisateur ${userId} notifié - boost reçu de ${fromUserName}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification boost:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ==========================================
   // 📢 NOTIFICATIONS INFOS D'ÉQUIPE
   // ==========================================
 
@@ -638,6 +682,125 @@ class NotificationService {
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification récompense refusée:', error);
       return { success: false };
+    }
+  }
+
+  // ==========================================
+  // 💰 NOTIFICATIONS CAGNOTTE ÉQUIPE
+  // ==========================================
+
+  /**
+   * 💰 NOTIFIER UNE CONTRIBUTION SIGNIFICATIVE À LA CAGNOTTE
+   * Note: Seulement pour contributions manuelles importantes (>= 200 XP)
+   */
+  async notifyPoolContribution(data) {
+    try {
+      const { contributorId, contributorName, amount, newPoolTotal, newLevel } = data;
+
+      // Ne notifier que pour contributions significatives
+      if (amount < 200) {
+        return { success: true, skipped: true, reason: 'contribution_too_small' };
+      }
+
+      // Récupérer tous les utilisateurs sauf le contributeur
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      const notificationPromises = usersSnapshot.docs
+        .filter(userDoc => userDoc.id !== contributorId)
+        .map(userDoc =>
+          this.createNotification({
+            userId: userDoc.id,
+            type: NOTIFICATION_TYPES.POOL_CONTRIBUTION,
+            title: '💰 Contribution à la cagnotte !',
+            message: `${contributorName} a contribué ${amount} XP à la cagnotte d'équipe ! Total: ${newPoolTotal} XP`,
+            icon: '💰',
+            link: '/rewards',
+            data: { contributorId, contributorName, amount, newPoolTotal },
+            priority: 'medium'
+          })
+        );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${usersSnapshot.size - 1} utilisateurs notifiés de la contribution`);
+
+      return { success: true, count: usersSnapshot.size - 1 };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification contribution pool:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🎉 NOTIFIER UN CHANGEMENT DE NIVEAU DE LA CAGNOTTE
+   */
+  async notifyPoolLevelUp(data) {
+    try {
+      const { newLevel, previousLevel, totalXP } = data;
+
+      const levelEmojis = {
+        BRONZE: '🥉',
+        SILVER: '🥈',
+        GOLD: '🥇',
+        PLATINUM: '💎',
+        DIAMOND: '💠'
+      };
+
+      // Notifier tous les utilisateurs
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      const notificationPromises = usersSnapshot.docs.map(userDoc =>
+        this.createNotification({
+          userId: userDoc.id,
+          type: NOTIFICATION_TYPES.POOL_LEVEL_UP,
+          title: `${levelEmojis[newLevel] || '🏆'} Cagnotte niveau ${newLevel} !`,
+          message: `La cagnotte d'équipe a atteint le niveau ${newLevel} avec ${totalXP} XP ! De nouvelles récompenses sont disponibles.`,
+          icon: levelEmojis[newLevel] || '🏆',
+          link: '/rewards',
+          data: { newLevel, previousLevel, totalXP },
+          priority: 'high'
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${usersSnapshot.size} utilisateurs notifiés du level up cagnotte`);
+
+      return { success: true, count: usersSnapshot.size };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification pool level up:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🛒 NOTIFIER UN ACHAT DE RÉCOMPENSE D'ÉQUIPE
+   */
+  async notifyPoolRewardPurchased(data) {
+    try {
+      const { rewardName, rewardIcon, cost, purchasedByName } = data;
+
+      // Notifier tous les utilisateurs
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      const notificationPromises = usersSnapshot.docs.map(userDoc =>
+        this.createNotification({
+          userId: userDoc.id,
+          type: NOTIFICATION_TYPES.POOL_REWARD_PURCHASED,
+          title: `${rewardIcon || '🎁'} Récompense d'équipe débloquée !`,
+          message: `L'équipe a débloqué "${rewardName}" pour ${cost} XP ! Merci ${purchasedByName} !`,
+          icon: rewardIcon || '🎁',
+          link: '/rewards',
+          data: { rewardName, cost, purchasedByName },
+          priority: 'high'
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${usersSnapshot.size} utilisateurs notifiés de l'achat d'équipe`);
+
+      return { success: true, count: usersSnapshot.size };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification achat équipe:', error);
+      return { success: false, error: error.message };
     }
   }
 }

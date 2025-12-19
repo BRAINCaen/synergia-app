@@ -5,6 +5,7 @@
 
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel } from './levelService.js';
 
 /**
  * 🔧 SERVICE DE SAUVEGARDE ONBOARDING
@@ -119,9 +120,9 @@ class OnboardingSavePatch {
         const currentTasks = userData.gamification?.tasksCompleted || 0;
         const currentLevel = userData.gamification?.level || 1;
         
-        // Calculer nouveau niveau
+        // Calculer nouveau niveau (système calibré)
         const newTotalXp = currentXp + earnedXp;
-        const newLevel = Math.floor(newTotalXp / 100) + 1;
+        const newLevel = calculateLevel(newTotalXp);
         
         const updates = {
           'gamification.totalXp': newTotalXp,

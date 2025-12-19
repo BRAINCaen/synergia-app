@@ -7,6 +7,7 @@ import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } fro
 import { db } from '../firebase.js';
 import gameService from './gameService.js';
 import userService from './userService.js';
+import { calculateLevel, getXPProgress } from './levelService.js';
 
 /**
  * 📊 SERVICE DE GESTION DE PROGRESSION UTILISATEUR
@@ -316,9 +317,10 @@ class UserProgressService {
       const currentXP = progressData.experience || 0;
       const newXP = currentXP + xpToAdd;
       
-      // Calculer le nouveau niveau (100 XP par niveau)
-      const newLevel = Math.floor(newXP / 100) + 1;
-      const experienceToNext = 100 - (newXP % 100);
+      // Calculer le nouveau niveau (système calibré)
+      const newLevel = calculateLevel(newXP);
+      const progress = getXPProgress(newXP);
+      const experienceToNext = progress.xpToNextLevel;
 
       progressData.experience = newXP;
       progressData.level = newLevel;

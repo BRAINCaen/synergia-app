@@ -5,6 +5,7 @@
 
 import { doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { calculateLevel } from '../core/services/levelService.js';
 
 /**
  * 🚀 CORRECTIF IMMÉDIAT DES INCOHÉRENCES
@@ -53,7 +54,7 @@ export const quickFixUserData = async (userId = 'alan.boehme61@gmail.com') => {
         totalXp: 175,                    // ✅ VALEUR UNIFIÉE
         weeklyXp: 25,
         monthlyXp: 175,
-        level: 2,                        // ✅ Calculé : Math.floor(175/100) + 1 = 2
+        level: 2,                        // ✅ Calculé via calculateLevel(175) - nouveau système
         
         // Statistiques tâches réelles
         tasksCompleted: 7,               // ✅ VALEUR UNIFIÉE
@@ -167,7 +168,7 @@ export const validateDataConsistency = async (userId) => {
     // Vérifications de cohérence
     const checks = {
       hasGamificationStructure: !!data.gamification,
-      levelMatchesXP: gamification.level === Math.floor((gamification.totalXp || 0) / 100) + 1,
+      levelMatchesXP: gamification.level === calculateLevel(gamification.totalXp || 0),
       hasValidXP: typeof gamification.totalXp === 'number' && gamification.totalXp >= 0,
       hasValidLevel: typeof gamification.level === 'number' && gamification.level >= 1,
       hasProfile: !!data.profile,

@@ -3,15 +3,18 @@
 // Service Gamification COMPLET - Version Corrigée
 // ==========================================
 
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   onSnapshot,
-  serverTimestamp 
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel as calcLevel, getXPForLevel as getXPForLvl } from './levelService.js';
+// 🔔 IMPORT NOTIFICATION SERVICE
+import { notificationService } from './notificationService.js';
 
 class GameService {
   constructor() {
@@ -128,7 +131,7 @@ class GameService {
     }
   }
 
-  // 🏆 Gérer le passage de niveau - VERSION CORRIGÉE
+  // 🏆 Gérer le passage de niveau - VERSION CORRIGÉE + NOTIFICATIONS
   async handleLevelUp(userId, newLevel, previousLevel) {
     try {
       // Badge de niveau automatique
@@ -143,9 +146,20 @@ class GameService {
       };
 
       await this.unlockBadge(userId, levelBadge);
-      
+
+      // 🔔 NOTIFICATION LEVEL UP
+      try {
+        await notificationService.notifyLevelUp(userId, {
+          newLevel,
+          previousLevel
+        });
+        console.log(`🔔 [NOTIF] Level up notification envoyée: ${previousLevel} → ${newLevel}`);
+      } catch (notifError) {
+        console.warn('⚠️ Erreur notification level up (non bloquant):', notifError);
+      }
+
       console.log(`🎉 LEVEL UP! ${previousLevel} → ${newLevel}`);
-      
+
       return {
         levelUp: true,
         newLevel,
@@ -158,11 +172,11 @@ class GameService {
     }
   }
 
-  // 🏅 Débloquer un badge - VERSION CORRIGÉE
+  // 🏅 Débloquer un badge - VERSION CORRIGÉE + NOTIFICATIONS
   async unlockBadge(userId, badge) {
     try {
       const currentData = await this.getUserGameData(userId);
-      
+
       // Vérifier si le badge n'est pas déjà débloqué
       const existingBadge = currentData.badges?.find(b => b.id === badge.id);
       if (existingBadge) {
@@ -183,6 +197,21 @@ class GameService {
         badges: updatedBadges,
         updatedAt: serverTimestamp() // ✅ serverTimestamp() OK ici (pas dans array)
       });
+
+      // 🔔 NOTIFICATION BADGE (sauf pour badges de niveau - éviter doublon)
+      if (!badge.category?.includes('level')) {
+        try {
+          await notificationService.notifyBadgeEarned(userId, {
+            badgeId: badge.id,
+            badgeName: badge.name,
+            badgeIcon: badge.icon || '🏆',
+            badgeDescription: badge.description
+          });
+          console.log(`🔔 [NOTIF] Badge notification envoyée: ${badge.name}`);
+        } catch (notifError) {
+          console.warn('⚠️ Erreur notification badge (non bloquant):', notifError);
+        }
+      }
 
       console.log('🏅 Nouveau badge débloqué:', badge.name);
       return true;
@@ -258,16 +287,15 @@ class GameService {
   }
 
   // 🧮 Calculer le niveau basé sur l'XP total
+  // Utilise le nouveau système de niveaux calibré (~1000 XP/mois, ~4 ans max)
   calculateLevel(totalXP) {
-    // Formule: niveau = floor(sqrt(totalXP / 100))
-    // Niveau 1: 100 XP, Niveau 2: 400 XP, Niveau 3: 900 XP, etc.
-    return Math.floor(Math.sqrt(totalXP / 100)) + 1;
+    return calcLevel(totalXP);
   }
 
   // 📈 Calculer l'XP nécessaire pour le prochain niveau
+  // Utilise le nouveau système de niveaux calibré
   getXPForNextLevel(currentLevel) {
-    const nextLevel = currentLevel + 1;
-    return Math.pow(nextLevel - 1, 2) * 100;
+    return getXPForLvl(currentLevel + 1);
   }
 
   // 🎨 Déterminer la rareté d'un niveau

@@ -3,19 +3,20 @@
 // SERVICE DE SYNCHRONISATION XP DASHBOARD - CORRECTION CRITIQUE
 // ==========================================
 
-import { 
-  doc, 
-  getDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  updateDoc,
   writeBatch,
   serverTimestamp,
   collection,
   query,
   where,
   getDocs,
-  onSnapshot 
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { calculateLevel } from './levelService.js';
 
 /**
  * 🚨 SERVICE DE SYNCHRONISATION XP DASHBOARD
@@ -104,8 +105,8 @@ class XpDashboardSyncFix {
       ...gamificationData
     };
     
-    // Recalculer le niveau basé sur l'XP total
-    const calculatedLevel = Math.floor(corrected.totalXp / 100) + 1;
+    // Recalculer le niveau basé sur l'XP total (système calibré)
+    const calculatedLevel = calculateLevel(corrected.totalXp);
     if (corrected.level !== calculatedLevel) {
       console.log(`🔧 [XP-SYNC] Niveau recalculé: ${corrected.level} → ${calculatedLevel}`);
       corrected.level = calculatedLevel;
@@ -177,7 +178,7 @@ class XpDashboardSyncFix {
       // 2. Calculer les XP d'intégration (78 tâches = 590 XP + bonus)
       const integrationXp = 590;
       const totalXp = (currentGamification.totalXp || 0) + integrationXp;
-      const newLevel = Math.floor(totalXp / 100) + 1;
+      const newLevel = calculateLevel(totalXp);
       
       // 3. Mise à jour complète
       const updates = {

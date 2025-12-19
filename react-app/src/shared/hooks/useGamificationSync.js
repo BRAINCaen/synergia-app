@@ -6,11 +6,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore.js';
-import { 
-  collection, query, where, orderBy, onSnapshot, 
-  doc, getDoc, getDocs, updateDoc, serverTimestamp 
+import {
+  collection, query, where, orderBy, onSnapshot,
+  doc, getDoc, getDocs, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
+import { calculateLevel, getXPForLevel, getXPProgress } from '../../core/services/levelService.js';
 
 /**
  * 🎮 HOOK CENTRAL GAMIFICATION
@@ -64,13 +65,14 @@ export const useGamificationSync = () => {
           const userData = snapshot.data();
           const gamification = userData.gamification || {};
 
-          // Calculer les données dérivées
+          // Calculer les données dérivées avec le nouveau système de niveau
           const totalXP = gamification.totalXp || 0;
-          const level = Math.floor(totalXP / 100) + 1;
-          const currentLevelXP = (level - 1) * 100;
-          const nextLevelXP = level * 100;
-          const progressXP = totalXP - currentLevelXP;
-          const progressPercent = (progressXP / 100) * 100;
+          const level = calculateLevel(totalXP);
+          const xpProgress = getXPProgress(totalXP);
+          const currentLevelXP = xpProgress.currentLevelXP;
+          const nextLevelXP = xpProgress.nextLevelXP;
+          const progressXP = xpProgress.progressXP;
+          const progressPercent = xpProgress.progressPercent;
 
           const enrichedData = {
             // XP et Niveau
@@ -215,7 +217,7 @@ export const useGamificationSync = () => {
           photoURL: data.photoURL,
           email: data.email,
           totalXp: gamification.totalXp || 0,
-          level: Math.floor((gamification.totalXp || 0) / 100) + 1,
+          level: calculateLevel(gamification.totalXp || 0),
           badges: (gamification.badges || []).length,
           tasksCompleted: gamification.tasksCompleted || 0
         });

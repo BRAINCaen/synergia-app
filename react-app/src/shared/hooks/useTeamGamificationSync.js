@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
+import { calculateLevel } from '../../core/services/levelService.js';
 
 /**
  * 🎮 HOOK POUR SYNCHRONISER LES XP DE PLUSIEURS UTILISATEURS
@@ -57,12 +58,12 @@ export const useTeamGamificationSync = (userIds = []) => {
 
           console.log(`🔄 [TEAM-GAMIF-SYNC] XP mis à jour pour ${userId}: ${totalXp} XP`);
 
-          // Mettre à jour la Map
+          // Mettre à jour la Map avec le nouveau système de niveaux calibré
           setUsersGamification(prev => {
             const newMap = new Map(prev);
             newMap.set(userId, {
               totalXp: totalXp,
-              level: Math.floor(totalXp / 100) + 1,
+              level: calculateLevel(totalXp),
               weeklyXp: gamification.weeklyXp || 0,
               monthlyXp: gamification.monthlyXp || 0,
               badges: gamification.badges || [],

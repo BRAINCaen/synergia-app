@@ -59,6 +59,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { calculateLevel } from '../core/services/levelService.js';
 
 // ✅ IMPORT DU SERVICE TEAM POOL POUR CONTRIBUTION AUTOMATIQUE
 import teamPoolService from '../core/services/teamPoolService.js';
@@ -343,7 +344,7 @@ const AdminTaskValidationPage = () => {
           const currentSpendableXP = gamification.spendableXp || currentXP;
           newTotalXP = currentXP + xpToAdd;
           newSpendableXP = currentSpendableXP + xpToAdd;
-          newLevel = Math.floor(newTotalXP / 100) + 1;
+          newLevel = calculateLevel(newTotalXP);
           const currentTasksCompleted = gamification.tasksCompleted || 0;
           
           console.log(`🎯 Attribution XP (2 compteurs):`, {
@@ -433,8 +434,8 @@ const AdminTaskValidationPage = () => {
       // ✅ 5. CONTRIBUTION DIRECTE AU POOL ÉQUIPE
       try {
         console.log('💰 Contribution directe au pool équipe...');
-        const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
-        console.log(`💰 Contribution calculée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+        const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.2));
+        console.log(`💰 Contribution calculée: ${contributionAmount} XP (20% de ${xpToAdd})`);
         
         const poolResult = await teamPoolService.contributeToPool(
           odot,
@@ -586,7 +587,7 @@ const AdminTaskValidationPage = () => {
         const xpToAdd = parseInt(editedXp);
         const newTotalXP = currentXP + xpToAdd;
         const newSpendableXP = currentSpendableXP + xpToAdd;
-        const newLevel = Math.floor(newTotalXP / 100) + 1;
+        const newLevel = calculateLevel(newTotalXP);
         
         console.log(`🎯 Force XP (2 compteurs):`, {
           odot,
@@ -660,8 +661,8 @@ const AdminTaskValidationPage = () => {
         
         // ✅ CONTRIBUTION AU POOL ÉQUIPE
         try {
-          const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.05));
-          console.log(`💰 Contribution forcée: ${contributionAmount} XP (5% de ${xpToAdd})`);
+          const contributionAmount = Math.max(1, Math.round(xpToAdd * 0.2));
+          console.log(`💰 Contribution forcée: ${contributionAmount} XP (20% de ${xpToAdd})`);
           
           await teamPoolService.contributeToPool(
             odot,

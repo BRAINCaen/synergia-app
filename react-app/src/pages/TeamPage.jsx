@@ -16,14 +16,17 @@ import {
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
 import Layout from '../components/layout/Layout.jsx';
 
+// 🚀 IMPORT DU SYSTÈME BOOST
+import { BoostButton } from '../components/boost';
+
 // 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy, 
-  limit, 
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
   where,
   addDoc,
   serverTimestamp,
@@ -35,6 +38,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import { useTeamGamificationSync } from '../shared/hooks/useTeamGamificationSync.js';
+import { calculateLevel, getXPProgress } from '../core/services/levelService.js';
 
 /**
  * 🏢 PAGE ÉQUIPE AVEC PILOTAGE ADMIN
@@ -94,27 +98,30 @@ const TeamPage = () => {
 // 🔄 METTRE À JOUR LES XP QUAND LE STORE CHANGE
 useEffect(() => {
   if (usersGamification.size === 0) return;
-  
+
   console.log('🔄 [TEAM] Mise à jour XP depuis la synchronisation temps réel...');
-  
-  setTeamMembers(prev => 
+
+  setTeamMembers(prev =>
     prev.map(member => {
       const gamifData = getUserXp(member.id);
       if (!gamifData) return member;
-      
+
       console.log(`✅ [TEAM] MAJ ${member.name}: ${gamifData.totalXp} XP`);
-      
+
+      // Utiliser le nouveau système de niveaux calibré
+      const progress = getXPProgress(gamifData.totalXp);
+
       return {
         ...member,
         totalXp: gamifData.totalXp,
-        level: gamifData.level,
+        level: calculateLevel(gamifData.totalXp),
         weeklyXp: gamifData.weeklyXp,
         monthlyXp: gamifData.monthlyXp,
         badges: gamifData.badges,
         badgesCount: gamifData.badgeCount,
-        currentLevelXp: gamifData.totalXp % 100,
-        nextLevelXpRequired: 100,
-        xpProgress: ((gamifData.totalXp % 100) / 100) * 100
+        currentLevelXp: progress.progressXP,
+        nextLevelXpRequired: progress.xpToNextLevel,
+        xpProgress: progress.progressPercent
       };
     }).sort((a, b) => b.totalXp - a.totalXp)
   );
@@ -296,10 +303,10 @@ const loadAllTeamMembers = async () => {
             }
           });
 
-          // DONNÉES GAMIFICATION
+          // DONNÉES GAMIFICATION - Utilise le nouveau système de niveaux calibré
           const gamification = userData.gamification || {};
           const totalXp = gamification.totalXp || 0;
-          const level = gamification.level || Math.floor(totalXp / 100) + 1;
+          const level = calculateLevel(totalXp);
           const badges = gamification.badges || [];
 
           // CRÉER/METTRE À JOUR LE MEMBRE
@@ -330,11 +337,16 @@ const loadAllTeamMembers = async () => {
             questsTotal: userQuests.length,
             quests: userQuests,
 
-            // DONNÉES CALCULÉES
+            // DONNÉES CALCULÉES - Utilise le nouveau système de niveaux
             completionRate: userQuests.length > 0 ? Math.round((questsCompleted / userQuests.length) * 100) : 0,
-            currentLevelXp: totalXp % 100,
-            nextLevelXpRequired: 100,
-            xpProgress: ((totalXp % 100) / 100) * 100,
+            ...(() => {
+              const progress = getXPProgress(totalXp);
+              return {
+                currentLevelXp: progress.progressXP,
+                nextLevelXpRequired: progress.xpToNextLevel,
+                xpProgress: progress.progressPercent
+              };
+            })(),
 
             // DONNÉES PROFIL
             phone: userData.phone || null,
@@ -1093,6 +1105,31 @@ const loadAllTeamMembers = async () => {
                           <Eye className="w-4 h-4" />
                           Voir toutes les quêtes ({member.questsTotal || 0})
                         </button>
+
+                        {/* 🚀 BOUTON BOOST - Ne s'affiche pas pour soi-même */}
+                        {!isCurrentUser && (
+                          <div className="mb-2">
+                            <BoostButton
+                              targetUser={{
+                                uid: member.id,
+                                displayName: member.name,
+                                email: member.email,
+                                photoURL: member.photoURL
+                              }}
+                              currentUser={{
+                                uid: user?.uid,
+                                displayName: user?.displayName || user?.email,
+                                email: user?.email,
+                                photoURL: user?.photoURL
+                              }}
+                              variant="small"
+                              className="w-full justify-center"
+                              onBoostSent={(result) => {
+                                showNotification(result.message, 'success');
+                              }}
+                            />
+                          </div>
+                        )}
 
                         <div className="flex gap-2">
                           <button
