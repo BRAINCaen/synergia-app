@@ -52,6 +52,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     ]},
     { section: 'ADMIN', items: [
       { path: '/admin', label: 'Dashboard Admin', icon: '👑' },
+      { path: '/admin/analytics', label: 'Analytics', icon: '📊' },
       { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
       { path: '/admin/objective-validation', label: 'Gestion Campagnes', icon: '🎯' },
       { path: '/admin/checkpoints', label: 'Checkpoints', icon: '🏁' },
