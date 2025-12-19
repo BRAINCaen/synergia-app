@@ -134,7 +134,7 @@ const AdminCheckpointsPage = () => {
       <Layout>
         <div className="flex items-center justify-center min-h-96">
           <motion.div
-            className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full"
+            className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full"
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           />
@@ -153,7 +153,7 @@ const AdminCheckpointsPage = () => {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/25">
+            <div className="w-14 h-14 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/25">
               <Flag size={28} className="text-white" />
             </div>
             <div>
@@ -175,7 +175,7 @@ const AdminCheckpointsPage = () => {
               <div className="text-sm text-gray-400">Total</div>
             </div>
             <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
-              <div className="text-3xl font-bold text-orange-400">{pendingReviews.length}</div>
+              <div className="text-3xl font-bold text-purple-400">{pendingReviews.length}</div>
               <div className="text-sm text-gray-400">À valider</div>
             </div>
             <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
@@ -198,10 +198,10 @@ const AdminCheckpointsPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 rounded-2xl p-6 border border-orange-500/30"
+            className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl p-6 border border-purple-500/30"
           >
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Clock size={20} className="text-orange-400" />
+              <Clock size={20} className="text-purple-400" />
               En attente de validation ({pendingReviews.length})
             </h2>
 
@@ -235,7 +235,7 @@ const AdminCheckpointsPage = () => {
 
                   <button
                     onClick={() => openCheckpointDetail(cp)}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-400 rounded-lg text-white font-medium transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-400 rounded-lg text-white font-medium transition-colors"
                   >
                     <Eye size={18} />
                     Examiner
@@ -260,7 +260,7 @@ const AdminCheckpointsPage = () => {
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               placeholder="Rechercher un aventurier..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
             />
           </div>
 
@@ -268,7 +268,7 @@ const AdminCheckpointsPage = () => {
           <select
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
           >
             <option value="">Tous les statuts</option>
             {Object.entries(STATUS_CONFIG).map(([key, config]) => (
@@ -280,7 +280,7 @@ const AdminCheckpointsPage = () => {
           <select
             value={filters.quarter}
             onChange={(e) => setFilters({ ...filters, quarter: e.target.value })}
-            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            className="px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
           >
             <option value="">Tous les trimestres</option>
             {Object.entries(CHECKPOINT_QUARTERS).map(([key, config]) => (
@@ -531,7 +531,7 @@ const AdminCheckpointsPage = () => {
 
                         return (
                           <div key={question.id}>
-                            <div className="text-sm text-indigo-400 mb-1">{question.question}</div>
+                            <div className="text-sm text-purple-400 mb-1">{question.question}</div>
                             <p className="text-gray-300 whitespace-pre-wrap">{answer}</p>
                           </div>
                         );
@@ -595,16 +595,16 @@ const AdminCheckpointsPage = () => {
 
                 {/* Notes du manager */}
                 {selectedCheckpoint.status === CHECKPOINT_STATUS.REVIEW && (
-                  <div className="bg-amber-500/10 rounded-xl p-5 border border-amber-500/30">
+                  <div className="bg-purple-500/10 rounded-xl p-5 border border-purple-500/30">
                     <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                      <Sparkles size={18} className="text-amber-400" />
+                      <Sparkles size={18} className="text-purple-400" />
                       Notes de validation
                     </h3>
                     <textarea
                       value={managerNotes}
                       onChange={(e) => setManagerNotes(e.target.value)}
                       placeholder="Ajoute un commentaire pour l'aventurier (optionnel)..."
-                      className="w-full h-24 px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
+                      className="w-full h-24 px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
                     />
                   </div>
                 )}
