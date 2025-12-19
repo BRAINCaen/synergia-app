@@ -39,7 +39,7 @@ const STATUS_CONFIG = {
   [CHECKPOINT_STATUS.DRAFT]: { label: 'Brouillon', color: 'bg-gray-500', textColor: 'text-gray-400' },
   [CHECKPOINT_STATUS.REFLECTION]: { label: 'Réflexion', color: 'bg-blue-500', textColor: 'text-blue-400' },
   [CHECKPOINT_STATUS.FEEDBACK]: { label: 'Feedbacks', color: 'bg-yellow-500', textColor: 'text-yellow-400' },
-  [CHECKPOINT_STATUS.REVIEW]: { label: 'À valider', color: 'bg-orange-500', textColor: 'text-orange-400' },
+  [CHECKPOINT_STATUS.REVIEW]: { label: 'À valider', color: 'bg-purple-500', textColor: 'text-purple-400' },
   [CHECKPOINT_STATUS.COMPLETED]: { label: 'Terminé', color: 'bg-green-500', textColor: 'text-green-400' },
   [CHECKPOINT_STATUS.CANCELLED]: { label: 'Annulé', color: 'bg-red-500', textColor: 'text-red-400' }
 };
@@ -219,7 +219,7 @@ const AdminCheckpointsPage = () => {
                         className="w-10 h-10 rounded-full"
                       />
                     ) : (
-                      <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                         <span className="text-white font-medium">
                           {cp.user?.displayName?.charAt(0) || '?'}
                         </span>
@@ -324,7 +324,7 @@ const AdminCheckpointsPage = () => {
                           className="w-10 h-10 rounded-full"
                         />
                       ) : (
-                        <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                           <span className="text-white font-medium">
                             {cp.user?.displayName?.charAt(0) || '?'}
                           </span>
@@ -464,7 +464,7 @@ const AdminCheckpointsPage = () => {
                       className="w-12 h-12 rounded-full"
                     />
                   ) : (
-                    <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                       <span className="text-white text-lg font-medium">
                         {selectedCheckpoint.user?.displayName?.charAt(0) || '?'}
                       </span>
