@@ -389,7 +389,13 @@ const Layout = memo(({ children }) => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+    <div style={{
+        minHeight: '100vh',
+        background: isDark
+          ? 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)'
+          : '#f9fafb',
+        transition: 'background 0.3s ease'
+      }}>
       
       {/* 🔒 BOUTON HAMBURGER PREMIUM */}
       <button
