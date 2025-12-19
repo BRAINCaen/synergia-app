@@ -21,7 +21,7 @@ const App = () => {
   useEffect(() => {
     const initApp = async () => {
       try {
-        console.log('🚀 [APP] Synergia v3.5.4 - Initialisation complète');
+        console.log('🚀 [APP] Synergia v4.0.0 - Initialisation complète');
         console.log('📋 [APP] Chargement de toutes les fonctionnalités...');
         
         // Initialiser l'auth store
@@ -81,7 +81,7 @@ const App = () => {
         <div className="text-center">
           <div className="mb-8">
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto mb-4"></div>
-            <h2 className="text-2xl font-bold text-white mb-2">Chargement Synergia v3.5.4</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Chargement Synergia v4.0.0</h2>
             <p className="text-gray-300">Initialisation de toutes les fonctionnalités...</p>
           </div>
           
@@ -147,7 +147,7 @@ export default App;
 // 📊 LOG DE CONFIRMATION COMPLET
 // ==========================================
 
-console.log('🚀 [APP] Synergia v3.5.4 - Application complète chargée');
+console.log('🚀 [APP] Synergia v4.0.0 - Application complète chargée');
 console.log('');
 console.log('📋 [APP] FONCTIONNALITÉS INCLUSES :');
 console.log('');
