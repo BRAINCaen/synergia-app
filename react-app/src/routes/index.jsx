@@ -14,7 +14,6 @@ import CampaignsPage from '../pages/CampaignsPage.jsx';
 import CampaignDetailPage from '../pages/CampaignDetailPage.jsx';
 import PersonalStatsPage from '../pages/PersonalStatsPage.jsx'; // 📊 MODULE 7
 import ProfilePage from '../pages/ProfilePage.jsx';
-import LeaderboardPage from '../pages/LeaderboardPage.jsx';
 import BadgesPage from '../pages/BadgesPage.jsx';
 import GamificationPage from '../pages/GamificationPage.jsx';
 import RewardsPage from '../pages/RewardsPage.jsx';
@@ -79,7 +78,6 @@ const AppRoutes = () => {
         {/* GAMIFICATION */}
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/badges" element={<BadgesPage />} />
-        <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
         <Route path="/boosts" element={<BoostsPage />} />
         <Route path="/challenges" element={<ChallengesPage />} /> {/* 🎯 MODULE 10 */}
