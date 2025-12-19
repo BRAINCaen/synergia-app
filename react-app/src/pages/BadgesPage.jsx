@@ -1,6 +1,7 @@
 // ==========================================
-// 📁 react-app/src/pages/Badges.jsx
-// PAGE COLLECTION DE BADGES - CHARTE GRAPHIQUE DARK MODE COMPLÈTE
+// 📁 react-app/src/pages/BadgesPage.jsx
+// PAGE COLLECTION DE BADGES - SYSTÈME UNIFIÉ v2.0
+// Intégration complète avec unifiedBadgeSystem.js
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -12,7 +13,9 @@ import {
   Settings, RefreshCw, Download, Plus, Edit, Trash2, UserPlus, Send,
   Save, X, Upload, AlertCircle, Check, XOctagon,
   // 💡 BOÎTE À IDÉES
-  Lightbulb, ThumbsDown, MessageSquare, TrendingUp, Sparkles
+  Lightbulb, ThumbsDown, MessageSquare, TrendingUp, Sparkles,
+  // Catégories
+  Rocket, Brain, Repeat, Flag, BarChart3
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
@@ -22,15 +25,53 @@ import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 
+// 🏆 SYSTÈME UNIFIÉ DE BADGES
+import unifiedBadgeService, {
+  UNIFIED_BADGE_DEFINITIONS,
+  BADGE_CATEGORIES,
+  BADGE_RARITY,
+  calculateBadgeStats
+} from '../core/services/unifiedBadgeSystem.js';
+
 // 💡 SERVICE BOÎTE À IDÉES
 import { ideaService, IDEA_XP, IDEA_STATUS, IDEA_CATEGORIES } from '../core/services/ideaService.js';
 
 // 📊 FIREBASE IMPORTS
-import { 
+import {
   collection, query, orderBy, where, getDocs, doc, getDoc,
-  addDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch
+  addDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch, setDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+
+// 🎨 HELPERS - Labels et icônes par catégorie
+const CATEGORY_CONFIG = {
+  [BADGE_CATEGORIES.ONBOARDING]: { label: 'Onboarding', icon: '🚀', color: 'blue' },
+  [BADGE_CATEGORIES.PRODUCTIVITY]: { label: 'Productivité', icon: '✅', color: 'green' },
+  [BADGE_CATEGORIES.PROGRESSION]: { label: 'Progression', icon: '📈', color: 'purple' },
+  [BADGE_CATEGORIES.COLLABORATION]: { label: 'Collaboration', icon: '🤝', color: 'cyan' },
+  [BADGE_CATEGORIES.ENGAGEMENT]: { label: 'Engagement', icon: '🔥', color: 'orange' },
+  [BADGE_CATEGORIES.BOOST]: { label: 'Boost', icon: '💖', color: 'pink' },
+  [BADGE_CATEGORIES.CHALLENGES]: { label: 'Défis', icon: '🎯', color: 'red' },
+  [BADGE_CATEGORIES.CAMPAIGNS]: { label: 'Campagnes', icon: '⚔️', color: 'amber' },
+  [BADGE_CATEGORIES.RETROSPECTIVES]: { label: 'Rétrospectives', icon: '🔄', color: 'indigo' },
+  [BADGE_CATEGORIES.IDEAS]: { label: 'Idées', icon: '💡', color: 'yellow' },
+  [BADGE_CATEGORIES.CHECKPOINTS]: { label: 'Checkpoints', icon: '✓', color: 'teal' },
+  [BADGE_CATEGORIES.EXCELLENCE]: { label: 'Excellence', icon: '🌟', color: 'gold' },
+  [BADGE_CATEGORIES.SPECIAL]: { label: 'Spécial', icon: '🎮', color: 'violet' },
+  [BADGE_CATEGORIES.ROLES]: { label: 'Rôles', icon: '👔', color: 'slate' }
+};
+
+// 🎨 Couleurs de rareté
+const getRarityConfig = (rarity) => {
+  const configs = {
+    common: { label: 'Commun', bgClass: 'bg-gray-500/20', textClass: 'text-gray-300', borderClass: 'border-gray-400/30' },
+    uncommon: { label: 'Peu Commun', bgClass: 'bg-green-500/20', textClass: 'text-green-300', borderClass: 'border-green-400/30' },
+    rare: { label: 'Rare', bgClass: 'bg-blue-500/20', textClass: 'text-blue-300', borderClass: 'border-blue-400/30' },
+    epic: { label: 'Épique', bgClass: 'bg-purple-500/20', textClass: 'text-purple-300', borderClass: 'border-purple-400/30' },
+    legendary: { label: 'Légendaire', bgClass: 'bg-yellow-500/20', textClass: 'text-yellow-300', borderClass: 'border-yellow-400/30', glow: true }
+  };
+  return configs[rarity] || configs.common;
+};
 
 const BadgesPage = () => {
   const { user } = useAuthStore();
@@ -38,28 +79,32 @@ const BadgesPage = () => {
 
   // 📊 ÉTATS BADGES
   const [userBadges, setUserBadges] = useState([]);
-  const [allBadges, setAllBadges] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterRarity, setFilterRarity] = useState('all');
+  const [viewMode, setViewMode] = useState('grid');
 
   // 🛡️ ÉTATS ADMIN
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showCreateBadgeModal, setShowCreateBadgeModal] = useState(false);
   const [showEditBadgeModal, setShowEditBadgeModal] = useState(false);
   const [showAssignBadgeModal, setShowAssignBadgeModal] = useState(false);
+  const [showRemoveBadgeModal, setShowRemoveBadgeModal] = useState(false);
+  const [showUserBadgesModal, setShowUserBadgesModal] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // 🎨 FORM DONNÉES
+  // 🎨 FORM DONNÉES - Pour badges personnalisés Firebase
   const [badgeForm, setBadgeForm] = useState({
     name: '',
     description: '',
     icon: '🏆',
-    category: 'Accomplissement',
-    rarity: 'Commun',
+    category: BADGE_CATEGORIES.PRODUCTIVITY,
+    rarity: 'common',
     xpReward: 100,
     requirements: {},
     isActive: true
@@ -73,52 +118,25 @@ const BadgesPage = () => {
   const [ideaForm, setIdeaForm] = useState({ title: '', description: '', category: 'feature' });
   const [ideaStats, setIdeaStats] = useState({ total: 0, pending: 0, adopted: 0, implemented: 0 });
 
-  // 🏆 TOUS LES BADGES PAR DÉFAUT
-  const DEFAULT_BADGES = [
-    // BADGES PRINCIPAUX
-    { id: 'bienvenue', name: 'Bienvenue', description: 'Premier pas', icon: '👋', category: 'Découverte', rarity: 'Commun', xpReward: 50 },
-    { id: 'premiere_quete', name: 'Première Quête', description: 'Compléter une quête', icon: '🎯', category: 'Accomplissement', rarity: 'Commun', xpReward: 100 },
-    { id: 'niveau_5', name: 'Niveau 5', description: 'Atteindre le niveau 5', icon: '⭐', category: 'Progression', rarity: 'Peu Commun', xpReward: 150 },
-    { id: 'niveau_10', name: 'Niveau 10', description: 'Atteindre le niveau 10', icon: '💎', category: 'Progression', rarity: 'Rare', xpReward: 200 },
-    { id: '10_quetes', name: '10 Quêtes', description: 'Compléter 10 quêtes', icon: '🏅', category: 'Accomplissement', rarity: 'Peu Commun', xpReward: 150 },
-    { id: '50_quetes', name: '50 Quêtes', description: 'Compléter 50 quêtes', icon: '🏆', category: 'Accomplissement', rarity: 'Rare', xpReward: 300 },
-    { id: 'serie_7', name: 'Série de 7', description: '7 jours consécutifs', icon: '🔥', category: 'Assiduité', rarity: 'Rare', xpReward: 200 },
-    
-    // BADGES VENTE
-    { id: 'super_vendeur_se1', name: 'Super Vendeur se 1', description: 'T\'as fait une vente CO ! T\'es une Génie qui branche de la lumière !', icon: '💡', category: 'Vente', rarity: 'Légendaire', xpReward: 500 },
-    { id: 'vendeur_bronze', name: 'Vendeur Bronze', description: '5 ventes réalisées', icon: '🥉', category: 'Vente', rarity: 'Peu Commun', xpReward: 100 },
-    { id: 'vendeur_argent', name: 'Vendeur Argent', description: '20 ventes réalisées', icon: '🥈', category: 'Vente', rarity: 'Rare', xpReward: 250 },
-    { id: 'vendeur_or', name: 'Vendeur Or', description: '50 ventes réalisées', icon: '🥇', category: 'Vente', rarity: 'Épique', xpReward: 500 },
-    
-    // BADGES COLLABORATION
-    { id: 'joueur_equipe', name: 'Joueur d\'Équipe', description: 'Rejoindre une équipe', icon: '🤝', category: 'Collaboration', rarity: 'Commun', xpReward: 75 },
-    { id: 'mentor', name: 'Mentor', description: 'Aider 10 collègues', icon: '👨‍🏫', category: 'Collaboration', rarity: 'Rare', xpReward: 200 },
-    { id: 'collaborateur', name: 'Collaborateur', description: '5 projets collaboratifs', icon: '👥', category: 'Collaboration', rarity: 'Peu Commun', xpReward: 100 },
-    
-    // BADGES SPÉCIAUX
-    { id: 'test', name: 'TEST', description: 'Badge de test', icon: '🏆', category: 'Test', rarity: 'Légendaire', xpReward: 100 },
-    { id: 'eclair', name: 'Éclair', description: 'Tâche en moins de 30 min', icon: '⚡', category: 'Rapidité', rarity: 'Commun', xpReward: 75 },
-    { id: 'noctambule', name: 'Noctambule', description: 'Connexion après minuit', icon: '🌙', category: 'Special', rarity: 'Peu Commun', xpReward: 50 },
-    { id: 'matinal', name: 'Matinal', description: 'Connexion avant 6h', icon: '🌅', category: 'Special', rarity: 'Peu Commun', xpReward: 50 },
-    { id: 'perfectionniste', name: 'Perfectionniste', description: '10 tâches parfaites', icon: '✨', category: 'Qualité', rarity: 'Rare', xpReward: 200 },
-    
-    // BADGES PROGRESSION
-    { id: 'veteran', name: 'Vétéran', description: 'Niveau 25 atteint', icon: '🌟', category: 'Progression', rarity: 'Épique', xpReward: 400 },
-    { id: 'maitre', name: 'Maître Synergia', description: 'Niveau 50 atteint', icon: '⚡', category: 'Progression', rarity: 'Légendaire', xpReward: 1000 },
-    
-    // BADGES PRODUCTIVITÉ
-    { id: 'productif', name: 'Productif', description: '100 tâches complétées', icon: '📈', category: 'Productivité', rarity: 'Rare', xpReward: 250 },
-    { id: 'champion_productivite', name: 'Champion Productivité', description: '500 tâches complétées', icon: '🏆', category: 'Productivité', rarity: 'Légendaire', xpReward: 1000 }
-  ];
+  // 🏆 BADGES UNIFIÉS - Convertir en tableau
+  const allBadges = useMemo(() => {
+    return Object.values(UNIFIED_BADGE_DEFINITIONS).map(badge => ({
+      ...badge,
+      isUnified: true
+    }));
+  }, []);
+
+  // 📊 STATISTIQUES GLOBALES
+  const globalStats = useMemo(() => calculateBadgeStats(), []);
 
   // 📊 CHARGER LES DONNÉES AU MONTAGE
   useEffect(() => {
     loadUserBadges();
-    loadAllBadges();
     loadIdeas();
     if (userIsAdmin) {
       loadAllUsers();
     }
+    setLoading(false);
   }, [user, userIsAdmin]);
 
   // 💡 CHARGER LES IDÉES
@@ -228,60 +246,19 @@ const BadgesPage = () => {
   // 🔄 CHARGER LES BADGES DE L'UTILISATEUR
   const loadUserBadges = async () => {
     if (!user) return;
-    
+
     try {
-      // Charger depuis le profil utilisateur (gamification.badges)
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
-      
+
       if (userSnap.exists()) {
         const userData = userSnap.data();
         const badges = userData.gamification?.badges || [];
         setUserBadges(badges);
-        console.log('✅ Badges utilisateur chargés depuis profil:', badges.length);
+        console.log('✅ Badges utilisateur chargés:', badges.length);
       }
     } catch (error) {
       console.error('❌ Erreur chargement badges utilisateur:', error);
-    }
-  };
-
-  // 🔄 CHARGER TOUS LES BADGES
-  const loadAllBadges = async () => {
-    try {
-      const badgesRef = collection(db, 'badges');
-      const snapshot = await getDocs(badgesRef);
-      
-      const firebaseBadges = [];
-      const hiddenBadgeIds = []; // IDs des badges par défaut masqués
-      
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        
-        // Si c'est une version masquée d'un badge par défaut
-        if (data.isHidden && data.originalId) {
-          hiddenBadgeIds.push(data.originalId);
-        } else if (!data.isHidden) {
-          // Ajouter uniquement les badges non masqués
-          firebaseBadges.push({ id: doc.id, ...data, isFirebase: true });
-        }
-      });
-      console.log('✅ Badges Firebase chargés:', firebaseBadges.length);
-      console.log('🔒 Badges masqués:', hiddenBadgeIds);
-      
-      // Filtrer les badges par défaut pour exclure les masqués
-      const visibleDefaultBadges = DEFAULT_BADGES.filter(
-        badge => !hiddenBadgeIds.includes(badge.id)
-      );
-      
-      // Combiner badges par défaut visibles + Firebase
-      const combined = [...visibleDefaultBadges, ...firebaseBadges];
-      setAllBadges(combined);
-      
-      console.log('✅ Total badges visibles:', combined.length);
-    } catch (error) {
-      console.error('❌ Erreur chargement badges:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -290,12 +267,12 @@ const BadgesPage = () => {
     try {
       const usersRef = collection(db, 'users');
       const snapshot = await getDocs(usersRef);
-      
+
       const users = [];
       snapshot.forEach(doc => {
         users.push({ id: doc.id, ...doc.data() });
       });
-      
+
       setAllUsers(users);
       console.log('✅ Utilisateurs chargés:', users.length);
     } catch (error) {
@@ -303,221 +280,89 @@ const BadgesPage = () => {
     }
   };
 
-  // 🎨 CRÉER UN NOUVEAU BADGE (ADMIN)
-  const handleCreateBadge = async (e) => {
-    e.preventDefault();
-    
-    if (!badgeForm.name.trim()) {
-      alert('Le nom du badge est requis');
-      return;
-    }
-    
-    try {
-      const badgeData = {
-        ...badgeForm,
-        createdAt: serverTimestamp(),
-        createdBy: user.uid,
-        isDefault: false,
-        isFirebase: true
-      };
-      
-      await addDoc(collection(db, 'badges'), badgeData);
-      
-      alert('✅ Badge créé avec succès !');
-      setShowCreateBadgeModal(false);
-      setBadgeForm({
-        name: '',
-        description: '',
-        icon: '🏆',
-        category: 'Accomplissement',
-        rarity: 'Commun',
-        xpReward: 100,
-        requirements: {},
-        isActive: true
-      });
-      
-      loadAllBadges();
-    } catch (error) {
-      console.error('❌ Erreur création badge:', error);
-      alert('Erreur lors de la création du badge');
-    }
-  };
-
-  // ✏️ MODIFIER UN BADGE (ADMIN)
-  const handleEditBadge = async (e) => {
-    e.preventDefault();
-    
-    if (!selectedBadge) {
-      alert('Aucun badge sélectionné');
-      return;
-    }
-    
-    try {
-      console.log('🔄 Modification de:', selectedBadge.name);
-      console.log('Badge sélectionné:', selectedBadge);
-      console.log('isFirebase:', selectedBadge.isFirebase);
-      
-      // Si c'est un badge Firebase existant (créé par admin ou version modifiée)
-      if (selectedBadge.isFirebase && selectedBadge.id) {
-        console.log('📝 Mise à jour badge Firebase ID:', selectedBadge.id);
-        const badgeRef = doc(db, 'badges', selectedBadge.id);
-        await updateDoc(badgeRef, {
-          name: badgeForm.name,
-          description: badgeForm.description,
-          icon: badgeForm.icon,
-          category: badgeForm.category,
-          rarity: badgeForm.rarity,
-          xpReward: parseInt(badgeForm.xpReward),
-          requirements: badgeForm.requirements || {},
-          isActive: badgeForm.isActive,
-          updatedAt: serverTimestamp(),
-          updatedBy: user.uid
-        });
-        console.log('✅ Badge Firebase mis à jour');
-      } else {
-        // Si c'est un badge par défaut (pas dans Firebase)
-        console.log('📝 Création version modifiée pour badge par défaut:', selectedBadge.id);
-        
-        // 1. Créer la nouvelle version modifiée
-        const newBadgeData = {
-          name: badgeForm.name,
-          description: badgeForm.description,
-          icon: badgeForm.icon,
-          category: badgeForm.category,
-          rarity: badgeForm.rarity,
-          xpReward: parseInt(badgeForm.xpReward),
-          requirements: badgeForm.requirements || {},
-          isActive: badgeForm.isActive,
-          originalId: selectedBadge.id,
-          isDefault: false,
-          isFirebase: true,
-          replacesDefault: true,
-          createdAt: serverTimestamp(),
-          createdBy: user.uid
-        };
-        
-        const newBadge = await addDoc(collection(db, 'badges'), newBadgeData);
-        console.log('✅ Version modifiée créée avec ID:', newBadge.id);
-        
-        // 2. Masquer l'original
-        const hiddenData = {
-          originalId: selectedBadge.id,
-          isHidden: true,
-          isDefault: false,
-          isFirebase: true,
-          createdAt: serverTimestamp(),
-          createdBy: user.uid
-        };
-        
-        await addDoc(collection(db, 'badges'), hiddenData);
-        console.log('✅ Version originale masquée');
-      }
-      
-      alert('✅ Badge modifié avec succès !');
-      setShowEditBadgeModal(false);
-      setSelectedBadge(null);
-      
-      console.log('🔄 Rechargement des badges...');
-      await loadAllBadges();
-      console.log('✅ Rechargement terminé');
-    } catch (error) {
-      console.error('❌ ERREUR DÉTAILLÉE modification badge:', error);
-      console.error('Code erreur:', error.code);
-      console.error('Message:', error.message);
-      alert('Erreur: ' + error.message + ' (voir console pour détails)');
-    }
-  };
-
-  // 🗑️ SUPPRIMER UN BADGE (ADMIN)
-  const handleDeleteBadge = async (badgeId) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce badge ?')) return;
-    
-    try {
-      await deleteDoc(doc(db, 'badges', badgeId));
-      
-      alert('✅ Badge supprimé avec succès !');
-      loadAllBadges();
-    } catch (error) {
-      console.error('❌ Erreur suppression badge:', error);
-      alert('Erreur lors de la suppression du badge');
-    }
-  };
-
-  // 🎁 ATTRIBUER UN BADGE À UN UTILISATEUR (ADMIN) - ✅ VERSION CORRIGÉE
+  // 🏆 ATTRIBUER UN BADGE VIA LE SERVICE UNIFIÉ (ADMIN)
   const handleAssignBadge = async (userId, badgeId) => {
     try {
-      const badge = allBadges.find(b => b.id === badgeId);
-      if (!badge) {
-        alert('❌ Badge non trouvé');
-        return;
+      setActionLoading(true);
+
+      const result = await unifiedBadgeService.awardBadgeManually(
+        userId,
+        badgeId,
+        user.uid,
+        'Attribué manuellement par admin'
+      );
+
+      if (result.success) {
+        alert(`✅ Badge "${result.badge.name}" attribué avec succès ! +${result.badge.xpReward} XP`);
+        loadUserBadges();
+        loadAllUsers();
+      } else {
+        alert(`❌ Erreur: ${result.message}`);
       }
-      
-      console.log('🏆 Attribution badge:', { userId, badgeId, badgeName: badge.name });
-      
-      // 1. Récupérer l'utilisateur
-      const userRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        alert('❌ Utilisateur non trouvé');
-        return;
-      }
-      
-      const userData = userSnap.data();
-      const currentBadges = userData.gamification?.badges || [];
-      
-      // 2. Vérifier si le badge n'est pas déjà attribué
-      if (currentBadges.some(b => b.id === badgeId || b.badgeId === badgeId)) {
-        alert('⚠️ Badge déjà attribué à cet utilisateur');
-        return;
-      }
-      
-      // 3. Créer le nouveau badge
-      const newBadge = {
-        id: badgeId,
-        badgeId: badgeId,
-        name: badge.name,
-        description: badge.description,
-        icon: badge.icon || '🏆',
-        category: badge.category || 'general',
-        rarity: badge.rarity || 'Commun',
-        xpReward: badge.xpReward || 0,
-        unlockedAt: new Date().toISOString(),
-        awardedBy: user.uid
-      };
-      
-      // 4. Mettre à jour le profil utilisateur
-      const updatedBadges = [...currentBadges, newBadge];
-      const currentXP = userData.gamification?.totalXp || 0;
-      const newXP = currentXP + (badge.xpReward || 0);
-      
-      await updateDoc(userRef, {
-        'gamification.badges': updatedBadges,
-        'gamification.badgesUnlocked': updatedBadges.length,
-        'gamification.totalXp': newXP,
-        'gamification.totalBadgeXp': (userData.gamification?.totalBadgeXp || 0) + (badge.xpReward || 0)
-      });
-      
-      alert(`✅ Badge "${badge.name}" attribué avec succès ! +${badge.xpReward} XP`);
-      console.log('✅ Badge attribué:', newBadge);
-      
-      // 5. Recharger les données
-      loadUserBadges();
-      
     } catch (error) {
       console.error('❌ Erreur attribution badge:', error);
-      alert('Erreur lors de l\'attribution du badge: ' + error.message);
+      alert('Erreur: ' + error.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  // 📊 STATISTIQUES DES BADGES
+  // 🗑️ RETIRER UN BADGE VIA LE SERVICE UNIFIÉ (ADMIN)
+  const handleRemoveBadge = async (userId, badgeId) => {
+    if (!confirm('Êtes-vous sûr de vouloir retirer ce badge ?')) return;
+
+    try {
+      setActionLoading(true);
+
+      const result = await unifiedBadgeService.removeBadge(userId, badgeId, user.uid);
+
+      if (result.success) {
+        alert('✅ Badge retiré avec succès');
+        loadUserBadges();
+        loadAllUsers();
+        setShowUserBadgesModal(false);
+      } else {
+        alert(`❌ Erreur: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur retrait badge:', error);
+      alert('Erreur: ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 🔄 VÉRIFIER LES BADGES AUTOMATIQUES POUR UN UTILISATEUR
+  const handleCheckBadges = async (userId) => {
+    try {
+      setActionLoading(true);
+      const result = await unifiedBadgeService.checkAndUnlockBadges(userId, 'manual_check');
+
+      if (result.success && result.newBadges.length > 0) {
+        alert(`✅ ${result.newBadges.length} nouveau(x) badge(s) débloqué(s) !`);
+        loadUserBadges();
+        loadAllUsers();
+      } else if (result.success) {
+        alert('Aucun nouveau badge à débloquer');
+      } else {
+        alert(`❌ Erreur: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur vérification badges:', error);
+      alert('Erreur: ' + error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 📊 STATISTIQUES DES BADGES UTILISATEUR
   const badgeStats = useMemo(() => {
     const unlockedCount = userBadges.length;
     const totalCount = allBadges.length;
     const completionPercentage = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
     const totalXpEarned = userBadges.reduce((sum, badge) => sum + (badge.xpReward || 0), 0);
     const badgesAvailable = totalCount - unlockedCount;
-    
+
     return {
       unlockedCount,
       totalCount,
@@ -534,17 +379,28 @@ const BadgesPage = () => {
                            badge.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = filterCategory === 'all' || badge.category === filterCategory;
       const matchesRarity = filterRarity === 'all' || badge.rarity === filterRarity;
-      
+
       return matchesSearch && matchesCategory && matchesRarity;
     });
   }, [allBadges, searchTerm, filterCategory, filterRarity]);
+
+  // 📊 BADGES PAR CATÉGORIE POUR L'AFFICHAGE
+  const badgesByCategory = useMemo(() => {
+    const grouped = {};
+    filteredBadges.forEach(badge => {
+      const cat = badge.category || 'other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(badge);
+    });
+    return grouped;
+  }, [filteredBadges]);
 
   if (loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
             <p className="text-gray-300">Chargement des badges...</p>
           </div>
         </div>
@@ -556,55 +412,66 @@ const BadgesPage = () => {
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* 🎯 EN-TÊTE DARK MODE */}
+          {/* 🎯 EN-TÊTE */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-2 flex items-center gap-3">
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 mb-2 flex items-center gap-3">
               <Trophy className="w-10 h-10 text-yellow-400" />
               Collection de Badges
             </h1>
             <p className="text-gray-400">
-              {userBadges.length} / {allBadges.length} badges débloqués ({badgeStats.completionPercentage}%)
+              {badgeStats.unlockedCount} / {badgeStats.totalCount} badges débloqués ({badgeStats.completionPercentage}%)
+              <span className="ml-2 text-purple-400">• Système unifié v2.0 avec {globalStats.total} badges</span>
             </p>
           </div>
 
-          {/* 📊 STATISTIQUES DARK MODE */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+          {/* 📊 STATISTIQUES */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
               <div className="flex items-center gap-3">
-                <Trophy className="w-8 h-8 text-blue-400" />
+                <Trophy className="w-8 h-8 text-purple-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">Badges Débloqués</p>
+                  <p className="text-gray-400 text-sm font-medium">Débloqués</p>
                   <p className="text-2xl font-bold text-white">{badgeStats.unlockedCount}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
               <div className="flex items-center gap-3">
                 <Target className="w-8 h-8 text-green-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">Badges Disponibles</p>
+                  <p className="text-gray-400 text-sm font-medium">Disponibles</p>
                   <p className="text-2xl font-bold text-white">{badgeStats.badgesAvailable}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
               <div className="flex items-center gap-3">
-                <CheckCircle className="w-8 h-8 text-purple-400" />
+                <BarChart3 className="w-8 h-8 text-pink-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">Progression</p>
+                  <p className="text-gray-400 text-sm font-medium">Progression</p>
                   <p className="text-2xl font-bold text-white">{badgeStats.completionPercentage}%</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-xl">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
               <div className="flex items-center gap-3">
                 <Zap className="w-8 h-8 text-yellow-400" />
                 <div>
-                  <p className="text-gray-400 font-semibold">XP des Badges</p>
+                  <p className="text-gray-400 text-sm font-medium">XP Badges</p>
                   <p className="text-2xl font-bold text-white">{badgeStats.totalXpEarned}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
+              <div className="flex items-center gap-3">
+                <Gem className="w-8 h-8 text-cyan-400" />
+                <div>
+                  <p className="text-gray-400 text-sm font-medium">XP Potentiel</p>
+                  <p className="text-2xl font-bold text-white">{globalStats.totalXpAvailable}</p>
                 </div>
               </div>
             </div>
@@ -681,23 +548,19 @@ const BadgesPage = () => {
                       </button>
                     </div>
 
-                    {/* Badges liés aux idées */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
-                      <div className="text-center">
-                        <div className="text-3xl mb-2">💡</div>
-                        <div className="font-medium text-white">Innovateur</div>
-                        <div className="text-xs text-gray-400">1 idée adoptée</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl mb-2">🏗️</div>
-                        <div className="font-medium text-white">Bâtisseur</div>
-                        <div className="text-xs text-gray-400">1 idée implémentée par vous</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl mb-2">🌟</div>
-                        <div className="font-medium text-white">Visionnaire</div>
-                        <div className="text-xs text-gray-400">5 idées adoptées</div>
-                      </div>
+                    {/* Badges liés aux idées - depuis le système unifié */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+                      {Object.values(UNIFIED_BADGE_DEFINITIONS)
+                        .filter(b => b.category === BADGE_CATEGORIES.IDEAS)
+                        .slice(0, 4)
+                        .map(badge => (
+                          <div key={badge.id} className="text-center">
+                            <div className="text-3xl mb-2">{badge.icon}</div>
+                            <div className="font-medium text-white text-sm">{badge.name}</div>
+                            <div className="text-xs text-gray-400">{badge.description}</div>
+                          </div>
+                        ))
+                      }
                     </div>
 
                     {/* Liste des idées */}
@@ -847,203 +710,275 @@ const BadgesPage = () => {
               <button
                 onClick={() => setShowAdminPanel(!showAdminPanel)}
                 className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2 backdrop-blur-lg border ${
-                  showAdminPanel 
-                    ? 'bg-red-500/20 text-red-300 border-red-400/30 hover:bg-red-500/30' 
-                    : 'bg-gradient-to-r from-blue-600/80 to-purple-600/80 text-white border-blue-400/30 hover:from-blue-600 hover:to-purple-600'
+                  showAdminPanel
+                    ? 'bg-red-500/20 text-red-300 border-red-400/30 hover:bg-red-500/30'
+                    : 'bg-gradient-to-r from-purple-600/80 to-pink-600/80 text-white border-purple-400/30 hover:from-purple-600 hover:to-pink-600'
                 }`}
               >
-                <Settings className="w-5 h-5" />
-                {showAdminPanel ? 'Fermer Panel Admin' : 'Ouvrir Panel Admin'}
+                <Shield className="w-5 h-5" />
+                {showAdminPanel ? 'Fermer Panel Admin' : 'Panel Administration Badges'}
               </button>
             </div>
           )}
 
-          {/* 🛡️ PANEL ADMIN DARK MODE */}
+          {/* 🛡️ PANEL ADMIN COMPLET */}
           {userIsAdmin && showAdminPanel && (
-            <div className="bg-white/5 backdrop-blur-xl border border-blue-400/30 rounded-xl p-6 mb-8">
+            <div className="bg-white/5 backdrop-blur-xl border border-purple-400/30 rounded-xl p-6 mb-8">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                <Shield className="w-6 h-6 text-blue-400" />
-                Panel Administration Badges
+                <Shield className="w-6 h-6 text-purple-400" />
+                Administration Badges Unifiée
+                <span className="ml-2 px-2 py-1 bg-purple-500/20 text-purple-300 text-sm rounded-full">
+                  {globalStats.total} badges
+                </span>
               </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <button
-                  onClick={() => setShowCreateBadgeModal(true)}
-                  className="bg-green-500/20 border border-green-400/30 text-green-300 px-4 py-2 rounded-lg hover:bg-green-500/30 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Créer Badge
-                </button>
-                
+
+              {/* Actions rapides */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <button
                   onClick={() => setShowAssignBadgeModal(true)}
-                  className="bg-blue-500/20 border border-blue-400/30 text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center gap-2"
+                  className="bg-green-500/20 border border-green-400/30 text-green-300 px-4 py-3 rounded-lg hover:bg-green-500/30 transition-colors flex items-center justify-center gap-2"
                 >
-                  <UserPlus className="w-4 h-4" />
-                  Attribuer Badges
+                  <UserPlus className="w-5 h-5" />
+                  Attribuer Badge
                 </button>
-                
+
+                <button
+                  onClick={() => setShowRemoveBadgeModal(true)}
+                  className="bg-red-500/20 border border-red-400/30 text-red-300 px-4 py-3 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Retirer Badge
+                </button>
+
                 <button
                   onClick={() => {
-                    loadAllBadges();
-                    loadAllUsers();
                     loadUserBadges();
+                    loadAllUsers();
                   }}
-                  className="bg-gray-500/20 border border-gray-400/30 text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-500/30 transition-colors flex items-center gap-2"
+                  className="bg-purple-500/20 border border-purple-400/30 text-purple-300 px-4 py-3 rounded-lg hover:bg-purple-500/30 transition-colors flex items-center justify-center gap-2"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-5 h-5" />
                   Actualiser
+                </button>
+
+                <button
+                  onClick={() => handleCheckBadges(user.uid)}
+                  disabled={actionLoading}
+                  className="bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 px-4 py-3 rounded-lg hover:bg-cyan-500/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Zap className="w-5 h-5" />
+                  Vérifier Mes Badges
                 </button>
               </div>
 
-              <div className="bg-yellow-500/10 border border-yellow-400/30 p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-400" />
-                  <h3 className="font-semibold text-yellow-300">Gestion Badges</h3>
+              {/* Statistiques par rareté */}
+              <div className="grid grid-cols-5 gap-3 mb-6">
+                {Object.entries(globalStats.byRarity).map(([rarity, count]) => {
+                  const config = getRarityConfig(rarity);
+                  return (
+                    <div key={rarity} className={`p-3 rounded-lg ${config.bgClass} border ${config.borderClass}`}>
+                      <div className={`text-lg font-bold ${config.textClass}`}>{count}</div>
+                      <div className="text-xs text-gray-400">{config.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Liste des utilisateurs avec leurs badges */}
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-400" />
+                  Gestion des Utilisateurs
+                </h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {allUsers.map(u => {
+                    const userBadgeCount = u.gamification?.badges?.length || 0;
+                    return (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                            {(u.displayName || u.email || '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium text-white">{u.displayName || u.email}</div>
+                            <div className="text-sm text-gray-400">
+                              {userBadgeCount} badges • {u.gamification?.totalXp || 0} XP • Niveau {u.gamification?.level || 1}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedUser(u);
+                              setShowUserBadgesModal(true);
+                            }}
+                            className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 text-sm"
+                          >
+                            Voir Badges
+                          </button>
+                          <button
+                            onClick={() => handleCheckBadges(u.id)}
+                            disabled={actionLoading}
+                            className="px-3 py-1 bg-cyan-500/20 text-cyan-300 rounded-lg hover:bg-cyan-500/30 text-sm disabled:opacity-50"
+                          >
+                            Vérifier
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <p className="text-gray-400 text-sm">
-                  Vous pouvez créer, modifier et attribuer des badges. Les modifications sont immédiatement synchronisées.
-                </p>
               </div>
             </div>
           )}
 
-          {/* 🔍 BARRE DE RECHERCHE DARK MODE */}
+          {/* 🔍 BARRE DE RECHERCHE ET FILTRES */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/20 rounded-xl p-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="relative">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative md:col-span-2">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
                   placeholder="Rechercher un badge..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                  className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
                 />
               </div>
 
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
               >
-                <option value="all">Toutes les catégories</option>
-                <option value="Découverte">Découverte</option>
-                <option value="Accomplissement">Accomplissement</option>
-                <option value="Progression">Progression</option>
-                <option value="Vente">Vente</option>
-                <option value="Collaboration">Collaboration</option>
-                <option value="Rapidité">Rapidité</option>
-                <option value="Qualité">Qualité</option>
-                <option value="Productivité">Productivité</option>
+                <option value="all" className="bg-slate-800">Toutes les catégories</option>
+                {Object.entries(BADGE_CATEGORIES).map(([key, value]) => (
+                  <option key={key} value={value} className="bg-slate-800">
+                    {CATEGORY_CONFIG[value]?.icon} {CATEGORY_CONFIG[value]?.label || key}
+                  </option>
+                ))}
               </select>
 
               <select
                 value={filterRarity}
                 onChange={(e) => setFilterRarity(e.target.value)}
-                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
               >
-                <option value="all">Toutes les raretés</option>
-                <option value="Commun">Commun</option>
-                <option value="Peu Commun">Peu Commun</option>
-                <option value="Rare">Rare</option>
-                <option value="Épique">Épique</option>
-                <option value="Légendaire">Légendaire</option>
+                <option value="all" className="bg-slate-800">Toutes les raretés</option>
+                <option value="common" className="bg-slate-800">Commun ({globalStats.byRarity.common})</option>
+                <option value="uncommon" className="bg-slate-800">Peu Commun ({globalStats.byRarity.uncommon})</option>
+                <option value="rare" className="bg-slate-800">Rare ({globalStats.byRarity.rare})</option>
+                <option value="epic" className="bg-slate-800">Épique ({globalStats.byRarity.epic})</option>
+                <option value="legendary" className="bg-slate-800">Légendaire ({globalStats.byRarity.legendary})</option>
               </select>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-gray-400 text-sm">
+                {filteredBadges.length} badge{filteredBadges.length > 1 ? 's' : ''} affiché{filteredBadges.length > 1 ? 's' : ''}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-purple-500/30 text-purple-300' : 'bg-white/10 text-gray-400'}`}
+                >
+                  <Grid className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-purple-500/30 text-purple-300' : 'bg-white/10 text-gray-400'}`}
+                >
+                  <List className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* 🏆 GRILLE DES BADGES DARK MODE */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* 🏆 GRILLE DES BADGES */}
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-3'}>
             {filteredBadges.map((badge) => {
-              const isUnlocked = userBadges.some(ub => (ub.badgeId === badge.id || ub.id === badge.id));
-              
+              const isUnlocked = userBadges.some(ub => ub.id === badge.id);
+              const rarityConfig = getRarityConfig(badge.rarity);
+              const categoryConfig = CATEGORY_CONFIG[badge.category] || { label: badge.category, icon: '🏆' };
+
               return (
                 <motion.div
                   key={badge.id}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`relative bg-white/10 backdrop-blur-xl border rounded-xl p-6 transition-all duration-300 ${
-                    isUnlocked 
-                      ? 'border-yellow-400/50 shadow-lg shadow-yellow-500/20' 
+                  className={`relative bg-white/10 backdrop-blur-xl border rounded-xl transition-all duration-300 ${
+                    viewMode === 'grid' ? 'p-5' : 'p-4 flex items-center gap-4'
+                  } ${
+                    isUnlocked
+                      ? `${rarityConfig.borderClass} shadow-lg ${rarityConfig.glow ? 'shadow-yellow-500/20' : ''}`
                       : 'border-white/20 opacity-60'
                   }`}
                 >
                   {/* Badge Icon */}
-                  <div className="text-center mb-4">
-                    <div className={`text-6xl mb-3 ${isUnlocked ? '' : 'grayscale'}`}>
+                  <div className={viewMode === 'grid' ? 'text-center mb-4' : 'flex-shrink-0'}>
+                    <div className={`${viewMode === 'grid' ? 'text-5xl mb-3' : 'text-4xl'} ${isUnlocked ? '' : 'grayscale'}`}>
                       {badge.icon || '🏆'}
                     </div>
-                    
-                    {isUnlocked && (
-                      <div className="inline-flex items-center px-3 py-1 bg-green-500/20 border border-green-400/30 text-green-300 rounded-full text-sm font-medium">
-                        <CheckCircle className="w-4 h-4 mr-1" />
+
+                    {isUnlocked && viewMode === 'grid' && (
+                      <div className="inline-flex items-center px-2 py-1 bg-green-500/20 border border-green-400/30 text-green-300 rounded-full text-xs font-medium">
+                        <CheckCircle className="w-3 h-3 mr-1" />
                         Débloqué
                       </div>
                     )}
                   </div>
 
                   {/* Badge Info */}
-                  <div className="text-center">
-                    <h3 className="text-lg font-bold text-white mb-2">{badge.name}</h3>
-                    <p className="text-gray-400 text-sm mb-3">{badge.description}</p>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-                      <span className="bg-white/10 px-2 py-1 rounded">{badge.category}</span>
-                      <span className={`px-2 py-1 rounded font-semibold ${
-                        badge.rarity === 'Légendaire' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-400/30' :
-                        badge.rarity === 'Épique' ? 'bg-purple-500/20 text-purple-300 border border-purple-400/30' :
-                        badge.rarity === 'Rare' ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30' :
-                        badge.rarity === 'Peu Commun' ? 'bg-green-500/20 text-green-300 border border-green-400/30' :
-                        'bg-gray-500/20 text-gray-300 border border-gray-400/30'
-                      }`}>
-                        {badge.rarity}
+                  <div className={viewMode === 'grid' ? 'text-center' : 'flex-1 min-w-0'}>
+                    <h3 className={`font-bold text-white ${viewMode === 'grid' ? 'text-lg mb-2' : 'text-base'}`}>
+                      {badge.name}
+                      {isUnlocked && viewMode === 'list' && (
+                        <CheckCircle className="inline w-4 h-4 ml-2 text-green-400" />
+                      )}
+                    </h3>
+                    <p className={`text-gray-400 ${viewMode === 'grid' ? 'text-sm mb-3' : 'text-xs truncate'}`}>
+                      {badge.description}
+                    </p>
+
+                    <div className={`flex items-center ${viewMode === 'grid' ? 'justify-center gap-2 mb-3' : 'gap-2'}`}>
+                      <span className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300">
+                        {categoryConfig.icon} {categoryConfig.label}
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${rarityConfig.bgClass} ${rarityConfig.textClass} border ${rarityConfig.borderClass}`}>
+                        {rarityConfig.label}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-center gap-1 text-yellow-400">
+                    {viewMode === 'grid' && (
+                      <div className="flex items-center justify-center gap-1 text-yellow-400">
+                        <Zap className="w-4 h-4" />
+                        <span className="font-semibold">{badge.xpReward} XP</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {viewMode === 'list' && (
+                    <div className="flex items-center gap-2 text-yellow-400 flex-shrink-0">
                       <Zap className="w-4 h-4" />
                       <span className="font-semibold">{badge.xpReward} XP</span>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Actions Admin - TOUS LES BADGES PEUVENT ÊTRE MODIFIÉS */}
-                  {userIsAdmin && showAdminPanel && (
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-white/20">
-                      <button
-                        onClick={() => {
-                          console.log('🔵 Bouton Modifier cliqué pour badge:', badge.name);
-                          console.log('Badge complet:', badge);
-                          setSelectedBadge(badge);
-                          setBadgeForm({
-                            name: badge.name || '',
-                            description: badge.description || '',
-                            icon: badge.icon || '🏆',
-                            category: badge.category || 'Accomplissement',
-                            rarity: badge.rarity || 'Commun',
-                            xpReward: badge.xpReward || 100,
-                            requirements: badge.requirements || {},
-                            isActive: badge.isActive !== false
-                          });
-                          console.log('✅ État modal set à true');
-                          setShowEditBadgeModal(true);
-                        }}
-                        className="flex-1 bg-blue-500/20 border border-blue-400/30 text-blue-300 py-2 px-3 rounded-lg hover:bg-blue-500/30 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Modifier
-                      </button>
-                      
-                      {badge.isFirebase && (
-                        <button
-                          onClick={() => handleDeleteBadge(badge.id)}
-                          className="flex-1 bg-red-500/20 border border-red-400/30 text-red-300 py-2 px-3 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Supprimer
-                        </button>
-                      )}
-                    </div>
+                  {/* Admin Quick Action */}
+                  {userIsAdmin && showAdminPanel && viewMode === 'grid' && (
+                    <button
+                      onClick={() => {
+                        setSelectedBadge(badge);
+                        setShowAssignBadgeModal(true);
+                      }}
+                      className="absolute top-2 right-2 p-1.5 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors"
+                      title="Attribuer ce badge"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                    </button>
                   )}
                 </motion.div>
               );
@@ -1054,276 +989,23 @@ const BadgesPage = () => {
             <div className="text-center py-12">
               <Trophy className="w-16 h-16 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 text-lg">Aucun badge trouvé</p>
-            </div>
-          )}
-
-          {/* 🎨 MODAL CRÉER BADGE */}
-          {showCreateBadgeModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-              <div className="bg-slate-800 border border-white/20 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-bold text-white mb-4">Créer un Badge</h3>
-                
-                <form onSubmit={handleCreateBadge} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
-                    <input
-                      type="text"
-                      value={badgeForm.name}
-                      onChange={(e) => setBadgeForm({...badgeForm, name: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
-                    <textarea
-                      value={badgeForm.description}
-                      onChange={(e) => setBadgeForm({...badgeForm, description: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      rows={3}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Icône (emoji)</label>
-                    <input
-                      type="text"
-                      value={badgeForm.icon}
-                      onChange={(e) => setBadgeForm({...badgeForm, icon: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Catégorie</label>
-                    <select
-                      value={badgeForm.category}
-                      onChange={(e) => setBadgeForm({...badgeForm, category: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                    >
-                      <option value="Accomplissement" className="bg-slate-800">Accomplissement</option>
-                      <option value="Performance" className="bg-slate-800">Performance</option>
-                      <option value="Social" className="bg-slate-800">Social</option>
-                      <option value="Exploration" className="bg-slate-800">Exploration</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Rareté</label>
-                    <select
-                      value={badgeForm.rarity}
-                      onChange={(e) => setBadgeForm({...badgeForm, rarity: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                    >
-                      <option value="Commun" className="bg-slate-800">Commun</option>
-                      <option value="Peu Commun" className="bg-slate-800">Peu Commun</option>
-                      <option value="Rare" className="bg-slate-800">Rare</option>
-                      <option value="Épique" className="bg-slate-800">Épique</option>
-                      <option value="Légendaire" className="bg-slate-800">Légendaire</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">XP Récompense</label>
-                    <input
-                      type="number"
-                      value={badgeForm.xpReward}
-                      onChange={(e) => setBadgeForm({...badgeForm, xpReward: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateBadgeModal(false)}
-                      className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      Créer
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* ✏️ MODAL MODIFIER BADGE */}
-          {showEditBadgeModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-              <div className="bg-slate-800 border border-white/20 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-bold text-white mb-4">Modifier le Badge</h3>
-                
-                <form onSubmit={handleEditBadge} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
-                    <input
-                      type="text"
-                      value={badgeForm.name}
-                      onChange={(e) => setBadgeForm({...badgeForm, name: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
-                    <textarea
-                      value={badgeForm.description}
-                      onChange={(e) => setBadgeForm({...badgeForm, description: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      rows={3}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Icône (emoji)</label>
-                    <input
-                      type="text"
-                      value={badgeForm.icon}
-                      onChange={(e) => setBadgeForm({...badgeForm, icon: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Catégorie</label>
-                    <select
-                      value={badgeForm.category}
-                      onChange={(e) => setBadgeForm({...badgeForm, category: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                    >
-                      <option value="Accomplissement" className="bg-slate-800">Accomplissement</option>
-                      <option value="Performance" className="bg-slate-800">Performance</option>
-                      <option value="Social" className="bg-slate-800">Social</option>
-                      <option value="Exploration" className="bg-slate-800">Exploration</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Rareté</label>
-                    <select
-                      value={badgeForm.rarity}
-                      onChange={(e) => setBadgeForm({...badgeForm, rarity: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                    >
-                      <option value="Commun" className="bg-slate-800">Commun</option>
-                      <option value="Peu Commun" className="bg-slate-800">Peu Commun</option>
-                      <option value="Rare" className="bg-slate-800">Rare</option>
-                      <option value="Épique" className="bg-slate-800">Épique</option>
-                      <option value="Légendaire" className="bg-slate-800">Légendaire</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">XP Récompense</label>
-                    <input
-                      type="number"
-                      value={badgeForm.xpReward}
-                      onChange={(e) => setBadgeForm({...badgeForm, xpReward: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowEditBadgeModal(false);
-                        setSelectedBadge(null);
-                      }}
-                      className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-                    >
-                      Annuler
-                    </button>
-                    
-                    {selectedBadge && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const isDefault = !selectedBadge.isFirebase;
-                          const confirmMsg = isDefault 
-                            ? `Masquer "${selectedBadge.name}" de la collection ?` 
-                            : `Supprimer définitivement "${selectedBadge.name}" ?`;
-                          
-                          if (confirm(confirmMsg)) {
-                            try {
-                              if (selectedBadge.isFirebase) {
-                                // Supprimer le badge Firebase
-                                await deleteDoc(doc(db, 'badges', selectedBadge.id));
-                                console.log('✅ Badge Firebase supprimé');
-                              } else {
-                                // Masquer le badge par défaut en créant une version désactivée
-                                await addDoc(collection(db, 'badges'), {
-                                  name: selectedBadge.name,
-                                  description: selectedBadge.description,
-                                  icon: selectedBadge.icon,
-                                  category: selectedBadge.category,
-                                  rarity: selectedBadge.rarity,
-                                  xpReward: selectedBadge.xpReward,
-                                  isActive: false, // DÉSACTIVÉ
-                                  originalId: selectedBadge.id,
-                                  isDefault: false,
-                                  isFirebase: true,
-                                  isHidden: true, // Flag pour savoir que c'est masqué
-                                  createdAt: serverTimestamp(),
-                                  createdBy: user.uid
-                                });
-                                console.log('✅ Badge par défaut masqué');
-                              }
-                              
-                              alert('✅ Badge supprimé !');
-                              setShowEditBadgeModal(false);
-                              setSelectedBadge(null);
-                              await loadAllBadges();
-                            } catch (error) {
-                              console.error('❌ Erreur suppression:', error);
-                              alert('Erreur: ' + error.message);
-                            }
-                          }
-                        }}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        {selectedBadge.isFirebase ? 'Supprimer' : 'Masquer'}
-                      </button>
-                    )}
-                    
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Modifier
-                    </button>
-                  </div>
-                </form>
-              </div>
+              <p className="text-gray-500 text-sm">Essayez de modifier vos filtres</p>
             </div>
           )}
 
           {/* 🎁 MODAL ATTRIBUER BADGE */}
           {showAssignBadgeModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-              <div className="bg-slate-800 border border-white/20 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                <h3 className="text-2xl font-bold text-white mb-4">Attribuer un Badge</h3>
-                
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-800 border border-purple-400/30 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <UserPlus className="w-6 h-6 text-green-400" />
+                  Attribuer un Badge
+                </h3>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Liste des utilisateurs */}
                   <div>
-                    <h4 className="font-semibold text-white mb-3">Sélectionner un utilisateur</h4>
+                    <h4 className="font-semibold text-white mb-3">1. Sélectionner un utilisateur</h4>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {allUsers.map(u => (
                         <button
@@ -1331,12 +1013,14 @@ const BadgesPage = () => {
                           onClick={() => setSelectedUsers([u.id])}
                           className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
                             selectedUsers.includes(u.id)
-                              ? 'border-blue-500 bg-blue-500/20'
+                              ? 'border-green-500 bg-green-500/20'
                               : 'border-white/20 bg-white/5 hover:border-white/40'
                           }`}
                         >
                           <p className="font-medium text-white">{u.displayName || u.email}</p>
-                          <p className="text-sm text-gray-400">{u.gamification?.totalXp || 0} XP</p>
+                          <p className="text-sm text-gray-400">
+                            {u.gamification?.badges?.length || 0} badges • {u.gamification?.totalXp || 0} XP
+                          </p>
                         </button>
                       ))}
                     </div>
@@ -1344,31 +1028,50 @@ const BadgesPage = () => {
 
                   {/* Liste des badges */}
                   <div>
-                    <h4 className="font-semibold text-white mb-3">Sélectionner un badge</h4>
+                    <h4 className="font-semibold text-white mb-3">
+                      2. Sélectionner un badge
+                      {selectedBadge && (
+                        <span className="ml-2 text-purple-400">({selectedBadge.name})</span>
+                      )}
+                    </h4>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {allBadges.map(badge => (
-                        <button
-                          key={badge.id}
-                          onClick={() => {
-                            if (selectedUsers.length > 0) {
-                              handleAssignBadge(selectedUsers[0], badge.id);
-                              setShowAssignBadgeModal(false);
-                              setSelectedUsers([]);
-                            } else {
-                              alert('Veuillez d\'abord sélectionner un utilisateur');
-                            }
-                          }}
-                          className="w-full text-left p-3 rounded-lg border-2 border-white/20 bg-white/5 hover:border-blue-400/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-3xl">{badge.icon}</span>
-                            <div>
-                              <p className="font-medium text-white">{badge.name}</p>
-                              <p className="text-sm text-gray-400">{badge.xpReward} XP</p>
+                      {allBadges.map(badge => {
+                        const rarityConfig = getRarityConfig(badge.rarity);
+                        return (
+                          <button
+                            key={badge.id}
+                            onClick={() => {
+                              if (selectedUsers.length > 0) {
+                                handleAssignBadge(selectedUsers[0], badge.id);
+                                setShowAssignBadgeModal(false);
+                                setSelectedUsers([]);
+                                setSelectedBadge(null);
+                              } else {
+                                setSelectedBadge(badge);
+                              }
+                            }}
+                            className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                              selectedBadge?.id === badge.id
+                                ? 'border-purple-500 bg-purple-500/20'
+                                : 'border-white/20 bg-white/5 hover:border-purple-400/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">{badge.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-white truncate">{badge.name}</p>
+                                <p className="text-xs text-gray-400 truncate">{badge.description}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-xs px-2 py-0.5 rounded ${rarityConfig.bgClass} ${rarityConfig.textClass}`}>
+                                  {rarityConfig.label}
+                                </span>
+                                <p className="text-xs text-yellow-400 mt-1">{badge.xpReward} XP</p>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1378,10 +1081,171 @@ const BadgesPage = () => {
                     onClick={() => {
                       setShowAssignBadgeModal(false);
                       setSelectedUsers([]);
+                      setSelectedBadge(null);
                     }}
                     className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
                   >
                     Annuler
+                  </button>
+                  {selectedUsers.length > 0 && selectedBadge && (
+                    <button
+                      onClick={() => {
+                        handleAssignBadge(selectedUsers[0], selectedBadge.id);
+                        setShowAssignBadgeModal(false);
+                        setSelectedUsers([]);
+                        setSelectedBadge(null);
+                      }}
+                      disabled={actionLoading}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      Attribuer
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 🗑️ MODAL RETIRER BADGE */}
+          {showRemoveBadgeModal && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-800 border border-red-400/30 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Trash2 className="w-6 h-6 text-red-400" />
+                  Retirer un Badge
+                </h3>
+
+                <p className="text-gray-400 mb-4">
+                  Sélectionnez un utilisateur pour voir ses badges et en retirer un.
+                </p>
+
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {allUsers.filter(u => (u.gamification?.badges?.length || 0) > 0).map(u => (
+                    <button
+                      key={u.id}
+                      onClick={() => {
+                        setSelectedUser(u);
+                        setShowRemoveBadgeModal(false);
+                        setShowUserBadgesModal(true);
+                      }}
+                      className="w-full text-left p-3 rounded-lg border-2 border-white/20 bg-white/5 hover:border-red-400/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-white">{u.displayName || u.email}</p>
+                          <p className="text-sm text-gray-400">
+                            {u.gamification?.badges?.length || 0} badges
+                          </p>
+                        </div>
+                        <div className="flex -space-x-2">
+                          {(u.gamification?.badges || []).slice(0, 5).map((b, i) => (
+                            <span key={i} className="text-xl">{b.icon}</span>
+                          ))}
+                          {(u.gamification?.badges?.length || 0) > 5 && (
+                            <span className="text-gray-400 text-sm ml-2">+{u.gamification.badges.length - 5}</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex justify-end mt-6 pt-4 border-t border-white/20">
+                  <button
+                    onClick={() => setShowRemoveBadgeModal(false)}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 👁️ MODAL VOIR BADGES UTILISATEUR */}
+          {showUserBadgesModal && selectedUser && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-800 border border-purple-400/30 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Eye className="w-6 h-6 text-purple-400" />
+                  Badges de {selectedUser.displayName || selectedUser.email}
+                </h3>
+
+                <div className="mb-4 p-4 bg-white/5 rounded-lg">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-white">{selectedUser.gamification?.badges?.length || 0}</div>
+                      <div className="text-sm text-gray-400">Badges</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-white">{selectedUser.gamification?.totalXp || 0}</div>
+                      <div className="text-sm text-gray-400">XP Total</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-white">Niv. {selectedUser.gamification?.level || 1}</div>
+                      <div className="text-sm text-gray-400">Niveau</div>
+                    </div>
+                  </div>
+                </div>
+
+                {(selectedUser.gamification?.badges?.length || 0) === 0 ? (
+                  <div className="text-center py-8">
+                    <Trophy className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400">Aucun badge</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(selectedUser.gamification?.badges || []).map((badge, index) => {
+                      const rarityConfig = getRarityConfig(badge.rarity);
+                      return (
+                        <div
+                          key={index}
+                          className={`p-4 rounded-lg border ${rarityConfig.borderClass} ${rarityConfig.bgClass} flex items-center justify-between`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">{badge.icon}</span>
+                            <div>
+                              <p className="font-medium text-white">{badge.name}</p>
+                              <p className="text-xs text-gray-400">
+                                {badge.unlockedAt ? new Date(badge.unlockedAt).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveBadge(selectedUser.id, badge.id)}
+                            disabled={actionLoading}
+                            className="p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                            title="Retirer ce badge"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-white/20">
+                  <button
+                    onClick={() => {
+                      setShowUserBadgesModal(false);
+                      setSelectedUser(null);
+                    }}
+                    className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                  >
+                    Fermer
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUserBadgesModal(false);
+                      setSelectedUsers([selectedUser.id]);
+                      setShowAssignBadgeModal(true);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter un Badge
                   </button>
                 </div>
               </div>
