@@ -34,7 +34,18 @@ import {
   UserPlus,
   UserMinus,
   Crown,
-  Award
+  Award,
+  // 📦 MODULE 10: RETROSPECTIVES
+  RefreshCw,
+  Target,
+  Lightbulb,
+  ListTodo,
+  Timer,
+  PenLine,
+  ThumbsUp,
+  ThumbsDown,
+  Sparkles,
+  Send
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT SYNERGIA
@@ -42,6 +53,15 @@ import Layout from '../components/layout/Layout.jsx';
 
 // 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
+
+// 📦 MODULE 10: SERVICE RETROSPECTIVES
+import {
+  retrospectiveService,
+  RETRO_XP,
+  RETRO_ROLES,
+  RETRO_SECTIONS,
+  RETRO_STATUS
+} from '../core/services/retrospectiveService.js';
 
 // 📊 FIREBASE IMPORTS
 import { 
@@ -127,6 +147,12 @@ const CampaignDetailPage = () => {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [searchMemberTerm, setSearchMemberTerm] = useState('');
   const [memberContributions, setMemberContributions] = useState({});
+
+  // 📦 MODULE 10: États Rétrospective
+  const [retrospective, setRetrospective] = useState(null);
+  const [retroLoading, setRetroLoading] = useState(false);
+  const [newRetroItem, setNewRetroItem] = useState({ section: '', content: '' });
+  const [newAction, setNewAction] = useState({ content: '', assignedTo: '', deadline: '' });
 
   // 🔥 CHARGEMENT DES DONNÉES
   useEffect(() => {
@@ -214,6 +240,26 @@ const CampaignDetailPage = () => {
       if (unsubQuests) unsubQuests();
     };
   }, [campaignId, user?.uid]);
+
+  // 📦 MODULE 10: CHARGEMENT RÉTROSPECTIVE
+  useEffect(() => {
+    if (!campaignId || !campaign) return;
+
+    const loadRetrospective = async () => {
+      try {
+        setRetroLoading(true);
+        const retro = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+        setRetrospective(retro);
+        console.log('📦 [RETRO] Rétrospective chargée:', retro ? 'Oui' : 'Non');
+      } catch (error) {
+        console.error('❌ [RETRO] Erreur chargement:', error);
+      } finally {
+        setRetroLoading(false);
+      }
+    };
+
+    loadRetrospective();
+  }, [campaignId, campaign]);
 
   // 👥 CONSTRUCTION DE L'ÉQUIPE ET CONTRIBUTIONS
   useEffect(() => {
@@ -422,6 +468,145 @@ const CampaignDetailPage = () => {
     return !isAlreadyMember && matchesSearch;
   });
 
+  // 📦 MODULE 10: FONCTIONS RÉTROSPECTIVE
+
+  // Créer une nouvelle rétrospective
+  const handleCreateRetrospective = async () => {
+    try {
+      setRetroLoading(true);
+      const newRetro = await retrospectiveService.createRetrospective(
+        campaignId,
+        campaign.title,
+        user.uid,
+        user.displayName || user.email
+      );
+      setRetrospective(newRetro);
+      console.log('✅ [RETRO] Rétrospective créée');
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur création:', error);
+      alert('Erreur lors de la création de la rétrospective');
+    } finally {
+      setRetroLoading(false);
+    }
+  };
+
+  // Ajouter un item à une section
+  const handleAddRetroItem = async (sectionId) => {
+    if (!newRetroItem.content.trim()) return;
+
+    try {
+      await retrospectiveService.addSectionItem(
+        retrospective.id,
+        sectionId,
+        { content: newRetroItem.content },
+        user.uid,
+        user.displayName || user.email
+      );
+
+      // Recharger la rétrospective
+      const updated = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+      setRetrospective(updated);
+      setNewRetroItem({ section: '', content: '' });
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur ajout item:', error);
+    }
+  };
+
+  // Ajouter une action
+  const handleAddAction = async () => {
+    if (!newAction.content.trim()) return;
+
+    try {
+      const assignedUser = teamMembers.find(m => m.id === newAction.assignedTo);
+      await retrospectiveService.addSectionItem(
+        retrospective.id,
+        'actions',
+        {
+          content: newAction.content,
+          assignedTo: newAction.assignedTo || null,
+          assignedToName: assignedUser?.displayName || null,
+          deadline: newAction.deadline || null
+        },
+        user.uid,
+        user.displayName || user.email
+      );
+
+      const updated = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+      setRetrospective(updated);
+      setNewAction({ content: '', assignedTo: '', deadline: '' });
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur ajout action:', error);
+    }
+  };
+
+  // Supprimer un item
+  const handleRemoveRetroItem = async (sectionId, itemId) => {
+    try {
+      await retrospectiveService.removeSectionItem(retrospective.id, sectionId, itemId);
+      const updated = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+      setRetrospective(updated);
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur suppression item:', error);
+    }
+  };
+
+  // Toggle action complétée
+  const handleToggleAction = async (actionId, completed) => {
+    try {
+      await retrospectiveService.toggleActionComplete(retrospective.id, actionId, completed);
+      const updated = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+      setRetrospective(updated);
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur toggle action:', error);
+    }
+  };
+
+  // Assigner un rôle
+  const handleAssignRole = async (roleId, userId) => {
+    try {
+      const selectedUser = teamMembers.find(m => m.id === userId);
+      const updatedRoles = {
+        ...retrospective.roles,
+        [roleId]: userId ? {
+          id: userId,
+          name: selectedUser?.displayName || 'Utilisateur'
+        } : null
+      };
+      await retrospectiveService.updateRoles(retrospective.id, updatedRoles);
+      const updated = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+      setRetrospective(updated);
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur assignation rôle:', error);
+    }
+  };
+
+  // Démarrer la rétrospective
+  const handleStartRetro = async () => {
+    try {
+      await retrospectiveService.startRetrospective(retrospective.id);
+      // Ajouter l'utilisateur actuel comme participant
+      await retrospectiveService.addParticipant(retrospective.id, user.uid, user.displayName || user.email);
+      const updated = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+      setRetrospective(updated);
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur démarrage:', error);
+    }
+  };
+
+  // Terminer la rétrospective
+  const handleCompleteRetro = async () => {
+    if (!confirm('Terminer la rétrospective ? Les XP seront attribués aux participants.')) return;
+
+    try {
+      await retrospectiveService.completeRetrospective(retrospective.id, 30);
+      const updated = await retrospectiveService.getRetrospectiveByCampaign(campaignId);
+      setRetrospective(updated);
+      alert(`Rétrospective terminée ! ${RETRO_XP.PARTICIPATE} XP attribués aux participants.`);
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur fin:', error);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -629,6 +814,18 @@ const CampaignDetailPage = () => {
             >
               <Shield className="h-4 w-4 inline mr-2" />
               Équipe
+            </button>
+            {/* 📦 MODULE 10: Onglet Rétrospective - visible uniquement si campagne terminée ou en cours */}
+            <button
+              onClick={() => setActiveTab('retrospective')}
+              className={`px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
+                activeTab === 'retrospective'
+                  ? 'border-purple-500 text-purple-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <RefreshCw className="h-4 w-4 inline mr-2" />
+              Rétrospective
             </button>
           </div>
 
@@ -1111,6 +1308,427 @@ const CampaignDetailPage = () => {
                         </motion.div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 📦 MODULE 10: Onglet Rétrospective */}
+            {activeTab === 'retrospective' && (
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                    <RefreshCw className="h-6 w-6 text-purple-400" />
+                    Rétrospective de campagne
+                  </h3>
+                  {retrospective?.status === RETRO_STATUS.COMPLETED && (
+                    <span className="px-4 py-2 bg-green-900/30 text-green-400 rounded-lg border border-green-500/30 flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      Terminée
+                    </span>
+                  )}
+                </div>
+
+                {/* Si pas de rétrospective, proposer d'en créer une */}
+                {!retrospective && !retroLoading && (
+                  <motion.div
+                    className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-12 text-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
+                      <RefreshCw className="h-10 w-10 text-white" />
+                    </div>
+                    <h4 className="text-2xl font-bold text-white mb-3">Bilan de campagne</h4>
+                    <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                      Organisez une rétrospective express de 15-30 minutes pour capitaliser sur l'expérience de votre équipe.
+                    </p>
+                    <div className="flex items-center justify-center gap-4 mb-6 text-sm text-gray-400">
+                      <span className="flex items-center gap-2">
+                        <Star className="h-4 w-4 text-yellow-400" />
+                        +{RETRO_XP.PARTICIPATE} XP / participant
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <Target className="h-4 w-4 text-purple-400" />
+                        +{RETRO_XP.ANIMATE} XP animateur
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleCreateRetrospective}
+                      disabled={retroLoading}
+                      className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-200 flex items-center gap-3 mx-auto"
+                    >
+                      <Sparkles className="h-5 w-5" />
+                      Créer la rétrospective
+                    </button>
+                  </motion.div>
+                )}
+
+                {/* Chargement */}
+                {retroLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+
+                {/* Contenu de la rétrospective */}
+                {retrospective && !retroLoading && (
+                  <div className="space-y-6">
+                    {/* Rôles */}
+                    <motion.div
+                      className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Users className="h-5 w-5 text-blue-400" />
+                        Rôles de la session
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {Object.entries(RETRO_ROLES).map(([key, role]) => (
+                          <div key={key} className="bg-gray-700/30 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-2xl">{role.icon}</span>
+                              <span className="font-medium text-white">{role.label}</span>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-3">{role.description}</p>
+                            <select
+                              value={retrospective.roles?.[role.id]?.id || ''}
+                              onChange={(e) => handleAssignRole(role.id, e.target.value)}
+                              disabled={retrospective.status === RETRO_STATUS.COMPLETED}
+                              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                            >
+                              <option value="">Non assigné</option>
+                              {teamMembers.map(member => (
+                                <option key={member.id} value={member.id}>
+                                  {member.displayName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+
+                    {/* Actions de session */}
+                    {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                      <motion.div
+                        className="flex items-center gap-4"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                      >
+                        {retrospective.status === RETRO_STATUS.DRAFT && (
+                          <button
+                            onClick={handleStartRetro}
+                            className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-600 transition-all flex items-center gap-2"
+                          >
+                            <PlayCircle className="h-5 w-5" />
+                            Démarrer la session
+                          </button>
+                        )}
+                        {retrospective.status === RETRO_STATUS.IN_PROGRESS && (
+                          <button
+                            onClick={handleCompleteRetro}
+                            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-medium hover:from-purple-600 hover:to-pink-600 transition-all flex items-center gap-2"
+                          >
+                            <CheckCircle className="h-5 w-5" />
+                            Terminer et attribuer XP
+                          </button>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <Timer className="h-4 w-4" />
+                          Durée recommandée: 15-30 min
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Sections de la rétrospective */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Ce qui a bien marché */}
+                      <motion.div
+                        className="bg-gray-800/50 backdrop-blur-sm border border-green-500/30 rounded-xl p-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 }}
+                      >
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <ThumbsUp className="h-5 w-5 text-green-400" />
+                          Ce qui a bien marché
+                        </h4>
+                        <div className="space-y-2 mb-4">
+                          {(retrospective.sections?.went_well || []).map(item => (
+                            <div key={item.id} className="flex items-start gap-2 p-3 bg-green-900/20 rounded-lg">
+                              <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-white text-sm">{item.content}</p>
+                                <p className="text-xs text-gray-500 mt-1">{item.createdByName}</p>
+                              </div>
+                              {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                                <button
+                                  onClick={() => handleRemoveRetroItem('went_well', item.id)}
+                                  className="text-gray-500 hover:text-red-400 transition-colors"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newRetroItem.section === 'went_well' ? newRetroItem.content : ''}
+                              onChange={(e) => setNewRetroItem({ section: 'went_well', content: e.target.value })}
+                              placeholder="Ajouter un point positif..."
+                              className="flex-1 px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                              onKeyPress={(e) => e.key === 'Enter' && handleAddRetroItem('went_well')}
+                            />
+                            <button
+                              onClick={() => handleAddRetroItem('went_well')}
+                              className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                            >
+                              <Plus className="h-5 w-5" />
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Ce qu'on peut améliorer */}
+                      <motion.div
+                        className="bg-gray-800/50 backdrop-blur-sm border border-red-500/30 rounded-xl p-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                      >
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <ThumbsDown className="h-5 w-5 text-red-400" />
+                          Ce qu'on peut améliorer
+                        </h4>
+                        <div className="space-y-2 mb-4">
+                          {(retrospective.sections?.to_improve || []).map(item => (
+                            <div key={item.id} className="flex items-start gap-2 p-3 bg-red-900/20 rounded-lg">
+                              <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-white text-sm">{item.content}</p>
+                                <p className="text-xs text-gray-500 mt-1">{item.createdByName}</p>
+                              </div>
+                              {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                                <button
+                                  onClick={() => handleRemoveRetroItem('to_improve', item.id)}
+                                  className="text-gray-500 hover:text-red-400 transition-colors"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newRetroItem.section === 'to_improve' ? newRetroItem.content : ''}
+                              onChange={(e) => setNewRetroItem({ section: 'to_improve', content: e.target.value })}
+                              placeholder="Ajouter un point à améliorer..."
+                              className="flex-1 px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                              onKeyPress={(e) => e.key === 'Enter' && handleAddRetroItem('to_improve')}
+                            />
+                            <button
+                              onClick={() => handleAddRetroItem('to_improve')}
+                              className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                              <Plus className="h-5 w-5" />
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Idées pour la prochaine fois */}
+                      <motion.div
+                        className="bg-gray-800/50 backdrop-blur-sm border border-yellow-500/30 rounded-xl p-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25 }}
+                      >
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <Lightbulb className="h-5 w-5 text-yellow-400" />
+                          Idées pour la prochaine fois
+                        </h4>
+                        <div className="space-y-2 mb-4">
+                          {(retrospective.sections?.ideas || []).map(item => (
+                            <div key={item.id} className="flex items-start gap-2 p-3 bg-yellow-900/20 rounded-lg">
+                              <Lightbulb className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-white text-sm">{item.content}</p>
+                                <p className="text-xs text-gray-500 mt-1">{item.createdByName}</p>
+                              </div>
+                              {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                                <button
+                                  onClick={() => handleRemoveRetroItem('ideas', item.id)}
+                                  className="text-gray-500 hover:text-red-400 transition-colors"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newRetroItem.section === 'ideas' ? newRetroItem.content : ''}
+                              onChange={(e) => setNewRetroItem({ section: 'ideas', content: e.target.value })}
+                              placeholder="Ajouter une idée..."
+                              className="flex-1 px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                              onKeyPress={(e) => e.key === 'Enter' && handleAddRetroItem('ideas')}
+                            />
+                            <button
+                              onClick={() => handleAddRetroItem('ideas')}
+                              className="p-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+                            >
+                              <Plus className="h-5 w-5" />
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Actions définies */}
+                      <motion.div
+                        className="bg-gray-800/50 backdrop-blur-sm border border-blue-500/30 rounded-xl p-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                      >
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <ListTodo className="h-5 w-5 text-blue-400" />
+                          Actions définies
+                        </h4>
+                        <div className="space-y-2 mb-4">
+                          {(retrospective.sections?.actions || []).map(item => (
+                            <div key={item.id} className={`flex items-start gap-2 p-3 rounded-lg ${item.completed ? 'bg-green-900/20' : 'bg-blue-900/20'}`}>
+                              <button
+                                onClick={() => handleToggleAction(item.id, !item.completed)}
+                                disabled={retrospective.status === RETRO_STATUS.COMPLETED}
+                                className={`mt-0.5 flex-shrink-0 ${item.completed ? 'text-green-400' : 'text-blue-400'}`}
+                              >
+                                {item.completed ? (
+                                  <CheckCircle className="h-4 w-4" />
+                                ) : (
+                                  <Target className="h-4 w-4" />
+                                )}
+                              </button>
+                              <div className="flex-1">
+                                <p className={`text-sm ${item.completed ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                  {item.content}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                  {item.assignedToName && (
+                                    <span className="flex items-center gap-1">
+                                      <Users className="h-3 w-3" />
+                                      {item.assignedToName}
+                                    </span>
+                                  )}
+                                  {item.deadline && (
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {new Date(item.deadline).toLocaleDateString('fr-FR')}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                                <button
+                                  onClick={() => handleRemoveRetroItem('actions', item.id)}
+                                  className="text-gray-500 hover:text-red-400 transition-colors"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {retrospective.status !== RETRO_STATUS.COMPLETED && (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={newAction.content}
+                              onChange={(e) => setNewAction({ ...newAction, content: e.target.value })}
+                              placeholder="Définir une action..."
+                              className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                            />
+                            <div className="flex gap-2">
+                              <select
+                                value={newAction.assignedTo}
+                                onChange={(e) => setNewAction({ ...newAction, assignedTo: e.target.value })}
+                                className="flex-1 px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                              >
+                                <option value="">Assigné à...</option>
+                                {teamMembers.map(member => (
+                                  <option key={member.id} value={member.id}>
+                                    {member.displayName}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="date"
+                                value={newAction.deadline}
+                                onChange={(e) => setNewAction({ ...newAction, deadline: e.target.value })}
+                                className="px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                              />
+                              <button
+                                onClick={handleAddAction}
+                                className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                              >
+                                <Plus className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    </div>
+
+                    {/* Gamification info */}
+                    <motion.div
+                      className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-xl p-6"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.35 }}
+                    >
+                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-yellow-400" />
+                        Récompenses
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div className="bg-gray-800/50 rounded-lg p-4">
+                          <div className="text-2xl font-bold text-yellow-400">+{RETRO_XP.PARTICIPATE} XP</div>
+                          <div className="text-sm text-gray-400">Par participant</div>
+                        </div>
+                        <div className="bg-gray-800/50 rounded-lg p-4">
+                          <div className="text-2xl font-bold text-purple-400">+{RETRO_XP.ANIMATE} XP</div>
+                          <div className="text-sm text-gray-400">Animateur</div>
+                        </div>
+                        <div className="bg-gray-800/50 rounded-lg p-4">
+                          <div className="text-2xl mb-1">🎯</div>
+                          <div className="text-sm text-gray-400">Badge "Facilitateur" après 5 rétros animées</div>
+                        </div>
+                      </div>
+                      {retrospective.participants?.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-700/50">
+                          <div className="text-sm text-gray-400 mb-2">Participants ({retrospective.participants.length})</div>
+                          <div className="flex flex-wrap gap-2">
+                            {retrospective.participants.map(p => (
+                              <span key={p.id} className="px-3 py-1 bg-purple-900/30 text-purple-400 rounded-full text-sm">
+                                {p.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
                   </div>
                 )}
               </div>
