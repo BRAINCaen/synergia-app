@@ -637,7 +637,7 @@ const TasksPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 overflow-x-hidden">
 
         {/* Header compact mobile */}
         <div className="sticky top-0 z-30 bg-gray-900/95 backdrop-blur-lg border-b border-white/10">
