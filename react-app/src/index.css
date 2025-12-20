@@ -35,3 +35,249 @@
     text-wrap: balance;
   }
 }
+
+/* ==========================================
+   AVATAR BUILDER - Custom Effects & Animations
+   ========================================== */
+
+/* Animations de base */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fire-flicker {
+  0%, 100% { opacity: 0.8; filter: brightness(1); }
+  25% { opacity: 1; filter: brightness(1.2); }
+  50% { opacity: 0.9; filter: brightness(1.1); }
+  75% { opacity: 1; filter: brightness(1.3); }
+}
+
+@keyframes ice-shimmer {
+  0%, 100% { filter: hue-rotate(0deg) brightness(1); }
+  50% { filter: hue-rotate(20deg) brightness(1.2); }
+}
+
+@keyframes lightning-flash {
+  0%, 90%, 100% { opacity: 0; }
+  92%, 94%, 96%, 98% { opacity: 1; }
+  91%, 93%, 95%, 97%, 99% { opacity: 0; }
+}
+
+@keyframes shadow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+  50% { box-shadow: 0 0 40px rgba(0,0,0,0.8); }
+}
+
+@keyframes holy-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+  50% { box-shadow: 0 0 40px rgba(255,215,0,0.6); }
+}
+
+@keyframes cosmic-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rainbow-shift {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+/* Classes d'animation */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+.animate-gradient-slow {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* Effets d'aura pour les avatars */
+.effect-sparkles {
+  position: relative;
+}
+.effect-sparkles::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px);
+  background-size: 15px 15px;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.effect-glow {
+  box-shadow: 0 0 30px rgba(255,255,255,0.4);
+}
+
+.effect-fire {
+  position: relative;
+}
+.effect-fire::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(255,100,0,0.3), transparent);
+  animation: fire-flicker 0.5s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+.effect-ice {
+  position: relative;
+}
+.effect-ice::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,200,255,0.2), rgba(255,255,255,0.3));
+  animation: ice-shimmer 3s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+.effect-lightning {
+  position: relative;
+}
+.effect-lightning::after {
+  content: '⚡';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 1rem;
+  animation: lightning-flash 3s infinite;
+}
+
+.effect-nature {
+  position: relative;
+}
+.effect-nature::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 100%, rgba(34,197,94,0.3), transparent 70%);
+  border-radius: inherit;
+}
+
+.effect-shadow {
+  animation: shadow-pulse 2s ease-in-out infinite;
+}
+
+.effect-holy {
+  animation: holy-glow 2s ease-in-out infinite;
+}
+
+.effect-cosmic {
+  position: relative;
+  overflow: hidden;
+}
+.effect-cosmic::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(from 0deg, transparent, rgba(139,92,246,0.3), transparent);
+  animation: cosmic-rotate 5s linear infinite;
+}
+
+.effect-rainbow {
+  animation: rainbow-shift 5s linear infinite;
+}
+
+.effect-phoenix {
+  position: relative;
+}
+.effect-phoenix::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(255,100,0,0.4), rgba(255,200,0,0.2), transparent);
+  animation: fire-flicker 0.3s ease-in-out infinite;
+  border-radius: inherit;
+}
+.effect-phoenix::after {
+  content: '🔥';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.5rem;
+  animation: float 1s ease-in-out infinite;
+}
+
+/* Rarete des items - bordures animees */
+.rarity-rare {
+  position: relative;
+}
+.rarity-rare::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, #3b82f6, #60a5fa, #3b82f6);
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+.rarity-epic {
+  position: relative;
+}
+.rarity-epic::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, #8b5cf6, #a855f7, #8b5cf6);
+  background-size: 200% 200%;
+  animation: gradient-shift 2s ease infinite;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+.rarity-mythic {
+  position: relative;
+}
+.rarity-mythic::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, #fbbf24, #f59e0b, #ef4444, #fbbf24);
+  background-size: 300% 300%;
+  animation: gradient-shift 1.5s ease infinite;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+/* Scrollbar personnalisee pour les selecteurs */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}
