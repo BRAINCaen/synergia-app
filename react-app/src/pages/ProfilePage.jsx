@@ -97,7 +97,7 @@ const CustomSelect = ({ value, options, onChange, placeholder = "Sélectionner..
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white text-left focus:outline-none focus:ring-2 focus:ring-purple-500/50 flex items-center justify-between"
+        className="w-full px-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white text-left focus:outline-none focus:ring-2 focus:ring-purple-500/50 flex items-center justify-between"
       >
         <span>{selectedOption?.label || placeholder}</span>
         <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -589,7 +589,7 @@ const ProfilePage = () => {
   if (loading && !userProfile.email) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center">
           <div className="text-center">
             <motion.div
               animate={{ rotate: 360 }}
@@ -606,47 +606,58 @@ const ProfilePage = () => {
   return (
     <Layout>
       <SuccessNotification />
-      
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 relative overflow-hidden">
+
+        {/* Animated background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/15 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
           
           {/* 🏆 EN-TÊTE PROFILE PAGE */}
-          <div className="mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                  <User className="w-8 h-8 text-purple-400" />
-                  Mon Profil & Paramètres
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+                    <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  Mon Profil
                 </h1>
-                <p className="text-gray-300">
-                  Gérez vos informations personnelles et personnalisez votre expérience
+                <p className="text-gray-400 text-sm sm:text-base">
+                  Gérez vos informations et personnalisez votre expérience
                 </p>
               </div>
-              
+
               {/* Actions */}
               {headerActions}
             </div>
 
             {/* 📊 STATISTIQUES PROFIL */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
               {headerStats.map((stat, index) => (
                 <motion.div
                   key={stat.label}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50"
+                  className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10 hover:border-white/20 transition-all"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className={`text-2xl font-bold ${stat.color}`}>
+                      <div className={`text-xl sm:text-2xl font-bold ${stat.color}`}>
                         {stat.value}
                       </div>
-                      <div className="text-gray-400 text-sm mt-1">
+                      <div className="text-gray-400 text-xs sm:text-sm mt-1">
                         {stat.label}
                       </div>
                     </div>
-                    <stat.icon className={`w-8 h-8 ${stat.color}`} />
+                    <stat.icon className={`w-6 h-6 sm:w-8 sm:h-8 ${stat.color} opacity-80`} />
                   </div>
                 </motion.div>
               ))}
@@ -654,29 +665,29 @@ const ProfilePage = () => {
           </div>
 
           {/* Onglets de navigation */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
+          <div className="flex overflow-x-auto pb-2 mb-6 sm:mb-8 gap-2 sm:gap-3 scrollbar-hide">
             {tabs.map((tab) => {
               const IconComponent = tab.icon;
               return (
                 <motion.button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className={`
-                    p-4 rounded-xl border-2 transition-all duration-300 text-center
+                    flex-shrink-0 px-4 py-3 rounded-xl border transition-all duration-300 flex items-center gap-2
                     ${activeTab === tab.id
-                      ? 'border-purple-500/50 bg-gradient-to-br from-purple-500/20 to-blue-500/20 shadow-lg'
-                      : 'border-gray-700/50 bg-gray-800/50 hover:border-gray-600/50'
+                      ? 'border-purple-500/50 bg-purple-500/20 shadow-lg shadow-purple-500/10'
+                      : 'border-white/10 bg-white/5 hover:bg-white/10'
                     }
                   `}
                 >
-                  <div className={`bg-gradient-to-r ${tab.gradient} w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-2`}>
-                    <IconComponent className="w-4 h-4 text-white" />
+                  <div className={`bg-gradient-to-r ${tab.gradient} w-7 h-7 rounded-lg flex items-center justify-center`}>
+                    <IconComponent className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <div className={`text-sm font-medium ${activeTab === tab.id ? 'text-white' : 'text-gray-400'}`}>
+                  <span className={`text-sm font-medium whitespace-nowrap ${activeTab === tab.id ? 'text-white' : 'text-gray-400'}`}>
                     {tab.label}
-                  </div>
+                  </span>
                 </motion.button>
               );
             })}
@@ -693,7 +704,7 @@ const ProfilePage = () => {
                 <div className="lg:col-span-2 space-y-8">
                   
                   {/* Carte Profil Principal */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+                  <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-8 border border-white/10">
                     <div className="flex items-center space-x-6 mb-8">
                       {/* Avatar */}
                       <div className="relative">
@@ -798,7 +809,7 @@ const ProfilePage = () => {
                   </div>
 
                   {/* Activité récente */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                  <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
                     <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                       <Activity className="w-5 h-5 text-purple-400" />
                       Activité récente
@@ -843,7 +854,7 @@ const ProfilePage = () => {
                   />
 
                   {/* Résumé des stats */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                  <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                       <BarChart3 className="w-5 h-5 text-blue-400" />
                       Statistiques
@@ -887,7 +898,7 @@ const ProfilePage = () => {
                   />
 
                   {/* Paramètres rapides */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                  <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                       <Settings className="w-5 h-5 text-gray-400" />
                       Paramètres rapides
@@ -943,7 +954,7 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET PROFIL ========== */}
             {activeTab === 'profile' && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
                   <User className="w-6 h-6 text-blue-400 mr-3" />
                   Informations de Profil
@@ -959,7 +970,7 @@ const ProfilePage = () => {
                         type="text"
                         value={formData.displayName}
                         onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                        className="w-full px-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                         placeholder="Votre nom d'affichage"
                       />
                     </div>
@@ -972,7 +983,7 @@ const ProfilePage = () => {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                        className="w-full px-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                       />
                     </div>
                   </div>
@@ -986,7 +997,7 @@ const ProfilePage = () => {
                         type="text"
                         value={formData.location}
                         onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                        className="w-full px-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                       />
                     </div>
                     
@@ -998,7 +1009,7 @@ const ProfilePage = () => {
                         type="text"
                         value={formData.company}
                         onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
-                        className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                        className="w-full px-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                       />
                     </div>
                   </div>
@@ -1011,7 +1022,7 @@ const ProfilePage = () => {
                       type="url"
                       value={formData.website}
                       onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                     />
                   </div>
 
@@ -1023,7 +1034,7 @@ const ProfilePage = () => {
                       value={formData.bio}
                       onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
                       rows={4}
-                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
+                      className="w-full px-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
                       placeholder="Parlez-nous de vous..."
                     />
                   </div>
@@ -1033,7 +1044,7 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET NOTIFICATIONS ========== */}
             {activeTab === 'notifications' && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
                   <Bell className="w-6 h-6 text-green-400 mr-3" />
                   Préférences de Notifications
@@ -1047,7 +1058,7 @@ const ProfilePage = () => {
                     { key: 'taskReminders', label: 'Rappels de tâches', icon: AlertTriangle },
                     { key: 'weeklyReport', label: 'Rapport hebdomadaire', icon: BarChart3 }
                   ].map(({ key, label, icon: Icon }) => (
-                    <div key={key} className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+                    <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                       <div className="flex items-center space-x-3">
                         <Icon className="w-5 h-5 text-green-400" />
                         <span className="text-white font-medium">{label}</span>
@@ -1074,7 +1085,7 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET INTERFACE ========== */}
             {activeTab === 'interface' && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
                   <Palette className="w-6 h-6 text-purple-400 mr-3" />
                   Apparence et Interface
@@ -1103,7 +1114,7 @@ const ProfilePage = () => {
                       { key: 'animations', label: 'Animations', icon: RefreshCw },
                       { key: 'compactMode', label: 'Mode compact', icon: Smartphone }
                     ].map(({ key, label, icon: Icon }) => (
-                      <div key={key} className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+                      <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                         <div className="flex items-center space-x-3">
                           <Icon className="w-5 h-5 text-purple-400" />
                           <span className="text-white font-medium">{label}</span>
@@ -1150,12 +1161,12 @@ const ProfilePage = () => {
                   />
 
                   {/* 🏆 Tous les Rangs de la Guilde (Module 4) */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                  <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
                     <AllRanksDisplay currentLevel={level} />
                   </div>
 
                   {/* Paramètres de gamification */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+                  <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
                     <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
                       <Award className="w-6 h-6 text-orange-400 mr-3" />
                       Paramètres de Gamification
@@ -1168,7 +1179,7 @@ const ProfilePage = () => {
                         { key: 'publicProfile', label: 'Profil public', icon: Globe },
                         { key: 'leaderboardVisible', label: 'Visible dans le classement', icon: Trophy }
                       ].map(({ key, label, icon: Icon }) => (
-                        <div key={key} className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+                        <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                           <div className="flex items-center space-x-3">
                             <Icon className="w-5 h-5 text-orange-400" />
                             <span className="text-white font-medium">{label}</span>
@@ -1214,7 +1225,7 @@ const ProfilePage = () => {
                   />
 
                   {/* Leaderboard Badges */}
-                  <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+                  <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
                     <BadgeLeaderboard maxUsers={10} showCurrentUser={true} />
                   </div>
                 </div>
@@ -1223,7 +1234,7 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET CONFIDENTIALITÉ ========== */}
             {activeTab === 'privacy' && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
                   <Shield className="w-6 h-6 text-pink-400 mr-3" />
                   Confidentialité et Sécurité
@@ -1260,7 +1271,7 @@ const ProfilePage = () => {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-800/30 rounded-xl border border-gray-700/50">
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                     <div className="flex items-center space-x-3">
                       <BarChart3 className="w-5 h-5 text-pink-400" />
                       <div>
@@ -1289,7 +1300,7 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET DONNÉES ========== */}
             {activeTab === 'data' && (
-              <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50">
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
                   <Database className="w-6 h-6 text-gray-400 mr-3" />
                   Gestion des Données
@@ -1336,6 +1347,7 @@ const ProfilePage = () => {
             )}
 
           </div>
+        </div>
         </div>
       </div>
     </Layout>

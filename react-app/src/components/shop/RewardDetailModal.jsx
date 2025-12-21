@@ -76,7 +76,7 @@ const RewardDetailModal = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center sm:justify-center justify-start z-50 p-4 overflow-y-auto"
         onClick={onClose}
       >
         <motion.div
@@ -84,11 +84,11 @@ const RewardDetailModal = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/20 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
+          className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/20 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl my-auto max-h-[95vh] sm:max-h-[90vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header avec gradient */}
-          <div className={`relative h-40 bg-gradient-to-br ${getGradientColor()} flex items-center justify-center`}>
+          <div className={`relative h-32 sm:h-40 shrink-0 bg-gradient-to-br ${getGradientColor()} flex items-center justify-center`}>
             {/* Effet particules */}
             <div className="absolute inset-0 overflow-hidden">
               {[...Array(6)].map((_, i) => (
@@ -117,7 +117,7 @@ const RewardDetailModal = ({
 
             {/* Icône principale */}
             <motion.span
-              className="text-8xl filter drop-shadow-2xl"
+              className="text-6xl sm:text-8xl filter drop-shadow-2xl"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', delay: 0.1 }}
@@ -149,20 +149,20 @@ const RewardDetailModal = ({
           </div>
 
           {/* Contenu */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1">
             {/* Titre et description */}
-            <h2 className="text-2xl font-bold text-white mb-2">{reward.name}</h2>
-            <p className="text-gray-400 mb-6">{reward.description}</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">{reward.name}</h2>
+            <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-6">{reward.description}</p>
 
             {/* Catégorie */}
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6">
               <span className="px-3 py-1 bg-white/10 rounded-full text-sm text-gray-300">
                 {reward.category}
               </span>
             </div>
 
             {/* Coût et progression */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Zap className="w-5 h-5 text-yellow-400" />
@@ -209,7 +209,7 @@ const RewardDetailModal = ({
 
             {/* Info XP Prestige pour récompenses individuelles */}
             {!isTeamReward && (
-              <div className="flex items-start gap-2 text-sm text-gray-500 mb-6 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+              <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 sm:p-3">
                 <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
                 <span>
                   Vos <strong className="text-yellow-400">{userTotalXP.toLocaleString()} XP de prestige</strong> restent intacts pour les classements et niveaux.
@@ -222,7 +222,7 @@ const RewardDetailModal = ({
               <button
                 onClick={handlePurchaseClick}
                 disabled={!canAfford || isPurchasing}
-                className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all flex items-center justify-center gap-2 ${
                   canAfford && !isPurchasing
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-blue-500/25'
                     : 'bg-gray-700 text-gray-500 cursor-not-allowed'
