@@ -20,7 +20,6 @@ import InfosPage from '../../pages/InfosPage.jsx';
 import TasksPage from '../../pages/TasksPage.jsx';
 import ProjectsPage from '../../pages/ProjectsPage.jsx';
 import TeamPage from '../../pages/TeamPage.jsx';
-import FeedbackPage from '../../pages/FeedbackPage.jsx';
 
 // Page Gamification
 import GamificationPage from '../../pages/GamificationPage.jsx';
@@ -181,24 +180,14 @@ const AppRouter = () => {
         } 
       />
       
-      {/* Route Feedback */}
-      <Route
-        path="/feedback"
-        element={
-          <ProtectedRoute>
-            <FeedbackPage />
-          </ProtectedRoute>
-        }
-      />
-
       {/* Route de debug */}
-      <Route
-        path="/debug"
+      <Route 
+        path="/debug" 
         element={
           <ProtectedRoute>
             <DebugPage />
           </ProtectedRoute>
-        }
+        } 
       />
       
       {/* Redirection par défaut */}
