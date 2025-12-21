@@ -444,183 +444,252 @@ const PlanningPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mb-4"></div>
-            <p className="text-gray-400 text-lg">Chargement du planning...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-gray-400 text-sm sm:text-lg">Chargement du planning...</p>
           </div>
         </div>
       </Layout>
     );
   }
-  
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8">
         
         {/* HEADER */}
-        <div className="max-w-[1600px] mx-auto mb-6">
-          
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-500/20 rounded-xl">
-                <Calendar className="w-8 h-8 text-purple-400" />
-              </div>
+        <div className="max-w-[1600px] mx-auto mb-4 sm:mb-6">
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-500/30 to-blue-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+              >
+                <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
+              </motion.div>
               <div>
-                <h1 className="text-3xl font-bold text-white">
-                  📅 Planning Type Skello
+                <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
+                  Planning Skello
                 </h1>
-                <p className="text-gray-400 mt-1">
+                <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">
                   Glisser-déposer • Copier-coller • Duplication
                 </p>
               </div>
             </div>
-            
-            <div className="flex gap-3">
-              <button
+
+            <div className="flex gap-2 sm:gap-3">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={duplicateWeek}
                 disabled={loading || schedules.length === 0}
-                className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
+                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 text-purple-300 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm"
               >
                 <Copy className="w-4 h-4" />
-                Dupliquer semaine
-              </button>
-              
-              <button
+                <span className="hidden sm:inline">Dupliquer semaine</span>
+                <span className="sm:hidden">Dupliquer</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   setSelectedCell(null);
                   setShowAddShiftModal(true);
                 }}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-500/25 text-sm"
               >
                 <Plus className="w-4 h-4" />
-                Ajouter shift
-              </button>
+                <span className="hidden sm:inline">Ajouter shift</span>
+                <span className="sm:hidden">Ajouter</span>
+              </motion.button>
             </div>
           </div>
           
           {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 hover:bg-white/10 transition-all"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">Shifts</p>
-                  <p className="text-white text-2xl font-bold">{totalShiftsThisWeek}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Shifts</p>
+                  <p className="text-white text-xl sm:text-2xl font-bold">{totalShiftsThisWeek}</p>
                 </div>
-                <Calendar className="w-8 h-8 text-purple-400" />
-              </div>
-            </div>
-            
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Employés actifs</p>
-                  <p className="text-white text-2xl font-bold">{uniqueEmployees}</p>
+                <div className="p-2 sm:p-2.5 bg-purple-500/20 rounded-xl">
+                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
                 </div>
-                <Users className="w-8 h-8 text-blue-400" />
               </div>
-            </div>
-            
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 hover:bg-white/10 transition-all"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">Total heures</p>
-                  <p className="text-white text-2xl font-bold">{totalHours.toFixed(1)}h</p>
+                  <p className="text-gray-400 text-xs sm:text-sm">Employés actifs</p>
+                  <p className="text-white text-xl sm:text-2xl font-bold">{uniqueEmployees}</p>
                 </div>
-                <Clock className="w-8 h-8 text-green-400" />
+                <div className="p-2 sm:p-2.5 bg-blue-500/20 rounded-xl">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+                </div>
               </div>
-            </div>
-            
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 hover:bg-white/10 transition-all"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">Shift copié</p>
-                  <p className="text-white text-lg font-semibold">
-                    {copiedShift ? '📋 Oui' : '❌ Non'}
+                  <p className="text-gray-400 text-xs sm:text-sm">Total heures</p>
+                  <p className="text-white text-xl sm:text-2xl font-bold">{totalHours.toFixed(1)}h</p>
+                </div>
+                <div className="p-2 sm:p-2.5 bg-green-500/20 rounded-xl">
+                  <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 hover:bg-white/10 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-xs sm:text-sm">Shift copié</p>
+                  <p className="text-white text-base sm:text-lg font-semibold">
+                    {copiedShift ? 'Oui' : 'Non'}
                   </p>
                 </div>
-                <Clipboard className="w-8 h-8 text-yellow-400" />
+                <div className={`p-2 sm:p-2.5 rounded-xl ${copiedShift ? 'bg-yellow-500/20' : 'bg-gray-500/20'}`}>
+                  <Clipboard className={`w-5 h-5 sm:w-6 sm:h-6 ${copiedShift ? 'text-yellow-400' : 'text-gray-400'}`} />
+                </div>
               </div>
-            </div>
+            </motion.div>
           </div>
           
           {/* Navigation semaine et filtres */}
-          <div className="flex items-center justify-between bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-            
-            <div className="flex items-center gap-3">
-              <button
-                onClick={previousWeek}
-                className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              
-              <div className="text-center min-w-[200px]">
-                <p className="text-white font-semibold text-lg">
-                  {formatDateDisplay(getWeekStart(currentWeek))} - {formatDateDisplay(getWeekEnd(currentWeek))}
-                </p>
-                <p className="text-gray-400 text-sm">
-                  Semaine {Math.ceil((currentWeek - new Date(currentWeek.getFullYear(), 0, 1)) / 604800000)}
-                </p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              {/* Navigation semaine */}
+              <div className="flex items-center justify-center lg:justify-start gap-2 sm:gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={previousWeek}
+                  className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </motion.button>
+
+                <div className="text-center min-w-[160px] sm:min-w-[200px]">
+                  <p className="text-white font-semibold text-sm sm:text-lg">
+                    {formatDateDisplay(getWeekStart(currentWeek))} - {formatDateDisplay(getWeekEnd(currentWeek))}
+                  </p>
+                  <p className="text-gray-400 text-xs sm:text-sm">
+                    Semaine {Math.ceil((currentWeek - new Date(currentWeek.getFullYear(), 0, 1)) / 604800000)}
+                  </p>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={nextWeek}
+                  className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={goToToday}
+                  className="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/20 text-blue-300 rounded-xl text-xs sm:text-sm transition-all"
+                >
+                  Aujourd'hui
+                </motion.button>
               </div>
-              
-              <button
-                onClick={nextWeek}
-                className="p-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              
-              <button
-                onClick={goToToday}
-                className="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-sm transition-colors"
-              >
-                Aujourd'hui
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500/50"
-                />
+
+              {/* Filtres */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="relative flex-1 lg:flex-initial">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full lg:w-auto pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 text-sm transition-all"
+                  />
+                </div>
+
+                <select
+                  value={filterPosition}
+                  onChange={(e) => setFilterPosition(e.target.value)}
+                  className="px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
+                >
+                  <option value="all">Tous les postes</option>
+                  <option value="Game Master">Game Master</option>
+                  <option value="Accueil">Accueil</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Manager">Manager</option>
+                </select>
               </div>
-              
-              <select
-                value={filterPosition}
-                onChange={(e) => setFilterPosition(e.target.value)}
-                className="px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
-              >
-                <option value="all">Tous les postes</option>
-                <option value="Game Master">Game Master</option>
-                <option value="Accueil">Accueil</option>
-                <option value="Maintenance">Maintenance</option>
-                <option value="Manager">Manager</option>
-              </select>
             </div>
-          </div>
+          </motion.div>
         </div>
         
         {/* GRILLE PLANNING */}
-        <div className="max-w-[1600px] mx-auto">
-          <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl overflow-hidden">
-            
+        <div className="max-w-[1600px] mx-auto mt-4 sm:mt-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden"
+          >
             {/* En-têtes jours */}
-            <div className="grid grid-cols-8 bg-gray-800/80 border-b border-gray-700">
-              <div className="p-4 border-r border-gray-700">
-                <p className="text-gray-400 text-sm font-medium">Employé</p>
+            <div className="grid grid-cols-8 bg-white/5 border-b border-white/10">
+              <div className="p-2 sm:p-4 border-r border-white/10">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Employé</p>
               </div>
               {getWeekDays().map((day, index) => (
-                <div key={index} className="p-4 text-center border-r border-gray-700 last:border-r-0">
-                  <p className="text-white font-semibold">
+                <div key={index} className="p-2 sm:p-4 text-center border-r border-white/10 last:border-r-0">
+                  <p className="text-white font-semibold text-xs sm:text-sm">
                     {day.toLocaleDateString('fr-FR', { weekday: 'short' })}
                   </p>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-gray-400 text-xs">
                     {day.getDate()}/{day.getMonth() + 1}
                   </p>
                 </div>
@@ -629,26 +698,28 @@ const PlanningPage = () => {
             
             {/* Lignes employés */}
             {filteredEmployees.length === 0 ? (
-              <div className="p-12 text-center">
-                <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 text-lg">Aucun employé trouvé</p>
+              <div className="p-8 sm:p-12 text-center">
+                <div className="p-4 bg-white/5 rounded-full w-fit mx-auto mb-4">
+                  <Users className="w-10 h-10 sm:w-16 sm:h-16 text-gray-500" />
+                </div>
+                <p className="text-gray-400 text-sm sm:text-lg">Aucun employé trouvé</p>
               </div>
             ) : (
               filteredEmployees.map((employee) => (
-                <div 
+                <div
                   key={employee.id}
-                  className="grid grid-cols-8 border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors"
+                  className="grid grid-cols-8 border-b border-white/5 hover:bg-white/5 transition-colors"
                 >
                   {/* Colonne employé */}
-                  <div className="p-4 border-r border-gray-700 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                  <div className="p-2 sm:p-4 border-r border-white/10 flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
                       {employee.displayName?.charAt(0) || '?'}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium truncate">
+                    <div className="flex-1 min-w-0 hidden sm:block">
+                      <p className="text-white font-medium truncate text-sm">
                         {employee.displayName || 'Sans nom'}
                       </p>
-                      <p className="text-gray-400 text-sm truncate">
+                      <p className="text-gray-400 text-xs truncate">
                         {employee.position}
                       </p>
                     </div>
@@ -658,11 +729,11 @@ const PlanningPage = () => {
                   {getWeekDays().map((day, dayIndex) => {
                     const shift = getShiftForCell(employee.id, day);
                     const isHighlighted = isCellHighlighted(employee.id, day);
-                    
+
                     return (
                       <div
                         key={dayIndex}
-                        className={`p-2 border-r border-gray-700 last:border-r-0 min-h-[100px] transition-colors ${
+                        className={`p-1 sm:p-2 border-r border-white/10 last:border-r-0 min-h-[60px] sm:min-h-[100px] transition-all ${
                           isHighlighted ? 'bg-purple-500/20 border-purple-500' : ''
                         }`}
                         onDragOver={handleDragOver}
@@ -675,26 +746,27 @@ const PlanningPage = () => {
                           <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ scale: 1.02 }}
                             draggable
                             onDragStart={(e) => handleDragStart(e, shift)}
                             onDragEnd={handleDragEnd}
-                            className="bg-purple-500/30 border border-purple-500/50 rounded-lg p-2 cursor-move hover:bg-purple-500/40 transition-colors group"
+                            className="bg-gradient-to-br from-purple-500/30 to-purple-600/20 border border-purple-500/30 rounded-lg sm:rounded-xl p-1.5 sm:p-2 cursor-move hover:border-purple-400/50 transition-all group"
                           >
-                            <div className="flex items-start justify-between mb-1">
-                              <div className="flex items-center gap-1 text-purple-300 text-xs">
-                                <Clock className="w-3 h-3" />
+                            <div className="flex items-start justify-between mb-0.5 sm:mb-1">
+                              <div className="flex items-center gap-1 text-purple-300 text-[10px] sm:text-xs">
+                                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 <span className="font-medium">
-                                  {shift.startTime} - {shift.endTime}
+                                  {shift.startTime}-{shift.endTime}
                                 </span>
                               </div>
-                              
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                              <div className="hidden sm:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     copyShift(shift);
                                   }}
-                                  className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded"
+                                  className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded-lg"
                                   title="Copier"
                                 >
                                   <Copy className="w-3 h-3 text-blue-300" />
@@ -705,7 +777,7 @@ const PlanningPage = () => {
                                     setSelectedShift(shift);
                                     setShowEditShiftModal(true);
                                   }}
-                                  className="p-1 bg-green-500/20 hover:bg-green-500/40 rounded"
+                                  className="p-1 bg-green-500/20 hover:bg-green-500/40 rounded-lg"
                                   title="Modifier"
                                 >
                                   <Edit className="w-3 h-3 text-green-300" />
@@ -715,20 +787,20 @@ const PlanningPage = () => {
                                     e.stopPropagation();
                                     deleteShift(shift.id);
                                   }}
-                                  className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded"
+                                  className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded-lg"
                                   title="Supprimer"
                                 >
                                   <Trash2 className="w-3 h-3 text-red-300" />
                                 </button>
                               </div>
                             </div>
-                            
-                            <p className="text-white text-sm font-medium truncate">
+
+                            <p className="text-white text-[10px] sm:text-sm font-medium truncate">
                               {shift.position}
                             </p>
-                            
+
                             {shift.notes && (
-                              <p className="text-gray-300 text-xs truncate mt-1">
+                              <p className="text-gray-300 text-[10px] truncate mt-0.5 sm:mt-1 hidden sm:block">
                                 {shift.notes}
                               </p>
                             )}
@@ -739,9 +811,9 @@ const PlanningPage = () => {
                               setSelectedCell({ employeeId: employee.id, date: day });
                               setShowAddShiftModal(true);
                             }}
-                            className="w-full h-full min-h-[80px] flex items-center justify-center text-gray-600 hover:text-gray-400 hover:bg-gray-700/30 rounded-lg transition-colors"
+                            className="w-full h-full min-h-[50px] sm:min-h-[80px] flex items-center justify-center text-gray-600 hover:text-gray-400 hover:bg-white/5 rounded-lg sm:rounded-xl transition-all"
                           >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         )}
                       </div>
@@ -750,35 +822,46 @@ const PlanningPage = () => {
                 </div>
               ))
             )}
-          </div>
+          </motion.div>
         </div>
         
         {/* Légende */}
-        <div className="max-w-[1600px] mx-auto mt-6">
-          <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-            <p className="text-gray-400 text-sm mb-2 font-medium">💡 Aide :</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="max-w-[1600px] mx-auto mt-4 sm:mt-6"
+        >
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4">
+            <p className="text-gray-400 text-xs sm:text-sm mb-2 sm:mb-3 font-medium">Aide :</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
               <div className="flex items-start gap-2">
-                <span className="text-purple-400">🖱️</span>
-                <p className="text-gray-300 text-sm">
-                  <span className="font-medium">Glisser-déposer</span> : Cliquez et faites glisser un shift vers une autre cellule
+                <div className="p-1.5 bg-purple-500/20 rounded-lg flex-shrink-0">
+                  <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                </div>
+                <p className="text-gray-300 text-xs sm:text-sm">
+                  <span className="font-medium text-white">Glisser-déposer</span> : Faites glisser un shift vers une autre cellule
                 </p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="text-blue-400">📋</span>
-                <p className="text-gray-300 text-sm">
-                  <span className="font-medium">Copier-coller</span> : Cliquez sur le bouton copier, puis double-cliquez sur une cellule vide
+                <div className="p-1.5 bg-blue-500/20 rounded-lg flex-shrink-0">
+                  <Clipboard className="w-3.5 h-3.5 text-blue-400" />
+                </div>
+                <p className="text-gray-300 text-xs sm:text-sm">
+                  <span className="font-medium text-white">Copier-coller</span> : Copiez un shift, puis double-cliquez sur une cellule
                 </p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="text-purple-400">🔄</span>
-                <p className="text-gray-300 text-sm">
-                  <span className="font-medium">Dupliquer</span> : Utilisez le bouton "Dupliquer semaine" pour répliquer tout le planning
+                <div className="p-1.5 bg-green-500/20 rounded-lg flex-shrink-0">
+                  <Copy className="w-3.5 h-3.5 text-green-400" />
+                </div>
+                <p className="text-gray-300 text-xs sm:text-sm">
+                  <span className="font-medium text-white">Dupliquer</span> : Répliquez tout le planning sur la semaine suivante
                 </p>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
         
         {/* MODALS */}
         {showAddShiftModal && (
@@ -852,31 +935,33 @@ const AddShiftModal = ({ employees, selectedCell, onClose, onSave }) => {
   };
   
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-white">Ajouter un shift</h3>
-          <button
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">Ajouter un shift</h3>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={onClose}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-xl transition-colors"
           >
             <X className="w-5 h-5 text-gray-400" />
-          </button>
+          </motion.button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* ✅ SÉLECTION EMPLOYÉ SANS FILTRE RESTRICTIF */}
+
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Employé *</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Employé *</label>
             <select
               required
               value={formData.employeeId}
               onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
             >
               <option value="">-- Sélectionner un employé --</option>
               {employees.map((employee) => (
@@ -886,48 +971,48 @@ const AddShiftModal = ({ employees, selectedCell, onClose, onSave }) => {
               ))}
             </select>
           </div>
-          
+
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Date *</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Date *</label>
             <input
               type="date"
               required
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
             />
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-gray-300 mb-2 text-sm">Début *</label>
+              <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Début *</label>
               <input
                 type="time"
                 required
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
               />
             </div>
             <div>
-              <label className="block text-gray-300 mb-2 text-sm">Fin *</label>
+              <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Fin *</label>
               <input
                 type="time"
                 required
                 value={formData.endTime}
                 onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
               />
             </div>
           </div>
-          
+
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Poste *</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Poste *</label>
             <select
               required
               value={formData.position}
               onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
             >
               <option value="Game Master">Game Master</option>
               <option value="Accueil">Accueil</option>
@@ -935,33 +1020,37 @@ const AddShiftModal = ({ employees, selectedCell, onClose, onSave }) => {
               <option value="Manager">Manager</option>
             </select>
           </div>
-          
+
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Notes</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Notes</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500 resize-none"
-              rows="3"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 resize-none text-sm transition-all"
+              rows="2"
               placeholder="Notes optionnelles..."
             />
           </div>
-          
-          <div className="flex gap-3 pt-4 border-t border-gray-700">
-            <button
+
+          <div className="flex gap-3 pt-3 sm:pt-4 border-t border-white/10">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
+              className="flex-1 px-4 py-2.5 sm:py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all text-sm"
             >
               Annuler
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl disabled:opacity-50 transition-all shadow-lg shadow-purple-500/25 text-sm"
             >
               {loading ? 'En cours...' : 'Ajouter'}
-            </button>
+            </motion.button>
           </div>
         </form>
       </motion.div>
@@ -1005,30 +1094,33 @@ const EditShiftModal = ({ shift, employees, onClose, onSave }) => {
   };
   
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full"
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-white">Modifier le shift</h3>
-          <button
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Modifier le shift</h3>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={onClose}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-xl transition-colors"
           >
             <X className="w-5 h-5 text-gray-400" />
-          </button>
+          </motion.button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Employé *</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Employé *</label>
             <select
               required
               value={formData.employeeId}
               onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
             >
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
@@ -1037,48 +1129,48 @@ const EditShiftModal = ({ shift, employees, onClose, onSave }) => {
               ))}
             </select>
           </div>
-          
+
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Date *</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Date *</label>
             <input
               type="date"
               required
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
             />
           </div>
-          
-          <div className="grid grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-gray-300 mb-2 text-sm">Début *</label>
+              <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Début *</label>
               <input
                 type="time"
                 required
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
               />
             </div>
             <div>
-              <label className="block text-gray-300 mb-2 text-sm">Fin *</label>
+              <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Fin *</label>
               <input
                 type="time"
                 required
                 value={formData.endTime}
                 onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
               />
             </div>
           </div>
-          
+
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Poste *</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Poste *</label>
             <select
               required
               value={formData.position}
               onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm transition-all"
             >
               <option value="Game Master">Game Master</option>
               <option value="Accueil">Accueil</option>
@@ -1086,33 +1178,37 @@ const EditShiftModal = ({ shift, employees, onClose, onSave }) => {
               <option value="Manager">Manager</option>
             </select>
           </div>
-          
+
           <div>
-            <label className="block text-gray-300 mb-2 text-sm">Notes</label>
+            <label className="block text-gray-300 mb-1.5 sm:mb-2 text-xs sm:text-sm">Notes</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-purple-500 resize-none"
-              rows="3"
+              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 resize-none text-sm transition-all"
+              rows="2"
               placeholder="Notes optionnelles..."
             />
           </div>
-          
-          <div className="flex gap-3 pt-4 border-t border-gray-700">
-            <button
+
+          <div className="flex gap-3 pt-3 sm:pt-4 border-t border-white/10">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg transition-colors"
+              className="flex-1 px-4 py-2.5 sm:py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all text-sm"
             >
               Annuler
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl disabled:opacity-50 transition-all shadow-lg shadow-blue-500/25 text-sm"
             >
               {loading ? 'En cours...' : 'Modifier'}
-            </button>
+            </motion.button>
           </div>
         </form>
       </motion.div>
