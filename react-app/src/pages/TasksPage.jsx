@@ -637,10 +637,17 @@ const TasksPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 overflow-x-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 overflow-x-hidden relative">
+
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
 
         {/* Header compact mobile */}
-        <div className="sticky top-0 z-30 bg-gray-900/95 backdrop-blur-lg border-b border-white/10">
+        <div className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-xl border-b border-white/10">
           <div className="px-4 py-4 sm:px-6">
 
             {/* Titre et boutons */}
