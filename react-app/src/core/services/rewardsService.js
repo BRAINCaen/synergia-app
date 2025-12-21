@@ -3,21 +3,22 @@
 // SERVICE COMPLET DE GESTION DES RÉCOMPENSES - PERMISSIONS CORRIGÉES
 // ==========================================
 
-import { 
-  collection, 
-  doc, 
+import {
+  collection,
+  doc,
   getDoc,
-  getDocs, 
-  addDoc, 
-  updateDoc, 
+  getDocs,
+  addDoc,
+  updateDoc,
   deleteDoc,
-  query, 
-  where, 
+  query,
+  where,
   orderBy,
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import notificationService from './notificationService.js';
 
 /**
  * 🎁 SERVICE DE GESTION DES RÉCOMPENSES - VERSION CORRIGÉE
@@ -324,6 +325,26 @@ class RewardsService {
       });
 
       console.log('✅ Échange de récompense créé:', redemptionRef.id);
+
+      // 🔔 NOTIFIER LES ADMINS DE LA DEMANDE DE RÉCOMPENSE
+      try {
+        // Récupérer le nom de l'utilisateur
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        const userName = userDoc.exists()
+          ? (userDoc.data().displayName || userDoc.data().email || 'Utilisateur')
+          : 'Utilisateur';
+
+        await notificationService.notifyRewardRequested({
+          rewardId,
+          rewardName: reward.name,
+          userId,
+          userName,
+          cost: reward.cost
+        });
+        console.log('🔔 Admins notifiés de la demande de récompense');
+      } catch (notifError) {
+        console.warn('⚠️ Erreur notification demande récompense:', notifError);
+      }
 
       return {
         success: true,

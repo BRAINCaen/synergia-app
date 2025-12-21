@@ -54,6 +54,12 @@ const NOTIFICATION_TYPES = {
   POOL_LEVEL_UP: 'pool_level_up',
   POOL_REWARD_PURCHASED: 'pool_reward_purchased',
 
+  // Boîte à idées
+  NEW_IDEA: 'new_idea',
+  IDEA_VOTED: 'idea_voted',
+  IDEA_ADOPTED: 'idea_adopted',
+  IDEA_IMPLEMENTED: 'idea_implemented',
+
   // Système
   SYSTEM: 'system',
   MENTION: 'mention'
@@ -682,6 +688,133 @@ class NotificationService {
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification récompense refusée:', error);
       return { success: false };
+    }
+  }
+
+  // ==========================================
+  // 💡 NOTIFICATIONS BOÎTE À IDÉES
+  // ==========================================
+
+  /**
+   * 💡 NOTIFIER TOUS LES UTILISATEURS D'UNE NOUVELLE IDÉE
+   */
+  async notifyAllUsersNewIdea(data) {
+    try {
+      const { ideaId, ideaTitle, authorId, authorName, category } = data;
+
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      if (usersSnapshot.empty) {
+        return { success: false, message: 'Aucun utilisateur' };
+      }
+
+      // Notifier tous les utilisateurs sauf l'auteur
+      const notificationPromises = usersSnapshot.docs
+        .filter(userDoc => userDoc.id !== authorId)
+        .map(userDoc =>
+          this.createNotification({
+            userId: userDoc.id,
+            type: NOTIFICATION_TYPES.NEW_IDEA,
+            title: '💡 Nouvelle idée !',
+            message: `${authorName} a proposé une nouvelle idée : "${ideaTitle}"`,
+            icon: '💡',
+            link: '/infos?tab=ideas',
+            data: { ideaId, ideaTitle, authorName, category },
+            priority: 'medium'
+          })
+        );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${usersSnapshot.size - 1} utilisateurs notifiés pour nouvelle idée`);
+
+      return { success: true, count: usersSnapshot.size - 1 };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification nouvelle idée:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 👍 NOTIFIER L'AUTEUR D'UN VOTE SUR SON IDÉE
+   */
+  async notifyIdeaVoted(data) {
+    try {
+      const { ideaId, ideaTitle, authorId, voterName, voteCount } = data;
+
+      await this.createNotification({
+        userId: authorId,
+        type: NOTIFICATION_TYPES.IDEA_VOTED,
+        title: '👍 Vote sur ton idée !',
+        message: `${voterName} a voté pour ton idée "${ideaTitle}" (${voteCount} vote${voteCount > 1 ? 's' : ''})`,
+        icon: '👍',
+        link: '/infos?tab=ideas',
+        data: { ideaId, ideaTitle, voterName, voteCount },
+        priority: 'low'
+      });
+
+      console.log(`🔔 [NOTIF] Auteur notifié du vote sur idée ${ideaId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification vote idée:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 👑 NOTIFIER L'AUTEUR QUE SON IDÉE A ÉTÉ ADOPTÉE
+   */
+  async notifyIdeaAdopted(data) {
+    try {
+      const { ideaId, ideaTitle, authorId, reviewerName, xpAwarded } = data;
+
+      await this.createNotification({
+        userId: authorId,
+        type: NOTIFICATION_TYPES.IDEA_ADOPTED,
+        title: '🎉 Idée adoptée !',
+        message: `${reviewerName} a adopté ton idée "${ideaTitle}" ! +${xpAwarded} XP`,
+        icon: '👑',
+        link: '/infos?tab=ideas',
+        data: { ideaId, ideaTitle, reviewerName, xpAwarded },
+        priority: 'high'
+      });
+
+      console.log(`🔔 [NOTIF] Auteur notifié de l'adoption de l'idée ${ideaId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification idée adoptée:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🏗️ NOTIFIER TOUS LES UTILISATEURS QU'UNE IDÉE A ÉTÉ IMPLÉMENTÉE
+   */
+  async notifyIdeaImplemented(data) {
+    try {
+      const { ideaId, ideaTitle, authorName, implementerName } = data;
+
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      const notificationPromises = usersSnapshot.docs.map(userDoc =>
+        this.createNotification({
+          userId: userDoc.id,
+          type: NOTIFICATION_TYPES.IDEA_IMPLEMENTED,
+          title: '🎊 Idée implémentée !',
+          message: `L'idée "${ideaTitle}" de ${authorName} a été implémentée par ${implementerName} !`,
+          icon: '🏗️',
+          link: '/infos?tab=ideas',
+          data: { ideaId, ideaTitle, authorName, implementerName },
+          priority: 'high'
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`🔔 [NOTIF] ${usersSnapshot.size} utilisateurs notifiés de l'implémentation`);
+
+      return { success: true, count: usersSnapshot.size };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification idée implémentée:', error);
+      return { success: false, error: error.message };
     }
   }
 

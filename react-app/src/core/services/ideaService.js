@@ -21,6 +21,7 @@ import {
   arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import notificationService from './notificationService.js';
 
 // 📊 CONSTANTES XP
 export const IDEA_XP = {
@@ -114,6 +115,20 @@ export const ideaService = {
         updatedAt: serverTimestamp()
       });
 
+      // 🔔 NOTIFIER TOUS LES UTILISATEURS DE LA NOUVELLE IDÉE
+      try {
+        await notificationService.notifyAllUsersNewIdea({
+          ideaId: docRef.id,
+          ideaTitle: ideaData.title,
+          authorId: userId,
+          authorName: userName,
+          category: ideaData.category || 'other'
+        });
+        console.log('🔔 [IDEAS] Tous les utilisateurs notifiés de la nouvelle idée');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification nouvelle idée:', notifError);
+      }
+
       return {
         success: true,
         ideaId: docRef.id,
@@ -173,6 +188,20 @@ export const ideaService = {
       });
 
       console.log('✅ [IDEAS] Vote enregistré, total:', newVoteCount);
+
+      // 🔔 NOTIFIER L'AUTEUR DU VOTE
+      try {
+        await notificationService.notifyIdeaVoted({
+          ideaId,
+          ideaTitle: ideaData.title,
+          authorId: ideaData.authorId,
+          voterName,
+          voteCount: newVoteCount
+        });
+        console.log('🔔 [IDEAS] Auteur notifié du vote');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification vote:', notifError);
+      }
 
       return {
         success: true,
@@ -265,6 +294,20 @@ export const ideaService = {
 
       console.log('✅ [IDEAS] Idée adoptée, +100 XP pour:', ideaData.authorName);
 
+      // 🔔 NOTIFIER L'AUTEUR QUE SON IDÉE A ÉTÉ ADOPTÉE
+      try {
+        await notificationService.notifyIdeaAdopted({
+          ideaId,
+          ideaTitle: ideaData.title,
+          authorId: ideaData.authorId,
+          reviewerName,
+          xpAwarded: IDEA_XP.ADOPTED
+        });
+        console.log('🔔 [IDEAS] Auteur notifié de l\'adoption');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification adoption:', notifError);
+      }
+
       return {
         success: true,
         authorId: ideaData.authorId,
@@ -317,6 +360,19 @@ export const ideaService = {
       }
 
       console.log('✅ [IDEAS] Idée implémentée', isAuthorImplementing ? '(+200 XP auteur)' : '');
+
+      // 🔔 NOTIFIER TOUS LES UTILISATEURS DE L'IMPLÉMENTATION
+      try {
+        await notificationService.notifyIdeaImplemented({
+          ideaId,
+          ideaTitle: ideaData.title,
+          authorName: ideaData.authorName,
+          implementerName
+        });
+        console.log('🔔 [IDEAS] Tous les utilisateurs notifiés de l\'implémentation');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification implémentation:', notifError);
+      }
 
       return {
         success: true,
