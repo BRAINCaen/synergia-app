@@ -191,9 +191,10 @@ class InfosService {
       try {
         await notificationService.notifyAllUsersNewInfo({
           infoId: docRef.id,
-          infoText: data.text || '',
-          authorId: user.uid,
-          authorName: user.displayName || user.email
+          infoTitle: data.text?.substring(0, 50) || 'Nouvelle information',
+          infoType: data.type || 'general',
+          authorName: user.displayName || user.email,
+          priority: data.priority || 'medium'
         });
         console.log('🔔 [INFOS] Tous les utilisateurs notifiés de la nouvelle info');
       } catch (notifError) {

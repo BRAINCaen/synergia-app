@@ -21,6 +21,7 @@ import {
   arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import notificationService from './notificationService.js';
 
 // 📊 CONSTANTES XP
 export const IDEA_XP = {
@@ -114,6 +115,20 @@ export const ideaService = {
         updatedAt: serverTimestamp()
       });
 
+      // 🔔 NOTIFIER TOUS LES UTILISATEURS DE LA NOUVELLE IDÉE
+      try {
+        await notificationService.notifyAllUsersNewIdea({
+          ideaId: docRef.id,
+          ideaTitle: ideaData.title,
+          authorId: userId,
+          authorName: userName,
+          category: ideaData.category || 'other'
+        });
+        console.log('🔔 [IDEAS] Tous les utilisateurs notifiés de la nouvelle idée');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification nouvelle idée:', notifError);
+      }
+
       return {
         success: true,
         ideaId: docRef.id,
@@ -173,6 +188,20 @@ export const ideaService = {
       });
 
       console.log('✅ [IDEAS] Vote enregistré, total:', newVoteCount);
+
+      // 🔔 NOTIFIER L'AUTEUR DU VOTE
+      try {
+        await notificationService.notifyIdeaVoted({
+          ideaId,
+          ideaTitle: ideaData.title,
+          authorId: ideaData.authorId,
+          voterName,
+          voteCount: newVoteCount
+        });
+        console.log('🔔 [IDEAS] Auteur notifié du vote');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification vote:', notifError);
+      }
 
       return {
         success: true,
@@ -265,6 +294,20 @@ export const ideaService = {
 
       console.log('✅ [IDEAS] Idée adoptée, +100 XP pour:', ideaData.authorName);
 
+      // 🔔 NOTIFIER L'AUTEUR QUE SON IDÉE A ÉTÉ ADOPTÉE
+      try {
+        await notificationService.notifyIdeaAdopted({
+          ideaId,
+          ideaTitle: ideaData.title,
+          authorId: ideaData.authorId,
+          reviewerName,
+          xpAwarded: IDEA_XP.ADOPTED
+        });
+        console.log('🔔 [IDEAS] Auteur notifié de l\'adoption');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification adoption:', notifError);
+      }
+
       return {
         success: true,
         authorId: ideaData.authorId,
@@ -317,6 +360,19 @@ export const ideaService = {
       }
 
       console.log('✅ [IDEAS] Idée implémentée', isAuthorImplementing ? '(+200 XP auteur)' : '');
+
+      // 🔔 NOTIFIER TOUS LES UTILISATEURS DE L'IMPLÉMENTATION
+      try {
+        await notificationService.notifyIdeaImplemented({
+          ideaId,
+          ideaTitle: ideaData.title,
+          authorName: ideaData.authorName,
+          implementerName
+        });
+        console.log('🔔 [IDEAS] Tous les utilisateurs notifiés de l\'implémentation');
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification implémentation:', notifError);
+      }
 
       return {
         success: true,
@@ -477,6 +533,60 @@ export const ideaService = {
     } catch (error) {
       console.error('❌ [IDEAS] Erreur stats:', error);
       return { total: 0, pending: 0, popular: 0, adopted: 0, implemented: 0, rejected: 0, totalVotes: 0 };
+    }
+  },
+
+  /**
+   * ✏️ Modifier une idée (auteur uniquement)
+   */
+  async updateIdea(ideaId, userId, updateData) {
+    try {
+      console.log('✏️ [IDEAS] Modification idée:', ideaId);
+
+      const ideaRef = doc(db, 'ideas', ideaId);
+      const ideaDoc = await getDoc(ideaRef);
+
+      if (!ideaDoc.exists()) {
+        throw new Error('Idée non trouvée');
+      }
+
+      const ideaData = ideaDoc.data();
+
+      // Seul l'auteur peut modifier son idée
+      if (ideaData.authorId !== userId) {
+        throw new Error('Seul l\'auteur peut modifier cette idée');
+      }
+
+      // Ne pas permettre la modification si l'idée est déjà adoptée/implémentée/rejetée
+      if ([IDEA_STATUS.IMPLEMENTED, IDEA_STATUS.REJECTED].includes(ideaData.status)) {
+        throw new Error('Cette idée ne peut plus être modifiée');
+      }
+
+      // Filtrer les champs modifiables
+      const allowedFields = ['title', 'description', 'category'];
+      const sanitizedUpdate = {};
+
+      for (const field of allowedFields) {
+        if (updateData[field] !== undefined) {
+          sanitizedUpdate[field] = updateData[field];
+        }
+      }
+
+      if (Object.keys(sanitizedUpdate).length === 0) {
+        throw new Error('Aucun champ à modifier');
+      }
+
+      await updateDoc(ideaRef, {
+        ...sanitizedUpdate,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [IDEAS] Idée modifiée:', ideaId);
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [IDEAS] Erreur modification:', error);
+      throw error;
     }
   },
 

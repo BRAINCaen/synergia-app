@@ -25,7 +25,11 @@ import {
   MessageSquare,
   X,
   Send,
-  Bell
+  Bell,
+  UserCheck,
+  Plus,
+  AlertTriangle,
+  Eye
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import { useAuthStore } from '../shared/stores/authStore';
@@ -86,6 +90,28 @@ const CheckpointsPage = () => {
   const [showGiveFeedbackModal, setShowGiveFeedbackModal] = useState(false);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
+  // États pour les entretiens
+  const [interviews, setInterviews] = useState([]);
+  const [interviewsLoading, setInterviewsLoading] = useState(true);
+  const [showNewInterviewModal, setShowNewInterviewModal] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [newInterview, setNewInterview] = useState({
+    type: 'annual',
+    employeeId: '',
+    scheduledDate: '',
+    scheduledTime: '',
+    notes: ''
+  });
+
+  // Types d'entretiens
+  const interviewTypes = [
+    { id: 'annual', label: 'Entretien annuel', color: 'blue', duration: '1h30' },
+    { id: 'professional', label: 'Entretien professionnel', color: 'purple', duration: '1h' },
+    { id: 'probation', label: 'Fin de période d\'essai', color: 'orange', duration: '45min' },
+    { id: 'followup', label: 'Suivi', color: 'green', duration: '30min' },
+    { id: 'return', label: 'Retour absence longue', color: 'yellow', duration: '45min' }
+  ];
+
   // Charger le checkpoint actuel
   useEffect(() => {
     const loadCheckpoint = async () => {
@@ -111,6 +137,9 @@ const CheckpointsPage = () => {
 
         // Charger les demandes de feedback en attente
         await loadPendingFeedbackRequests();
+
+        // Charger les entretiens
+        await loadInterviews();
 
       } catch (err) {
         console.error('Erreur chargement checkpoint:', err);
@@ -191,6 +220,92 @@ const CheckpointsPage = () => {
       console.error('Erreur chargement demandes feedback:', err);
     }
   };
+
+  // Charger les entretiens
+  const loadInterviews = async () => {
+    try {
+      setInterviewsLoading(true);
+      const { collection, getDocs, query, orderBy } = await import('firebase/firestore');
+      const { db } = await import('../core/firebase');
+
+      const interviewsRef = collection(db, 'hr_interviews');
+      const snapshot = await getDocs(query(interviewsRef, orderBy('scheduledDate', 'desc')));
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setInterviews(data);
+    } catch (error) {
+      console.error('Erreur chargement entretiens:', error);
+    } finally {
+      setInterviewsLoading(false);
+    }
+  };
+
+  // Créer un nouvel entretien
+  const handleCreateInterview = async () => {
+    if (!newInterview.employeeId || !newInterview.scheduledDate || !newInterview.scheduledTime) {
+      setError('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import('../core/firebase');
+
+      const scheduledDateTime = new Date(`${newInterview.scheduledDate}T${newInterview.scheduledTime}`);
+
+      await addDoc(collection(db, 'hr_interviews'), {
+        type: newInterview.type,
+        employeeId: newInterview.employeeId,
+        scheduledDate: scheduledDateTime,
+        notes: newInterview.notes,
+        status: 'scheduled',
+        createdBy: user?.uid,
+        createdAt: serverTimestamp()
+      });
+
+      // Reset et fermer
+      setNewInterview({
+        type: 'annual',
+        employeeId: '',
+        scheduledDate: '',
+        scheduledTime: '',
+        notes: ''
+      });
+      setShowNewInterviewModal(false);
+
+      // Recharger
+      await loadInterviews();
+    } catch (err) {
+      console.error('Erreur création entretien:', err);
+      setError('Erreur lors de la création de l\'entretien');
+    }
+  };
+
+  // Stats des entretiens
+  const interviewStats = {
+    scheduled: interviews.filter(i => i.status === 'scheduled').length,
+    completed: interviews.filter(i => i.status === 'completed').length,
+    overdue: interviews.filter(i => {
+      const date = i.scheduledDate?.toDate?.() || new Date(i.scheduledDate);
+      return date < new Date() && i.status === 'scheduled';
+    }).length,
+    thisMonth: interviews.filter(i => {
+      const date = i.scheduledDate?.toDate?.() || new Date(i.scheduledDate);
+      const now = new Date();
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).length
+  };
+
+  // Employés sans entretien annuel cette année
+  const employeesWithoutAnnualReview = teamMembers.filter(emp => {
+    return !interviews.some(i =>
+      i.employeeId === emp.uid &&
+      i.type === 'annual' &&
+      new Date(i.scheduledDate?.toDate?.() || i.scheduledDate).getFullYear() === selectedYear
+    );
+  });
 
   // Soumettre un feedback pour un collègue
   const handleSubmitPeerFeedback = async (answers) => {
@@ -764,6 +879,200 @@ const CheckpointsPage = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* ==========================================
+              📋 SECTION ENTRETIENS
+              ========================================== */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-6 sm:mt-8 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-blue-500/30 to-cyan-500/20 backdrop-blur-xl border border-white/10 rounded-xl">
+                  <UserCheck className="w-6 h-6 text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-white">Entretiens</h2>
+                  <p className="text-gray-400 text-sm">Entretiens annuels et professionnels</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                >
+                  {[2023, 2024, 2025, 2026].map(year => (
+                    <option key={year} value={year} className="bg-gray-900">{year}</option>
+                  ))}
+                </select>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowNewInterviewModal(true)}
+                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white px-4 py-2 rounded-xl transition-colors flex items-center gap-2 text-sm shadow-lg shadow-blue-500/25"
+                >
+                  <Plus className="w-4 h-4" />
+                  Planifier
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Stats Entretiens */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs text-gray-400">Planifiés</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-400">{interviewStats.scheduled}</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-xs text-gray-400">Complétés</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-green-400">{interviewStats.completed}</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="w-4 h-4 text-orange-400" />
+                  <span className="text-xs text-gray-400">En retard</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-orange-400">{interviewStats.overdue}</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs text-gray-400">Ce mois</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-purple-400">{interviewStats.thisMonth}</div>
+              </div>
+            </div>
+
+            {/* Alerte employés sans entretien */}
+            {employeesWithoutAnnualReview.length > 0 && (
+              <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-yellow-400 mb-1">
+                      {employeesWithoutAnnualReview.length} salarié(s) sans entretien annuel en {selectedYear}
+                    </h4>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {employeesWithoutAnnualReview.slice(0, 5).map(emp => (
+                        <span key={emp.uid} className="px-2 py-1 bg-yellow-500/20 rounded text-yellow-300 text-xs">
+                          {emp.displayName}
+                        </span>
+                      ))}
+                      {employeesWithoutAnnualReview.length > 5 && (
+                        <span className="px-2 py-1 bg-yellow-500/20 rounded text-yellow-300 text-xs">
+                          +{employeesWithoutAnnualReview.length - 5} autres
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Types d'entretiens */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
+              {interviewTypes.map((type) => (
+                <div
+                  key={type.id}
+                  className="p-3 bg-white/5 rounded-xl border border-white/10 text-center hover:bg-white/10 transition-colors"
+                >
+                  <div className={`text-${type.color}-400 font-medium text-sm mb-1`}>{type.label}</div>
+                  <div className="text-gray-500 text-xs">~{type.duration}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Liste des entretiens */}
+            {interviewsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500 mx-auto mb-4" />
+                <p className="text-gray-400">Chargement des entretiens...</p>
+              </div>
+            ) : interviews.length === 0 ? (
+              <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                <UserCheck className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 mb-2">Aucun entretien planifié</p>
+                <p className="text-gray-500 text-sm mb-4">Planifiez vos entretiens annuels et professionnels</p>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowNewInterviewModal(true)}
+                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Planifier un entretien
+                </motion.button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {interviews.slice(0, 10).map((interview) => {
+                  const employee = teamMembers.find(e => e.uid === interview.employeeId);
+                  const type = interviewTypes.find(t => t.id === interview.type) || interviewTypes[0];
+                  const date = interview.scheduledDate?.toDate?.() || new Date(interview.scheduledDate);
+                  const isOverdue = date < new Date() && interview.status === 'scheduled';
+
+                  return (
+                    <motion.div
+                      key={interview.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className={`p-4 rounded-xl border ${
+                        isOverdue
+                          ? 'bg-red-500/10 border-red-500/30'
+                          : 'bg-white/5 border-white/10'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 bg-${type.color}-500/20 rounded-full flex items-center justify-center`}>
+                            <UserCheck className={`w-5 h-5 text-${type.color}-400`} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-white">
+                                {employee?.displayName || 'Employé inconnu'}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-xs bg-${type.color}-500/20 text-${type.color}-400`}>
+                                {type.label}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              {date.toLocaleDateString('fr-FR')} à {date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isOverdue && (
+                            <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">
+                              En retard
+                            </span>
+                          )}
+                          {interview.status === 'completed' && (
+                            <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                              Complété
+                            </span>
+                          )}
+                          <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
         </div>
 
         {/* 📝 MODAL DONNER UN FEEDBACK */}
@@ -841,6 +1150,153 @@ const CheckpointsPage = () => {
                     isLoading={isSubmittingFeedback}
                     mode="give"
                   />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 📋 MODAL NOUVEAU ENTRETIEN */}
+        <AnimatePresence>
+          {showNewInterviewModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              {/* Overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                onClick={() => setShowNewInterviewModal(false)}
+              />
+
+              {/* Modal content */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-lg bg-gradient-to-br from-slate-900 via-blue-900/30 to-slate-900 border border-white/10 rounded-2xl shadow-2xl"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                      <UserCheck className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Planifier un entretien</h3>
+                      <p className="text-sm text-gray-400">Nouveau rendez-vous</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowNewInterviewModal(false)}
+                    className="p-2 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Formulaire */}
+                <div className="p-4 sm:p-6 space-y-4">
+                  {/* Type d'entretien */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Type d'entretien *
+                    </label>
+                    <select
+                      value={newInterview.type}
+                      onChange={(e) => setNewInterview({ ...newInterview, type: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      {interviewTypes.map(type => (
+                        <option key={type.id} value={type.id} className="bg-gray-900">
+                          {type.label} (~{type.duration})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Employé */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Collaborateur *
+                    </label>
+                    <select
+                      value={newInterview.employeeId}
+                      onChange={(e) => setNewInterview({ ...newInterview, employeeId: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      <option value="" className="bg-gray-900">Sélectionner un collaborateur</option>
+                      {teamMembers.map(emp => (
+                        <option key={emp.uid} value={emp.uid} className="bg-gray-900">
+                          {emp.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Date et heure */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Date *
+                      </label>
+                      <input
+                        type="date"
+                        value={newInterview.scheduledDate}
+                        onChange={(e) => setNewInterview({ ...newInterview, scheduledDate: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Heure *
+                      </label>
+                      <input
+                        type="time"
+                        value={newInterview.scheduledTime}
+                        onChange={(e) => setNewInterview({ ...newInterview, scheduledTime: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Notes (optionnel)
+                    </label>
+                    <textarea
+                      value={newInterview.notes}
+                      onChange={(e) => setNewInterview({ ...newInterview, notes: e.target.value })}
+                      rows={3}
+                      placeholder="Points à aborder, préparation..."
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end gap-3 p-4 sm:p-6 border-t border-white/10">
+                  <button
+                    onClick={() => setShowNewInterviewModal(false)}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleCreateInterview}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-xl text-white font-medium transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/25"
+                  >
+                    <Plus size={18} />
+                    Planifier
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>

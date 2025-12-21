@@ -4,15 +4,23 @@
 // Module Mentorat: Sessions de coaching
 // ==========================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Calendar, Clock, Star, Plus, X, Check, Play,
-  MessageSquare, Award, TrendingUp, ChevronRight, Filter
+  MessageSquare, Award, TrendingUp, ChevronRight, Filter,
+  AlertTriangle, Shield, CheckCircle
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import { useMentoring } from '../shared/hooks/useMentoring.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy
+} from 'firebase/firestore';
+import { db } from '../core/firebase.js';
 
 // ==========================================
 // COMPOSANT STATS CARDS
@@ -673,6 +681,74 @@ const MentoringPage = () => {
   const [feedbackSession, setFeedbackSession] = useState(null);
   const [filter, setFilter] = useState('all'); // all, mentor, mentee
 
+  // États pour les formations
+  const [trainings, setTrainings] = useState([]);
+  const [certifications, setCertifications] = useState([]);
+  const [trainingsLoading, setTrainingsLoading] = useState(true);
+  const [activeTrainingView, setActiveTrainingView] = useState('trainings'); // trainings, certifications, plan
+
+  // Types de formations
+  const trainingTypes = [
+    { id: 'internal', label: 'Formation interne', color: 'blue', icon: '🏠' },
+    { id: 'external', label: 'Formation externe', color: 'purple', icon: '🏫' },
+    { id: 'elearning', label: 'E-learning', color: 'green', icon: '💻' },
+    { id: 'certification', label: 'Certification', color: 'orange', icon: '📜' },
+    { id: 'safety', label: 'Sécurité', color: 'red', icon: '🦺' }
+  ];
+
+  // Charger les formations
+  useEffect(() => {
+    const loadTrainingData = async () => {
+      try {
+        setTrainingsLoading(true);
+
+        // Charger les formations
+        const trainingsRef = collection(db, 'hr_trainings');
+        const trainingsSnapshot = await getDocs(query(trainingsRef, orderBy('date', 'desc')));
+        const trainingsData = trainingsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setTrainings(trainingsData);
+
+        // Charger les certifications
+        const certsRef = collection(db, 'hr_certifications');
+        const certsSnapshot = await getDocs(certsRef);
+        const certsData = certsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setCertifications(certsData);
+
+      } catch (error) {
+        console.error('Erreur chargement formations:', error);
+      } finally {
+        setTrainingsLoading(false);
+      }
+    };
+
+    loadTrainingData();
+  }, []);
+
+  // Stats formations
+  const trainingStats = {
+    totalTrainings: trainings.length,
+    completedThisYear: trainings.filter(t => {
+      const date = t.date?.toDate?.() || new Date(t.date);
+      return date.getFullYear() === new Date().getFullYear() && t.status === 'completed';
+    }).length,
+    upcomingTrainings: trainings.filter(t => {
+      const date = t.date?.toDate?.() || new Date(t.date);
+      return date > new Date() && t.status === 'scheduled';
+    }).length,
+    expiringCerts: certifications.filter(c => {
+      const expiry = c.expiryDate?.toDate?.() || new Date(c.expiryDate);
+      const threeMonths = new Date();
+      threeMonths.setMonth(threeMonths.getMonth() + 3);
+      return expiry <= threeMonths && expiry > new Date();
+    }).length
+  };
+
   // Sessions filtrees
   const filteredSessions = useMemo(() => {
     if (filter === 'mentor') return sessions.filter(s => s.role === 'mentor');
@@ -842,6 +918,221 @@ const MentoringPage = () => {
               ))
             )}
           </div>
+
+          {/* ==========================================
+              🎓 SECTION FORMATIONS & CERTIFICATIONS
+              ========================================== */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-8 sm:mt-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-amber-500/30 to-orange-500/20 backdrop-blur-xl border border-white/10 rounded-xl">
+                  <Award className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-white">Formations & Certifications</h2>
+                  <p className="text-gray-400 text-sm">Suivi du plan de formation</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {['trainings', 'certifications', 'plan'].map((view) => (
+                  <button
+                    key={view}
+                    onClick={() => setActiveTrainingView(view)}
+                    className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                      activeTrainingView === view
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10'
+                    }`}
+                  >
+                    {view === 'trainings' ? 'Formations' : view === 'certifications' ? 'Certifications' : 'Plan annuel'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Stats Formations */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Award className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs text-gray-400">Formations</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-amber-400">{trainingStats.totalTrainings}</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-xs text-gray-400">Complétées</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-green-400">{trainingStats.completedThisYear}</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs text-gray-400">À venir</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-purple-400">{trainingStats.upcomingTrainings}</div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className="w-4 h-4 text-orange-400" />
+                  <span className="text-xs text-gray-400">Certifs expirantes</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-orange-400">{trainingStats.expiringCerts}</div>
+              </div>
+            </div>
+
+            {/* Alerte certifications expirantes */}
+            {trainingStats.expiringCerts > 0 && (
+              <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-orange-400" />
+                  <span className="text-orange-400 text-sm">
+                    {trainingStats.expiringCerts} certification(s) expire(nt) dans les 3 prochains mois
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Types de formations */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
+              {trainingTypes.map((type) => (
+                <div
+                  key={type.id}
+                  className="p-3 bg-white/5 rounded-xl border border-white/10 text-center hover:bg-white/10 transition-colors"
+                >
+                  <div className="text-2xl mb-1">{type.icon}</div>
+                  <div className="text-gray-300 text-xs">{type.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Contenu selon la vue */}
+            {trainingsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-amber-500 mx-auto mb-4" />
+                <p className="text-gray-400">Chargement...</p>
+              </div>
+            ) : activeTrainingView === 'trainings' ? (
+              trainings.length === 0 ? (
+                <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                  <Award className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 mb-2">Aucune formation enregistrée</p>
+                  <p className="text-gray-500 text-sm mb-4">Commencez à planifier les formations</p>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter une formation
+                  </motion.button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {trainings.map((training) => {
+                    const type = trainingTypes.find(t => t.id === training.type) || trainingTypes[0];
+                    const date = training.date?.toDate?.() || new Date(training.date);
+
+                    return (
+                      <motion.div
+                        key={training.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="p-4 bg-white/5 rounded-xl border border-white/10"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-lg">
+                              {type.icon}
+                            </div>
+                            <div>
+                              <div className="font-medium text-white">{training.title}</div>
+                              <div className="text-sm text-gray-400">
+                                {type.label} • {date.toLocaleDateString('fr-FR')}
+                              </div>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            training.status === 'completed'
+                              ? 'bg-green-500/20 text-green-400'
+                              : training.status === 'scheduled'
+                              ? 'bg-blue-500/20 text-blue-400'
+                              : 'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {training.status === 'completed' ? 'Complétée' : training.status === 'scheduled' ? 'Planifiée' : 'Annulée'}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )
+            ) : activeTrainingView === 'certifications' ? (
+              <div className="space-y-3">
+                {certifications.length === 0 ? (
+                  <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                    <Shield className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">Aucune certification enregistrée</p>
+                  </div>
+                ) : (
+                  certifications.map((cert) => {
+                    const expiry = cert.expiryDate?.toDate?.() || new Date(cert.expiryDate);
+                    const isExpiring = expiry <= new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+                    const isExpired = expiry < new Date();
+
+                    return (
+                      <motion.div
+                        key={cert.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className={`p-4 rounded-xl border ${
+                          isExpired
+                            ? 'bg-red-500/10 border-red-500/30'
+                            : isExpiring
+                            ? 'bg-orange-500/10 border-orange-500/30'
+                            : 'bg-white/5 border-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-white">{cert.name}</div>
+                            <div className="text-sm text-gray-400">
+                              Expire le {expiry.toLocaleDateString('fr-FR')}
+                            </div>
+                          </div>
+                          {isExpired ? (
+                            <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs">
+                              Expiré
+                            </span>
+                          ) : isExpiring ? (
+                            <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-xs">
+                              Expire bientôt
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                              Valide
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 mb-2">Plan de formation annuel</p>
+                <p className="text-gray-500 text-sm">À venir prochainement</p>
+              </div>
+            )}
+          </motion.div>
 
         </div>
       </div>
