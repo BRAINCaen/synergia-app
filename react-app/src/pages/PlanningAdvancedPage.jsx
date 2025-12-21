@@ -887,21 +887,21 @@ const PlanningAdvancedPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-3 sm:p-6">
         <div className="max-w-[1800px] mx-auto">
 
           {/* HEADER */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 sm:mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   📅 Planning Équipe
                 </h1>
-                <p className="text-gray-400">Gestion avancée - Zone Normandie</p>
+                <p className="text-gray-400 text-sm sm:text-base">Gestion avancée - Zone Normandie</p>
                 {hrSettings.rules.conventionCollective && (
                   <p className="text-xs text-gray-500 mt-1">📋 {hrSettings.rules.conventionCollective}</p>
                 )}
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2">
                   {hrSettings.positions.length > 0 && (
                     <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
                       ✅ {hrSettings.positions.length} poste(s)
@@ -920,7 +920,8 @@ const PlanningAdvancedPage = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              {/* Boutons d'action - responsive */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {/* Toggle Anomalies Pointage */}
                 <button
                   onClick={() => setShowAnomalies(!showAnomalies)}
@@ -928,14 +929,14 @@ const PlanningAdvancedPage = () => {
                     showAnomalies
                       ? 'bg-orange-600 hover:bg-orange-700'
                       : 'bg-gray-700/50 hover:bg-gray-600/50'
-                  } text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2`}
+                  } text-white px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm`}
                 >
                   {loadingAnomalies ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   ) : (
                     <AlertCircle className="w-4 h-4" />
                   )}
-                  <span className="hidden md:inline">
+                  <span className="hidden sm:inline">
                     {showAnomalies ? 'Anomalies ON' : 'Anomalies OFF'}
                   </span>
                 </button>
@@ -943,45 +944,40 @@ const PlanningAdvancedPage = () => {
                 <button
                   onClick={loadAllShifts}
                   disabled={diagnosticLoading}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 text-sm"
                 >
                   {diagnosticLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Analyse...
-                    </>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   ) : (
-                    <>
-                      <Database className="w-4 h-4" />
-                      Diagnostic
-                    </>
+                    <Database className="w-4 h-4" />
                   )}
+                  <span className="hidden sm:inline">Diagnostic</span>
                 </button>
 
                 <button
                   onClick={() => loadPlanningData()}
                   disabled={refreshing}
-                  className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 text-sm"
                 >
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                  Actualiser
+                  <span className="hidden sm:inline">Actualiser</span>
                 </button>
 
                 <button
                   onClick={exportWeeklyPDF}
                   disabled={exporting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 text-sm"
                 >
                   <Download className="w-4 h-4" />
-                  Export PDF
+                  <span className="hidden sm:inline">Export PDF</span>
                 </button>
 
                 <button
                   onClick={duplicateWeek}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
                 >
                   <Copy className="w-4 h-4" />
-                  Dupliquer
+                  <span className="hidden sm:inline">Dupliquer</span>
                 </button>
               </div>
             </div>
@@ -1131,52 +1127,52 @@ const PlanningAdvancedPage = () => {
           )}
 
           {/* STATISTIQUES */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <GlassCard>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <GlassCard className="!p-3 sm:!p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Total Heures</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalHours}h</p>
+                  <p className="text-gray-400 text-xs sm:text-sm mb-1">Total Heures</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{stats.totalHours}h</p>
                 </div>
-                <Clock className="w-8 h-8 text-purple-400" />
+                <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
               </div>
             </GlassCard>
 
-            <GlassCard>
+            <GlassCard className="!p-3 sm:!p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Shifts</p>
-                  <p className="text-2xl font-bold text-white">{stats.shiftsCount}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm mb-1">Shifts</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{stats.shiftsCount}</p>
                 </div>
-                <Calendar className="w-8 h-8 text-blue-400" />
+                <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
               </div>
             </GlassCard>
 
-            <GlassCard>
+            <GlassCard className="!p-3 sm:!p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Employés</p>
-                  <p className="text-2xl font-bold text-white">{stats.employeesScheduled}/{employees.length}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm mb-1">Employés</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{stats.employeesScheduled}/{employees.length}</p>
                 </div>
-                <Users className="w-8 h-8 text-green-400" />
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />
               </div>
             </GlassCard>
 
-            <GlassCard>
+            <GlassCard className="!p-3 sm:!p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Couverture</p>
-                  <p className="text-2xl font-bold text-white">{stats.coverage}%</p>
+                  <p className="text-gray-400 text-xs sm:text-sm mb-1">Couverture</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{stats.coverage}%</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-orange-400" />
+                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-orange-400" />
               </div>
             </GlassCard>
           </div>
 
           {/* NAVIGATION SEMAINE */}
-          <GlassCard className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+          <GlassCard className="mb-4 sm:mb-6 !p-3 sm:!p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-center sm:justify-start">
                 <button
                   onClick={previousWeek}
                   className="p-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-colors"
@@ -1184,9 +1180,9 @@ const PlanningAdvancedPage = () => {
                   <ChevronLeft className="w-5 h-5 text-white" />
                 </button>
 
-                <div className="text-center">
-                  <p className="text-gray-400 text-sm">Semaine en cours</p>
-                  <p className="text-white font-semibold text-lg">{formatWeekRange()}</p>
+                <div className="text-center min-w-[180px] sm:min-w-[220px]">
+                  <p className="text-gray-400 text-xs sm:text-sm">Semaine en cours</p>
+                  <p className="text-white font-semibold text-sm sm:text-lg">{formatWeekRange()}</p>
                 </div>
 
                 <button
@@ -1199,7 +1195,7 @@ const PlanningAdvancedPage = () => {
 
               <button
                 onClick={goToToday}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm w-full sm:w-auto"
               >
                 Aujourd'hui
               </button>
@@ -1509,23 +1505,24 @@ const PlanningAdvancedPage = () => {
           </AnimatePresence>
 
           {/* PLANNING TABLE */}
-          <GlassCard>
-            <div className="overflow-x-auto">
+          <GlassCard className="!p-2 sm:!p-6">
+            <div className="overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-700">
-                    <th className="text-left p-4 text-gray-400 font-semibold sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10 min-w-[200px]">
-                      Employé
+                    <th className="text-left p-2 sm:p-4 text-gray-400 font-semibold sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10 min-w-[120px] sm:min-w-[200px]">
+                      <span className="hidden sm:inline">Employé</span>
+                      <span className="sm:hidden text-xs">Employé</span>
                     </th>
                     {weekDates.map((date) => {
                       const dateAnalysis = getDateAnalysis(date);
                       const hasAlerts = dateAnalysis && dateAnalysis.alerts.length > 0;
-                      
+
                       return (
-                        <th key={date} className="text-center p-4 text-gray-400 font-semibold min-w-[150px]">
+                        <th key={date} className="text-center p-1 sm:p-4 text-gray-400 font-semibold min-w-[80px] sm:min-w-[150px]">
                           <div>
-                            <div className="text-xs text-gray-500 uppercase">{getDayName(date)}</div>
-                            <div className="text-lg text-white mt-1">{getDayNumber(date)}</div>
+                            <div className="text-[10px] sm:text-xs text-gray-500 uppercase">{getDayName(date)}</div>
+                            <div className="text-sm sm:text-lg text-white mt-1">{getDayNumber(date)}</div>
                             
                             {hasAlerts && (
                               <div className="mt-2 space-y-1">
@@ -1550,33 +1547,34 @@ const PlanningAdvancedPage = () => {
                         </th>
                       );
                     })}
-                    <th className="text-center p-4 text-gray-400 font-semibold min-w-[120px]">
-                      Total/Contrat
+                    <th className="text-center p-1 sm:p-4 text-gray-400 font-semibold min-w-[60px] sm:min-w-[120px]">
+                      <span className="hidden sm:inline">Total/Contrat</span>
+                      <span className="sm:hidden text-[10px]">Total</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {employees.map(employee => {
                     const hoursComparison = getHoursComparisonForEmployee(employee.id);
-                    
+
                     return (
                       <tr key={employee.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors">
-                        <td className="p-4 sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10">
-                          <div className="flex items-center gap-3">
+                        <td className="p-2 sm:p-4 sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10">
+                          <div className="flex items-center gap-2 sm:gap-3">
                             {employee.photoURL ? (
-                              <img 
-                                src={employee.photoURL} 
+                              <img
+                                src={employee.photoURL}
                                 alt={employee.name}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-purple-500/50"
+                                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-purple-500/50 flex-shrink-0"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-xs sm:text-base flex-shrink-0">
                                 {employee.name.charAt(0)}
                               </div>
                             )}
-                            <div>
-                              <p className="text-white font-semibold">{employee.name}</p>
-                              <p className="text-gray-400 text-sm">{employee.position}</p>
+                            <div className="min-w-0">
+                              <p className="text-white font-semibold text-xs sm:text-base truncate">{employee.name}</p>
+                              <p className="text-gray-400 text-[10px] sm:text-sm truncate hidden sm:block">{employee.position}</p>
                             </div>
                           </div>
                         </td>
@@ -1586,11 +1584,11 @@ const PlanningAdvancedPage = () => {
                           const isOver = dragOverCell?.employeeId === employee.id && dragOverCell?.date === date;
                           const dateAnalysis = getDateAnalysis(date);
                           const hasHighDemand = dateAnalysis && dateAnalysis.isSpecial;
-                          
+
                           return (
-                            <td 
+                            <td
                               key={date}
-                              className={`p-2 transition-all ${
+                              className={`p-1 sm:p-2 transition-all ${
                                 isOver ? 'bg-purple-500/20 border-2 border-purple-500' : ''
                               } ${
                                 hasHighDemand ? 'bg-orange-500/5' : ''
@@ -1609,11 +1607,11 @@ const PlanningAdvancedPage = () => {
                                   onDragStart={(e) => handleDragStart(e, shift)}
                                   onDragEnd={handleDragEnd}
                                   style={{ backgroundColor: shift.color || '#8B5CF6' }}
-                                  className="rounded-lg p-3 cursor-move hover:opacity-80 transition-all group relative min-h-[80px]"
+                                  className="rounded-lg p-1.5 sm:p-3 cursor-move hover:opacity-80 transition-all group relative min-h-[60px] sm:min-h-[80px]"
                                 >
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex items-center gap-1 text-white text-xs font-medium">
-                                      <Clock className="w-3 h-3" />
+                                  <div className="flex items-start justify-between mb-1 sm:mb-2">
+                                    <div className="flex items-center gap-1 text-white text-[10px] sm:text-xs font-medium">
+                                      <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 hidden sm:block" />
                                       <span>{shift.startTime} - {shift.endTime}</span>
                                     </div>
 
@@ -1651,12 +1649,12 @@ const PlanningAdvancedPage = () => {
                                     </div>
                                   </div>
 
-                                  <div className="text-white text-xs opacity-90">
+                                  <div className="text-white text-[10px] sm:text-xs opacity-90 truncate">
                                     {shift.position}
                                   </div>
 
                                   {shift.duration && (
-                                    <div className="text-white text-xs font-semibold mt-1">
+                                    <div className="text-white text-[10px] sm:text-xs font-semibold mt-0.5 sm:mt-1">
                                       {shift.duration}h
                                     </div>
                                   )}
@@ -1703,35 +1701,36 @@ const PlanningAdvancedPage = () => {
                                   )}
                                 </motion.div>
                               ) : (
-                                <div 
+                                <div
                                   onClick={() => openAddShiftModal(employee.id, date)}
-                                  className="min-h-[80px] flex items-center justify-center text-gray-600 hover:bg-gray-700/20 hover:text-purple-400 rounded-lg transition-colors cursor-pointer group"
+                                  className="min-h-[60px] sm:min-h-[80px] flex items-center justify-center text-gray-600 hover:bg-gray-700/20 hover:text-purple-400 rounded-lg transition-colors cursor-pointer group"
                                 >
-                                  <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                                  <Plus className="w-5 h-5 sm:w-6 sm:h-6 group-hover:scale-110 transition-transform" />
                                 </div>
                               )}
                             </td>
                           );
                         })}
 
-                        <td className="p-4 text-center">
-                          <div className="space-y-1">
-                            <div className="text-white font-semibold">
-                              {hoursComparison.plannedHours}h / {hoursComparison.contractHours}h
+                        <td className="p-1 sm:p-4 text-center">
+                          <div className="space-y-0.5 sm:space-y-1">
+                            <div className="text-white font-semibold text-[10px] sm:text-base">
+                              <span className="hidden sm:inline">{hoursComparison.plannedHours}h / {hoursComparison.contractHours}h</span>
+                              <span className="sm:hidden">{hoursComparison.plannedHours}h</span>
                             </div>
-                            <div className={`text-sm font-semibold flex items-center justify-center gap-1 ${
-                              hoursComparison.difference > 0 ? 'text-green-400' : 
+                            <div className={`text-[10px] sm:text-sm font-semibold flex items-center justify-center gap-0.5 sm:gap-1 ${
+                              hoursComparison.difference > 0 ? 'text-green-400' :
                               hoursComparison.difference < 0 ? 'text-orange-400' : 'text-gray-400'
                             }`}>
-                              {hoursComparison.difference > 0 && <TrendingUp className="w-3 h-3" />}
-                              {hoursComparison.difference < 0 && <TrendingDown className="w-3 h-3" />}
-                              {hoursComparison.difference === 0 && <Minus className="w-3 h-3" />}
+                              {hoursComparison.difference > 0 && <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                              {hoursComparison.difference < 0 && <TrendingDown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                              {hoursComparison.difference === 0 && <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                               <span>
                                 {hoursComparison.difference > 0 ? '+' : ''}
                                 {hoursComparison.difference}h
                               </span>
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-[9px] sm:text-xs text-gray-500 hidden sm:block">
                               {hoursComparison.percentage}%
                             </div>
                           </div>
@@ -1745,22 +1744,22 @@ const PlanningAdvancedPage = () => {
           </GlassCard>
 
           {/* LÉGENDE */}
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <GlassCard>
-              <div className="flex items-center justify-between">
+          <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+            <GlassCard className="!p-3 sm:!p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <p className="text-gray-400 text-sm mb-2">💡 Astuces :</p>
-                  <ul className="text-gray-400 text-xs space-y-1">
+                  <p className="text-gray-400 text-xs sm:text-sm mb-2">💡 Astuces :</p>
+                  <ul className="text-gray-400 text-[10px] sm:text-xs space-y-1">
                     <li>• Cliquer sur <Plus className="w-3 h-3 inline" /> pour créer un shift</li>
-                    <li>• Glisser-déposer les shifts pour les COPIER</li>
-                    <li>• Double-clic sur cellule vide pour coller</li>
+                    <li className="hidden sm:block">• Glisser-déposer les shifts pour les COPIER</li>
+                    <li className="hidden sm:block">• Double-clic sur cellule vide pour coller</li>
                     <li>• Diagnostic pour voir TOUS les shifts</li>
                   </ul>
                 </div>
 
                 {copiedShift && (
-                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg px-4 py-2">
-                    <p className="text-blue-300 text-sm flex items-center gap-2">
+                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg px-3 sm:px-4 py-2">
+                    <p className="text-blue-300 text-xs sm:text-sm flex items-center gap-2">
                       <Clipboard className="w-4 h-4" />
                       Shift copié : {copiedShift.startTime} - {copiedShift.endTime}
                     </p>
@@ -1771,38 +1770,38 @@ const PlanningAdvancedPage = () => {
 
             {/* LÉGENDE ANOMALIES */}
             {showAnomalies && (
-              <GlassCard>
-                <p className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+              <GlassCard className="!p-3 sm:!p-6">
+                <p className="text-gray-400 text-xs sm:text-sm mb-2 sm:mb-3 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-orange-400" />
                   Légende Anomalies Pointage :
                 </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded">⏰</span>
-                    <span className="text-gray-400">Retard arrivée</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded">⏰</span>
+                    <span className="text-gray-400">Retard</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">🚪</span>
-                    <span className="text-gray-400">Départ anticipé</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">🚪</span>
+                    <span className="text-gray-400">Départ tôt</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded">⚡</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded">⚡</span>
                     <span className="text-gray-400">Heures sup</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">❌</span>
-                    <span className="text-gray-400">Absent (pas de pointage)</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">❌</span>
+                    <span className="text-gray-400">Absent</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded">⚠️</span>
-                    <span className="text-gray-400">Pointage manquant</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded">⚠️</span>
+                    <span className="text-gray-400">Manquant</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded">✨</span>
-                    <span className="text-gray-400">Arrivée en avance</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded">✨</span>
+                    <span className="text-gray-400">En avance</span>
                   </div>
                 </div>
-                <p className="text-gray-500 text-xs mt-3">
+                <p className="text-gray-500 text-[10px] sm:text-xs mt-2 sm:mt-3 hidden sm:block">
                   📊 Les pointages sont synchronisés depuis la page Pulse & Pointage
                 </p>
               </GlassCard>
