@@ -481,6 +481,60 @@ export const ideaService = {
   },
 
   /**
+   * ✏️ Modifier une idée (auteur uniquement)
+   */
+  async updateIdea(ideaId, userId, updateData) {
+    try {
+      console.log('✏️ [IDEAS] Modification idée:', ideaId);
+
+      const ideaRef = doc(db, 'ideas', ideaId);
+      const ideaDoc = await getDoc(ideaRef);
+
+      if (!ideaDoc.exists()) {
+        throw new Error('Idée non trouvée');
+      }
+
+      const ideaData = ideaDoc.data();
+
+      // Seul l'auteur peut modifier son idée
+      if (ideaData.authorId !== userId) {
+        throw new Error('Seul l\'auteur peut modifier cette idée');
+      }
+
+      // Ne pas permettre la modification si l'idée est déjà adoptée/implémentée/rejetée
+      if ([IDEA_STATUS.IMPLEMENTED, IDEA_STATUS.REJECTED].includes(ideaData.status)) {
+        throw new Error('Cette idée ne peut plus être modifiée');
+      }
+
+      // Filtrer les champs modifiables
+      const allowedFields = ['title', 'description', 'category'];
+      const sanitizedUpdate = {};
+
+      for (const field of allowedFields) {
+        if (updateData[field] !== undefined) {
+          sanitizedUpdate[field] = updateData[field];
+        }
+      }
+
+      if (Object.keys(sanitizedUpdate).length === 0) {
+        throw new Error('Aucun champ à modifier');
+      }
+
+      await updateDoc(ideaRef, {
+        ...sanitizedUpdate,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [IDEAS] Idée modifiée:', ideaId);
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [IDEAS] Erreur modification:', error);
+      throw error;
+    }
+  },
+
+  /**
    * 🗑️ Supprimer une idée
    */
   async deleteIdea(ideaId, userId) {

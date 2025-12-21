@@ -41,6 +41,8 @@ const InfosPage = () => {
   const [showNewIdeaModal, setShowNewIdeaModal] = useState(false);
   const [ideaForm, setIdeaForm] = useState({ title: '', description: '', category: 'feature' });
   const [ideaStats, setIdeaStats] = useState({ total: 0, pending: 0, adopted: 0, implemented: 0 });
+  const [expandedIdeaIds, setExpandedIdeaIds] = useState(new Set()); // IDs des idées avec description étendue
+  const [editingIdea, setEditingIdea] = useState(null); // Idée en cours d'édition
 
   const isAdmin = infosService.isAdmin(user);
   const userIsAdmin = checkIsAdmin(user);
@@ -161,6 +163,59 @@ const InfosPage = () => {
     try {
       await ideaService.rejectIdea(ideaId, user.uid, user.displayName, reason || '');
       alert('Idée rejetée');
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  // 💡 ÉTENDRE/RÉDUIRE LA DESCRIPTION D'UNE IDÉE
+  const toggleExpandIdea = (ideaId) => {
+    setExpandedIdeaIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(ideaId)) {
+        newSet.delete(ideaId);
+      } else {
+        newSet.add(ideaId);
+      }
+      return newSet;
+    });
+  };
+
+  // 💡 MODIFIER UNE IDÉE (AUTEUR UNIQUEMENT)
+  const handleStartEditIdea = (idea) => {
+    setEditingIdea({
+      id: idea.id,
+      title: idea.title,
+      description: idea.description || '',
+      category: idea.category || 'feature'
+    });
+  };
+
+  const handleUpdateIdea = async () => {
+    if (!editingIdea) return;
+
+    try {
+      await ideaService.updateIdea(editingIdea.id, user.uid, {
+        title: editingIdea.title,
+        description: editingIdea.description,
+        category: editingIdea.category
+      });
+      alert('✅ Idée modifiée !');
+      setEditingIdea(null);
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  // 💡 SUPPRIMER UNE IDÉE (AUTEUR UNIQUEMENT)
+  const handleDeleteIdea = async (ideaId) => {
+    if (!window.confirm('Supprimer cette idée ?')) return;
+
+    try {
+      await ideaService.deleteIdea(ideaId, user.uid);
+      alert('✅ Idée supprimée');
       loadIdeas();
     } catch (error) {
       alert('Erreur: ' + error.message);
@@ -395,7 +450,34 @@ const InfosPage = () => {
                                     )}
                                   </div>
                                   {idea.description && (
-                                    <p className="text-xs sm:text-sm text-gray-400 mb-2 line-clamp-2">{idea.description}</p>
+                                    <div className="mb-2">
+                                      <p
+                                        className={`text-xs sm:text-sm text-gray-400 cursor-pointer ${
+                                          !expandedIdeaIds.has(idea.id) ? 'line-clamp-2' : ''
+                                        }`}
+                                        onClick={() => toggleExpandIdea(idea.id)}
+                                      >
+                                        {idea.description}
+                                      </p>
+                                      {idea.description.length > 100 && (
+                                        <button
+                                          onClick={() => toggleExpandIdea(idea.id)}
+                                          className="text-purple-400 hover:text-purple-300 text-[10px] sm:text-xs mt-1 flex items-center gap-1"
+                                        >
+                                          {expandedIdeaIds.has(idea.id) ? (
+                                            <>
+                                              <ChevronUp className="w-3 h-3" />
+                                              Voir moins
+                                            </>
+                                          ) : (
+                                            <>
+                                              <ChevronDown className="w-3 h-3" />
+                                              Voir plus
+                                            </>
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
                                   <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-gray-500">
                                     <span>Par {idea.authorName}</span>
@@ -428,6 +510,30 @@ const InfosPage = () => {
                                     >
                                       {hasVoted ? <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ThumbsUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                                     </motion.button>
+                                  )}
+
+                                  {/* Actions Auteur (Modifier/Supprimer) */}
+                                  {isAuthor && ![IDEA_STATUS.IMPLEMENTED, IDEA_STATUS.REJECTED].includes(idea.status) && (
+                                    <div className="flex gap-1">
+                                      <motion.button
+                                        onClick={() => handleStartEditIdea(idea)}
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        className="p-1.5 sm:p-2 bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"
+                                        title="Modifier mon idée"
+                                      >
+                                        <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </motion.button>
+                                      <motion.button
+                                        onClick={() => handleDeleteIdea(idea.id)}
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        className="p-1.5 sm:p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+                                        title="Supprimer mon idée"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </motion.button>
+                                    </div>
                                   )}
 
                                   {/* Actions Admin */}
@@ -636,6 +742,99 @@ const InfosPage = () => {
                     </motion.button>
                   </div>
                 </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 💡 MODAL ÉDITION IDÉE */}
+        <AnimatePresence>
+          {editingIdea && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4"
+              onClick={() => setEditingIdea(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gradient-to-br from-slate-900 to-blue-950/30 border border-blue-500/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
+                    <Edit className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-white">Modifier mon idée</h3>
+                    <p className="text-xs sm:text-sm text-gray-400">Corrigez ou complétez votre proposition</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 sm:space-y-4">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1">Titre *</label>
+                    <input
+                      type="text"
+                      value={editingIdea.title}
+                      onChange={(e) => setEditingIdea({ ...editingIdea, title: e.target.value })}
+                      placeholder="Résumé de votre idée..."
+                      className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 text-sm sm:text-base"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <textarea
+                      value={editingIdea.description}
+                      onChange={(e) => setEditingIdea({ ...editingIdea, description: e.target.value })}
+                      placeholder="Détaillez votre idée..."
+                      rows={5}
+                      className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 resize-none text-sm sm:text-base"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1">Catégorie</label>
+                    <select
+                      value={editingIdea.category}
+                      onChange={(e) => setEditingIdea({ ...editingIdea, category: e.target.value })}
+                      className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500/50 text-sm sm:text-base"
+                    >
+                      {Object.entries(IDEA_CATEGORIES).map(([key, cat]) => (
+                        <option key={key} value={cat.id} className="bg-slate-900">
+                          {cat.icon} {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2 sm:gap-3 pt-2 sm:pt-4">
+                    <motion.button
+                      type="button"
+                      onClick={() => setEditingIdea(null)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-1 px-3 sm:px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl transition-colors text-sm sm:text-base"
+                    >
+                      Annuler
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      onClick={handleUpdateIdea}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-1 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-indigo-600 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+                    >
+                      <Check className="w-4 h-4" />
+                      Enregistrer
+                    </motion.button>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
           )}
