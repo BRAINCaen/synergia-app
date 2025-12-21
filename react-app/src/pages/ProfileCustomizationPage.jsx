@@ -221,14 +221,20 @@ const ProfileCustomizationPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-          <div className="text-center">
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-pink-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <p className="text-white text-lg">Chargement de la personnalisation...</p>
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+              className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500/30 to-pink-600/20 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            >
+              <Palette className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400" />
+            </motion.div>
+            <p className="text-gray-400 text-sm sm:text-lg">Chargement...</p>
           </div>
         </div>
       </Layout>
@@ -237,52 +243,68 @@ const ProfileCustomizationPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-pink-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8 max-w-7xl mx-auto">
 
           {/* En-tete */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                  <Palette className="w-10 h-10 text-purple-400" />
-                  Personnalisation
-                </h1>
-                <p className="text-gray-400">
-                  Creez votre avatar unique et personnalisez votre profil
-                </p>
+          <div className="mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+                >
+                  <Palette className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
+                </motion.div>
+                <div>
+                  <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
+                    Personnalisation
+                  </h1>
+                  <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                    Créez votre avatar unique
+                  </p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {/* Toggle Mode */}
-                <div className="flex bg-white/10 rounded-xl p-1">
+                <div className="flex bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl p-1">
                   <motion.button
                     onClick={() => setMode('builder')}
                     whileTap={{ scale: 0.95 }}
                     className={`
-                      flex items-center gap-2 px-4 py-2 rounded-lg transition-all
+                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
                       ${mode === 'builder'
                         ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                         : 'text-gray-400 hover:text-white'
                       }
                     `}
                   >
-                    <Gamepad2 className="w-4 h-4" />
-                    <span className="text-sm font-medium">Avatar RPG</span>
+                    <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="font-medium">RPG</span>
                   </motion.button>
                   <motion.button
                     onClick={() => setMode('simple')}
                     whileTap={{ scale: 0.95 }}
                     className={`
-                      flex items-center gap-2 px-4 py-2 rounded-lg transition-all
+                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
                       ${mode === 'simple'
                         ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
                         : 'text-gray-400 hover:text-white'
                       }
                     `}
                   >
-                    <User className="w-4 h-4" />
-                    <span className="text-sm font-medium">Classique</span>
+                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="font-medium">Simple</span>
                   </motion.button>
                 </div>
 
@@ -290,27 +312,27 @@ const ProfileCustomizationPage = () => {
                   onClick={refresh}
                   whileHover={{ scale: 1.05, rotate: 180 }}
                   whileTap={{ scale: 0.95 }}
-                  className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                  className="p-2.5 sm:p-3 bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-xl transition-colors"
                 >
-                  <RefreshCw className="w-5 h-5 text-white" />
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </motion.button>
               </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            {/* Stats Cards - Mobile: 3 columns, Desktop: 5 columns */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-xl p-4 border border-green-500/30"
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-500/30 rounded-lg flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-green-400" />
+                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
                   </div>
                   <div>
-                    <p className="text-xl font-bold text-white">Niv. {userStats.level}</p>
-                    <p className="text-xs text-gray-400">{userStats.totalXp?.toLocaleString()} XP</p>
+                    <p className="text-base sm:text-xl font-bold text-white">N.{userStats.level}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-400 hidden sm:block">{userStats.totalXp?.toLocaleString()} XP</p>
                   </div>
                 </div>
               </motion.div>
@@ -322,17 +344,17 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-500/30 rounded-lg flex items-center justify-center">
-                        <Wand2 className="w-5 h-5 text-purple-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Wand2 className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-base sm:text-xl font-bold text-white">
                           {builderStats?.classes?.unlocked || 0}/{builderStats?.classes?.total || 0}
                         </p>
-                        <p className="text-xs text-gray-400">Classes</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Classes</p>
                       </div>
                     </div>
                   </motion.div>
@@ -341,17 +363,17 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-amber-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-500/30 rounded-lg flex items-center justify-center">
-                        <Sword className="w-5 h-5 text-amber-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Sword className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-base sm:text-xl font-bold text-white">
                           {builderStats?.weapons?.unlocked || 0}/{builderStats?.weapons?.total || 0}
                         </p>
-                        <p className="text-xs text-gray-400">Armes</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Armes</p>
                       </div>
                     </div>
                   </motion.div>
@@ -360,17 +382,17 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-gradient-to-br from-red-500/20 to-pink-500/20 backdrop-blur-sm rounded-xl p-4 border border-red-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-red-500/30 rounded-lg flex items-center justify-center">
-                        <Heart className="w-5 h-5 text-red-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-base sm:text-xl font-bold text-white">
                           {builderStats?.companions?.unlocked || 0}/{builderStats?.companions?.total || 0}
                         </p>
-                        <p className="text-xs text-gray-400">Compagnons</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Compagnons</p>
                       </div>
                     </div>
                   </motion.div>
@@ -379,17 +401,17 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 backdrop-blur-sm rounded-xl p-4 border border-cyan-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-cyan-500/30 rounded-lg flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-cyan-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-base sm:text-xl font-bold text-white">
                           {builderStats?.effects?.unlocked || 0}/{builderStats?.effects?.total || 0}
                         </p>
-                        <p className="text-xs text-gray-400">Effets</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Effets</p>
                       </div>
                     </div>
                   </motion.div>
@@ -401,17 +423,17 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm rounded-xl p-4 border border-purple-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-500/30 rounded-lg flex items-center justify-center">
-                        <User className="w-5 h-5 text-purple-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-base sm:text-xl font-bold text-white">
                           {unlockStats?.avatars?.unlocked}/{unlockStats?.avatars?.total}
                         </p>
-                        <p className="text-xs text-gray-400">Avatars</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Avatars</p>
                       </div>
                     </div>
                   </motion.div>
@@ -420,17 +442,17 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-amber-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-500/30 rounded-lg flex items-center justify-center">
-                        <Crown className="w-5 h-5 text-amber-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-base sm:text-xl font-bold text-white">
                           {unlockStats?.titles?.unlocked}/{unlockStats?.titles?.total}
                         </p>
-                        <p className="text-xs text-gray-400">Titres</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Titres</p>
                       </div>
                     </div>
                   </motion.div>
@@ -439,17 +461,17 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-sm rounded-xl p-4 border border-blue-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-500/30 rounded-lg flex items-center justify-center">
-                        <Image className="w-5 h-5 text-blue-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500/30 to-cyan-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Image className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-base sm:text-xl font-bold text-white">
                           {unlockStats?.banners?.unlocked}/{unlockStats?.banners?.total}
                         </p>
-                        <p className="text-xs text-gray-400">Bannieres</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Bannieres</p>
                       </div>
                     </div>
                   </motion.div>
@@ -458,15 +480,15 @@ const ProfileCustomizationPage = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-gradient-to-br from-red-500/20 to-orange-500/20 backdrop-blur-sm rounded-xl p-4 border border-red-500/30"
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-red-500/30 rounded-lg flex items-center justify-center">
-                        <Flame className="w-5 h-5 text-red-400" />
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold text-white">{userStats.streak || 0}</p>
-                        <p className="text-xs text-gray-400">Jours de serie</p>
+                        <p className="text-base sm:text-xl font-bold text-white">{userStats.streak || 0}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Série</p>
                       </div>
                     </div>
                   </motion.div>
