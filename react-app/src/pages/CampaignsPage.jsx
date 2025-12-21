@@ -499,10 +499,14 @@ const CampaignsPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <RefreshCw className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg">Chargement des campagnes...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <RefreshCw className="h-10 w-10 sm:h-12 sm:w-12 animate-spin text-purple-500 mx-auto mb-4" />
+            <p className="text-gray-400 text-sm sm:text-lg">Chargement des campagnes...</p>
           </div>
         </div>
       </Layout>
@@ -512,16 +516,22 @@ const CampaignsPage = () => {
   if (error) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-400 text-lg mb-4">{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-red-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center px-4">
+            <AlertCircle className="h-10 w-10 sm:h-12 sm:w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-400 text-sm sm:text-lg mb-4">{error}</p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-white/5 backdrop-blur-xl text-white rounded-xl border border-white/10 hover:bg-white/10 transition-all"
             >
               Réessayer
-            </button>
+            </motion.button>
           </div>
         </div>
       </Layout>
@@ -530,116 +540,146 @@ const CampaignsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        
-        {/* 📊 HEADER AVEC STATISTIQUES */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
-          <div className="max-w-7xl mx-auto px-6 py-8">
-            
-            {/* Titre principal */}
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                  <Flag className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                    Gestion des Campagnes
-                  </h1>
-                  <p className="text-gray-400 text-lg mt-1">
-                    Organisez vos quêtes en campagnes épiques
-                  </p>
-                </div>
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
 
-              {/* Actions du header */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 bg-gray-700/50 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-md transition-all duration-200 ${
-                      viewMode === 'grid'
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-600'
-                    }`}
-                  >
-                    <Grid className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-md transition-all duration-200 ${
-                      viewMode === 'list'
-                        ? 'bg-blue-600 text-white shadow-lg'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-600'
-                    }`}
-                  >
-                    <List className="h-4 w-4" />
-                  </button>
-                </div>
+        <div className="relative z-10 pb-24 sm:pb-8">
+          {/* 📊 HEADER AVEC STATISTIQUES */}
+          <div className="bg-white/5 backdrop-blur-xl border-b border-white/10">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
 
-                <button
-                  onClick={() => setShowCampaignForm(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Nouvelle Campagne
-                </button>
-              </div>
-            </div>
-
-            {/* Statistiques rapides */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
-                whileHover={{ scale: 1.02 }}
+              {/* Titre principal */}
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8"
               >
-                <div className="text-3xl font-bold text-white mb-1">{stats.total}</div>
-                <div className="text-gray-400 text-sm font-medium">Total</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      Campagnes
+                    </h1>
+                    <p className="text-gray-400 text-xs sm:text-lg mt-0.5 sm:mt-1">
+                      Organisez vos quêtes épiques
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions du header */}
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        viewMode === 'grid'
+                          ? 'bg-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <Grid className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        viewMode === 'list'
+                          ? 'bg-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowCampaignForm(true)}
+                    className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 text-sm sm:text-base"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">Nouvelle Campagne</span>
+                    <span className="sm:hidden">Nouveau</span>
+                  </motion.button>
+                </div>
+              </motion.div>
+
+              {/* Statistiques rapides */}
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ scale: 1.02 }}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center hover:bg-white/10 transition-all duration-300"
+              >
+                <div className="text-xl sm:text-3xl font-bold text-white mb-0.5 sm:mb-1">{stats.total}</div>
+                <div className="text-gray-400 text-[10px] sm:text-sm font-medium">Total</div>
+                <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
                   <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-1 rounded-full" style={{ width: '100%' }}></div>
                 </div>
               </motion.div>
 
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
                 whileHover={{ scale: 1.02 }}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center hover:bg-white/10 transition-all duration-300"
               >
-                <div className="text-3xl font-bold text-blue-400 mb-1">{stats.active}</div>
-                <div className="text-gray-400 text-sm font-medium">Actives</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                <div className="text-xl sm:text-3xl font-bold text-blue-400 mb-0.5 sm:mb-1">{stats.active}</div>
+                <div className="text-gray-400 text-[10px] sm:text-sm font-medium">Actives</div>
+                <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
                   <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${(stats.active / stats.total) * 100 || 0}%` }}></div>
                 </div>
               </motion.div>
 
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
                 whileHover={{ scale: 1.02 }}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center hover:bg-white/10 transition-all duration-300"
               >
-                <div className="text-3xl font-bold text-green-400 mb-1">{stats.completed}</div>
-                <div className="text-gray-400 text-sm font-medium">Terminées</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                <div className="text-xl sm:text-3xl font-bold text-green-400 mb-0.5 sm:mb-1">{stats.completed}</div>
+                <div className="text-gray-400 text-[10px] sm:text-sm font-medium">Terminées</div>
+                <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
                   <div className="bg-green-500 h-1 rounded-full" style={{ width: `${(stats.completed / stats.total) * 100 || 0}%` }}></div>
                 </div>
               </motion.div>
 
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
                 whileHover={{ scale: 1.02 }}
+                className="hidden sm:block bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center hover:bg-white/10 transition-all duration-300"
               >
-                <div className="text-3xl font-bold text-yellow-400 mb-1">{stats.planning}</div>
-                <div className="text-gray-400 text-sm font-medium">Planning</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                <div className="text-xl sm:text-3xl font-bold text-yellow-400 mb-0.5 sm:mb-1">{stats.planning}</div>
+                <div className="text-gray-400 text-[10px] sm:text-sm font-medium">Planning</div>
+                <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
                   <div className="bg-yellow-500 h-1 rounded-full" style={{ width: `${(stats.planning / stats.total) * 100 || 0}%` }}></div>
                 </div>
               </motion.div>
 
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center hover:bg-gray-700/50 transition-all duration-300"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
                 whileHover={{ scale: 1.02 }}
+                className="hidden sm:block bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center hover:bg-white/10 transition-all duration-300"
               >
-                <div className="text-3xl font-bold text-orange-400 mb-1">{stats.onHold}</div>
-                <div className="text-gray-400 text-sm font-medium">En pause</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
+                <div className="text-xl sm:text-3xl font-bold text-orange-400 mb-0.5 sm:mb-1">{stats.onHold}</div>
+                <div className="text-gray-400 text-[10px] sm:text-sm font-medium">En pause</div>
+                <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
                   <div className="bg-orange-500 h-1 rounded-full" style={{ width: `${(stats.onHold / stats.total) * 100 || 0}%` }}></div>
                 </div>
               </motion.div>
@@ -648,45 +688,48 @@ const CampaignsPage = () => {
         </div>
 
         {/* 🔍 FILTRES ET RECHERCHE */}
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 mb-8">
-            <div className="flex flex-col lg:flex-row gap-4">
-              
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-6 mb-6 sm:mb-8"
+          >
+            <div className="flex flex-col gap-3 sm:gap-4">
+
               {/* Barre de recherche */}
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher des campagnes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
-                  />
-                </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
+                <input
+                  type="text"
+                  placeholder="Rechercher..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
+                />
               </div>
 
               {/* Filtres */}
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-2 sm:gap-4">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                  className="flex-1 min-w-[100px] px-3 sm:px-4 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-xs sm:text-sm"
                 >
-                  <option value="all">Tous les statuts</option>
-                  <option value="planning">Planification</option>
+                  <option value="all">Tous statuts</option>
+                  <option value="planning">Planning</option>
                   <option value="active">Actives</option>
                   <option value="completed">Terminées</option>
-                  <option value="on_hold">En pause</option>
+                  <option value="on_hold">Pause</option>
                   <option value="cancelled">Annulées</option>
                 </select>
 
                 <select
                   value={priorityFilter}
                   onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                  className="flex-1 min-w-[100px] px-3 sm:px-4 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-xs sm:text-sm"
                 >
-                  <option value="all">Toutes priorités</option>
+                  <option value="all">Priorités</option>
                   <option value="low">Faible</option>
                   <option value="medium">Moyenne</option>
                   <option value="high">Haute</option>
@@ -700,59 +743,59 @@ const CampaignsPage = () => {
                     setSortBy(field);
                     setSortOrder(order);
                   }}
-                  className="px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                  className="flex-1 min-w-[100px] px-3 sm:px-4 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-xs sm:text-sm"
                 >
-                  <option value="updatedAt-desc">Plus récentes</option>
-                  <option value="updatedAt-asc">Plus anciennes</option>
+                  <option value="updatedAt-desc">Récentes</option>
+                  <option value="updatedAt-asc">Anciennes</option>
                   <option value="title-asc">Nom A-Z</option>
                   <option value="title-desc">Nom Z-A</option>
-                  <option value="createdAt-desc">Date création ↓</option>
-                  <option value="createdAt-asc">Date création ↑</option>
                 </select>
               </div>
             </div>
 
             {/* Résultats de recherche */}
             {searchTerm && (
-              <div className="mt-4 text-sm text-gray-400">
-                {filteredCampaigns.length} campagne(s) trouvée(s) pour "{searchTerm}"
+              <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-gray-400">
+                {filteredCampaigns.length} campagne(s) pour "{searchTerm}"
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* 📁 GRILLE DES CAMPAGNES */}
           {filteredCampaigns.length === 0 ? (
-            <motion.div 
-              className="text-center py-20"
+            <motion.div
+              className="text-center py-12 sm:py-20"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="text-8xl mb-6">⚔️</div>
-              <h3 className="text-2xl font-bold text-white mb-4">
+              <div className="text-6xl sm:text-8xl mb-4 sm:mb-6">⚔️</div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">
                 {searchTerm ? 'Aucune campagne trouvée' : 'Aucune campagne créée'}
               </h3>
-              <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">
-                {searchTerm 
-                  ? 'Aucune campagne ne correspond à votre recherche. Essayez avec d\'autres mots-clés.'
-                  : 'Commencez par créer votre première campagne pour organiser vos quêtes et mener votre équipe vers la victoire !'
+              <p className="text-gray-400 text-sm sm:text-lg mb-6 sm:mb-8 max-w-md mx-auto px-4">
+                {searchTerm
+                  ? 'Essayez d\'autres mots-clés.'
+                  : 'Créez votre première campagne pour organiser vos quêtes !'
                 }
               </p>
               {!searchTerm && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => setShowCampaignForm(true)}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-3 mx-auto"
+                  className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base"
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                   Créer ma première campagne
-                </button>
+                </motion.button>
               )}
             </motion.div>
           ) : (
             <motion.div
-              className={viewMode === 'grid' 
-                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
-                : "space-y-4"
+              className={viewMode === 'grid'
+                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6"
+                : "space-y-3 sm:space-y-4"
               }
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1024,10 +1067,10 @@ const CampaignCard = ({ campaign, viewMode, navigate, onEdit, onDelete, onStatus
   return (
     <motion.div
       className={`
-        bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 
-        hover:bg-gray-700/50 hover:border-gray-600/50 transition-all duration-300 
+        bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6
+        hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300
         hover:shadow-2xl hover:shadow-purple-500/10 cursor-pointer
-        ${viewMode === 'list' ? 'flex items-center gap-6' : ''}
+        ${viewMode === 'list' ? 'flex items-center gap-4 sm:gap-6' : ''}
       `}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -1090,76 +1133,78 @@ const CampaignFormModal = ({ campaign, onClose, onSubmit }) => {
 
   return (
     <motion.div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-3 sm:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Flag className="h-6 w-6 text-blue-400" />
-            {campaign ? 'Modifier la campagne' : 'Nouvelle campagne'}
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3">
+            <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
+            {campaign ? 'Modifier' : 'Nouvelle campagne'}
           </h2>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200"
           >
-            <X className="h-6 w-6" />
-          </button>
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </motion.button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Titre */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
               Titre de la campagne *
             </label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              className={`w-full px-4 py-3 bg-gray-700/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                errors.title 
-                  ? 'border-red-500 focus:ring-red-500/50' 
-                  : 'border-gray-600 focus:ring-blue-500/50'
+              className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 text-sm sm:text-base ${
+                errors.title
+                  ? 'border-red-500 focus:ring-red-500/50'
+                  : 'border-white/10 focus:ring-purple-500/50'
               }`}
               placeholder="Ex: Conquête du marché B2B"
             />
             {errors.title && (
-              <p className="mt-1 text-sm text-red-400">{errors.title}</p>
+              <p className="mt-1 text-xs sm:text-sm text-red-400">{errors.title}</p>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
               Description
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
-              placeholder="Décrivez les objectifs de cette campagne..."
-              rows="4"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
+              placeholder="Décrivez les objectifs..."
+              rows="3"
             />
           </div>
 
           {/* Statut et Priorité */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
                 Statut
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
               >
                 <option value="planning">📋 Planification</option>
                 <option value="active">⚔️ En cours</option>
@@ -1170,13 +1215,13 @@ const CampaignFormModal = ({ campaign, onClose, onSubmit }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
                 Priorité
               </label>
               <select
                 value={formData.priority}
                 onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
               >
                 <option value="low">🟢 Faible</option>
                 <option value="medium">🟡 Moyenne</option>
@@ -1187,66 +1232,70 @@ const CampaignFormModal = ({ campaign, onClose, onSubmit }) => {
           </div>
 
           {/* Icône et Date d'échéance */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
                 Icône
               </label>
               <input
                 type="text"
                 value={formData.icon}
                 onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
                 placeholder="⚔️"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Date d'échéance
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
+                Échéance
               </label>
               <input
                 type="date"
                 value={formData.dueDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
               />
             </div>
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Tags <span className="text-gray-500">(séparés par des virgules)</span>
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
+              Tags <span className="text-gray-500">(séparés par virgules)</span>
             </label>
             <input
               type="text"
               value={formData.tags}
               onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-              className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
               placeholder="B2B, conquête, stratégique"
             />
           </div>
 
           {/* Boutons d'action */}
-          <div className="flex justify-end gap-4 pt-6 border-t border-gray-700">
-            <button
+          <div className="flex justify-end gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-white/10">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="button"
               onClick={onClose}
-              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 font-medium"
+              className="px-4 sm:px-6 py-2.5 sm:py-3 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-all duration-200 font-medium border border-white/10 text-sm sm:text-base"
             >
               Annuler
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className={`px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center gap-2 ${
+              className={`px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center gap-2 text-sm sm:text-base ${
                 loading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
               {loading && <RefreshCw className="h-4 w-4 animate-spin" />}
-              {campaign ? 'Modifier' : 'Créer'} la campagne
-            </button>
+              {campaign ? 'Modifier' : 'Créer'}
+            </motion.button>
           </div>
         </form>
       </motion.div>
