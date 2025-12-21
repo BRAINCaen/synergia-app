@@ -95,7 +95,7 @@ const GlassCard = ({ children, className = "" }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-700/50 transition-all duration-300 ${className}`}
+    className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 hover:bg-white/10 transition-all duration-300 ${className}`}
   >
     {children}
   </motion.div>
@@ -103,24 +103,38 @@ const GlassCard = ({ children, className = "" }) => (
 
 // 🎨 STAT CARD
 const StatCard = ({ title, value, icon: Icon, color, subtitle }) => {
-  const colors = {
-    blue: 'from-blue-500 to-cyan-500',
-    green: 'from-green-500 to-emerald-500',
-    orange: 'from-orange-500 to-red-500',
-    purple: 'from-purple-500 to-pink-500',
-    yellow: 'from-yellow-500 to-orange-500',
-    indigo: 'from-indigo-500 to-purple-500'
+  const iconColors = {
+    blue: 'bg-blue-500/20 text-blue-400',
+    green: 'bg-green-500/20 text-green-400',
+    orange: 'bg-orange-500/20 text-orange-400',
+    purple: 'bg-purple-500/20 text-purple-400',
+    yellow: 'bg-yellow-500/20 text-yellow-400',
+    indigo: 'bg-indigo-500/20 text-indigo-400'
+  };
+
+  const textColors = {
+    blue: 'text-blue-400',
+    green: 'text-green-400',
+    orange: 'text-orange-400',
+    purple: 'text-purple-400',
+    yellow: 'text-yellow-400',
+    indigo: 'text-indigo-400'
   };
 
   return (
-    <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-6 text-white`}>
-      <div className="flex items-center gap-3 mb-2">
-        <Icon className="w-6 h-6" />
-        <h3 className="text-sm font-medium opacity-90">{title}</h3>
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 hover:bg-white/10 transition-all"
+    >
+      <div className="flex items-center gap-2 sm:gap-3 mb-2">
+        <div className={`p-2 rounded-xl ${iconColors[color]}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <h3 className="text-xs sm:text-sm font-medium text-gray-400">{title}</h3>
       </div>
-      <div className="text-3xl font-bold mb-1">{value}</div>
-      {subtitle && <div className="text-sm opacity-80">{subtitle}</div>}
-    </div>
+      <div className={`text-2xl sm:text-3xl font-bold mb-1 ${textColors[color]}`}>{value}</div>
+      {subtitle && <div className="text-xs sm:text-sm text-gray-500">{subtitle}</div>}
+    </motion.div>
   );
 };
 
@@ -270,10 +284,14 @@ const HRPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement des données RH...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-400 text-sm sm:text-base">Chargement des données RH...</p>
           </div>
         </div>
       </Layout>
@@ -282,34 +300,51 @@ const HRPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8 max-w-7xl mx-auto">
           {/* HEADER */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-6 sm:mb-8"
           >
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                  Gestion RH
-                </h1>
-                <p className="text-gray-400">Gestion du personnel et ressources humaines</p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleRefresh}
-                  className="bg-gray-700/50 hover:bg-gray-600/50 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-500/30 to-purple-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  Actualiser
-                </button>
+                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
+                </motion.div>
+                <div>
+                  <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-blue-200 to-white bg-clip-text text-transparent">
+                    Gestion RH
+                  </h1>
+                  <p className="text-gray-400 text-xs sm:text-sm mt-0.5">Gestion du personnel et ressources humaines</p>
+                </div>
               </div>
+              <motion.button
+                whileHover={{ scale: 1.02, rotate: 180 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleRefresh}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span className="hidden sm:inline">Actualiser</span>
+              </motion.button>
             </div>
 
             {/* STATISTIQUES */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
               <StatCard 
                 title="Total Salariés" 
                 value={stats.totalEmployees} 
