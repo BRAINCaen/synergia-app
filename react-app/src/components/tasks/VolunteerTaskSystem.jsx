@@ -68,37 +68,81 @@ const VolunteerTaskCard = ({ task, onTaskUpdate }) => {
     }
   };
 
-  // 🚪 SE RETIRER DE LA TÂCHE
+  // 🚪 SE RETIRER DE LA TÂCHE (volontaire)
   const handleWithdraw = async () => {
     try {
       setIsLoading(true);
       console.log('🚪 Retrait de tâche:', task.title);
-      
+
       const confirmed = window.confirm(
         `Êtes-vous sûr de vouloir vous retirer de la tâche "${task.title}" ?`
       );
-      
+
       if (!confirmed) return;
-      
+
       // Retirer l'utilisateur des assignés
       const updatedAssignedTo = (task.assignedTo || []).filter(id => id !== user.uid);
-      
+
       await taskService.updateTask(task.id, {
         assignedTo: updatedAssignedTo,
         status: updatedAssignedTo.length === 0 ? 'pending' : task.status,
         withdrawDate: new Date()
       });
-      
+
       console.log('✅ Retrait enregistré avec succès');
-      
+
       // Notifier le parent pour recharger
       if (onTaskUpdate) {
         onTaskUpdate();
       }
-      
+
     } catch (error) {
       console.error('❌ Erreur retrait:', error);
       alert('Erreur lors du retrait: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🏳️ ABANDONNER LA QUÊTE (créateur)
+  const handleCreatorAbandon = async () => {
+    try {
+      setIsLoading(true);
+      console.log('🏳️ Abandon de quête par créateur:', task.title);
+
+      const confirmed = window.confirm(
+        `Êtes-vous sûr de vouloir abandonner la quête "${task.title}" ?\n\nLa quête restera active et disponible pour d'autres volontaires.`
+      );
+
+      if (!confirmed) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Retirer le créateur des assignés si présent
+      const updatedAssignedTo = (task.assignedTo || []).filter(id => id !== user.uid);
+
+      await taskService.updateTask(task.id, {
+        assignedTo: updatedAssignedTo,
+        // Marquer la quête comme abandonnée par le créateur mais toujours ouverte
+        abandonedByCreator: true,
+        abandonedAt: new Date(),
+        previousCreator: user.uid,
+        // Ouvrir aux volontaires
+        openToVolunteers: true,
+        status: updatedAssignedTo.length === 0 ? 'pending' : task.status
+      });
+
+      console.log('✅ Quête abandonnée - reste disponible pour volontaires');
+
+      // Notifier le parent pour recharger
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur abandon:', error);
+      alert('Erreur lors de l\'abandon: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -274,7 +318,7 @@ const VolunteerTaskCard = ({ task, onTaskUpdate }) => {
               </button>
             )}
 
-            {/* Se retirer */}
+            {/* Se retirer (volontaire) */}
             {isAssignedToMe && !isCreatedByMe && (
               <button
                 onClick={handleWithdraw}
@@ -287,6 +331,25 @@ const VolunteerTaskCard = ({ task, onTaskUpdate }) => {
                   <>
                     <UserMinus className="w-4 h-4 mr-1" />
                     Se retirer
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Abandonner la quête (créateur) */}
+            {isCreatedByMe && task.status !== 'completed' && task.status !== 'validation_pending' && (
+              <button
+                onClick={handleCreatorAbandon}
+                disabled={isLoading}
+                className="flex items-center px-3 py-1.5 bg-red-600/80 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
+                title="Abandonner la quête (elle restera disponible pour d'autres)"
+              >
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <UserMinus className="w-4 h-4 mr-1" />
+                    Abandonner
                   </>
                 )}
               </button>

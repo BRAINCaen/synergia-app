@@ -540,6 +540,25 @@ const TasksPage = () => {
     }
   }, [user?.uid]);
 
+  // Abandon par le créateur - la quête reste disponible pour d'autres
+  const handleAbandon = useCallback(async (task) => {
+    try {
+      const currentAssignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+      const newAssignedTo = currentAssignedTo.filter(id => id !== user.uid);
+      await updateDoc(doc(db, 'tasks', task.id), {
+        assignedTo: newAssignedTo,
+        abandonedByCreator: true,
+        abandonedAt: serverTimestamp(),
+        previousCreator: user.uid,
+        openToVolunteers: true,
+        status: newAssignedTo.length === 0 ? 'todo' : task.status,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      alert('Erreur lors de l\'abandon');
+    }
+  }, [user?.uid]);
+
   const toggleUserSection = useCallback((userId) => {
     setExpandedUsers(prev => ({ ...prev, [userId]: !prev[userId] }));
   }, []);
@@ -947,6 +966,7 @@ const TasksPage = () => {
                         onStatusChange={handleStatusChange}
                         onVolunteer={handleVolunteer}
                         onUnvolunteer={handleUnvolunteer}
+                        onAbandon={handleAbandon}
                       />
                     ))}
                   </AnimatePresence>
@@ -970,6 +990,7 @@ const TasksPage = () => {
                         onStatusChange={handleStatusChange}
                         onVolunteer={handleVolunteer}
                         onUnvolunteer={handleUnvolunteer}
+                        onAbandon={handleAbandon}
                       />
                     ))}
                   </AnimatePresence>
@@ -1129,6 +1150,7 @@ const TasksPage = () => {
                                       onStatusChange={handleStatusChange}
                                       onVolunteer={handleVolunteer}
                                       onUnvolunteer={handleUnvolunteer}
+                                      onAbandon={handleAbandon}
                                     />
                                   ))}
                                 </div>

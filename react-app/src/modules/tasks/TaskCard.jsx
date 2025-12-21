@@ -51,6 +51,7 @@ const TaskCard = ({
   onDelete,
   onVolunteer,
   onUnvolunteer,
+  onAbandon,
   onStatusChange
 }) => {
   const { user } = useAuthStore();
@@ -143,6 +144,22 @@ const TaskCard = ({
     setVolunteering(true);
     try {
       await onUnvolunteer(task);
+    } finally {
+      setVolunteering(false);
+    }
+  };
+
+  // Handler pour abandon par le créateur
+  const handleAbandon = async (e) => {
+    e.stopPropagation();
+    if (!onAbandon) return;
+    const confirmed = window.confirm(
+      `Êtes-vous sûr de vouloir abandonner la quête "${task.title}" ?\n\nLa quête restera active et disponible pour d'autres volontaires.`
+    );
+    if (!confirmed) return;
+    setVolunteering(true);
+    try {
+      await onAbandon(task);
     } finally {
       setVolunteering(false);
     }
@@ -379,7 +396,7 @@ const TaskCard = ({
         </div>
 
         {/* Actions secondaires si proprietaire */}
-        {(isTaskOwner || isMyTask) && (onEdit || onDelete) && !isHistoryMode && (
+        {(isTaskOwner || isMyTask) && (onEdit || onDelete || onAbandon) && !isHistoryMode && (
           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
             {onEdit && !canSubmit && !(canVolunteer && onVolunteer) && (
               <button
@@ -388,6 +405,24 @@ const TaskCard = ({
               >
                 <Edit className="w-3.5 h-3.5" />
                 <span>Modifier</span>
+              </button>
+            )}
+            {/* Bouton Abandonner pour le créateur */}
+            {isTaskOwner && onAbandon && task.status !== 'completed' && task.status !== 'validated' && (
+              <button
+                onClick={handleAbandon}
+                disabled={volunteering}
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-orange-900/30 text-orange-400 rounded-lg text-xs hover:bg-orange-900/50 transition-colors disabled:opacity-50"
+                title="Abandonner la quête (elle restera disponible pour d'autres)"
+              >
+                {volunteering ? (
+                  <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <UserMinus className="w-3.5 h-3.5" />
+                    <span>Abandonner</span>
+                  </>
+                )}
               </button>
             )}
             {onDelete && (
