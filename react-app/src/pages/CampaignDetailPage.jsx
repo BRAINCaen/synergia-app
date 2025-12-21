@@ -610,10 +610,14 @@ const CampaignDetailPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-400 text-lg">Chargement de la campagne...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400 text-sm sm:text-lg">Chargement de la campagne...</p>
           </div>
         </div>
       </Layout>
@@ -623,19 +627,25 @@ const CampaignDetailPage = () => {
   if (error || !campaign) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-white mb-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-red-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center px-4">
+            <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
               {error || 'Campagne introuvable'}
             </h2>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/campaigns')}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+              className="px-4 sm:px-6 py-2.5 sm:py-3 bg-white/5 backdrop-blur-xl text-white rounded-xl hover:bg-white/10 transition-colors flex items-center gap-2 mx-auto border border-white/10 text-sm sm:text-base"
             >
               <ArrowLeft className="h-4 w-4" />
               Retour aux campagnes
-            </button>
+            </motion.button>
           </div>
         </div>
       </Layout>
@@ -646,256 +656,294 @@ const CampaignDetailPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        
-        {/* 📊 HEADER DE LA CAMPAGNE */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
-          <div className="max-w-7xl mx-auto px-6 py-8">
-            
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-              <button 
-                onClick={() => navigate('/campaigns')}
-                className="hover:text-white transition-colors flex items-center gap-2"
-              >
-                <Flag className="h-4 w-4" />
-                Campagnes
-              </button>
-              <span>/</span>
-              <span className="text-white">{campaign.title}</span>
-            </div>
-
-            {/* Titre et actions */}
-            <div className="flex items-start justify-between mb-8">
-              <div className="flex items-start gap-4">
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl ${statusConfig.bgColor}`}>
-                  {campaign.icon || '⚔️'}
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                    {campaign.title}
-                  </h1>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border`}>
-                      {statusConfig.icon} {statusConfig.label}
-                    </span>
-                    {campaign.priority && (
-                      <span className="text-sm text-gray-400">
-                        Priorité: {campaign.priority}
-                      </span>
-                    )}
-                  </div>
-                  {campaign.description && (
-                    <p className="text-gray-400 mt-3 max-w-2xl">
-                      {campaign.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => navigate('/campaigns')}
-                  className="px-4 py-2 bg-gray-700/50 text-white rounded-lg hover:bg-gray-600/50 transition-all duration-200 flex items-center gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Retour
-                </button>
-                <button
-                  onClick={() => {/* TODO: Édition */}}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Modifier
-                </button>
-                <button
-                  onClick={handleDeleteCampaign}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Supprimer
-                </button>
-              </div>
-            </div>
-
-            {/* Statistiques */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center"
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="text-3xl font-bold text-white mb-1">{stats.totalQuests}</div>
-                <div className="text-gray-400 text-sm">Quêtes totales</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-1 rounded-full" style={{ width: '100%' }}></div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center"
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="text-3xl font-bold text-green-400 mb-1">{stats.completedQuests}</div>
-                <div className="text-gray-400 text-sm">Accomplies</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
-                  <div className="bg-green-500 h-1 rounded-full" style={{ width: `${(stats.completedQuests / stats.totalQuests) * 100 || 0}%` }}></div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center"
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="text-3xl font-bold text-blue-400 mb-1">{stats.inProgressQuests}</div>
-                <div className="text-gray-400 text-sm">En cours</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
-                  <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${(stats.inProgressQuests / stats.totalQuests) * 100 || 0}%` }}></div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center"
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="text-3xl font-bold text-yellow-400 mb-1">{stats.todoQuests}</div>
-                <div className="text-gray-400 text-sm">À faire</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
-                  <div className="bg-yellow-500 h-1 rounded-full" style={{ width: `${(stats.todoQuests / stats.totalQuests) * 100 || 0}%` }}></div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 text-center"
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="text-3xl font-bold text-purple-400 mb-1">{stats.progress}%</div>
-                <div className="text-gray-400 text-sm">Progression</div>
-                <div className="w-full bg-gray-700 rounded-full h-1 mt-3">
-                  <div className="bg-purple-500 h-1 rounded-full" style={{ width: `${stats.progress}%` }}></div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
         </div>
 
+        <div className="relative z-10 pb-24 sm:pb-8">
+          {/* 📊 HEADER DE LA CAMPAGNE */}
+          <div className="bg-white/5 backdrop-blur-xl border-b border-white/10">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+
+              {/* Breadcrumb */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-2 text-xs sm:text-sm text-gray-400 mb-4 sm:mb-6"
+              >
+                <button
+                  onClick={() => navigate('/campaigns')}
+                  className="hover:text-white transition-colors flex items-center gap-1 sm:gap-2"
+                >
+                  <Flag className="h-3 w-3 sm:h-4 sm:w-4" />
+                  Campagnes
+                </button>
+                <span>/</span>
+                <span className="text-white truncate">{campaign.title}</span>
+              </motion.div>
+
+              {/* Titre et actions */}
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 mb-6 sm:mb-8"
+              >
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center text-2xl sm:text-3xl ${statusConfig.bgColor} flex-shrink-0`}>
+                    {campaign.icon || '⚔️'}
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-1 sm:mb-2 truncate">
+                      {campaign.title}
+                    </h1>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border`}>
+                        {statusConfig.icon} {statusConfig.label}
+                      </span>
+                      {campaign.priority && (
+                        <span className="text-xs sm:text-sm text-gray-400">
+                          {campaign.priority}
+                        </span>
+                      )}
+                    </div>
+                    {campaign.description && (
+                      <p className="text-gray-400 mt-2 sm:mt-3 text-xs sm:text-base line-clamp-2 max-w-2xl">
+                        {campaign.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/campaigns')}
+                    className="px-3 sm:px-4 py-2 bg-white/5 backdrop-blur-xl text-white rounded-xl hover:bg-white/10 transition-all duration-200 flex items-center gap-2 border border-white/10 text-xs sm:text-sm"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Retour</span>
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {/* TODO: Édition */}}
+                    className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-200 flex items-center gap-2 text-xs sm:text-sm"
+                  >
+                    <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Modifier</span>
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleDeleteCampaign}
+                    className="px-3 sm:px-4 py-2 bg-red-600/80 text-white rounded-xl hover:bg-red-700 transition-all duration-200 flex items-center gap-2 text-xs sm:text-sm"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Supprimer</span>
+                  </motion.button>
+                </div>
+              </motion.div>
+
+              {/* Statistiques */}
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center"
+                >
+                  <div className="text-xl sm:text-3xl font-bold text-white mb-0.5 sm:mb-1">{stats.totalQuests}</div>
+                  <div className="text-gray-400 text-[10px] sm:text-sm">Quêtes</div>
+                  <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-1 rounded-full" style={{ width: '100%' }}></div>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center"
+                >
+                  <div className="text-xl sm:text-3xl font-bold text-green-400 mb-0.5 sm:mb-1">{stats.completedQuests}</div>
+                  <div className="text-gray-400 text-[10px] sm:text-sm">Accomplies</div>
+                  <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
+                    <div className="bg-green-500 h-1 rounded-full" style={{ width: `${(stats.completedQuests / stats.totalQuests) * 100 || 0}%` }}></div>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center"
+                >
+                  <div className="text-xl sm:text-3xl font-bold text-blue-400 mb-0.5 sm:mb-1">{stats.inProgressQuests}</div>
+                  <div className="text-gray-400 text-[10px] sm:text-sm">En cours</div>
+                  <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
+                    <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${(stats.inProgressQuests / stats.totalQuests) * 100 || 0}%` }}></div>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="hidden sm:block bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center"
+                >
+                  <div className="text-xl sm:text-3xl font-bold text-yellow-400 mb-0.5 sm:mb-1">{stats.todoQuests}</div>
+                  <div className="text-gray-400 text-[10px] sm:text-sm">À faire</div>
+                  <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
+                    <div className="bg-yellow-500 h-1 rounded-full" style={{ width: `${(stats.todoQuests / stats.totalQuests) * 100 || 0}%` }}></div>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="hidden sm:block bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-6 text-center"
+                >
+                  <div className="text-xl sm:text-3xl font-bold text-purple-400 mb-0.5 sm:mb-1">{stats.progress}%</div>
+                  <div className="text-gray-400 text-[10px] sm:text-sm">Progression</div>
+                  <div className="w-full bg-white/10 rounded-full h-1 mt-2 sm:mt-3">
+                    <div className="bg-purple-500 h-1 rounded-full" style={{ width: `${stats.progress}%` }}></div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          </div>
+
         {/* 📑 ONGLETS */}
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center gap-4 border-b border-gray-700/50 mb-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="flex items-center gap-1 sm:gap-4 border-b border-white/10 mb-4 sm:mb-8 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
+              className={`px-2 sm:px-4 py-2 sm:py-3 font-medium transition-all duration-200 border-b-2 whitespace-nowrap text-xs sm:text-sm ${
                 activeTab === 'overview'
-                  ? 'border-blue-500 text-blue-400'
+                  ? 'border-purple-500 text-purple-400'
                   : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
-              <BarChart3 className="h-4 w-4 inline mr-2" />
-              Vue d'ensemble
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Vue d'ensemble</span>
+              <span className="sm:hidden">Aperçu</span>
             </button>
             <button
               onClick={() => setActiveTab('quests')}
-              className={`px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
+              className={`px-2 sm:px-4 py-2 sm:py-3 font-medium transition-all duration-200 border-b-2 whitespace-nowrap text-xs sm:text-sm ${
                 activeTab === 'quests'
-                  ? 'border-blue-500 text-blue-400'
+                  ? 'border-purple-500 text-purple-400'
                   : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
-              <Sword className="h-4 w-4 inline mr-2" />
+              <Sword className="h-3.5 w-3.5 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
               Quêtes ({stats.totalQuests})
             </button>
             <button
               onClick={() => setActiveTab('team')}
-              className={`px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
+              className={`px-2 sm:px-4 py-2 sm:py-3 font-medium transition-all duration-200 border-b-2 whitespace-nowrap text-xs sm:text-sm ${
                 activeTab === 'team'
-                  ? 'border-blue-500 text-blue-400'
+                  ? 'border-purple-500 text-purple-400'
                   : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
-              <Shield className="h-4 w-4 inline mr-2" />
+              <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
               Équipe
             </button>
-            {/* 📦 MODULE 10: Onglet Rétrospective - visible uniquement si campagne terminée ou en cours */}
+            {/* 📦 MODULE 10: Onglet Rétrospective */}
             <button
               onClick={() => setActiveTab('retrospective')}
-              className={`px-4 py-3 font-medium transition-all duration-200 border-b-2 ${
+              className={`px-2 sm:px-4 py-2 sm:py-3 font-medium transition-all duration-200 border-b-2 whitespace-nowrap text-xs sm:text-sm ${
                 activeTab === 'retrospective'
                   ? 'border-purple-500 text-purple-400'
                   : 'border-transparent text-gray-400 hover:text-white'
               }`}
             >
-              <RefreshCw className="h-4 w-4 inline mr-2" />
-              Rétrospective
+              <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
+              Rétro
             </button>
           </div>
 
           {/* 📊 CONTENU DES ONGLETS */}
-          <div className="pb-12">
+          <div className="pb-6 sm:pb-12">
             {/* Onglet Vue d'ensemble */}
             {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <motion.div 
-                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
+              <div className="space-y-4 sm:space-y-6">
+                <motion.div
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                    <Trophy className="h-6 w-6 text-yellow-400" />
-                    Progression de la campagne
+                  <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                    <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />
+                    Progression
                   </h3>
-                  
-                  <div className="mb-8">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-gray-400">Progression globale</span>
-                      <span className="text-2xl font-bold text-white">{stats.progress}%</span>
+
+                  <div className="mb-6 sm:mb-8">
+                    <div className="flex items-center justify-between mb-2 sm:mb-3">
+                      <span className="text-gray-400 text-sm sm:text-base">Progression globale</span>
+                      <span className="text-xl sm:text-2xl font-bold text-white">{stats.progress}%</span>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-4">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-4 rounded-full transition-all duration-500"
+                    <div className="w-full bg-white/10 rounded-full h-3 sm:h-4">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-3 sm:h-4 rounded-full transition-all duration-500"
                         style={{ width: `${stats.progress}%` }}
                       ></div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gray-700/30 rounded-lg p-6">
-                      <div className="text-sm text-gray-400 mb-2">Quêtes accomplies</div>
-                      <div className="text-3xl font-bold text-green-400">{stats.completedQuests}</div>
+                  <div className="grid grid-cols-3 gap-3 sm:gap-6">
+                    <div className="bg-white/5 rounded-xl p-3 sm:p-6 text-center">
+                      <div className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2">Accomplies</div>
+                      <div className="text-xl sm:text-3xl font-bold text-green-400">{stats.completedQuests}</div>
                     </div>
-                    <div className="bg-gray-700/30 rounded-lg p-6">
-                      <div className="text-sm text-gray-400 mb-2">Quêtes en cours</div>
-                      <div className="text-3xl font-bold text-blue-400">{stats.inProgressQuests}</div>
+                    <div className="bg-white/5 rounded-xl p-3 sm:p-6 text-center">
+                      <div className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2">En cours</div>
+                      <div className="text-xl sm:text-3xl font-bold text-blue-400">{stats.inProgressQuests}</div>
                     </div>
-                    <div className="bg-gray-700/30 rounded-lg p-6">
-                      <div className="text-sm text-gray-400 mb-2">Quêtes à faire</div>
-                      <div className="text-3xl font-bold text-yellow-400">{stats.todoQuests}</div>
+                    <div className="bg-white/5 rounded-xl p-3 sm:p-6 text-center">
+                      <div className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2">À faire</div>
+                      <div className="text-xl sm:text-3xl font-bold text-yellow-400">{stats.todoQuests}</div>
                     </div>
                   </div>
                 </motion.div>
 
                 {/* Métadonnées */}
                 <motion.div
-                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <h3 className="text-xl font-bold text-white mb-6">📋 Informations de la campagne</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <h3 className="text-base sm:text-xl font-bold text-white mb-4 sm:mb-6">Informations</h3>
+                  <div className="grid grid-cols-2 gap-4 sm:gap-6">
                     <div>
-                      <div className="text-sm text-gray-400 mb-1">Date de création</div>
-                      <div className="text-white">
+                      <div className="text-xs sm:text-sm text-gray-400 mb-1">Création</div>
+                      <div className="text-white text-sm sm:text-base">
                         {campaign.createdAt
-                          ? campaign.createdAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
+                          ? campaign.createdAt.toLocaleDateString('fr-FR')
                           : 'Non définie'
                         }
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400 mb-1">Dernière mise à jour</div>
-                      <div className="text-white">
+                      <div className="text-xs sm:text-sm text-gray-400 mb-1">Mise à jour</div>
+                      <div className="text-white text-sm sm:text-base">
                         {campaign.updatedAt
-                          ? campaign.updatedAt.toLocaleDateString('fr-FR', { dateStyle: 'long' })
+                          ? campaign.updatedAt.toLocaleDateString('fr-FR')
                           : 'Non définie'
                         }
                       </div>
@@ -905,13 +953,13 @@ const CampaignDetailPage = () => {
 
                 {/* 👑 Chef de campagne */}
                 <motion.div
-                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
                 >
-                  <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                    <Crown className="h-5 w-5 text-yellow-400" />
+                  <h3 className="text-base sm:text-xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                    <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400" />
                     Chef de campagne
                   </h3>
                   {(() => {
@@ -975,22 +1023,22 @@ const CampaignDetailPage = () => {
 
                 {/* 👥 Participants */}
                 <motion.div
-                  className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-8"
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-8"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                      <Users className="h-5 w-5 text-blue-400" />
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
                       Participants
-                      <span className="text-sm font-normal text-gray-400">
-                        ({teamMembers.length} membre{teamMembers.length > 1 ? 's' : ''})
+                      <span className="text-xs sm:text-sm font-normal text-gray-400">
+                        ({teamMembers.length})
                       </span>
                     </h3>
                     <button
                       onClick={() => setActiveTab('team')}
-                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                      className="text-xs sm:text-sm text-purple-400 hover:text-purple-300 transition-colors"
                     >
                       Voir tout →
                     </button>
