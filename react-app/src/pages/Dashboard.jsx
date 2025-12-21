@@ -104,24 +104,24 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
 
           {/* EN-TÊTE */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-white mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">
                   🎮 Mon Aventure
                 </h1>
-                <p className="text-gray-400">
-                  Bienvenue {user?.displayName || 'Aventurier'} ! Suivez votre progression
+                <p className="text-gray-400 text-sm sm:text-base">
+                  Bienvenue {user?.displayName || 'Aventurier'} !
                 </p>
               </div>
 
               <button
                 onClick={handleRefresh}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
               >
                 <RefreshCw className="w-4 h-4" />
                 Actualiser
@@ -133,58 +133,58 @@ const Dashboard = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-500 rounded-2xl p-6 mb-8 relative overflow-hidden"
+            className="bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-500 rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 relative overflow-hidden"
           >
             {/* Effet décoratif */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+            <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-24 sm:w-48 h-24 sm:h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
-            <div className="relative flex items-center justify-between flex-wrap gap-6">
+            <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
               {/* Avatar et Rang */}
-              <div className="flex items-center gap-5">
-                <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-4xl shadow-lg">
+              <div className="flex items-center gap-3 sm:gap-5">
+                <div className="w-14 h-14 sm:w-20 sm:h-20 bg-white/20 backdrop-blur rounded-xl sm:rounded-2xl flex items-center justify-center text-2xl sm:text-4xl shadow-lg shrink-0">
                   {levelInfo?.rank?.icon || '🎮'}
                 </div>
                 <div>
-                  <div className="text-white/80 text-sm font-medium mb-1">
+                  <div className="text-white/80 text-xs sm:text-sm font-medium mb-0.5 sm:mb-1">
                     {levelInfo?.rank?.name || 'Apprenti'}
                   </div>
-                  <div className="text-4xl font-black text-white mb-1">
+                  <div className="text-2xl sm:text-4xl font-black text-white mb-0.5 sm:mb-1">
                     Niveau {gamification.level}
                   </div>
-                  <div className="text-white/70 text-sm">
+                  <div className="text-white/70 text-xs sm:text-sm">
                     {gamification.totalXp.toLocaleString()} XP total
                   </div>
                 </div>
               </div>
 
               {/* Stats rapides */}
-              <div className="flex gap-8">
+              <div className="flex justify-between sm:justify-end gap-4 sm:gap-8 bg-white/10 sm:bg-transparent rounded-xl p-3 sm:p-0">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-white">{gamification.badgeCount}</div>
-                  <div className="text-white/70 text-sm">Badges</div>
+                  <div className="text-xl sm:text-3xl font-bold text-white">{gamification.badgeCount}</div>
+                  <div className="text-white/70 text-xs sm:text-sm">Badges</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-white">#{userRank || '?'}</div>
-                  <div className="text-white/70 text-sm">Classement</div>
+                  <div className="text-xl sm:text-3xl font-bold text-white">#{userRank || '?'}</div>
+                  <div className="text-white/70 text-xs sm:text-sm">Rang</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-white flex items-center justify-center gap-1">
+                  <div className="text-xl sm:text-3xl font-bold text-white flex items-center justify-center gap-1">
                     {currentStreak}
-                    {currentStreak >= 7 && <Flame className="w-6 h-6 text-orange-300" />}
+                    {currentStreak >= 7 && <Flame className="w-4 h-4 sm:w-6 sm:h-6 text-orange-300" />}
                   </div>
-                  <div className="text-white/70 text-sm">Jours de suite</div>
+                  <div className="text-white/70 text-xs sm:text-sm">Série</div>
                 </div>
               </div>
             </div>
 
             {/* Barre de progression niveau */}
-            <div className="relative mt-6">
-              <div className="flex justify-between text-sm text-white/80 mb-2">
+            <div className="relative mt-4 sm:mt-6">
+              <div className="flex justify-between text-xs sm:text-sm text-white/80 mb-1 sm:mb-2">
                 <span>{gamification.currentLevelXP} XP</span>
                 <span>{gamification.nextLevelXP} XP</span>
               </div>
-              <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+              <div className="h-2 sm:h-3 bg-white/20 rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-white rounded-full"
                   initial={{ width: 0 }}
@@ -192,68 +192,68 @@ const Dashboard = () => {
                   transition={{ duration: 1 }}
                 />
               </div>
-              <div className="text-center mt-2 text-white/70 text-sm">
+              <div className="text-center mt-2 text-white/70 text-xs sm:text-sm">
                 Encore <span className="font-bold text-white">{gamification.xpToNextLevel} XP</span> pour le niveau {gamification.level + 1}
               </div>
             </div>
           </motion.div>
 
           {/* STATISTIQUES PRINCIPALES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl p-6 text-white"
+              className="bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl p-3 sm:p-6 text-white"
             >
-              <div className="flex items-center gap-3 mb-2">
-                <Zap className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">XP Semaine</h3>
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                <Zap className="w-4 h-4 sm:w-6 sm:h-6" />
+                <h3 className="text-xs sm:text-sm font-medium opacity-90">XP Semaine</h3>
               </div>
-              <div className="text-3xl font-bold mb-1">{gamification.weeklyXp}</div>
-              <div className="text-sm opacity-75">cette semaine</div>
+              <div className="text-xl sm:text-3xl font-bold mb-0.5 sm:mb-1">{gamification.weeklyXp}</div>
+              <div className="text-xs sm:text-sm opacity-75">cette semaine</div>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-6 text-white"
+              className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-3 sm:p-6 text-white"
             >
-              <div className="flex items-center gap-3 mb-2">
-                <CheckSquare className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Quêtes</h3>
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                <CheckSquare className="w-4 h-4 sm:w-6 sm:h-6" />
+                <h3 className="text-xs sm:text-sm font-medium opacity-90">Quêtes</h3>
               </div>
-              <div className="text-3xl font-bold mb-1">{gamification.tasksCompleted}</div>
-              <div className="text-sm opacity-75">complétées</div>
+              <div className="text-xl sm:text-3xl font-bold mb-0.5 sm:mb-1">{gamification.tasksCompleted}</div>
+              <div className="text-xs sm:text-sm opacity-75">complétées</div>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-6 text-white"
+              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-3 sm:p-6 text-white"
             >
-              <div className="flex items-center gap-3 mb-2">
-                <Users className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Équipe</h3>
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                <Users className="w-4 h-4 sm:w-6 sm:h-6" />
+                <h3 className="text-xs sm:text-sm font-medium opacity-90">Équipe</h3>
               </div>
-              <div className="text-3xl font-bold mb-1">{leaderboard.length}</div>
-              <div className="text-sm opacity-75">membres actifs</div>
+              <div className="text-xl sm:text-3xl font-bold mb-0.5 sm:mb-1">{leaderboard.length}</div>
+              <div className="text-xs sm:text-sm opacity-75">membres</div>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white"
+              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-3 sm:p-6 text-white"
             >
-              <div className="flex items-center gap-3 mb-2">
-                <TrendingUp className="w-6 h-6" />
-                <h3 className="text-sm font-medium opacity-90">Complétion</h3>
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6" />
+                <h3 className="text-xs sm:text-sm font-medium opacity-90">Complétion</h3>
               </div>
-              <div className="text-3xl font-bold mb-1">{gamification.completionRate}%</div>
-              <div className="text-sm opacity-75">taux de succès</div>
+              <div className="text-xl sm:text-3xl font-bold mb-0.5 sm:mb-1">{gamification.completionRate}%</div>
+              <div className="text-xs sm:text-sm opacity-75">succès</div>
             </motion.div>
           </div>
 
@@ -489,38 +489,38 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.42 }}
-            className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-xl p-6 mb-6"
+            className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-600/30 rounded-xl">
-                  <span className="text-2xl">💰</span>
+                <div className="p-2 sm:p-3 bg-purple-600/30 rounded-xl">
+                  <span className="text-xl sm:text-2xl">💰</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">Cagnotte d'Équipe</h3>
-                  <p className="text-sm text-gray-400">Niveau {poolStats?.currentLevel || 'BRONZE'}</p>
+                  <h3 className="font-semibold text-white text-sm sm:text-base">Cagnotte d'Équipe</h3>
+                  <p className="text-xs sm:text-sm text-gray-400">Niveau {poolStats?.currentLevel || 'BRONZE'}</p>
                 </div>
               </div>
               <a
                 href="/rewards"
-                className="px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 rounded-lg text-purple-300 text-sm transition-all"
+                className="px-3 sm:px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 rounded-lg text-purple-300 text-xs sm:text-sm transition-all text-center"
               >
                 Récompenses →
               </a>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-white">{poolStats?.totalXP?.toLocaleString() || 0}</div>
-                <div className="text-xs text-gray-400">XP Total</div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-white">{poolStats?.totalXP?.toLocaleString() || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">XP Total</div>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-400">+{poolStats?.weeklyContributions || 0}</div>
-                <div className="text-xs text-gray-400">Cette semaine</div>
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-green-400">+{poolStats?.weeklyContributions || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Semaine</div>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-blue-400">{poolStats?.contributorsCount || 0}</div>
-                <div className="text-xs text-gray-400">Contributeurs</div>
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-blue-400">{poolStats?.contributorsCount || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Contrib.</div>
               </div>
             </div>
 
@@ -548,44 +548,44 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.44 }}
-            className="bg-gradient-to-r from-pink-600/20 to-purple-600/20 border border-pink-500/30 rounded-xl p-6 mb-6"
+            className="bg-gradient-to-r from-pink-600/20 to-purple-600/20 border border-pink-500/30 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-pink-600/30 rounded-xl">
-                  <Users className="w-6 h-6 text-pink-400" />
+                <div className="p-2 sm:p-3 bg-pink-600/30 rounded-xl">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white">Defis d'Equipe</h3>
-                  <p className="text-sm text-gray-400">
+                  <h3 className="font-semibold text-white text-sm sm:text-base">Défis d'Équipe</h3>
+                  <p className="text-xs sm:text-sm text-gray-400">
                     {challengeStats?.active || 0} en cours • {challengeStats?.completed || 0} accomplis
                   </p>
                 </div>
               </div>
               <a
                 href="/challenges"
-                className="px-4 py-2 bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/30 rounded-lg text-pink-300 text-sm transition-all"
+                className="px-3 sm:px-4 py-2 bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/30 rounded-lg text-pink-300 text-xs sm:text-sm transition-all text-center"
               >
                 Voir tout →
               </a>
             </div>
 
-            <div className="grid grid-cols-4 gap-3">
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-blue-400">{challengeStats?.active || 0}</div>
-                <div className="text-xs text-gray-400">En cours</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-blue-400">{challengeStats?.active || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">En cours</div>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-yellow-400">{challengeStats?.pending || 0}</div>
-                <div className="text-xs text-gray-400">En attente</div>
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-yellow-400">{challengeStats?.pending || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">En attente</div>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-400">{challengeStats?.completed || 0}</div>
-                <div className="text-xs text-gray-400">Accomplis</div>
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-green-400">{challengeStats?.completed || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Accomplis</div>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-amber-400">+{challengeStats?.totalXpEarned || 0}</div>
-                <div className="text-xs text-gray-400">XP Equipe</div>
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-3 text-center">
+                <div className="text-lg sm:text-2xl font-bold text-amber-400">+{challengeStats?.totalXpEarned || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">XP Équipe</div>
               </div>
             </div>
 
@@ -622,37 +622,37 @@ const Dashboard = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.45 }}
-              className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6"
+              className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 sm:p-6"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Award className="w-5 h-5 text-blue-400" />
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
+                  <Award className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                   Mes Badges
                 </h3>
-                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
+                <span className="bg-blue-600 text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm">
                   {gamification.badgeCount} débloqués
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4">
                 {gamification.badges.slice(-6).map((badge, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.5 + index * 0.05 }}
-                    className="text-center p-4 bg-gray-700/30 rounded-xl hover:bg-gray-700/50 transition-colors"
+                    className="text-center p-2 sm:p-4 bg-gray-700/30 rounded-xl hover:bg-gray-700/50 transition-colors"
                   >
-                    <div className="text-4xl mb-2">{badge.icon || '🏆'}</div>
-                    <div className="text-xs text-gray-400">{badge.name}</div>
+                    <div className="text-2xl sm:text-4xl mb-1 sm:mb-2">{badge.icon || '🏆'}</div>
+                    <div className="text-[10px] sm:text-xs text-gray-400 truncate">{badge.name}</div>
                   </motion.div>
                 ))}
               </div>
 
-              <div className="mt-4 text-center">
+              <div className="mt-3 sm:mt-4 text-center">
                 <a
                   href="/badges"
-                  className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  className="text-xs sm:text-sm text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   Voir tous les badges →
                 </a>
