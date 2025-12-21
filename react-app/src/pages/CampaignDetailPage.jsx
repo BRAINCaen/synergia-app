@@ -1783,6 +1783,7 @@ const CampaignDetailPage = () => {
             )}
           </div>
         </div>
+        </div>
 
         {/* 🔗 MODAL LIAISON QUÊTE */}
         <AnimatePresence>
