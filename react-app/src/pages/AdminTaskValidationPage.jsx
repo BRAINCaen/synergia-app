@@ -71,7 +71,7 @@ const GlassCard = ({ children, className = "" }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:bg-gray-700/50 transition-all duration-300 ${className}`}
+    className={`bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-3 sm:p-6 hover:bg-gray-700/50 transition-all duration-300 ${className}`}
   >
     {children}
   </motion.div>
@@ -89,13 +89,13 @@ const StatCard = ({ title, value, icon: Icon, color, trend }) => {
   };
 
   return (
-    <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-6 text-white`}>
-      <div className="flex items-center gap-3 mb-2">
-        <Icon className="w-6 h-6" />
-        <h3 className="text-sm font-medium opacity-90">{title}</h3>
+    <div className={`bg-gradient-to-br ${colors[color]} rounded-xl p-3 sm:p-6 text-white`}>
+      <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+        <Icon className="w-4 h-4 sm:w-6 sm:h-6" />
+        <h3 className="text-xs sm:text-sm font-medium opacity-90">{title}</h3>
       </div>
-      <div className="text-3xl font-bold mb-1">{value}</div>
-      {trend && <div className="text-sm opacity-75">{trend}</div>}
+      <div className="text-xl sm:text-3xl font-bold mb-1">{value}</div>
+      {trend && <div className="text-xs sm:text-sm opacity-75 hidden sm:block">{trend}</div>}
     </div>
   );
 };
@@ -729,32 +729,35 @@ const AdminTaskValidationPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
-          
+
           {/* 🎯 HEADER */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-4 sm:mb-8"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-1 sm:mb-2">
                   🛡️ Validation des Quêtes
                 </h1>
-                <p className="text-gray-400 text-lg">
-                  Validez les quêtes terminées et attribuez les XP (système 2 compteurs) • Connecté en tant que <span className="text-white font-semibold">{user?.displayName || user?.email}</span>
+                <p className="text-gray-400 text-sm sm:text-base lg:text-lg">
+                  <span className="hidden sm:inline">Validez les quêtes terminées et attribuez les XP (système 2 compteurs) • </span>
+                  <span className="sm:hidden">Validez les quêtes • </span>
+                  Connecté : <span className="text-white font-semibold">{user?.displayName || user?.email}</span>
                 </p>
               </div>
-              
+
               <button
                 onClick={() => activeTab === 'pending' ? loadPendingQuests() : loadValidatedQuests()}
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
               >
-                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                Actualiser
+                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Actualiser</span>
+                <span className="sm:hidden">Rafraîchir</span>
               </button>
             </div>
           </motion.div>
@@ -764,7 +767,7 @@ const AdminTaskValidationPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-4 sm:mb-8"
           >
             <StatCard
               title="En Attente"
@@ -801,34 +804,38 @@ const AdminTaskValidationPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="mb-6"
+            className="mb-4 sm:mb-6"
           >
-            <div className="flex items-center gap-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-2">
+            <div className="flex items-center gap-1 sm:gap-2 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-1 sm:p-2">
               <button
                 onClick={() => setActiveTab('pending')}
-                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                className={`flex-1 px-2 sm:px-4 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-300 text-sm sm:text-base ${
                   activeTab === 'pending'
                     ? 'bg-orange-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  En Attente ({stats.pending})
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">En Attente</span>
+                  <span className="sm:hidden">Attente</span>
+                  ({stats.pending})
                 </div>
               </button>
-              
+
               <button
                 onClick={() => setActiveTab('validated')}
-                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                className={`flex-1 px-2 sm:px-4 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-300 text-sm sm:text-base ${
                   activeTab === 'validated'
                     ? 'bg-green-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
-                  Validées ({stats.validated})
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Validées</span>
+                  <span className="sm:hidden">Validées</span>
+                  ({stats.validated})
                 </div>
               </button>
             </div>
@@ -839,16 +846,16 @@ const AdminTaskValidationPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="mb-6"
+            className="mb-4 sm:mb-6"
           >
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher une quête ou un utilisateur..."
+                placeholder="Rechercher..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                className="w-full bg-gray-800/50 border border-gray-700/50 rounded-xl pl-10 sm:pl-12 pr-3 sm:pr-4 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
               />
             </div>
           </motion.div>
@@ -889,46 +896,58 @@ const AdminTaskValidationPage = () => {
             >
               {filteredQuests.map((quest, index) => {
                 const proof = getValidationProof(quest);
-                
+
                 return (
                   <GlassCard key={quest.id}>
-                    <div className="flex items-start gap-4">
-                      {/* Icône */}
-                      <div className={`w-12 h-12 ${
-                        activeTab === 'pending' 
-                          ? 'bg-orange-500/20' 
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+                      {/* Icône - hidden on mobile, shown in header instead */}
+                      <div className={`hidden sm:flex w-10 h-10 sm:w-12 sm:h-12 ${
+                        activeTab === 'pending'
+                          ? 'bg-orange-500/20'
                           : 'bg-green-500/20'
-                      } rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      } rounded-xl items-center justify-center flex-shrink-0`}>
                         {activeTab === 'pending' ? (
-                          <Clock className="w-6 h-6 text-orange-400" />
+                          <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
                         ) : (
-                          <CheckCircle className="w-6 h-6 text-green-400" />
+                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
                         )}
                       </div>
-                      
+
                       {/* Contenu */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 className="text-lg font-bold text-white mb-1">
-                              {quest.questTitle}
-                            </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {/* Mobile icon */}
+                              <div className={`sm:hidden w-6 h-6 ${
+                                activeTab === 'pending' ? 'bg-orange-500/20' : 'bg-green-500/20'
+                              } rounded flex items-center justify-center flex-shrink-0`}>
+                                {activeTab === 'pending' ? (
+                                  <Clock className="w-3 h-3 text-orange-400" />
+                                ) : (
+                                  <CheckCircle className="w-3 h-3 text-green-400" />
+                                )}
+                              </div>
+                              <h3 className="text-base sm:text-lg font-bold text-white truncate">
+                                {quest.questTitle}
+                              </h3>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
                               <span className="flex items-center gap-1">
-                                <User className="w-4 h-4" />
-                                {quest.userName}
+                                <User className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="truncate max-w-[100px] sm:max-w-none">{quest.userName}</span>
                               </span>
-                              <span className="flex items-center gap-1">
+                              <span className="hidden sm:flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 {activeTab === 'pending'
                                   ? quest.submittedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'
                                   : quest.validatedAt?.toDate?.()?.toLocaleDateString() || 'Date inconnue'}
                               </span>
                               <span className="flex items-center gap-1">
-                                <Star className="w-4 h-4 text-yellow-400" />
+                                <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400" />
                                 {quest.xpReward} XP
                               </span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-semibold ${
                                 quest.difficulty === 'Facile' || quest.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
                                 quest.difficulty === 'Normale' || quest.difficulty === 'medium' ? 'bg-blue-500/20 text-blue-400' :
                                 'bg-red-500/20 text-red-400'
@@ -937,36 +956,37 @@ const AdminTaskValidationPage = () => {
                               </span>
                             </div>
                           </div>
-                          
+
                           {/* Badge statut + preuves */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                             {/* ✅ INDICATEURS DE PREUVES */}
                             {proof.hasProof && (
                               <div className="flex items-center gap-1">
                                 {proof.comment && (
                                   <span className="p-1 bg-blue-500/20 rounded" title="Commentaire">
-                                    <MessageSquare className="w-4 h-4 text-blue-400" />
+                                    <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" />
                                   </span>
                                 )}
                                 {proof.photoUrl && (
                                   <span className="p-1 bg-purple-500/20 rounded" title="Photo">
-                                    <Camera className="w-4 h-4 text-purple-400" />
+                                    <Camera className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" />
                                   </span>
                                 )}
                                 {proof.videoUrl && (
                                   <span className="p-1 bg-pink-500/20 rounded" title="Vidéo">
-                                    <Video className="w-4 h-4 text-pink-400" />
+                                    <Video className="w-3 h-3 sm:w-4 sm:h-4 text-pink-400" />
                                   </span>
                                 )}
                               </div>
                             )}
-                            
-                            <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${
+
+                            <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-semibold border ${
                               activeTab === 'pending'
                                 ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
                                 : 'bg-green-500/20 text-green-400 border-green-500/50'
                             }`}>
-                              {activeTab === 'pending' ? 'En attente' : 'Validée'}
+                              <span className="hidden sm:inline">{activeTab === 'pending' ? 'En attente' : 'Validée'}</span>
+                              <span className="sm:hidden">{activeTab === 'pending' ? 'Att.' : 'OK'}</span>
                             </span>
                           </div>
                         </div>
@@ -1009,32 +1029,35 @@ const AdminTaskValidationPage = () => {
                         )}
                         
                         {/* Actions */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                           {activeTab === 'pending' ? (
                             <button
                               onClick={() => openValidationModal(quest)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center gap-1 sm:gap-2 transition-colors text-sm sm:text-base"
                             >
-                              <Eye className="w-4 h-4" />
-                              Examiner
+                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <span className="hidden sm:inline">Examiner</span>
+                              <span className="sm:hidden">Voir</span>
                             </button>
                           ) : (
                             <>
                               <button
                                 onClick={() => handleReactivate(quest)}
                                 disabled={processing}
-                                className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                                className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center gap-1 sm:gap-2 transition-colors text-sm sm:text-base"
                               >
-                                <RotateCcw className="w-4 h-4" />
-                                Réactiver
+                                <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="hidden sm:inline">Réactiver</span>
+                                <span className="sm:hidden">React.</span>
                               </button>
-                              
+
                               <button
                                 onClick={() => openForceXpModal(quest)}
-                                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center gap-1 sm:gap-2 transition-colors text-sm sm:text-base"
                               >
-                                <Coins className="w-4 h-4" />
-                                Forcer XP
+                                <Coins className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="hidden sm:inline">Forcer XP</span>
+                                <span className="sm:hidden">XP</span>
                               </button>
                             </>
                           )}
@@ -1054,7 +1077,7 @@ const AdminTaskValidationPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
                 onClick={() => !processing && setShowValidationModal(false)}
               >
                 <motion.div
@@ -1062,53 +1085,53 @@ const AdminTaskValidationPage = () => {
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
                   onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+                  className="bg-gray-800 border border-gray-700 rounded-xl sm:rounded-2xl p-4 sm:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
                 >
                   {/* Header Modal */}
-                  <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-start justify-between mb-4 sm:mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-2">
+                      <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">
                         Validation de Quête
                       </h2>
-                      <p className="text-gray-400">
+                      <p className="text-gray-400 text-sm sm:text-base hidden sm:block">
                         Examinez les détails et validez ou rejetez cette quête
                       </p>
                     </div>
                     <button
                       onClick={() => !processing && setShowValidationModal(false)}
-                      className="text-gray-400 hover:text-white transition-colors"
+                      className="text-gray-400 hover:text-white transition-colors p-1"
                     >
-                      <CloseIcon className="w-6 h-6" />
+                      <CloseIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
                   </div>
 
                   {/* Détails de la quête */}
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                     <div>
-                      <label className="text-sm text-gray-400 mb-1 block">Titre de la quête</label>
-                      <p className="text-lg font-bold text-white">{selectedQuest.questTitle}</p>
+                      <label className="text-xs sm:text-sm text-gray-400 mb-1 block">Titre de la quête</label>
+                      <p className="text-base sm:text-lg font-bold text-white">{selectedQuest.questTitle}</p>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Utilisateur</label>
-                        <p className="text-white">{selectedQuest.userName}</p>
+                        <label className="text-xs sm:text-sm text-gray-400 mb-1 block">Utilisateur</label>
+                        <p className="text-white text-sm sm:text-base">{selectedQuest.userName}</p>
                       </div>
                       <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Difficulté</label>
-                        <p className="text-white">{selectedQuest.difficulty}</p>
+                        <label className="text-xs sm:text-sm text-gray-400 mb-1 block">Difficulté</label>
+                        <p className="text-white text-sm sm:text-base">{selectedQuest.difficulty}</p>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Récompense XP</label>
-                        <p className="text-white font-bold text-xl">{selectedQuest.xpReward} XP</p>
+                        <label className="text-xs sm:text-sm text-gray-400 mb-1 block">Récompense XP</label>
+                        <p className="text-white font-bold text-lg sm:text-xl">{selectedQuest.xpReward} XP</p>
                         <p className="text-xs text-green-400">💎 Prestige + 🛒 Dépensables</p>
                       </div>
                       <div>
-                        <label className="text-sm text-gray-400 mb-1 block">Date soumission</label>
-                        <p className="text-white">
+                        <label className="text-xs sm:text-sm text-gray-400 mb-1 block">Date soumission</label>
+                        <p className="text-white text-sm sm:text-base">
                           {selectedQuest.submittedAt?.toDate?.()?.toLocaleDateString() || 'N/A'}
                         </p>
                       </div>
@@ -1118,63 +1141,64 @@ const AdminTaskValidationPage = () => {
                   {/* ✅ SECTION PREUVES DE VALIDATION */}
                   {(() => {
                     const proof = getValidationProof(selectedQuest);
-                    
+
                     if (proof.hasProof) {
                       return (
-                        <div className="mb-6 bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-500/30 rounded-xl p-5">
-                          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-purple-400" />
-                            Preuves de validation de l'utilisateur
+                        <div className="mb-4 sm:mb-6 bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-500/30 rounded-xl p-3 sm:p-5">
+                          <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4 flex items-center gap-2">
+                            <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                            <span className="hidden sm:inline">Preuves de validation de l'utilisateur</span>
+                            <span className="sm:hidden">Preuves</span>
                           </h3>
-                          
+
                           {/* Commentaire utilisateur */}
                           {proof.comment && (
-                            <div className="mb-4">
-                              <label className="text-sm text-purple-300 mb-2 block flex items-center gap-2">
-                                <MessageSquare className="w-4 h-4" />
-                                Commentaire de l'utilisateur
+                            <div className="mb-3 sm:mb-4">
+                              <label className="text-xs sm:text-sm text-purple-300 mb-1 sm:mb-2 block flex items-center gap-1 sm:gap-2">
+                                <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
+                                Commentaire
                               </label>
-                              <div className="bg-gray-900/60 border border-purple-500/20 rounded-lg p-4">
-                                <p className="text-white whitespace-pre-wrap">{proof.comment}</p>
+                              <div className="bg-gray-900/60 border border-purple-500/20 rounded-lg p-2 sm:p-4">
+                                <p className="text-white text-sm sm:text-base whitespace-pre-wrap">{proof.comment}</p>
                               </div>
                             </div>
                           )}
-                          
+
                           {/* Photo jointe */}
                           {proof.photoUrl && (
-                            <div className="mb-4">
-                              <label className="text-sm text-purple-300 mb-2 block flex items-center gap-2">
-                                <Camera className="w-4 h-4" />
-                                Photo jointe
+                            <div className="mb-3 sm:mb-4">
+                              <label className="text-xs sm:text-sm text-purple-300 mb-1 sm:mb-2 block flex items-center gap-1 sm:gap-2">
+                                <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
+                                Photo
                               </label>
                               <div className="relative group">
-                                <img 
-                                  src={proof.photoUrl} 
+                                <img
+                                  src={proof.photoUrl}
                                   alt="Preuve photo"
-                                  className="w-full max-h-80 object-contain rounded-lg border border-purple-500/30 bg-black/30 cursor-pointer"
+                                  className="w-full max-h-48 sm:max-h-80 object-contain rounded-lg border border-purple-500/30 bg-black/30 cursor-pointer"
                                   onClick={() => setShowImageFullscreen(true)}
                                 />
                                 <button
                                   onClick={() => setShowImageFullscreen(true)}
-                                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1 sm:p-2 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                                 >
-                                  <Maximize2 className="w-5 h-5" />
+                                  <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
                               </div>
                             </div>
                           )}
-                          
+
                           {/* Vidéo jointe */}
                           {proof.videoUrl && (
-                            <div className="mb-4">
-                              <label className="text-sm text-purple-300 mb-2 block flex items-center gap-2">
-                                <Video className="w-4 h-4" />
-                                Vidéo jointe
+                            <div className="mb-3 sm:mb-4">
+                              <label className="text-xs sm:text-sm text-purple-300 mb-1 sm:mb-2 block flex items-center gap-1 sm:gap-2">
+                                <Video className="w-3 h-3 sm:w-4 sm:h-4" />
+                                Vidéo
                               </label>
-                              <video 
-                                src={proof.videoUrl} 
+                              <video
+                                src={proof.videoUrl}
                                 controls
-                                className="w-full max-h-80 rounded-lg border border-purple-500/30 bg-black/30"
+                                className="w-full max-h-48 sm:max-h-80 rounded-lg border border-purple-500/30 bg-black/30"
                               />
                             </div>
                           )}
@@ -1182,12 +1206,12 @@ const AdminTaskValidationPage = () => {
                       );
                     } else {
                       return (
-                        <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-5">
-                          <div className="flex items-center gap-3">
-                            <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                        <div className="mb-4 sm:mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 sm:p-5">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400 flex-shrink-0" />
                             <div>
-                              <h3 className="text-lg font-bold text-yellow-400">Aucune preuve fournie</h3>
-                              <p className="text-yellow-300/70 text-sm">
+                              <h3 className="text-sm sm:text-lg font-bold text-yellow-400">Aucune preuve</h3>
+                              <p className="text-yellow-300/70 text-xs sm:text-sm hidden sm:block">
                                 L'utilisateur n'a pas ajouté de commentaire, photo ou vidéo pour cette validation.
                               </p>
                             </div>
@@ -1198,37 +1222,38 @@ const AdminTaskValidationPage = () => {
                   })()}
 
                   {/* Commentaire admin */}
-                  <div className="mb-6">
-                    <label className="text-sm text-gray-400 mb-2 block">
+                  <div className="mb-4 sm:mb-6">
+                    <label className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2 block">
                       Commentaire admin (optionnel)
                     </label>
                     <textarea
                       value={adminComment}
                       onChange={(e) => setAdminComment(e.target.value)}
-                      placeholder="Ajoutez un commentaire pour l'utilisateur..."
-                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors resize-none"
-                      rows={3}
+                      placeholder="Commentaire..."
+                      className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-2 sm:p-3 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                      rows={2}
                     />
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                     <button
                       onClick={handleReject}
                       disabled={processing}
-                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors text-sm sm:text-base"
                     >
-                      <XCircle className="w-5 h-5" />
-                      {processing ? 'Traitement...' : 'Rejeter'}
+                      <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                      {processing ? '...' : 'Rejeter'}
                     </button>
-                    
+
                     <button
                       onClick={handleValidate}
                       disabled={processing}
-                      className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+                      className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors text-sm sm:text-base"
                     >
-                      <CheckCircle className="w-5 h-5" />
-                      {processing ? 'Traitement...' : 'Valider & Attribuer XP'}
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="hidden sm:inline">{processing ? 'Traitement...' : 'Valider & Attribuer XP'}</span>
+                      <span className="sm:hidden">{processing ? '...' : 'Valider'}</span>
                     </button>
                   </div>
                 </motion.div>
@@ -1269,7 +1294,7 @@ const AdminTaskValidationPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
                 onClick={() => !processing && setShowForceXpModal(false)}
               >
                 <motion.div
@@ -1277,41 +1302,41 @@ const AdminTaskValidationPage = () => {
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
                   onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-lg w-full"
+                  className="bg-gray-800 border border-gray-700 rounded-xl sm:rounded-2xl p-4 sm:p-8 max-w-lg w-full"
                 >
                   {/* Header Modal */}
-                  <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-start justify-between mb-4 sm:mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-white mb-2">
-                        💎 Forcer l'Attribution d'XP
+                      <h2 className="text-lg sm:text-2xl font-bold text-white mb-1 sm:mb-2">
+                        💎 <span className="hidden sm:inline">Forcer l'Attribution d'</span>XP
                       </h2>
-                      <p className="text-gray-400">
-                        Attribuez manuellement des XP pour cette quête (2 compteurs)
+                      <p className="text-gray-400 text-sm hidden sm:block">
+                        Attribuez manuellement des XP pour cette quête
                       </p>
                     </div>
                     <button
                       onClick={() => !processing && setShowForceXpModal(false)}
-                      className="text-gray-400 hover:text-white transition-colors"
+                      className="text-gray-400 hover:text-white transition-colors p-1"
                     >
-                      <CloseIcon className="w-6 h-6" />
+                      <CloseIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
                   </div>
 
                   {/* Détails */}
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                     <div>
-                      <label className="text-sm text-gray-400 mb-1 block">Quête</label>
-                      <p className="text-white font-bold">{selectedQuest.questTitle}</p>
+                      <label className="text-xs sm:text-sm text-gray-400 mb-1 block">Quête</label>
+                      <p className="text-white font-bold text-sm sm:text-base truncate">{selectedQuest.questTitle}</p>
                     </div>
-                    
+
                     <div>
-                      <label className="text-sm text-gray-400 mb-1 block">Utilisateur</label>
-                      <p className="text-white">{selectedQuest.userName}</p>
+                      <label className="text-xs sm:text-sm text-gray-400 mb-1 block">Utilisateur</label>
+                      <p className="text-white text-sm sm:text-base">{selectedQuest.userName}</p>
                     </div>
-                    
+
                     <div>
-                      <label className="text-sm text-gray-400 mb-2 block">
-                        Montant d'XP à attribuer
+                      <label className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-2 block">
+                        Montant d'XP
                       </label>
                       <input
                         type="number"
@@ -1319,34 +1344,34 @@ const AdminTaskValidationPage = () => {
                         onChange={(e) => setEditedXp(e.target.value)}
                         placeholder="25"
                         min="1"
-                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                        className="w-full bg-gray-900/50 border border-gray-700 rounded-xl p-2 sm:p-3 text-sm sm:text-base text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        XP de base de la quête : {selectedQuest.xpReward} XP
+                        XP de base : {selectedQuest.xpReward} XP
                       </p>
-                      <p className="text-xs text-green-400 mt-1">
+                      <p className="text-xs text-green-400 mt-1 hidden sm:block">
                         💎 Les XP seront ajoutés aux 2 compteurs : Prestige + Dépensables
                       </p>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                     <button
                       onClick={() => !processing && setShowForceXpModal(false)}
                       disabled={processing}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold transition-colors"
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold transition-colors text-sm sm:text-base"
                     >
                       Annuler
                     </button>
-                    
+
                     <button
                       onClick={handleForceXp}
                       disabled={processing || !editedXp}
-                      className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors"
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-colors text-sm sm:text-base"
                     >
-                      <Coins className="w-5 h-5" />
-                      {processing ? 'Attribution...' : `Attribuer ${editedXp} XP`}
+                      <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
+                      {processing ? '...' : `${editedXp} XP`}
                     </button>
                   </div>
                 </motion.div>
