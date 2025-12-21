@@ -40,6 +40,7 @@ import Layout from '../components/layout/Layout.jsx';
 import planningEnrichedService from '../core/services/planningEnrichedService.js';
 import planningExportService from '../core/services/planningExportService.js';
 import frenchCalendarService from '../core/services/frenchCalendarService.js';
+import { pointageAnomalyService, ANOMALY_CONFIG, ANOMALY_TYPES } from '../core/services/pointageAnomalyService.js';
 
 // Auth
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -133,6 +134,11 @@ const PlanningAdvancedPage = () => {
   
   // Export
   const [exporting, setExporting] = useState(false);
+
+  // 🔍 ANOMALIES POINTAGE
+  const [shiftAnomalies, setShiftAnomalies] = useState({});
+  const [showAnomalies, setShowAnomalies] = useState(true);
+  const [loadingAnomalies, setLoadingAnomalies] = useState(false);
 
   // ==========================================
   // CHARGEMENT INITIAL
@@ -254,11 +260,46 @@ const PlanningAdvancedPage = () => {
       setWeeklyHoursComparison(hoursComparison);
 
       console.log('✅ Planning chargé');
+
+      // 🔍 Charger les anomalies de pointage
+      await loadPointageAnomalies(shiftsList, weekStart, weekEnd);
+
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // ==========================================
+  // CHARGEMENT ANOMALIES POINTAGE
+  // ==========================================
+
+  const loadPointageAnomalies = async (shiftsList, weekStart, weekEnd) => {
+    try {
+      setLoadingAnomalies(true);
+      console.log('🔍 Analyse anomalies pointage...');
+
+      const anomalies = await pointageAnomalyService.analyzeWeeklyAnomalies(
+        shiftsList,
+        weekStart.toISOString().split('T')[0],
+        weekEnd.toISOString().split('T')[0]
+      );
+
+      setShiftAnomalies(anomalies);
+      console.log('✅ Anomalies analysées:', Object.keys(anomalies).length, 'shifts analysés');
+
+    } catch (error) {
+      console.error('❌ Erreur analyse anomalies:', error);
+      setShiftAnomalies({});
+    } finally {
+      setLoadingAnomalies(false);
+    }
+  };
+
+  // Fonction pour récupérer les anomalies d'un shift
+  const getShiftAnomalies = (shiftId) => {
+    return shiftAnomalies[shiftId] || null;
   };
 
   // ==========================================
@@ -880,6 +921,25 @@ const PlanningAdvancedPage = () => {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Toggle Anomalies Pointage */}
+                <button
+                  onClick={() => setShowAnomalies(!showAnomalies)}
+                  className={`${
+                    showAnomalies
+                      ? 'bg-orange-600 hover:bg-orange-700'
+                      : 'bg-gray-700/50 hover:bg-gray-600/50'
+                  } text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2`}
+                >
+                  {loadingAnomalies ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    <AlertCircle className="w-4 h-4" />
+                  )}
+                  <span className="hidden md:inline">
+                    {showAnomalies ? 'Anomalies ON' : 'Anomalies OFF'}
+                  </span>
+                </button>
+
                 <button
                   onClick={loadAllShifts}
                   disabled={diagnosticLoading}
@@ -1556,7 +1616,7 @@ const PlanningAdvancedPage = () => {
                                       <Clock className="w-3 h-3" />
                                       <span>{shift.startTime} - {shift.endTime}</span>
                                     </div>
-                                    
+
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button
                                         onClick={(e) => {
@@ -1590,14 +1650,55 @@ const PlanningAdvancedPage = () => {
                                       </button>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="text-white text-xs opacity-90">
                                     {shift.position}
                                   </div>
-                                  
+
                                   {shift.duration && (
                                     <div className="text-white text-xs font-semibold mt-1">
                                       {shift.duration}h
+                                    </div>
+                                  )}
+
+                                  {/* 🔍 ANOMALIES DE POINTAGE */}
+                                  {showAnomalies && getShiftAnomalies(shift.id) && (
+                                    <div className="mt-2 space-y-1">
+                                      {getShiftAnomalies(shift.id).anomalies?.map((anomaly, idx) => (
+                                        <div
+                                          key={idx}
+                                          className={`
+                                            px-2 py-1 rounded text-[10px] font-bold
+                                            flex items-center gap-1
+                                            ${anomaly.bgColor} ${anomaly.textColor} ${anomaly.borderColor}
+                                            border animate-pulse
+                                          `}
+                                          title={`${anomaly.label}: ${anomaly.message}`}
+                                        >
+                                          <span>{anomaly.icon}</span>
+                                          <span>{anomaly.message}</span>
+                                        </div>
+                                      ))}
+
+                                      {/* Résumé du temps travaillé */}
+                                      {getShiftAnomalies(shift.id).summary && (
+                                        <div className={`
+                                          px-2 py-1 rounded text-[10px]
+                                          ${getShiftAnomalies(shift.id).summary.diffMinutes > 0
+                                            ? 'bg-blue-500/30 text-blue-200 border border-blue-500/40'
+                                            : getShiftAnomalies(shift.id).summary.diffMinutes < 0
+                                              ? 'bg-red-500/30 text-red-200 border border-red-500/40'
+                                              : 'bg-green-500/30 text-green-200 border border-green-500/40'
+                                          }
+                                        `}>
+                                          <span className="font-semibold">
+                                            {getShiftAnomalies(shift.id).summary.diffFormatted}
+                                          </span>
+                                          <span className="opacity-75 ml-1">
+                                            ({Math.floor(getShiftAnomalies(shift.id).summary.workedMinutes / 60)}h{String(getShiftAnomalies(shift.id).summary.workedMinutes % 60).padStart(2, '0')} travaillé)
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </motion.div>
@@ -1644,7 +1745,7 @@ const PlanningAdvancedPage = () => {
           </GlassCard>
 
           {/* LÉGENDE */}
-          <div className="mt-6">
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <GlassCard>
               <div className="flex items-center justify-between">
                 <div>
@@ -1667,6 +1768,45 @@ const PlanningAdvancedPage = () => {
                 )}
               </div>
             </GlassCard>
+
+            {/* LÉGENDE ANOMALIES */}
+            {showAnomalies && (
+              <GlassCard>
+                <p className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-orange-400" />
+                  Légende Anomalies Pointage :
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded">⏰</span>
+                    <span className="text-gray-400">Retard arrivée</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">🚪</span>
+                    <span className="text-gray-400">Départ anticipé</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded">⚡</span>
+                    <span className="text-gray-400">Heures sup</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">❌</span>
+                    <span className="text-gray-400">Absent (pas de pointage)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded">⚠️</span>
+                    <span className="text-gray-400">Pointage manquant</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded">✨</span>
+                    <span className="text-gray-400">Arrivée en avance</span>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs mt-3">
+                  📊 Les pointages sont synchronisés depuis la page Pulse & Pointage
+                </p>
+              </GlassCard>
+            )}
           </div>
 
         </div>
