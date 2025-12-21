@@ -21,7 +21,11 @@ import {
   AlertCircle,
   Lock,
   History,
-  RefreshCw
+  RefreshCw,
+  MessageSquare,
+  X,
+  Send,
+  Bell
 } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import { useAuthStore } from '../shared/stores/authStore';
@@ -76,6 +80,12 @@ const CheckpointsPage = () => {
   const [pastCheckpoints, setPastCheckpoints] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
+  // États pour les feedbacks à donner
+  const [pendingFeedbackRequests, setPendingFeedbackRequests] = useState([]);
+  const [selectedFeedbackRequest, setSelectedFeedbackRequest] = useState(null);
+  const [showGiveFeedbackModal, setShowGiveFeedbackModal] = useState(false);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
   // Charger le checkpoint actuel
   useEffect(() => {
     const loadCheckpoint = async () => {
@@ -98,6 +108,9 @@ const CheckpointsPage = () => {
 
         // Charger les membres de l'équipe (pour feedbacks)
         await loadTeamMembers();
+
+        // Charger les demandes de feedback en attente
+        await loadPendingFeedbackRequests();
 
       } catch (err) {
         console.error('Erreur chargement checkpoint:', err);
@@ -135,6 +148,82 @@ const CheckpointsPage = () => {
     } catch (err) {
       console.error('Erreur chargement équipe:', err);
     }
+  };
+
+  // Charger les demandes de feedback en attente pour l'utilisateur courant
+  const loadPendingFeedbackRequests = async () => {
+    try {
+      const requests = await checkpointService.getPendingFeedbackRequests(user?.uid);
+
+      // Enrichir avec les infos utilisateur
+      const enrichedRequests = await Promise.all(
+        requests.map(async (request) => {
+          const userMember = teamMembers.find(m => m.uid === request.userId);
+          if (userMember) {
+            return { ...request, user: userMember };
+          }
+          // Si pas trouvé dans teamMembers, récupérer depuis Firebase
+          try {
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('../core/firebase');
+            const userDoc = await getDoc(doc(db, 'users', request.userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              return {
+                ...request,
+                user: {
+                  uid: request.userId,
+                  displayName: userData.displayName || userData.email || 'Aventurier',
+                  email: userData.email,
+                  photoURL: userData.photoURL
+                }
+              };
+            }
+          } catch (e) {
+            console.error('Erreur récupération user:', e);
+          }
+          return { ...request, user: { uid: request.userId, displayName: 'Aventurier' } };
+        })
+      );
+
+      setPendingFeedbackRequests(enrichedRequests);
+    } catch (err) {
+      console.error('Erreur chargement demandes feedback:', err);
+    }
+  };
+
+  // Soumettre un feedback pour un collègue
+  const handleSubmitPeerFeedback = async (answers) => {
+    if (!selectedFeedbackRequest) return;
+
+    setIsSubmittingFeedback(true);
+    try {
+      await checkpointService.submitPeerFeedback(
+        selectedFeedbackRequest.checkpointId,
+        user?.uid,
+        user?.displayName || user?.email || 'Aventurier',
+        answers
+      );
+
+      // Fermer le modal et rafraîchir
+      setShowGiveFeedbackModal(false);
+      setSelectedFeedbackRequest(null);
+
+      // Recharger les demandes en attente
+      await loadPendingFeedbackRequests();
+
+    } catch (err) {
+      console.error('Erreur soumission feedback:', err);
+      setError(err.message || 'Erreur lors de l\'envoi du feedback');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  // Ouvrir le modal pour donner un feedback
+  const openGiveFeedbackModal = (request) => {
+    setSelectedFeedbackRequest(request);
+    setShowGiveFeedbackModal(true);
   };
 
   // Déterminer l'étape courante
@@ -306,6 +395,78 @@ const CheckpointsPage = () => {
               >
                 <span className="text-lg">×</span>
               </button>
+            </motion.div>
+          )}
+
+          {/* 🔔 SECTION FEEDBACKS À DONNER */}
+          {pendingFeedbackRequests.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 sm:mb-6 bg-gradient-to-br from-pink-500/10 to-rose-500/5 backdrop-blur-xl border border-pink-500/20 rounded-2xl p-4 sm:p-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="relative">
+                  <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
+                    <Bell size={20} className="text-white" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {pendingFeedbackRequests.length}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Feedbacks à donner</h3>
+                  <p className="text-sm text-gray-400">
+                    Des collègues attendent ton retour
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {pendingFeedbackRequests.map((request) => (
+                  <motion.button
+                    key={request.checkpointId}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => openGiveFeedbackModal(request)}
+                    className="w-full flex items-center justify-between p-3 sm:p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      {request.user?.photoURL ? (
+                        <img
+                          src={request.user.photoURL}
+                          alt={request.user.displayName}
+                          className="w-10 h-10 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gradient-to-r from-pink-500/30 to-rose-500/30 rounded-full flex items-center justify-center">
+                          <span className="text-white font-medium">
+                            {request.user?.displayName?.charAt(0) || '?'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="text-left">
+                        <div className="text-white font-medium">
+                          {request.user?.displayName || 'Aventurier'}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Checkpoint {CHECKPOINT_QUARTERS[request.quarter]?.label} {request.year}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-pink-400 text-sm">
+                      <MessageSquare size={16} />
+                      <span className="hidden sm:inline">Donner mon feedback</span>
+                      <ChevronRight size={16} />
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+
+              <div className="mt-3 flex items-center gap-2 text-green-400 text-sm">
+                <Sparkles size={14} />
+                <span>+20 XP par feedback donné</span>
+              </div>
             </motion.div>
           )}
 
@@ -604,6 +765,87 @@ const CheckpointsPage = () => {
             )}
           </AnimatePresence>
         </div>
+
+        {/* 📝 MODAL DONNER UN FEEDBACK */}
+        <AnimatePresence>
+          {showGiveFeedbackModal && selectedFeedbackRequest && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              {/* Overlay */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                onClick={() => {
+                  setShowGiveFeedbackModal(false);
+                  setSelectedFeedbackRequest(null);
+                }}
+              />
+
+              {/* Modal content */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900 border border-white/10 rounded-2xl shadow-2xl"
+              >
+                {/* Header */}
+                <div className="sticky top-0 z-10 flex items-center justify-between p-4 sm:p-6 border-b border-white/10 bg-slate-900/90 backdrop-blur-xl rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    {selectedFeedbackRequest.user?.photoURL ? (
+                      <img
+                        src={selectedFeedbackRequest.user.photoURL}
+                        alt={selectedFeedbackRequest.user.displayName}
+                        className="w-12 h-12 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-lg font-bold">
+                          {selectedFeedbackRequest.user?.displayName?.charAt(0) || '?'}
+                        </span>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">
+                        Feedback pour {selectedFeedbackRequest.user?.displayName || 'Aventurier'}
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        Checkpoint {CHECKPOINT_QUARTERS[selectedFeedbackRequest.quarter]?.label} {selectedFeedbackRequest.year}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowGiveFeedbackModal(false);
+                      setSelectedFeedbackRequest(null);
+                    }}
+                    className="p-2 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {/* Feedback Form using PeerFeedback component */}
+                <div className="p-4 sm:p-6">
+                  <PeerFeedback
+                    checkpoint={null}
+                    currentUserId={user?.uid}
+                    teamMembers={[]}
+                    onSubmitFeedback={handleSubmitPeerFeedback}
+                    isLoading={isSubmittingFeedback}
+                    mode="give"
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Layout>
   );
