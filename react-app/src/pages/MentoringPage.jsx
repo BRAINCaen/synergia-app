@@ -27,52 +27,59 @@ const StatsCards = ({ stats }) => {
       value: stats.asMentor.completed,
       total: stats.asMentor.total,
       emoji: '🎓',
-      color: 'from-purple-500 to-pink-500'
+      iconBg: 'bg-purple-500/20',
+      textColor: 'text-purple-400'
     },
     {
       label: 'Sessions Mentee',
       value: stats.asMentee.completed,
       total: stats.asMentee.total,
       emoji: '📚',
-      color: 'from-blue-500 to-cyan-500'
+      iconBg: 'bg-blue-500/20',
+      textColor: 'text-blue-400'
     },
     {
       label: 'Temps Total',
       value: `${Math.round(stats.overall.totalMinutes / 60)}h`,
       subtext: `${stats.overall.totalMinutes} min`,
       emoji: '⏱️',
-      color: 'from-emerald-500 to-teal-500'
+      iconBg: 'bg-emerald-500/20',
+      textColor: 'text-emerald-400'
     },
     {
       label: 'XP Gagne',
       value: stats.overall.totalXP,
       emoji: '⚡',
-      color: 'from-amber-500 to-orange-500'
+      iconBg: 'bg-amber-500/20',
+      textColor: 'text-amber-400'
     }
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
       {cards.map((card, index) => (
         <motion.div
           key={card.label}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.1 }}
-          className={`bg-gradient-to-br ${card.color} rounded-2xl p-4 text-white`}
+          whileHover={{ scale: 1.02 }}
+          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-3 sm:p-4 hover:bg-white/10 transition-all"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-2xl">{card.emoji}</span>
+            <div className={`p-2 ${card.iconBg} rounded-xl`}>
+              <span className="text-xl sm:text-2xl">{card.emoji}</span>
+            </div>
             {card.total !== undefined && (
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] sm:text-xs bg-white/10 border border-white/10 px-2 py-0.5 rounded-full text-gray-400">
                 {card.total} total
               </span>
             )}
           </div>
-          <div className="text-2xl font-bold">{card.value}</div>
-          <div className="text-sm text-white/80">{card.label}</div>
+          <div className={`text-xl sm:text-2xl font-bold ${card.textColor}`}>{card.value}</div>
+          <div className="text-xs sm:text-sm text-gray-400">{card.label}</div>
           {card.subtext && (
-            <div className="text-xs text-white/60 mt-1">{card.subtext}</div>
+            <div className="text-[10px] sm:text-xs text-gray-500 mt-1">{card.subtext}</div>
           )}
         </motion.div>
       ))}
@@ -676,10 +683,14 @@ const MentoringPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4" />
-            <p className="text-gray-400">Chargement des sessions...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-pink-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-gray-400 text-sm sm:text-base">Chargement des sessions...</p>
           </div>
         </div>
       </Layout>
@@ -688,31 +699,51 @@ const MentoringPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-pink-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-8 pb-24 sm:pb-8 max-w-6xl mx-auto">
 
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8"
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8"
           >
-            <div>
-              <h1 className="text-3xl font-bold text-white">
-                🎓 Sessions de Mentorat
-              </h1>
-              <p className="text-gray-400 mt-1">
-                Partagez vos connaissances et developpez-vous
-              </p>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+              >
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
+              </motion.div>
+              <div>
+                <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
+                  Sessions de Mentorat
+                </h1>
+                <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                  Partagez vos connaissances et developpez-vous
+                </p>
+              </div>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity"
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-medium transition-all shadow-lg shadow-purple-500/25 text-sm"
             >
-              <Plus className="w-5 h-5" />
-              Nouvelle Session
-            </button>
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Nouvelle Session</span>
+              <span className="sm:hidden">Nouvelle</span>
+            </motion.button>
           </motion.div>
 
           {/* Stats */}
@@ -723,13 +754,15 @@ const MentoringPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8"
+              className="mb-6 sm:mb-8"
             >
-              <h2 className="text-lg font-bold text-yellow-400 mb-4 flex items-center gap-2">
-                <Play className="w-5 h-5" />
+              <h2 className="text-base sm:text-lg font-bold text-yellow-400 mb-3 sm:mb-4 flex items-center gap-2">
+                <div className="p-1.5 bg-yellow-500/20 rounded-lg">
+                  <Play className="w-4 h-4" />
+                </div>
                 Sessions en cours ({inProgressSessions.length})
               </h2>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {inProgressSessions.map(session => (
                   <SessionCard
                     key={session.id}
@@ -746,51 +779,54 @@ const MentoringPage = () => {
           )}
 
           {/* Filter */}
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="flex items-center gap-2 text-gray-400">
               <Filter className="w-4 h-4" />
-              <span className="text-sm">Filtrer:</span>
+              <span className="text-xs sm:text-sm">Filtrer:</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
               {[
                 { id: 'all', label: 'Toutes' },
-                { id: 'mentor', label: 'En tant que Mentor' },
-                { id: 'mentee', label: 'En tant que Mentee' }
+                { id: 'mentor', label: 'Mentor' },
+                { id: 'mentee', label: 'Mentee' }
               ].map(f => (
-                <button
+                <motion.button
                   key={f.id}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setFilter(f.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                     filter === f.id
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
+                      : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'
                   }`}
                 >
                   {f.label}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
 
           {/* Sessions List */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {filteredSessions.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-center py-12"
+                className="text-center py-8 sm:py-12 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl"
               >
-                <div className="text-6xl mb-4">🎓</div>
-                <h3 className="text-xl font-bold text-white mb-2">Aucune session</h3>
-                <p className="text-gray-400 mb-6">
+                <div className="text-4xl sm:text-6xl mb-4">🎓</div>
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Aucune session</h3>
+                <p className="text-gray-400 text-sm mb-6 px-4">
                   Commencez a partager vos connaissances ou trouvez un mentor
                 </p>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowCreateModal(true)}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg shadow-purple-500/25 text-sm"
                 >
                   Creer ma premiere session
-                </button>
+                </motion.button>
               </motion.div>
             ) : (
               filteredSessions.map(session => (
