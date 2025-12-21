@@ -694,10 +694,17 @@ const loadAllTeamMembers = async () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement de l'équipe...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+          {/* Animated background */}
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+              <p className="text-gray-400">Chargement de l'équipe...</p>
+            </div>
           </div>
         </div>
       </Layout>
@@ -706,102 +713,110 @@ const loadAllTeamMembers = async () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 left-1/2 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 p-3 sm:p-6 max-w-7xl mx-auto">
           
           {/* 🎯 HEADER */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-4xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text mb-2">
-                  👥 Gestion Équipe
+                <h1 className="text-2xl sm:text-4xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text mb-2">
+                  Gestion Équipe
                 </h1>
-                <p className="text-gray-400">
-                  Collaborez et suivez les performances de votre équipe ({teamStats.totalMembers} membres)
+                <p className="text-gray-400 text-sm sm:text-base">
+                  Collaborez et suivez les performances ({teamStats.totalMembers} membres)
                 </p>
               </div>
 
               {/* Boutons actions rapides */}
-              <div className="flex gap-3">
-                
+              <div className="flex flex-wrap gap-2 sm:gap-3">
+
                 {/* BOUTON TEST ADMIN - À RETIRER EN PRODUCTION */}
                 <button
                   onClick={() => {
                     setForceAdminMode(!forceAdminMode);
                     console.log('🔧 Mode Admin forcé:', !forceAdminMode);
                   }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    forceAdminMode 
-                      ? 'bg-red-500 hover:bg-red-600 text-white' 
-                      : 'bg-gray-700/50 hover:bg-gray-600/50 text-white'
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
+                    forceAdminMode
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-white/5 hover:bg-white/10 border border-white/10 text-white'
                   }`}
                   title="Activer/désactiver le mode admin (TEST)"
                 >
-                  <Shield className="w-5 h-5" />
-                  {forceAdminMode ? 'Admin ON' : 'Test Admin'}
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">{forceAdminMode ? 'Admin ON' : 'Test Admin'}</span>
                 </button>
-                
+
                 <button
                   onClick={() => loadAllTeamMembers()}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg text-white transition-colors"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white transition-colors text-sm sm:text-base"
                 >
-                  <RefreshCw className="w-5 h-5" />
-                  Actualiser
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Actualiser</span>
                 </button>
-                
+
                 {isAdmin && (
                   <button
                     onClick={() => setShowInviteModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg text-white transition-colors"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg text-white transition-colors text-sm sm:text-base"
                   >
-                    <UserPlus className="w-5 h-5" />
-                    Inviter
+                    <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">Inviter</span>
                   </button>
                 )}
               </div>
             </div>
 
             {/* STATISTIQUES HEADER */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
               {headerStats.map((stat, index) => (
                 <motion.div
                   key={stat.label}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50"
+                  className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className={`text-3xl font-bold ${stat.color}`}>
+                      <div className={`text-xl sm:text-3xl font-bold ${stat.color}`}>
                         {stat.value}
                       </div>
-                      <div className="text-gray-400 text-sm mt-1">
+                      <div className="text-gray-400 text-xs sm:text-sm mt-1">
                         {stat.label}
                       </div>
                     </div>
-                    <stat.icon className={`w-8 h-8 ${stat.color}`} />
+                    <stat.icon className={`w-6 h-6 sm:w-8 sm:h-8 ${stat.color}`} />
                   </div>
                 </motion.div>
               ))}
             </div>
 
             {/* ONGLETS */}
-            <div className="flex gap-2 bg-gray-800/50 p-2 rounded-lg">
+            <div className="flex gap-2 bg-white/5 backdrop-blur-xl p-2 rounded-2xl border border-white/10">
               <button
                 onClick={() => {
                   console.log('🖱️ Clic sur onglet Membres');
                   setActiveTab('members');
                 }}
-                className={`flex-1 px-4 py-3 rounded-lg transition-colors ${
+                className={`flex-1 px-3 sm:px-4 py-3 rounded-xl transition-all ${
                   activeTab === 'members'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-purple-500/25'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">
-                  <Users className="w-5 h-5" />
-                  <span className="font-medium">Membres</span>
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="font-medium text-sm sm:text-base">Membres</span>
                 </div>
               </button>
 
@@ -811,46 +826,45 @@ const loadAllTeamMembers = async () => {
                     console.log('🖱️ Clic sur onglet Admin');
                     setActiveTab('admin');
                   }}
-                  className={`flex-1 px-4 py-3 rounded-lg transition-colors ${
+                  className={`flex-1 px-3 sm:px-4 py-3 rounded-xl transition-all ${
                     activeTab === 'admin'
-                      ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                      ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg shadow-pink-500/25'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <Shield className="w-5 h-5" />
-                    <span className="font-medium">Administration</span>
+                    <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="font-medium text-sm sm:text-base">Administration</span>
                   </div>
                 </button>
               ) : (
-                <div className="flex-1 px-4 py-3 rounded-lg bg-gray-700/30 text-gray-500 cursor-not-allowed">
+                <div className="flex-1 px-3 sm:px-4 py-3 rounded-xl bg-white/5 text-gray-500 cursor-not-allowed border border-white/5">
                   <div className="flex items-center justify-center gap-2">
-                    <Lock className="w-5 h-5" />
-                    <span className="font-medium text-sm">Admin (rôle requis)</span>
+                    <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="font-medium text-xs sm:text-sm">Admin requis</span>
                   </div>
                 </div>
               )}
             </div>
             
             {/* Debug info - À RETIRER EN PRODUCTION */}
-            <div className="mt-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg text-sm">
-              <div className="flex items-center justify-between">
+            <div className="mt-4 p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
-                  <p className="text-blue-300">
-                    <strong>DEBUG:</strong> Onglet actif: <span className="font-mono">{activeTab}</span> | 
-                    Is Admin: <span className="font-mono">{isAdmin ? 'OUI' : 'NON'}</span> | 
-                    Role: <span className="font-mono">{user?.role || 'non défini'}</span>
+                  <p className="text-blue-300 text-xs sm:text-sm">
+                    <strong>DEBUG:</strong> Tab: <span className="font-mono">{activeTab}</span> |
+                    Admin: <span className="font-mono">{isAdmin ? 'OUI' : 'NON'}</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-green-400 text-xs font-medium">Synchronisation temps réel active</span>
+                  <span className="text-green-400 text-xs font-medium">Sync temps réel</span>
                 </div>
               </div>
               <div className="mt-2 text-blue-200 text-xs">
-                Dernière MAJ: {new Date().toLocaleTimeString()} | 
-                Membres chargés: {teamMembers.length} | 
-                XP total équipe: {teamMembers.reduce((sum, m) => sum + (m.totalXp || 0), 0).toLocaleString()}
+                MAJ: {new Date().toLocaleTimeString()} |
+                {teamMembers.length} membres |
+                {teamMembers.reduce((sum, m) => sum + (m.totalXp || 0), 0).toLocaleString()} XP
               </div>
             </div>
           </div>
@@ -859,15 +873,15 @@ const loadAllTeamMembers = async () => {
           {activeTab === 'members' && (
             <>
               {/* FILTRES ET RECHERCHE */}
-              <div className="mb-8">
-                <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-                  
+              <div className="mb-6 sm:mb-8">
+                <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10">
+
                   {/* Bouton conversations */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white">Équipe</h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                    <h3 className="text-lg sm:text-xl font-bold text-white">Équipe</h3>
                     <button
                       onClick={() => setShowConversations(!showConversations)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors relative"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl transition-colors relative"
                     >
                       <MessageCircle className="w-5 h-5" />
                       <span>Conversations</span>
@@ -879,27 +893,27 @@ const loadAllTeamMembers = async () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+
+                    <div className="relative col-span-2 lg:col-span-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                       <input
                         type="text"
-                        placeholder="Rechercher un membre..."
+                        placeholder="Rechercher..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="w-full pl-9 sm:pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-sm sm:text-base"
                       />
                     </div>
 
                     <select
                       value={departmentFilter}
                       onChange={(e) => setDepartmentFilter(e.target.value)}
-                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
+                      className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500 text-sm sm:text-base"
                     >
                       {departments.map(dept => (
-                        <option key={dept} value={dept}>
-                          {dept === 'all' ? 'Tous les départements' : dept}
+                        <option key={dept} value={dept} className="bg-slate-900">
+                          {dept === 'all' ? 'Départements' : dept}
                         </option>
                       ))}
                     </select>
@@ -907,11 +921,11 @@ const loadAllTeamMembers = async () => {
                     <select
                       value={roleFilter}
                       onChange={(e) => setRoleFilter(e.target.value)}
-                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
+                      className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500 text-sm sm:text-base"
                     >
                       {roles.slice(0, 6).map(role => (
-                        <option key={role} value={role}>
-                          {role === 'all' ? 'Tous les rôles' : role}
+                        <option key={role} value={role} className="bg-slate-900">
+                          {role === 'all' ? 'Rôles' : role}
                         </option>
                       ))}
                     </select>
@@ -919,14 +933,14 @@ const loadAllTeamMembers = async () => {
                     <select
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value)}
-                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500"
+                      className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500 text-sm sm:text-base"
                     >
-                      <option value="all">Tous les statuts</option>
-                      <option value="actif">Actifs</option>
-                      <option value="récent">Récents</option>
-                      <option value="inactif">Inactifs</option>
-                      <option value="suspendu">Suspendus</option>
-                      <option value="bloqué">Bloqués</option>
+                      <option value="all" className="bg-slate-900">Statuts</option>
+                      <option value="actif" className="bg-slate-900">Actifs</option>
+                      <option value="récent" className="bg-slate-900">Récents</option>
+                      <option value="inactif" className="bg-slate-900">Inactifs</option>
+                      <option value="suspendu" className="bg-slate-900">Suspendus</option>
+                      <option value="bloqué" className="bg-slate-900">Bloqués</option>
                     </select>
 
                     <button
@@ -936,16 +950,16 @@ const loadAllTeamMembers = async () => {
                         setRoleFilter('all');
                         setStatusFilter('all');
                       }}
-                      className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-colors text-sm sm:text-base"
                     >
-                      Réinitialiser
+                      Reset
                     </button>
                   </div>
 
-                  <div className="mt-4 text-sm text-gray-400">
+                  <div className="mt-4 text-xs sm:text-sm text-gray-400">
                     {filteredMembers.length} membre{filteredMembers.length !== 1 ? 's' : ''} trouvé{filteredMembers.length !== 1 ? 's' : ''}
                     {filteredMembers.length !== teamMembers.length && (
-                      <span> sur {teamMembers.length} au total</span>
+                      <span> sur {teamMembers.length}</span>
                     )}
                   </div>
                 </div>
@@ -958,11 +972,11 @@ const loadAllTeamMembers = async () => {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mb-8"
+                    className="mb-6 sm:mb-8"
                   >
-                    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-                      <h3 className="text-xl font-bold text-white mb-4">Conversations récentes</h3>
-                      
+                    <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10">
+                      <h3 className="text-lg sm:text-xl font-bold text-white mb-4">Conversations récentes</h3>
+
                       {conversations.length === 0 ? (
                         <div className="text-center text-gray-400 py-8">
                           <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -974,7 +988,7 @@ const loadAllTeamMembers = async () => {
                           {conversations.map((conv) => (
                             <div
                               key={conv.userId}
-                              className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer"
+                              className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 border border-white/5 transition-colors cursor-pointer"
                               onClick={() => {
                                 const member = teamMembers.find(m => m.id === conv.userId);
                                 if (member) {
@@ -990,7 +1004,7 @@ const loadAllTeamMembers = async () => {
                                     {conv.userName.charAt(0).toUpperCase()}
                                   </span>
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="text-white font-medium">{conv.userName}</span>
                                     {conv.unreadCount > 0 && (
@@ -1002,7 +1016,7 @@ const loadAllTeamMembers = async () => {
                                   <p className="text-gray-400 text-sm truncate">{conv.lastMessage}</p>
                                 </div>
                               </div>
-                              <MessageCircle className="w-5 h-5 text-blue-400" />
+                              <MessageCircle className="w-5 h-5 text-blue-400 shrink-0" />
                             </div>
                           ))}
                         </div>
@@ -1013,10 +1027,10 @@ const loadAllTeamMembers = async () => {
               </AnimatePresence>
 
               {/* GRILLE DES MEMBRES */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-24 sm:pb-8">
                 {filteredMembers.map((member, index) => {
                   const isCurrentUser = member.id === user?.uid;
-                  
+
                   return (
                     <motion.div
                       key={member.id}
@@ -1024,8 +1038,8 @@ const loadAllTeamMembers = async () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       className={`
-                        relative bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border transition-all duration-300 hover:scale-[1.02] hover:border-purple-500/50
-                        ${isCurrentUser ? 'border-blue-500 bg-blue-900/20' : 'border-gray-700/50'}
+                        relative bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border transition-all duration-300 hover:scale-[1.02] hover:border-purple-500/50
+                        ${isCurrentUser ? 'border-blue-500/50 bg-blue-500/10' : 'border-white/10'}
                       `}
                     >
                       {isCurrentUser && (
@@ -1163,42 +1177,42 @@ const loadAllTeamMembers = async () => {
 
           {/* ONGLET ADMINISTRATION */}
           {activeTab === 'admin' && isAdmin && (
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10 pb-24 sm:pb-6">
               <div className="flex items-center gap-3 mb-6">
                 <Shield className="w-6 h-6 text-red-400" />
-                <h2 className="text-2xl font-bold text-white">Panneau d'Administration</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-white">Panneau d'Administration</h2>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-700/50">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full min-w-[600px]">
+                  <thead className="bg-white/5">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Membre</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Rôle</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Département</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase hidden sm:table-cell">Rôle</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase hidden md:table-cell">Département</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">XP</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-700/50">
+                  <tbody className="divide-y divide-white/5">
                     {filteredMembers.map((member) => (
-                      <tr key={member.id} className="hover:bg-gray-700/30 transition-colors">
+                      <tr key={member.id} className="hover:bg-white/5 transition-colors">
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
                               <span className="text-white font-bold">
                                 {member.name.charAt(0).toUpperCase()}
                               </span>
                             </div>
-                            <div>
-                              <div className="text-white font-medium">{member.name}</div>
-                              <div className="text-gray-400 text-sm">{member.email}</div>
+                            <div className="min-w-0">
+                              <div className="text-white font-medium truncate">{member.name}</div>
+                              <div className="text-gray-400 text-sm truncate">{member.email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-gray-300">{member.role}</td>
-                        <td className="px-4 py-4 text-gray-300">{member.department}</td>
+                        <td className="px-4 py-4 text-gray-300 hidden sm:table-cell">{member.role}</td>
+                        <td className="px-4 py-4 text-gray-300 hidden md:table-cell">{member.department}</td>
                         <td className="px-4 py-4">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             member.status === 'actif' ? 'bg-green-500/20 text-green-400' :
@@ -1274,7 +1288,7 @@ const loadAllTeamMembers = async () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
               onClick={() => setShowMemberModal(false)}
             >
               <motion.div
@@ -1282,87 +1296,87 @@ const loadAllTeamMembers = async () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto"
               >
 {/* HEADER DU MODAL */}
-<div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-700">
-  <div className="flex items-center gap-4">
+<div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
+  <div className="flex items-center gap-3 sm:gap-4">
     {selectedMember.photoURL ? (
-      <img 
-        src={selectedMember.photoURL} 
+      <img
+        src={selectedMember.photoURL}
         alt={selectedMember.name}
-        className="w-16 h-16 rounded-full object-cover"
+        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover"
       />
     ) : (
-      <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-        <span className="text-white font-bold text-2xl">
+      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
+        <span className="text-white font-bold text-xl sm:text-2xl">
           {selectedMember.name.charAt(0).toUpperCase()}
         </span>
       </div>
     )}
-    <div>
-      <h3 className="text-2xl font-bold text-white">{selectedMember.name}</h3>
-      <p className="text-gray-400">{selectedMember.role}</p>
-      <p className="text-gray-500 text-sm">{selectedMember.email}</p>
+    <div className="min-w-0">
+      <h3 className="text-lg sm:text-2xl font-bold text-white truncate">{selectedMember.name}</h3>
+      <p className="text-gray-400 text-sm sm:text-base">{selectedMember.role}</p>
+      <p className="text-gray-500 text-xs sm:text-sm truncate">{selectedMember.email}</p>
     </div>
   </div>
   <button
     onClick={() => setShowMemberModal(false)}
-    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+    className="p-2 hover:bg-white/10 rounded-xl transition-colors shrink-0"
   >
     <X className="w-5 h-5 text-gray-400" />
   </button>
 </div>
 
 {/* STATISTIQUES RAPIDES */}
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-  <div className="bg-yellow-500/10 rounded-lg p-4 border border-yellow-500/20">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
+  <div className="bg-yellow-500/10 rounded-xl p-3 sm:p-4 border border-yellow-500/20">
     <div className="flex items-center gap-2 mb-2">
-      <Zap className="w-5 h-5 text-yellow-400" />
-      <span className="text-yellow-400 text-sm">XP Total</span>
+      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+      <span className="text-yellow-400 text-xs sm:text-sm">XP Total</span>
     </div>
-    <div className="text-2xl font-bold text-white">{selectedMember.totalXp?.toLocaleString() || 0}</div>
+    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.totalXp?.toLocaleString() || 0}</div>
     <div className="text-xs text-gray-400 mt-1">Niveau {selectedMember.level || 1}</div>
   </div>
 
-  <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
+  <div className="bg-blue-500/10 rounded-xl p-3 sm:p-4 border border-blue-500/20">
     <div className="flex items-center gap-2 mb-2">
-      <Target className="w-5 h-5 text-blue-400" />
-      <span className="text-blue-400 text-sm">En cours</span>
+      <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+      <span className="text-blue-400 text-xs sm:text-sm">En cours</span>
     </div>
-    <div className="text-2xl font-bold text-white">{selectedMember.questsInProgress || 0}</div>
+    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.questsInProgress || 0}</div>
     <div className="text-xs text-gray-400 mt-1">quêtes actives</div>
   </div>
 
-  <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/20">
+  <div className="bg-green-500/10 rounded-xl p-3 sm:p-4 border border-green-500/20">
     <div className="flex items-center gap-2 mb-2">
-      <CheckCircle className="w-5 h-5 text-green-400" />
-      <span className="text-green-400 text-sm">Accomplies</span>
+      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+      <span className="text-green-400 text-xs sm:text-sm">Accomplies</span>
     </div>
-    <div className="text-2xl font-bold text-white">{selectedMember.questsCompleted || 0}</div>
+    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.questsCompleted || 0}</div>
     <div className="text-xs text-gray-400 mt-1">quêtes validées</div>
   </div>
 
-  <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/20">
+  <div className="bg-purple-500/10 rounded-xl p-3 sm:p-4 border border-purple-500/20">
     <div className="flex items-center gap-2 mb-2">
-      <Trophy className="w-5 h-5 text-purple-400" />
-      <span className="text-purple-400 text-sm">Badges</span>
+      <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+      <span className="text-purple-400 text-xs sm:text-sm">Badges</span>
     </div>
-    <div className="text-2xl font-bold text-white">{selectedMember.badgesCount || 0}</div>
+    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.badgesCount || 0}</div>
     <div className="text-xs text-gray-400 mt-1">débloqués</div>
   </div>
 </div>
 
 {/* PROGRESSION NIVEAU */}
-<div className="bg-gray-700/30 rounded-lg p-4 mb-6">
+<div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/10">
   <div className="flex items-center justify-between mb-2">
-    <span className="text-gray-300 font-medium">Niveau {selectedMember.level || 1}</span>
-    <span className="text-gray-400 text-sm">
+    <span className="text-gray-300 font-medium text-sm sm:text-base">Niveau {selectedMember.level || 1}</span>
+    <span className="text-gray-400 text-xs sm:text-sm">
       {selectedMember.currentLevelXp || 0} / {selectedMember.nextLevelXpRequired || 100} XP
     </span>
   </div>
-  <div className="w-full bg-gray-600 rounded-full h-2">
-    <div 
+  <div className="w-full bg-white/10 rounded-full h-2">
+    <div
       className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-500"
       style={{ width: `${selectedMember.xpProgress || 0}%` }}
     />
@@ -1373,10 +1387,10 @@ const loadAllTeamMembers = async () => {
 </div>
 
 {/* LISTE DES QUÊTES */}
-<div className="bg-gray-700/30 rounded-lg p-4">
+<div className="bg-white/5 rounded-xl p-4 border border-white/10">
   <div className="flex items-center gap-3 mb-4">
     <Target className="w-5 h-5 text-purple-400" />
-    <h4 className="text-lg font-bold text-white">
+    <h4 className="text-base sm:text-lg font-bold text-white">
       Quêtes assignées ({selectedMember.questsTotal || 0})
     </h4>
   </div>
@@ -1403,7 +1417,7 @@ const loadAllTeamMembers = async () => {
         return (
           <div
             key={quest.id}
-            className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 hover:border-purple-500/50 transition-all"
+            className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-purple-500/30 transition-all"
           >
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
@@ -1456,13 +1470,13 @@ const loadAllTeamMembers = async () => {
 </div>
 
 {/* INFORMATIONS SUPPLÉMENTAIRES */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-  <div className="bg-gray-700/30 rounded-lg p-4">
-    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+<div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-6">
+  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2 text-sm sm:text-base">
       <MapPin className="w-4 h-4 text-gray-400" />
       Informations
     </h5>
-    <div className="space-y-2 text-sm">
+    <div className="space-y-2 text-xs sm:text-sm">
       <div className="flex justify-between">
         <span className="text-gray-400">Département:</span>
         <span className="text-white">{selectedMember.department || 'Non spécifié'}</span>
@@ -1492,12 +1506,12 @@ const loadAllTeamMembers = async () => {
     </div>
   </div>
 
-  <div className="bg-gray-700/30 rounded-lg p-4">
-    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2 text-sm sm:text-base">
       <TrendingUp className="w-4 h-4 text-gray-400" />
       Performance
     </h5>
-    <div className="space-y-2 text-sm">
+    <div className="space-y-2 text-xs sm:text-sm">
       <div className="flex justify-between">
         <span className="text-gray-400">Taux de complétion:</span>
         <span className="text-white font-medium">{selectedMember.completionRate || 0}%</span>
@@ -1513,7 +1527,7 @@ const loadAllTeamMembers = async () => {
       <div className="flex justify-between">
         <span className="text-gray-400">Dernière activité:</span>
         <span className="text-white">
-          {selectedMember.lastActivity 
+          {selectedMember.lastActivity
             ? new Date(selectedMember.lastActivity).toLocaleDateString()
             : 'Inconnue'}
         </span>
@@ -1524,26 +1538,26 @@ const loadAllTeamMembers = async () => {
 
 {/* BADGES */}
 {selectedMember.badges && selectedMember.badges.length > 0 && (
-  <div className="bg-gray-700/30 rounded-lg p-4 mt-4">
-    <h5 className="text-white font-medium mb-3 flex items-center gap-2">
+  <div className="bg-white/5 rounded-xl p-4 mt-4 border border-white/10">
+    <h5 className="text-white font-medium mb-3 flex items-center gap-2 text-sm sm:text-base">
       <Award className="w-4 h-4 text-gray-400" />
       Badges débloqués ({selectedMember.badges.length})
     </h5>
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-2 sm:gap-3">
       {selectedMember.badges.slice(0, 12).map((badge, index) => (
         <div
           key={index}
-          className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-lg p-3 flex items-center gap-2"
+          className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-xl p-2 sm:p-3 flex items-center gap-2"
           title={badge.name || badge}
         >
-          <Trophy className="w-5 h-5 text-yellow-400" />
-          <span className="text-white text-sm font-medium">
+          <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+          <span className="text-white text-xs sm:text-sm font-medium">
             {typeof badge === 'string' ? badge : badge.name || 'Badge'}
           </span>
         </div>
       ))}
       {selectedMember.badges.length > 12 && (
-        <div className="bg-gray-600/30 rounded-lg p-3 flex items-center justify-center text-gray-400 text-sm">
+        <div className="bg-white/5 rounded-xl p-2 sm:p-3 flex items-center justify-center text-gray-400 text-xs sm:text-sm border border-white/10">
           +{selectedMember.badges.length - 12} autres
         </div>
       )}
@@ -1552,26 +1566,26 @@ const loadAllTeamMembers = async () => {
 )}
 
 {/* ACTIONS */}
-<div className="flex gap-3 mt-6 pt-4 border-t border-gray-700">
+<div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t border-white/10">
   <button
     onClick={() => {
       setMessageRecipient(selectedMember);
       setShowMemberModal(false);
       setShowMessageModal(true);
     }}
-    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
+    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl transition-colors text-sm sm:text-base"
   >
     <Mail className="w-5 h-5" />
     Envoyer un message
   </button>
-  
+
   {isAdmin && (
     <button
       onClick={() => {
         setShowMemberModal(false);
         handleEditMember(selectedMember);
       }}
-      className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg transition-colors"
+      className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl transition-colors text-sm sm:text-base"
     >
       <Edit className="w-5 h-5" />
       Modifier
@@ -1590,7 +1604,7 @@ const loadAllTeamMembers = async () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               onClick={() => setShowEditModal(false)}
             >
               <motion.div
@@ -1598,13 +1612,13 @@ const loadAllTeamMembers = async () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full"
               >
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-white">Modifier le membre</h3>
                   <button
                     onClick={() => setShowEditModal(false)}
-                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    className="p-2 hover:bg-white/10 rounded-xl transition-colors"
                   >
                     <X className="w-5 h-5 text-gray-400" />
                   </button>
@@ -1617,7 +1631,7 @@ const loadAllTeamMembers = async () => {
                       type="text"
                       value={selectedMember.name}
                       onChange={(e) => setSelectedMember({...selectedMember, name: e.target.value})}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
                     />
                   </div>
 
@@ -1627,7 +1641,7 @@ const loadAllTeamMembers = async () => {
                       type="text"
                       value={selectedMember.role}
                       onChange={(e) => setSelectedMember({...selectedMember, role: e.target.value})}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
                     />
                   </div>
 
@@ -1637,7 +1651,7 @@ const loadAllTeamMembers = async () => {
                       type="text"
                       value={selectedMember.department}
                       onChange={(e) => setSelectedMember({...selectedMember, department: e.target.value})}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
                     />
                   </div>
 
@@ -1646,25 +1660,25 @@ const loadAllTeamMembers = async () => {
                     <select
                       value={selectedMember.status}
                       onChange={(e) => setSelectedMember({...selectedMember, status: e.target.value})}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
                     >
-                      <option value="actif">Actif</option>
-                      <option value="inactif">Inactif</option>
-                      <option value="suspendu">Suspendu</option>
-                      <option value="bloqué">Bloqué</option>
+                      <option value="actif" className="bg-slate-900">Actif</option>
+                      <option value="inactif" className="bg-slate-900">Inactif</option>
+                      <option value="suspendu" className="bg-slate-900">Suspendu</option>
+                      <option value="bloqué" className="bg-slate-900">Bloqué</option>
                     </select>
                   </div>
 
                   <div className="flex gap-3 pt-4">
                     <button
                       onClick={() => setShowEditModal(false)}
-                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                      className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-colors"
                     >
                       Annuler
                     </button>
                     <button
                       onClick={handleSaveEdit}
-                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors"
                     >
                       Enregistrer
                     </button>
@@ -1682,7 +1696,7 @@ const loadAllTeamMembers = async () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               onClick={() => setShowDeleteModal(false)}
             >
               <motion.div
@@ -1690,7 +1704,7 @@ const loadAllTeamMembers = async () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-800 rounded-xl p-6 max-w-md w-full"
+                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full"
               >
                 <div className="flex items-center gap-3 mb-6 text-red-500">
                   <AlertTriangle className="w-6 h-6" />
@@ -1705,13 +1719,13 @@ const loadAllTeamMembers = async () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-colors"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={handleDeleteMember}
-                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
                   >
                     Supprimer
                   </button>
@@ -1728,7 +1742,7 @@ const loadAllTeamMembers = async () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
               onClick={() => setShowMessageModal(false)}
             >
               <motion.div
@@ -1736,28 +1750,28 @@ const loadAllTeamMembers = async () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] sm:max-h-[80vh] overflow-y-auto my-auto"
               >
                 <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <MessageCircle className="w-6 h-6 text-blue-400" />
-                    <div>
-                      <h3 className="text-xl font-bold text-white">Conversation avec {messageRecipient.name}</h3>
-                      <p className="text-gray-400 text-sm">{messageRecipient.email}</p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <MessageCircle className="w-6 h-6 text-blue-400 shrink-0" />
+                    <div className="min-w-0">
+                      <h3 className="text-lg sm:text-xl font-bold text-white truncate">Conversation avec {messageRecipient.name}</h3>
+                      <p className="text-gray-400 text-xs sm:text-sm truncate">{messageRecipient.email}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowMessageModal(false)}
-                    className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    className="p-2 hover:bg-white/10 rounded-xl transition-colors shrink-0"
                   >
                     <X className="w-5 h-5 text-gray-400" />
                   </button>
                 </div>
 
                 {/* Historique des messages */}
-                <div className="mb-6 max-h-96 overflow-y-auto space-y-3">
+                <div className="mb-6 max-h-72 sm:max-h-96 overflow-y-auto space-y-3 bg-white/5 rounded-xl p-4 border border-white/10">
                   {messages
-                    .filter(msg => 
+                    .filter(msg =>
                       (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
                       (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
                     )
@@ -1773,10 +1787,10 @@ const loadAllTeamMembers = async () => {
                           key={message.id}
                           className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                         >
-                          <div className={`max-w-[70%] rounded-lg p-3 ${
-                            isOwn 
-                              ? 'bg-blue-500 text-white' 
-                              : 'bg-gray-700 text-gray-100'
+                          <div className={`max-w-[80%] sm:max-w-[70%] rounded-xl p-3 ${
+                            isOwn
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                              : 'bg-white/10 text-gray-100'
                           }`}>
                             <p className="text-sm">{message.content}</p>
                             <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
@@ -1786,8 +1800,8 @@ const loadAllTeamMembers = async () => {
                         </div>
                       );
                     })}
-                  
-                  {messages.filter(msg => 
+
+                  {messages.filter(msg =>
                     (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
                     (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
                   ).length === 0 && (
@@ -1805,21 +1819,21 @@ const loadAllTeamMembers = async () => {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Votre message..."
-                    rows={4}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 resize-none"
                   />
 
                   <div className="flex gap-3">
                     <button
                       onClick={() => setShowMessageModal(false)}
-                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                      className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-colors"
                     >
                       Annuler
                     </button>
                     <button
                       onClick={handleSendMessage}
                       disabled={!newMessage.trim()}
-                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       <Send className="w-4 h-4" />
                       Envoyer
