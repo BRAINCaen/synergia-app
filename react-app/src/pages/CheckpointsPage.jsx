@@ -224,10 +224,14 @@ const CheckpointsPage = () => {
   if (isLoading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement du checkpoint...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+            <p className="text-gray-400 text-sm sm:text-base">Chargement du checkpoint...</p>
           </div>
         </div>
       </Layout>
@@ -238,344 +242,368 @@ const CheckpointsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-white flex items-center gap-3 mb-2">
-                <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl">
-                  <Flag className="w-8 h-8 text-white" />
-                </div>
-                Checkpoint
-              </h1>
-              <div className="flex items-center gap-2 text-gray-400">
-                <Calendar size={16} />
-                <span>{CHECKPOINT_QUARTERS[checkpoint?.quarter]?.label} {checkpoint?.year}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Bouton historique */}
-              {pastCheckpoints.length > 0 && (
-                <button
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-gray-300 transition-colors"
-                >
-                  <History size={18} />
-                  Historique
-                </button>
-              )}
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
         </div>
 
-        {/* Erreur */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 flex items-center gap-3 p-4 bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30 rounded-xl"
-          >
-            <AlertCircle size={20} className="text-red-400" />
-            <span className="text-red-300">{error}</span>
-            <button
-              onClick={() => setError(null)}
-              className="ml-auto text-red-400 hover:text-red-300"
-            >
-              ✕
-            </button>
-          </motion.div>
-        )}
-
-        {/* Status si complété */}
-        {isCompleted && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mb-8 text-center p-8 bg-gradient-to-br from-green-500/20 to-emerald-600/10 border border-green-500/30 rounded-2xl"
-          >
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-              <CheckCircle size={32} className="text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-2">
-              Checkpoint terminé !
-            </h2>
-            <p className="text-gray-400 mb-4">
-              Validé par {checkpoint?.managerReview?.managerName || 'le Maître de Guilde'}
-            </p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 rounded-full text-green-400">
-              <Sparkles size={18} />
-              <span className="font-medium">+{checkpoint?.xpEarned || 0} XP gagnés</span>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Barre de progression des étapes */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl p-6"
-        >
-          <div className="flex items-center justify-between relative">
-            {/* Ligne de connexion */}
-            <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-700 mx-16">
-              <motion.div
-                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                initial={{ width: '0%' }}
-                animate={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                transition={{ duration: 0.5 }}
-              />
-            </div>
-
-            {STEPS.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = index === currentStep;
-              const isComplete = index < currentStep || isCompleted;
-              const isLocked = index > currentStep && !isCompleted;
-
-              return (
-                <button
-                  key={step.id}
-                  onClick={() => !isLocked && setCurrentStep(index)}
-                  disabled={isLocked}
-                  className="relative z-10 flex flex-col items-center gap-2"
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8">
+          {/* Header */}
+          <div className="mb-4 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500/30 to-purple-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
                 >
-                  <motion.div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-                      isComplete
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                        : isActive
-                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 ring-4 ring-indigo-500/30'
-                        : isLocked
-                        ? 'bg-gray-800 opacity-50'
-                        : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
-                    whileHover={!isLocked ? { scale: 1.05 } : {}}
-                    whileTap={!isLocked ? { scale: 0.95 } : {}}
+                  <Flag className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-400" />
+                </motion.div>
+                <div>
+                  <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-indigo-200 to-white bg-clip-text text-transparent">
+                    Checkpoint
+                  </h1>
+                  <div className="flex items-center gap-2 text-gray-400 text-xs sm:text-sm mt-0.5">
+                    <Calendar size={14} />
+                    <span>{CHECKPOINT_QUARTERS[checkpoint?.quarter]?.label} {checkpoint?.year}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Bouton historique */}
+                {pastCheckpoints.length > 0 && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 rounded-xl text-gray-300 transition-all text-sm"
                   >
-                    {isComplete ? (
-                      <CheckCircle size={24} className="text-white" />
-                    ) : isLocked ? (
-                      <Lock size={20} className="text-gray-500" />
-                    ) : (
-                      <Icon size={24} className="text-white" />
-                    )}
-                  </motion.div>
-                  <span className={`text-xs font-medium ${
-                    isActive ? 'text-indigo-400' : isComplete ? 'text-green-400' : 'text-gray-500'
-                  }`}>
-                    {step.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Contenu de l'étape actuelle */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl p-6"
-        >
-          <AnimatePresence mode="wait">
-            {/* Étape 0: Récap */}
-            {currentStep === 0 && (
-              <motion.div
-                key="recap"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <CheckpointRecap
-                  recap={checkpoint?.recap}
-                  userName={user?.displayName?.split(' ')[0] || 'Aventurier'}
-                />
-
-                {!isCompleted && (
-                  <div className="flex justify-end mt-6 pt-6 border-t border-gray-700/50">
-                    <button
-                      onClick={() => setCurrentStep(1)}
-                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-white font-medium transition-all"
-                    >
-                      Commencer l'auto-réflexion
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
+                    <History size={16} />
+                    <span className="hidden sm:inline">Historique</span>
+                  </motion.button>
                 )}
-              </motion.div>
-            )}
-
-            {/* Étape 1: Auto-réflexion */}
-            {currentStep === 1 && (
-              <motion.div
-                key="reflection"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <SelfReflection
-                  initialAnswers={checkpoint?.selfReflection?.answers || {}}
-                  isCompleted={checkpoint?.selfReflection?.completed}
-                  onSave={(answers) => handleSaveReflection(answers, false)}
-                  onComplete={(answers) => handleSaveReflection(answers, true)}
-                  isLoading={isSaving}
-                />
-              </motion.div>
-            )}
-
-            {/* Étape 2: Feedbacks */}
-            {currentStep === 2 && (
-              <motion.div
-                key="feedback"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <PeerFeedback
-                  checkpoint={checkpoint}
-                  currentUserId={user?.uid}
-                  teamMembers={teamMembers}
-                  onRequestFeedback={handleRequestFeedback}
-                  isLoading={isSaving}
-                  mode="request"
-                />
-
-                {checkpoint?.peerFeedback?.receivedFeedbacks?.length >= checkpoint?.peerFeedback?.minRequired && (
-                  <div className="flex justify-end mt-6 pt-6 border-t border-gray-700/50">
-                    <button
-                      onClick={() => setCurrentStep(3)}
-                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-white font-medium transition-all"
-                    >
-                      Définir mes objectifs
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Étape 3: Objectifs */}
-            {currentStep === 3 && (
-              <motion.div
-                key="goals"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <GoalSetting
-                  initialGoals={checkpoint?.goals?.items || []}
-                  isValidated={checkpoint?.goals?.validatedByManager}
-                  onSave={handleSaveGoals}
-                  isLoading={isSaving}
-                  nextQuarter={getNextQuarter()}
-                />
-
-                {!isCompleted && checkpoint?.status === CHECKPOINT_STATUS.REVIEW && (
-                  <div className="mt-6 p-4 bg-gradient-to-br from-yellow-500/20 to-orange-500/10 border border-yellow-500/30 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <Clock size={20} className="text-yellow-400" />
-                      <div>
-                        <div className="font-medium text-yellow-300">En attente de validation</div>
-                        <div className="text-sm text-yellow-400/80">
-                          Le Maître de Guilde va bientôt valider ton checkpoint
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Navigation entre étapes */}
-        {!isCompleted && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-6 flex justify-between items-center"
-          >
-            <button
-              onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-              disabled={currentStep === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
-                currentStep === 0
-                  ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                  : 'bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300'
-              }`}
-            >
-              <ChevronLeft size={18} />
-              Précédent
-            </button>
-
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Clock size={16} />
-              Deadline: {checkpoint?.deadline?.toDate?.()?.toLocaleDateString('fr-FR') || 'Non définie'}
+              </div>
             </div>
-          </motion.div>
-        )}
+          </div>
 
-        {/* Historique des checkpoints */}
-        <AnimatePresence>
-          {showHistory && pastCheckpoints.length > 0 && (
+          {/* Erreur */}
+          {error && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mt-6 bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-700/50 rounded-2xl p-6"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 sm:mb-6 flex items-center gap-3 p-3 sm:p-4 bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-xl"
             >
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <History size={20} className="text-indigo-400" />
-                Historique des checkpoints
-              </h3>
+              <AlertCircle size={18} className="text-red-400 flex-shrink-0" />
+              <span className="text-red-300 text-sm">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-400 hover:text-red-300 p-1"
+              >
+                <span className="text-lg">×</span>
+              </button>
+            </motion.div>
+          )}
 
-              <div className="space-y-3">
-                {pastCheckpoints.map((cp) => (
-                  <div
-                    key={cp.id}
-                    className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-700/50 rounded-xl"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        cp.status === CHECKPOINT_STATUS.COMPLETED
-                          ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20'
-                          : 'bg-gray-700'
-                      }`}>
-                        {cp.status === CHECKPOINT_STATUS.COMPLETED ? (
-                          <CheckCircle size={20} className="text-green-400" />
-                        ) : (
-                          <Clock size={20} className="text-gray-400" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium text-white">
-                          {CHECKPOINT_QUARTERS[cp.quarter]?.label} {cp.year}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          {cp.status === CHECKPOINT_STATUS.COMPLETED
-                            ? `+${cp.xpEarned || 0} XP`
-                            : 'Non terminé'
-                          }
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      cp.status === CHECKPOINT_STATUS.COMPLETED
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                        : 'bg-gray-700 text-gray-400'
-                    }`}>
-                      {cp.status === CHECKPOINT_STATUS.COMPLETED ? 'Terminé' : 'Incomplet'}
-                    </div>
-                  </div>
-                ))}
+          {/* Status si complété */}
+          {isCompleted && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6 sm:mb-8 text-center p-6 sm:p-8 bg-gradient-to-br from-green-500/10 to-emerald-500/5 backdrop-blur-xl border border-green-500/20 rounded-2xl"
+            >
+              <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/25">
+                <CheckCircle size={28} className="text-white" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-white mb-2">
+                Checkpoint terminé !
+              </h2>
+              <p className="text-gray-400 text-sm mb-4">
+                Validé par {checkpoint?.managerReview?.managerName || 'le Maître de Guilde'}
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/20 rounded-full text-green-400 text-sm">
+                <Sparkles size={16} />
+                <span className="font-medium">+{checkpoint?.xpEarned || 0} XP gagnés</span>
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
+
+          {/* Barre de progression des étapes */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 sm:mb-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6"
+          >
+            <div className="flex items-center justify-between relative">
+              {/* Ligne de connexion */}
+              <div className="absolute top-5 sm:top-6 left-0 right-0 h-0.5 bg-white/10 mx-10 sm:mx-16">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+                  transition={{ duration: 0.5 }}
+                />
+              </div>
+
+              {STEPS.map((step, index) => {
+                const Icon = step.icon;
+                const isActive = index === currentStep;
+                const isComplete = index < currentStep || isCompleted;
+                const isLocked = index > currentStep && !isCompleted;
+
+                return (
+                  <button
+                    key={step.id}
+                    onClick={() => !isLocked && setCurrentStep(index)}
+                    disabled={isLocked}
+                    className="relative z-10 flex flex-col items-center gap-1.5 sm:gap-2"
+                  >
+                    <motion.div
+                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all ${
+                        isComplete
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-lg shadow-green-500/25'
+                          : isActive
+                          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 ring-2 sm:ring-4 ring-indigo-500/30 shadow-lg shadow-indigo-500/25'
+                          : isLocked
+                          ? 'bg-white/5 border border-white/10 opacity-50'
+                          : 'bg-white/10 border border-white/10 hover:bg-white/20'
+                      }`}
+                      whileHover={!isLocked ? { scale: 1.05 } : {}}
+                      whileTap={!isLocked ? { scale: 0.95 } : {}}
+                    >
+                      {isComplete ? (
+                        <CheckCircle size={20} className="text-white" />
+                      ) : isLocked ? (
+                        <Lock size={16} className="text-gray-500" />
+                      ) : (
+                        <Icon size={20} className="text-white" />
+                      )}
+                    </motion.div>
+                    <span className={`text-[10px] sm:text-xs font-medium ${
+                      isActive ? 'text-indigo-400' : isComplete ? 'text-green-400' : 'text-gray-500'
+                    }`}>
+                      {step.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+
+          {/* Contenu de l'étape actuelle */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6"
+          >
+            <AnimatePresence mode="wait">
+              {/* Étape 0: Récap */}
+              {currentStep === 0 && (
+                <motion.div
+                  key="recap"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <CheckpointRecap
+                    recap={checkpoint?.recap}
+                    userName={user?.displayName?.split(' ')[0] || 'Aventurier'}
+                  />
+
+                  {!isCompleted && (
+                    <div className="flex justify-end mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setCurrentStep(1)}
+                        className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-white font-medium transition-all shadow-lg shadow-indigo-500/25 text-sm sm:text-base"
+                      >
+                        Commencer l'auto-réflexion
+                        <ChevronRight size={18} />
+                      </motion.button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Étape 1: Auto-réflexion */}
+              {currentStep === 1 && (
+                <motion.div
+                  key="reflection"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <SelfReflection
+                    initialAnswers={checkpoint?.selfReflection?.answers || {}}
+                    isCompleted={checkpoint?.selfReflection?.completed}
+                    onSave={(answers) => handleSaveReflection(answers, false)}
+                    onComplete={(answers) => handleSaveReflection(answers, true)}
+                    isLoading={isSaving}
+                  />
+                </motion.div>
+              )}
+
+              {/* Étape 2: Feedbacks */}
+              {currentStep === 2 && (
+                <motion.div
+                  key="feedback"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <PeerFeedback
+                    checkpoint={checkpoint}
+                    currentUserId={user?.uid}
+                    teamMembers={teamMembers}
+                    onRequestFeedback={handleRequestFeedback}
+                    isLoading={isSaving}
+                    mode="request"
+                  />
+
+                  {checkpoint?.peerFeedback?.receivedFeedbacks?.length >= checkpoint?.peerFeedback?.minRequired && (
+                    <div className="flex justify-end mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setCurrentStep(3)}
+                        className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-white font-medium transition-all shadow-lg shadow-indigo-500/25 text-sm sm:text-base"
+                      >
+                        Définir mes objectifs
+                        <ChevronRight size={18} />
+                      </motion.button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Étape 3: Objectifs */}
+              {currentStep === 3 && (
+                <motion.div
+                  key="goals"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <GoalSetting
+                    initialGoals={checkpoint?.goals?.items || []}
+                    isValidated={checkpoint?.goals?.validatedByManager}
+                    onSave={handleSaveGoals}
+                    isLoading={isSaving}
+                    nextQuarter={getNextQuarter()}
+                  />
+
+                  {!isCompleted && checkpoint?.status === CHECKPOINT_STATUS.REVIEW && (
+                    <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-yellow-500/10 backdrop-blur-xl border border-yellow-500/20 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Clock size={18} className="text-yellow-400 flex-shrink-0" />
+                        <div>
+                          <div className="font-medium text-yellow-300 text-sm">En attente de validation</div>
+                          <div className="text-xs sm:text-sm text-yellow-400/80">
+                            Le Maître de Guilde va bientôt valider ton checkpoint
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Navigation entre étapes */}
+          {!isCompleted && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-between items-center gap-3"
+            >
+              <motion.button
+                whileHover={{ scale: currentStep === 0 ? 1 : 1.02 }}
+                whileTap={{ scale: currentStep === 0 ? 1 : 0.98 }}
+                onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+                disabled={currentStep === 0}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm ${
+                  currentStep === 0
+                    ? 'bg-white/5 text-gray-600 cursor-not-allowed'
+                    : 'bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300'
+                }`}
+              >
+                <ChevronLeft size={16} />
+                Précédent
+              </motion.button>
+
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
+                <Clock size={14} />
+                Deadline: {checkpoint?.deadline?.toDate?.()?.toLocaleDateString('fr-FR') || 'Non définie'}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Historique des checkpoints */}
+          <AnimatePresence>
+            {showHistory && pastCheckpoints.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-4 sm:mt-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6"
+              >
+                <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
+                  <History size={18} className="text-indigo-400" />
+                  Historique des checkpoints
+                </h3>
+
+                <div className="space-y-2 sm:space-y-3">
+                  {pastCheckpoints.map((cp) => (
+                    <div
+                      key={cp.id}
+                      className="flex items-center justify-between p-3 sm:p-4 bg-white/5 border border-white/10 rounded-xl"
+                    >
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
+                          cp.status === CHECKPOINT_STATUS.COMPLETED
+                            ? 'bg-green-500/20 border border-green-500/20'
+                            : 'bg-white/5 border border-white/10'
+                        }`}>
+                          {cp.status === CHECKPOINT_STATUS.COMPLETED ? (
+                            <CheckCircle size={16} className="text-green-400" />
+                          ) : (
+                            <Clock size={16} className="text-gray-400" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-medium text-white text-sm">
+                            {CHECKPOINT_QUARTERS[cp.quarter]?.label} {cp.year}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {cp.status === CHECKPOINT_STATUS.COMPLETED
+                              ? `+${cp.xpEarned || 0} XP`
+                              : 'Non terminé'
+                            }
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+                        cp.status === CHECKPOINT_STATUS.COMPLETED
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/20'
+                          : 'bg-white/5 text-gray-400 border border-white/10'
+                      }`}>
+                        {cp.status === CHECKPOINT_STATUS.COMPLETED ? 'Terminé' : 'Incomplet'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </Layout>
   );
