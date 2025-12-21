@@ -169,7 +169,6 @@ console.log('   • Users - Gestion des utilisateurs');
 console.log('');
 console.log('🔧 PAGES OUTILS :');
 console.log('   • Onboarding - Processus d\'accueil');
-console.log('   • TimeTrack - Suivi du temps');
 console.log('   • Profile - Profil utilisateur');
 console.log('   • Settings - Paramètres');
 console.log('');
