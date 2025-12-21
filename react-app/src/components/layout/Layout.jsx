@@ -14,13 +14,16 @@ import { useTheme } from '../../shared/hooks/useTheme.js';
 
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD
-const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail }) => {
+const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin }) => {
   console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen);
-  
+
   if (!isOpen) return null;
 
   // 👑 Vérifier si l'utilisateur est l'admin principal
   const isGodMode = userEmail === 'alan.boehme61@gmail.com';
+
+  // 🔐 Vérifier si l'utilisateur a des droits admin
+  const hasAdminAccess = userIsAdmin || isGodMode;
 
   const menuItems = [
     { section: 'PRINCIPAL', items: [
@@ -63,9 +66,18 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     ]}
   ];
 
+  // 🔐 FILTRER LE MENU ADMIN SI L'UTILISATEUR N'A PAS LES DROITS
+  const filteredMenuItems = menuItems.filter(section => {
+    // Cacher la section ADMIN si pas de droits admin
+    if (section.section === 'ADMIN' && !hasAdminAccess) {
+      return false;
+    }
+    return true;
+  });
+
   // 👑 AJOUTER GODMOD SI L'UTILISATEUR EST ALAN
   if (isGodMode) {
-    menuItems.push({
+    filteredMenuItems.push({
       section: '👑 GODMOD',
       items: [
         { path: '/godmod', label: 'GODMOD', icon: '👑', isGodMode: true }
@@ -192,11 +204,11 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
 
         {/* Menu Items */}
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-          {menuItems.map((section, sectionIndex) => (
-            <div 
+          {filteredMenuItems.map((section, sectionIndex) => (
+            <div
               key={sectionIndex}
               style={{
-                marginBottom: sectionIndex < menuItems.length - 1 ? '28px' : '0'
+                marginBottom: sectionIndex < filteredMenuItems.length - 1 ? '28px' : '0'
               }}
             >
               {/* Section Header */}
@@ -525,11 +537,12 @@ const Layout = memo(({ children }) => {
       </button>
 
       {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE + GODMOD */}
-      <HamburgerMenuStable 
-        isOpen={menuOpen} 
+      <HamburgerMenuStable
+        isOpen={menuOpen}
         onClose={closeMenu}
         navigateFunction={navigateFunction}
         userEmail={user?.email}
+        userIsAdmin={user?.isAdmin || user?.role === 'admin' || user?.profile?.isAdmin}
       />
 
       {/* 🔔 MODULE 6: CENTRE DE NOTIFICATIONS AMÉLIORÉ */}
