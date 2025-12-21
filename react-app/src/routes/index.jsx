@@ -26,7 +26,6 @@ import MentoringPage from '../pages/MentoringPage.jsx'; // 🎓 MODULE MENTORING
 import CheckpointsPage from '../pages/CheckpointsPage.jsx'; // 🏁 MODULE CHECKPOINTS
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
-import TimeTrackPage from '../pages/TimeTrackPage.jsx';
 
 // ✨ PAGES RH & PLANNING
 import HRPage from '../pages/HRPage.jsx';
@@ -94,8 +93,7 @@ const AppRoutes = () => {
         
         {/* OUTILS */}
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/timetrack" element={<TimeTrackPage />} />
-        
+
         {/* ✨ MODULES RH & PLANNING */}
         <Route path="/hr" element={<HRPage />} />
         <Route path="/planning" element={<PlanningAdvancedPage />} />

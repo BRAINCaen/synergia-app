@@ -41,7 +41,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     ]},
     { section: 'ÉQUIPE', items: [
       { path: '/team', label: 'Équipe', icon: '👥' },
-      { path: '/pulse', label: 'Pulse', icon: '💗' },
+      { path: '/pulse', label: 'Pulse & Pointage', icon: '💗' },
       { path: '/mentoring', label: 'Mentorat', icon: '🎓' },
       { path: '/checkpoints', label: 'Checkpoints', icon: '🏁' },
       { path: '/customization', label: 'Personnalisation', icon: '🎨' },
@@ -49,7 +49,6 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     ]},
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '🎯' },
-      { path: '/timetrack', label: 'Suivi Temps', icon: '⏱️' },
       { path: '/hr', label: 'RH', icon: '🏢' },
       { path: '/planning', label: 'Planning', icon: '📅' }
     ]},
