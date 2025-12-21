@@ -276,7 +276,6 @@ const HRPage = () => {
     { id: 'employees', label: 'Salariés', icon: Users },
     { id: 'leaves', label: 'Congés', icon: Calendar },
     { id: 'timesheet', label: 'Pointage', icon: Clock },
-    { id: 'interviews', label: 'Entretiens', icon: UserCheck },
     { id: 'training', label: 'Formations', icon: Award },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'payroll', label: 'Paie', icon: DollarSign },
@@ -417,12 +416,6 @@ const HRPage = () => {
             {activeTab === 'timesheet' && (
               <TimesheetTab
                 timesheets={timesheets}
-                employees={employees}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {activeTab === 'interviews' && (
-              <InterviewsTab
                 employees={employees}
                 onRefresh={handleRefresh}
               />
