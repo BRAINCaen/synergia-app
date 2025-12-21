@@ -280,7 +280,7 @@ const BadgesPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
             <p className="text-gray-300">Chargement des badges...</p>
@@ -292,68 +292,79 @@ const BadgesPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-yellow-600/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/15 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
           {/* 🎯 EN-TÊTE */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 mb-2 flex items-center gap-3">
-              <Trophy className="w-10 h-10 text-yellow-400" />
-              Collection de Badges
-            </h1>
-            <p className="text-gray-400">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
+                <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <h1 className="text-xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400">
+                Collection de Badges
+              </h1>
+            </div>
+            <p className="text-gray-400 text-sm sm:text-base">
               {badgeStats.unlockedCount} / {badgeStats.totalCount} badges débloqués ({badgeStats.completionPercentage}%)
-              <span className="ml-2 text-purple-400">• Système unifié v2.0 avec {globalStats.total} badges</span>
             </p>
           </div>
 
           {/* 📊 STATISTIQUES */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
-              <div className="flex items-center gap-3">
-                <Trophy className="w-8 h-8 text-purple-400" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-6 sm:mb-8">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">Débloqués</p>
-                  <p className="text-2xl font-bold text-white">{badgeStats.unlockedCount}</p>
+                  <p className="text-gray-400 text-[10px] sm:text-sm font-medium">Débloqués</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{badgeStats.unlockedCount}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
-              <div className="flex items-center gap-3">
-                <Target className="w-8 h-8 text-green-400" />
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Target className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">Disponibles</p>
-                  <p className="text-2xl font-bold text-white">{badgeStats.badgesAvailable}</p>
+                  <p className="text-gray-400 text-[10px] sm:text-sm font-medium">Disponibles</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{badgeStats.badgesAvailable}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="w-8 h-8 text-pink-400" />
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-pink-400" />
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">Progression</p>
-                  <p className="text-2xl font-bold text-white">{badgeStats.completionPercentage}%</p>
+                  <p className="text-gray-400 text-[10px] sm:text-sm font-medium">Progression</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{badgeStats.completionPercentage}%</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
-              <div className="flex items-center gap-3">
-                <Zap className="w-8 h-8 text-yellow-400" />
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">XP Badges</p>
-                  <p className="text-2xl font-bold text-white">{badgeStats.totalXpEarned}</p>
+                  <p className="text-gray-400 text-[10px] sm:text-sm font-medium">XP Badges</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{badgeStats.totalXpEarned}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-4 rounded-xl">
-              <div className="flex items-center gap-3">
-                <Gem className="w-8 h-8 text-cyan-400" />
+            <div className="hidden sm:block bg-white/5 backdrop-blur-xl border border-white/10 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Gem className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400" />
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">XP Potentiel</p>
-                  <p className="text-2xl font-bold text-white">{globalStats.totalXpAvailable}</p>
+                  <p className="text-gray-400 text-[10px] sm:text-sm font-medium">XP Potentiel</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{globalStats.totalXpAvailable}</p>
                 </div>
               </div>
             </div>

@@ -1103,10 +1103,20 @@ const OnboardingPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <RefreshCw className="h-12 w-12 animate-spin text-blue-500 mx-auto mb-4" />
-            <p className="text-white">Chargement de votre progression...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+              className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500/30 to-purple-600/20 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            >
+              <BookOpen className="w-7 h-7 sm:w-8 sm:h-8 text-blue-400" />
+            </motion.div>
+            <p className="text-gray-400 text-sm sm:text-lg">Chargement de votre progression...</p>
           </div>
         </div>
       </Layout>
@@ -1115,623 +1125,734 @@ const OnboardingPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
-        
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            🎓 Formation Brain Escape & Quiz Game
-          </h1>
-          <p className="text-gray-400">
-            Votre parcours complet pour devenir Game Master certifié·e
-          </p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <StatCard 
-            icon={CheckCircle} 
-            label="Tâches complétées" 
-            value={`${stats.completedTasks}/${stats.totalTasks}`}
-            color="green"
-          />
-          <StatCard 
-            icon={Target} 
-            label="Phases complétées" 
-            value={`${stats.completedPhases}/${stats.totalPhases}`}
-            color="blue"
-          />
-          <StatCard 
-            icon={Calendar} 
-            label="Entretiens" 
-            value={interviews.length}
-            color="purple"
-          />
-        </div>
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8 max-w-7xl mx-auto">
 
-        {/* Progress Bar */}
-        <PremiumCard className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-white">Progression globale</h3>
-            <span className="text-2xl font-bold text-blue-400">
-              {stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%
-            </span>
+          {/* Header */}
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 sm:gap-4 mb-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-500/30 to-purple-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+              >
+                <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
+              </motion.div>
+              <div>
+                <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-blue-200 to-white bg-clip-text text-transparent">
+                  Formation Brain
+                </h1>
+                <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                  Devenez Game Master certifié·e
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-            />
-          </div>
-        </PremiumCard>
 
-        {/* Tabs */}
-        <div className="flex gap-4 mb-8">
-          <button
-            onClick={() => setActiveTab('formation')}
-            className={`px-6 py-3 rounded-lg font-medium transition-all ${
-              activeTab === 'formation'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-800/50 text-gray-400'
-            }`}
-          >
-            📚 Formation
-          </button>
-          <button
-            onClick={() => setActiveTab('entretiens')}
-            className={`px-6 py-3 rounded-lg font-medium transition-all ${
-              activeTab === 'entretiens'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-800/50 text-gray-400'
-            }`}
-          >
-            💬 Entretiens
-          </button>
-          <button
-            onClick={() => setActiveTab('progression')}
-            className={`px-6 py-3 rounded-lg font-medium transition-all ${
-              activeTab === 'progression'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-800/50 text-gray-400'
-            }`}
-          >
-            📊 Progression
-          </button>
-        </div>
-
-        {/* Content */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'formation' && (
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
             <motion.div
-              key="formation"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4"
             >
-              <PremiumCard>
-                <h3 className="text-2xl font-bold text-white mb-6">📋 Liste de Formation</h3>
-                
-                <div className="space-y-4">
-                  {Object.values(FORMATION_PHASES).map((phase) => {
-                    const phaseProgress = userProgress?.phases?.[phase.id];
-                    const completedTasks = phaseProgress?.tasks?.filter(t => t.completed).length || 0;
-                    const totalTasks = phase.tasks.length;
-                    const isExpanded = expandedPhase === phase.id;
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg sm:rounded-xl">
+                  <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{stats.completedTasks}/{stats.totalTasks}</p>
+                  <p className="text-[10px] sm:text-sm text-gray-400">Tâches</p>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4"
+            >
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-500/30 to-indigo-500/20 rounded-lg sm:rounded-xl">
+                  <Target className="w-4 h-4 sm:w-6 sm:h-6 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{stats.completedPhases}/{stats.totalPhases}</p>
+                  <p className="text-[10px] sm:text-sm text-gray-400">Phases</p>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4"
+            >
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg sm:rounded-xl">
+                  <Calendar className="w-4 h-4 sm:w-6 sm:h-6 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{interviews.length}</p>
+                  <p className="text-[10px] sm:text-sm text-gray-400">Entretiens</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
 
-                    return (
-                      <div key={phase.id} className="border border-gray-700/50 rounded-lg overflow-hidden">
-                        {/* Phase Header */}
-                        <button
-                          onClick={() => {
-                            console.log('📋 [UI] Toggle phase:', phase.id, 'was expanded:', isExpanded);
-                            setExpandedPhase(isExpanded ? null : phase.id);
-                          }}
-                          className="w-full p-4 bg-gray-800/50 hover:bg-gray-800/70 transition-colors flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            {isExpanded ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
-                            <span className="text-2xl">{phase.icon}</span>
-                            <div className="text-left">
-                              <h4 className="font-bold text-white">{phase.name}</h4>
-                              <p className="text-sm text-gray-400">{phase.description}</p>
+          {/* Progress Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-5 mb-4 sm:mb-6"
+          >
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-sm sm:text-lg font-bold text-white">Progression globale</h3>
+              <span className="text-lg sm:text-2xl font-bold text-blue-400">
+                {stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%
+              </span>
+            </div>
+            <div className="h-2.5 sm:h-4 bg-white/10 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%` }}
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+              />
+            </div>
+          </motion.div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6 overflow-x-auto pb-1">
+            <motion.button
+              onClick={() => setActiveTab('formation')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-medium transition-all text-sm sm:text-base whitespace-nowrap ${
+                activeTab === 'formation'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
+                  : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-400 hover:text-white'
+              }`}
+            >
+              📚 Formation
+            </motion.button>
+            <motion.button
+              onClick={() => setActiveTab('entretiens')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-medium transition-all text-sm sm:text-base whitespace-nowrap ${
+                activeTab === 'entretiens'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
+                  : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-400 hover:text-white'
+              }`}
+            >
+              💬 Entretiens
+            </motion.button>
+            <motion.button
+              onClick={() => setActiveTab('progression')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-medium transition-all text-sm sm:text-base whitespace-nowrap ${
+                activeTab === 'progression'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
+                  : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-400 hover:text-white'
+              }`}
+            >
+              📊 Stats
+            </motion.button>
+          </div>
+
+          {/* Content */}
+          <AnimatePresence mode="wait">
+            {activeTab === 'formation' && (
+              <motion.div
+                key="formation"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                >
+                  <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6">📋 Liste de Formation</h3>
+
+                  <div className="space-y-2 sm:space-y-4">
+                    {Object.values(FORMATION_PHASES).map((phase) => {
+                      const phaseProgress = userProgress?.phases?.[phase.id];
+                      const completedTasks = phaseProgress?.tasks?.filter(t => t.completed).length || 0;
+                      const totalTasks = phase.tasks.length;
+                      const isExpanded = expandedPhase === phase.id;
+
+                      return (
+                        <div key={phase.id} className="border border-white/10 rounded-xl overflow-hidden">
+                          {/* Phase Header */}
+                          <button
+                            onClick={() => {
+                              console.log('📋 [UI] Toggle phase:', phase.id, 'was expanded:', isExpanded);
+                              setExpandedPhase(isExpanded ? null : phase.id);
+                            }}
+                            className="w-full p-3 sm:p-4 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              {isExpanded ? <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" /> : <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />}
+                              <span className="text-xl sm:text-2xl">{phase.icon}</span>
+                              <div className="text-left">
+                                <h4 className="font-bold text-white text-sm sm:text-base">{phase.name}</h4>
+                                <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">{phase.description}</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-white font-medium">{completedTasks}/{totalTasks}</div>
-                            <div className="text-sm text-gray-400">{phase.duration} jours</div>
-                          </div>
-                        </button>
+                            <div className="text-right">
+                              <div className="text-white font-medium text-sm sm:text-base">{completedTasks}/{totalTasks}</div>
+                              <div className="text-xs sm:text-sm text-gray-400">{phase.duration}j</div>
+                            </div>
+                          </button>
 
-                        {/* Phase Tasks */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: 'auto' }}
-                              exit={{ height: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="p-4 space-y-2 bg-gray-900/50">
-                                {phase.tasks.map((task) => {
-                                  const taskProgress = phaseProgress?.tasks?.find(t => t.id === task.id);
-                                  const isCompleted = taskProgress?.completed || false;
+                          {/* Phase Tasks */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: 'auto' }}
+                                exit={{ height: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="p-2 sm:p-4 space-y-1.5 sm:space-y-2 bg-black/20">
+                                  {phase.tasks.map((task) => {
+                                    const taskProgress = phaseProgress?.tasks?.find(t => t.id === task.id);
+                                    const isCompleted = taskProgress?.completed || false;
 
-                                  return (
-                                    <div
-                                      key={task.id}
-                                      className={`p-3 rounded-lg border transition-all ${
-                                        isCompleted
-                                          ? 'bg-green-500/10 border-green-500/30'
-                                          : 'bg-gray-800/50 border-gray-700/50 hover:border-blue-500/50'
-                                      }`}
-                                    >
-                                      <div className="flex items-start gap-3">
-                                        {/* Bouton checkbox */}
-                                        <button
-                                          onClick={(e) => {
-                                            console.log('🖱️ [UI] Clic checkbox:', task.id);
-                                            completeTask(phase.id, task.id, e);
-                                          }}
-                                          disabled={isCompleted}
-                                          className="mt-1 cursor-pointer flex-shrink-0"
-                                          type="button"
-                                        >
-                                          {isCompleted ? (
-                                            <CheckSquare className="h-5 w-5 text-green-400" />
-                                          ) : (
-                                            <Square className="h-5 w-5 text-gray-400 hover:text-blue-400 transition-colors" />
-                                          )}
-                                        </button>
-                                        <div className="flex-1">
-                                          <h5 className={`font-semibold ${isCompleted ? 'text-green-400 line-through' : 'text-white'}`}>
-                                            {task.name}
-                                          </h5>
-                                          <p className="text-sm text-gray-400 mb-2">{task.description}</p>
-                                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                                            <span className="flex items-center gap-1">
-                                              <Clock className="h-3 w-3" />
-                                              {task.estimatedTime} min
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                              <User className="h-3 w-3" />
-                                              {task.mentor}
-                                            </span>
+                                    return (
+                                      <div
+                                        key={task.id}
+                                        className={`p-2.5 sm:p-3 rounded-lg border transition-all ${
+                                          isCompleted
+                                            ? 'bg-green-500/10 border-green-500/30'
+                                            : 'bg-white/5 border-white/10 hover:border-blue-500/50'
+                                        }`}
+                                      >
+                                        <div className="flex items-start gap-2 sm:gap-3">
+                                          {/* Bouton checkbox */}
+                                          <motion.button
+                                            onClick={(e) => {
+                                              console.log('🖱️ [UI] Clic checkbox:', task.id);
+                                              completeTask(phase.id, task.id, e);
+                                            }}
+                                            disabled={isCompleted}
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
+                                            className="mt-0.5 cursor-pointer flex-shrink-0"
+                                            type="button"
+                                          >
+                                            {isCompleted ? (
+                                              <CheckSquare className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" />
+                                            ) : (
+                                              <Square className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 hover:text-blue-400 transition-colors" />
+                                            )}
+                                          </motion.button>
+                                          <div className="flex-1 min-w-0">
+                                            <h5 className={`font-semibold text-xs sm:text-sm ${isCompleted ? 'text-green-400 line-through' : 'text-white'}`}>
+                                              {task.name}
+                                            </h5>
+                                            <p className="text-[10px] sm:text-sm text-gray-400 mb-1 sm:mb-2 hidden sm:block">{task.description}</p>
+                                            <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-gray-500">
+                                              <span className="flex items-center gap-1">
+                                                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                                {task.estimatedTime}min
+                                              </span>
+                                              <span className="flex items-center gap-1 truncate">
+                                                <User className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                                {task.mentor}
+                                              </span>
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  })}
-                </div>
-              </PremiumCard>
-            </motion.div>
-          )}
-
-          {activeTab === 'entretiens' && (
-            <motion.div
-              key="entretiens"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <PremiumCard>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-2xl font-bold text-white">💬 Mes Entretiens</h3>
-                  <button
-                    onClick={() => setShowInterviewModal(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
-                  >
-                    <Plus className="h-5 w-5" />
-                    Planifier
-                  </button>
-                </div>
-
-                {/* Liste des entretiens */}
-                <div className="space-y-4">
-                  {interviews.length === 0 ? (
-                    <p className="text-gray-400 text-center py-12">
-                      Aucun entretien planifié. Commencez par planifier votre premier entretien !
-                    </p>
-                  ) : (
-                    interviews.map((interview) => (
-                      <div
-                        key={interview.id}
-                        className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-white">{interview.templateName}</h4>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            interview.status === 'completed'
-                              ? 'bg-green-500/20 text-green-400'
-                              : interview.status === 'planned'
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {interview.status === 'completed' ? 'Terminé' : 
-                             interview.status === 'planned' ? 'Planifié' : 'En attente'}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-400 mb-3">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(interview.date).toLocaleDateString('fr-FR')}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            {interview.referent}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            {interview.location}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            {interview.type === 'presentiel' ? 'Présentiel' : 'Visio'}
-                          </div>
-                        </div>
-                        {interview.status === 'planned' && (
-                          <button
-                            onClick={() => setConductingInterview(interview)}
-                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2"
-                          >
-                            <Play className="h-4 w-4" />
-                            Passer l'entretien
-                          </button>
-                        )}
-                        {interview.status === 'completed' && (
-                          <button
-                            onClick={() => setViewingInterview(interview)}
-                            className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg flex items-center justify-center gap-2"
-                          >
-                            <Eye className="h-4 w-4" />
-                            Voir le compte-rendu
-                          </button>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </PremiumCard>
-            </motion.div>
-          )}
-
-          {activeTab === 'progression' && (
-            <motion.div
-              key="progression"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <PremiumCard>
-                <h3 className="text-2xl font-bold text-white mb-6">📊 Votre Progression</h3>
-                
-                <div className="space-y-6">
-                  {Object.values(FORMATION_PHASES).map((phase) => {
-                    const phaseProgress = userProgress?.phases?.[phase.id];
-                    const completedTasks = phaseProgress?.tasks?.filter(t => t.completed).length || 0;
-                    const totalTasks = phase.tasks.length;
-                    const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-
-                    return (
-                      <div key={phase.id} className="border-b border-gray-700/50 pb-6 last:border-0">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{phase.icon}</span>
-                            <div>
-                              <h4 className="font-semibold text-white">{phase.name}</h4>
-                              <p className="text-sm text-gray-400">
-                                {completedTasks}/{totalTasks} tâches
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-lg font-bold text-blue-400">
-                            {Math.round(progressPercent)}%
-                          </span>
-                        </div>
-                        <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full bg-gradient-to-r ${phase.color}`}
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </PremiumCard>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Modal Planification Entretien */}
-        {showInterviewModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-white">Planifier un entretien</h3>
-                <button
-                  onClick={() => {
-                    setShowInterviewModal(false);
-                    resetInterviewForm();
-                  }}
-                  className="p-2 hover:bg-gray-800 rounded-lg"
-                >
-                  <X className="h-6 w-6 text-gray-400" />
-                </button>
-              </div>
-
-              {!selectedTemplate ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.values(INTERVIEW_TEMPLATES).map((template) => (
-                    <button
-                      key={template.id}
-                      onClick={() => setSelectedTemplate(template)}
-                      className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:border-blue-500/50 transition-all text-left"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <template.icon className="h-6 w-6 text-blue-400" />
-                        <h4 className="font-bold text-white">{template.name}</h4>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-2">{template.description}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Clock className="h-3 w-3" />
-                        {template.duration} min
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                    <h4 className="font-bold text-white mb-2">{selectedTemplate.name}</h4>
-                    <p className="text-sm text-gray-400">{selectedTemplate.description}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
-                        Date <span className="text-red-400">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={interviewForm.date}
-                        onChange={(e) => setInterviewForm({...interviewForm, date: e.target.value})}
-                        required
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">
-                        Heure <span className="text-red-400">*</span>
-                      </label>
-                      <input
-                        type="time"
-                        value={interviewForm.time}
-                        onChange={(e) => setInterviewForm({...interviewForm, time: e.target.value})}
-                        required
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Référent <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={interviewForm.referent}
-                      onChange={(e) => setInterviewForm({...interviewForm, referent: e.target.value})}
-                      placeholder="Nom du référent"
-                      required
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Type</label>
-                      <select
-                        value={interviewForm.type}
-                        onChange={(e) => setInterviewForm({...interviewForm, type: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                      >
-                        <option value="presentiel">Présentiel</option>
-                        <option value="visio">Visioconférence</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Lieu</label>
-                      <input
-                        type="text"
-                        value={interviewForm.location}
-                        onChange={(e) => setInterviewForm({...interviewForm, location: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Notes</label>
-                    <textarea
-                      value={interviewForm.notes}
-                      onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
-                      rows={3}
-                      placeholder="Notes complémentaires..."
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                    />
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => setSelectedTemplate(null)}
-                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-                    >
-                      Retour
-                    </button>
-                    <button
-                      onClick={scheduleInterview}
-                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2"
-                    >
-                      <Save className="h-4 w-4" />
-                      Planifier
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Modal Passage Entretien */}
-        {conductingInterview && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-white">{conductingInterview.templateName}</h3>
-                <button
-                  onClick={() => {
-                    console.log('❌ [INTERVIEWS] Fermeture modal passage entretien');
-                    setConductingInterview(null);
-                    setInterviewResponses({});
-                  }}
-                  className="p-2 hover:bg-gray-800 rounded-lg"
-                >
-                  <X className="h-6 w-6 text-gray-400" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(conductingInterview.date).toLocaleDateString('fr-FR')}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <User className="h-4 w-4" />
-                      {conductingInterview.referent}
-                    </div>
-                  </div>
-                </div>
-
-                {conductingInterview.questions.map((question, index) => (
-                  <div key={index} className="space-y-2">
-                    <label className="block text-white font-medium">
-                      {index + 1}. {question}
-                    </label>
-                    <textarea
-                      value={interviewResponses[`question_${index}`] || ''}
-                      onChange={(e) => setInterviewResponses({
-                        ...interviewResponses,
-                        [`question_${index}`]: e.target.value
-                      })}
-                      rows={3}
-                      placeholder="Votre réponse..."
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                    />
-                  </div>
-                ))}
-
-                <button
-                  onClick={conductInterview}
-                  className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2"
-                >
-                  <Save className="h-5 w-5" />
-                  Enregistrer l'entretien
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ✅ MODAL COMPTE-RENDU - VERSION CORRIGÉE AVEC LOGS */}
-        {viewingInterview && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-white">📄 Compte-rendu d'entretien</h3>
-                <button
-                  onClick={() => {
-                    console.log('❌ [INTERVIEWS] Fermeture modal compte-rendu');
-                    setViewingInterview(null);
-                  }}
-                  className="p-2 hover:bg-gray-800 rounded-lg"
-                >
-                  <X className="h-6 w-6 text-gray-400" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-                  <h4 className="font-bold text-white mb-3">{viewingInterview.templateName}</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(viewingInterview.date).toLocaleDateString('fr-FR')}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <User className="h-4 w-4" />
-                      {viewingInterview.referent}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <MapPin className="h-4 w-4" />
-                      {viewingInterview.location}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Clock className="h-4 w-4" />
-                      Terminé le {viewingInterview.completedAt ? new Date(viewingInterview.completedAt).toLocaleDateString('fr-FR') : 'N/A'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-bold text-white text-lg">Réponses :</h4>
-                  {viewingInterview.questions && viewingInterview.questions.length > 0 ? (
-                    viewingInterview.questions.map((question, index) => {
-                      const responseKey = `question_${index}`;
-                      const response = viewingInterview.responses?.[responseKey] || 'Pas de réponse';
-                      
-                      console.log(`📋 [COMPTE-RENDU] Question ${index}:`, question);
-                      console.log(`📋 [COMPTE-RENDU] Réponse ${index}:`, response);
-                      
-                      return (
-                        <div key={index} className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg">
-                          <p className="text-white font-medium mb-2">
-                            {index + 1}. {question}
-                          </p>
-                          <p className="text-gray-300 pl-4">
-                            {response}
-                          </p>
+                                    );
+                                  })}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       );
-                    })
-                  ) : (
-                    <p className="text-gray-400 text-center py-4">
-                      Aucune question trouvée pour cet entretien
-                    </p>
-                  )}
+                    })}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+
+            {activeTab === 'entretiens' && (
+              <motion.div
+                key="entretiens"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                >
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <h3 className="text-lg sm:text-2xl font-bold text-white">💬 Mes Entretiens</h3>
+                    <motion.button
+                      onClick={() => setShowInterviewModal(true)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl flex items-center gap-2 text-sm sm:text-base"
+                    >
+                      <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span className="hidden sm:inline">Planifier</span>
+                    </motion.button>
+                  </div>
+
+                  {/* Liste des entretiens */}
+                  <div className="space-y-3 sm:space-y-4">
+                    {interviews.length === 0 ? (
+                      <p className="text-gray-400 text-center py-8 sm:py-12 text-sm sm:text-base">
+                        Aucun entretien planifié. Commencez par planifier votre premier entretien !
+                      </p>
+                    ) : (
+                      interviews.map((interview) => (
+                        <div
+                          key={interview.id}
+                          className="p-3 sm:p-4 bg-white/5 border border-white/10 rounded-xl"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-bold text-white text-sm sm:text-base">{interview.templateName}</h4>
+                            <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+                              interview.status === 'completed'
+                                ? 'bg-green-500/20 text-green-400'
+                                : interview.status === 'planned'
+                                ? 'bg-blue-500/20 text-blue-400'
+                                : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {interview.status === 'completed' ? 'Terminé' :
+                               interview.status === 'planned' ? 'Planifié' : 'En attente'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-400 mb-3">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                              {new Date(interview.date).toLocaleDateString('fr-FR')}
+                            </div>
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                              {interview.referent}
+                            </div>
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
+                              {interview.location}
+                            </div>
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                              {interview.type === 'presentiel' ? 'Présentiel' : 'Visio'}
+                            </div>
+                          </div>
+                          {interview.status === 'planned' && (
+                            <motion.button
+                              onClick={() => setConductingInterview(interview)}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="w-full px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 text-sm sm:text-base"
+                            >
+                              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              Passer l'entretien
+                            </motion.button>
+                          )}
+                          {interview.status === 'completed' && (
+                            <motion.button
+                              onClick={() => setViewingInterview(interview)}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="w-full px-3 sm:px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl flex items-center justify-center gap-2 text-sm sm:text-base"
+                            >
+                              <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              Voir le compte-rendu
+                            </motion.button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+
+            {activeTab === 'progression' && (
+              <motion.div
+                key="progression"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                >
+                  <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6">📊 Votre Progression</h3>
+
+                  <div className="space-y-4 sm:space-y-6">
+                    {Object.values(FORMATION_PHASES).map((phase) => {
+                      const phaseProgress = userProgress?.phases?.[phase.id];
+                      const completedTasks = phaseProgress?.tasks?.filter(t => t.completed).length || 0;
+                      const totalTasks = phase.tasks.length;
+                      const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+                      return (
+                        <div key={phase.id} className="border-b border-white/10 pb-4 sm:pb-6 last:border-0">
+                          <div className="flex items-center justify-between mb-2 sm:mb-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <span className="text-xl sm:text-2xl">{phase.icon}</span>
+                              <div>
+                                <h4 className="font-semibold text-white text-sm sm:text-base">{phase.name}</h4>
+                                <p className="text-xs sm:text-sm text-gray-400">
+                                  {completedTasks}/{totalTasks} tâches
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-sm sm:text-lg font-bold text-blue-400">
+                              {Math.round(progressPercent)}%
+                            </span>
+                          </div>
+                          <div className="h-2 sm:h-3 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progressPercent}%` }}
+                              transition={{ duration: 0.5, delay: 0.1 }}
+                              className={`h-full bg-gradient-to-r ${phase.color}`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Modal Planification Entretien */}
+          {showInterviewModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-gradient-to-br from-slate-900 to-purple-950 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="text-lg sm:text-2xl font-bold text-white">Planifier un entretien</h3>
+                  <motion.button
+                    onClick={() => {
+                      setShowInterviewModal(false);
+                      resetInterviewForm();
+                    }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="p-2 hover:bg-white/10 rounded-lg"
+                  >
+                    <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+                  </motion.button>
                 </div>
 
-                <button
-                  onClick={() => setViewingInterview(null)}
-                  className="w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                {!selectedTemplate ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {Object.values(INTERVIEW_TEMPLATES).map((template) => (
+                      <motion.button
+                        key={template.id}
+                        onClick={() => setSelectedTemplate(template)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="p-3 sm:p-4 bg-white/5 border border-white/10 rounded-xl hover:border-blue-500/50 transition-all text-left"
+                      >
+                        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                          <template.icon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
+                          <h4 className="font-bold text-white text-sm sm:text-base">{template.name}</h4>
+                        </div>
+                        <p className="text-xs sm:text-sm text-gray-400 mb-2">{template.description}</p>
+                        <div className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-500">
+                          <Clock className="h-3 w-3" />
+                          {template.duration} min
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="p-3 sm:p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                      <h4 className="font-bold text-white mb-1 sm:mb-2 text-sm sm:text-base">{selectedTemplate.name}</h4>
+                      <p className="text-xs sm:text-sm text-gray-400">{selectedTemplate.description}</p>
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1.5 sm:mb-2">
+                          Date <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={interviewForm.date}
+                          onChange={(e) => setInterviewForm({...interviewForm, date: e.target.value})}
+                          required
+                          className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500/50 focus:outline-none text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1.5 sm:mb-2">
+                          Heure <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="time"
+                          value={interviewForm.time}
+                          onChange={(e) => setInterviewForm({...interviewForm, time: e.target.value})}
+                          required
+                          className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500/50 focus:outline-none text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1.5 sm:mb-2">
+                        Référent <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={interviewForm.referent}
+                        onChange={(e) => setInterviewForm({...interviewForm, referent: e.target.value})}
+                        placeholder="Nom du référent"
+                        required
+                        className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500/50 focus:outline-none text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1.5 sm:mb-2">Type</label>
+                        <select
+                          value={interviewForm.type}
+                          onChange={(e) => setInterviewForm({...interviewForm, type: e.target.value})}
+                          className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm"
+                        >
+                          <option value="presentiel" className="bg-slate-900">Présentiel</option>
+                          <option value="visio" className="bg-slate-900">Visioconférence</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1.5 sm:mb-2">Lieu</label>
+                        <input
+                          type="text"
+                          value={interviewForm.location}
+                          onChange={(e) => setInterviewForm({...interviewForm, location: e.target.value})}
+                          className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-1.5 sm:mb-2">Notes</label>
+                      <textarea
+                        value={interviewForm.notes}
+                        onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
+                        rows={2}
+                        placeholder="Notes complémentaires..."
+                        className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm resize-none"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 sm:gap-4 pt-2">
+                      <motion.button
+                        onClick={() => setSelectedTemplate(null)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="flex-1 px-3 sm:px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm sm:text-base"
+                      >
+                        Retour
+                      </motion.button>
+                      <motion.button
+                        onClick={scheduleInterview}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="flex-1 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center gap-2 text-sm sm:text-base"
+                      >
+                        <Save className="h-4 w-4" />
+                        Planifier
+                      </motion.button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          )}
+
+          {/* Modal Passage Entretien */}
+          {conductingInterview && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-gradient-to-br from-slate-900 to-purple-950 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="text-lg sm:text-2xl font-bold text-white">{conductingInterview.templateName}</h3>
+                  <motion.button
+                    onClick={() => {
+                      console.log('❌ [INTERVIEWS] Fermeture modal passage entretien');
+                      setConductingInterview(null);
+                      setInterviewResponses({});
+                    }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="p-2 hover:bg-white/10 rounded-lg"
+                  >
+                    <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+                  </motion.button>
+                </div>
+
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="p-3 sm:p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {new Date(conductingInterview.date).toLocaleDateString('fr-FR')}
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {conductingInterview.referent}
+                      </div>
+                    </div>
+                  </div>
+
+                  {conductingInterview.questions.map((question, index) => (
+                    <div key={index} className="space-y-2">
+                      <label className="block text-white font-medium text-sm sm:text-base">
+                        {index + 1}. {question}
+                      </label>
+                      <textarea
+                        value={interviewResponses[`question_${index}`] || ''}
+                        onChange={(e) => setInterviewResponses({
+                          ...interviewResponses,
+                          [`question_${index}`]: e.target.value
+                        })}
+                        rows={2}
+                        placeholder="Votre réponse..."
+                        className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm resize-none"
+                      />
+                    </div>
+                  ))}
+
+                  <motion.button
+                    onClick={conductInterview}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 text-sm sm:text-base"
+                  >
+                    <Save className="h-4 w-4 sm:h-5 sm:w-5" />
+                    Enregistrer l'entretien
+                  </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* MODAL COMPTE-RENDU */}
+          {viewingInterview && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-gradient-to-br from-slate-900 to-purple-950 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="text-lg sm:text-2xl font-bold text-white">📄 Compte-rendu</h3>
+                  <motion.button
+                    onClick={() => {
+                      console.log('❌ [INTERVIEWS] Fermeture modal compte-rendu');
+                      setViewingInterview(null);
+                    }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="p-2 hover:bg-white/10 rounded-lg"
+                  >
+                    <X className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+                  </motion.button>
+                </div>
+
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="p-3 sm:p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+                    <h4 className="font-bold text-white mb-2 sm:mb-3 text-sm sm:text-base">{viewingInterview.templateName}</h4>
+                    <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-gray-400">
+                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {new Date(viewingInterview.date).toLocaleDateString('fr-FR')}
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-gray-400">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {viewingInterview.referent}
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-gray-400">
+                        <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {viewingInterview.location}
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-gray-400">
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                        {viewingInterview.completedAt ? new Date(viewingInterview.completedAt).toLocaleDateString('fr-FR') : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    <h4 className="font-bold text-white text-sm sm:text-lg">Réponses :</h4>
+                    {viewingInterview.questions && viewingInterview.questions.length > 0 ? (
+                      viewingInterview.questions.map((question, index) => {
+                        const responseKey = `question_${index}`;
+                        const response = viewingInterview.responses?.[responseKey] || 'Pas de réponse';
+
+                        console.log(`📋 [COMPTE-RENDU] Question ${index}:`, question);
+                        console.log(`📋 [COMPTE-RENDU] Réponse ${index}:`, response);
+
+                        return (
+                          <div key={index} className="p-3 sm:p-4 bg-white/5 border border-white/10 rounded-xl">
+                            <p className="text-white font-medium mb-1 sm:mb-2 text-xs sm:text-sm">
+                              {index + 1}. {question}
+                            </p>
+                            <p className="text-gray-300 pl-3 sm:pl-4 text-xs sm:text-sm">
+                              {response}
+                            </p>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-gray-400 text-center py-4 text-sm">
+                        Aucune question trouvée pour cet entretien
+                      </p>
+                    )}
+                  </div>
+
+                  <motion.button
+                    onClick={() => setViewingInterview(null)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-white/10 hover:bg-white/15 text-white rounded-xl font-medium text-sm sm:text-base"
+                  >
+                    Fermer
+                  </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+        </div>
       </div>
     </Layout>
   );

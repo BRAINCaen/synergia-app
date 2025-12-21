@@ -360,43 +360,43 @@ const TalentChoiceModal = ({ skill, tier, talents, onChoose, onClose, processing
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
-        className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-white/20 p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className="bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/10 p-4 sm:p-6 max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/30 flex items-center justify-center">
-              <span className="text-3xl">{skill?.emoji}</span>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-amber-500/30 to-orange-500/30 flex items-center justify-center shrink-0">
+              <span className="text-2xl sm:text-3xl">{skill?.emoji}</span>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">{skill?.name}</h2>
-              <p className="text-sm text-amber-400">Tier {tier} - {tierNames[tier]}</p>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-white truncate">{skill?.name}</h2>
+              <p className="text-xs sm:text-sm text-amber-400">Tier {tier} - {tierNames[tier]}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
+            className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 shrink-0"
           >
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
         {/* Message */}
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2 text-amber-300">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 text-amber-300 text-sm sm:text-base">
             <Gift className="w-5 h-5" />
             <span className="font-medium">Choisissez votre talent!</span>
           </div>
-          <p className="text-sm text-amber-200/70 mt-1">
-            Ce choix est définitif. Sélectionnez le bonus qui correspond le mieux à votre style de jeu.
+          <p className="text-xs sm:text-sm text-amber-200/70 mt-1">
+            Ce choix est définitif.
           </p>
         </div>
 
@@ -412,22 +412,22 @@ const TalentChoiceModal = ({ skill, tier, talents, onChoose, onClose, processing
               whileTap={{ scale: 0.98 }}
               onClick={() => onChoose(talent.id)}
               disabled={processing}
-              className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-500/50 rounded-xl p-4 text-left transition-all disabled:opacity-50"
+              className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-500/30 rounded-xl p-3 sm:p-4 text-left transition-all disabled:opacity-50"
             >
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">{talent.emoji}</span>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl sm:text-2xl">{talent.emoji}</span>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-white">{talent.name}</h4>
-                  <p className="text-sm text-gray-400 mt-1">{talent.description}</p>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-white text-sm sm:text-base">{talent.name}</h4>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-1">{talent.description}</p>
 
                   {/* Bonus */}
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 flex flex-wrap gap-1.5 sm:gap-2">
                     {Object.entries(talent.bonus || {}).map(([key, value]) => (
                       <span
                         key={key}
-                        className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full"
+                        className="px-2 py-0.5 sm:py-1 bg-emerald-500/20 text-emerald-400 text-[10px] sm:text-xs rounded-lg"
                       >
                         +{value}% {key.replace(/_/g, ' ')}
                       </span>
@@ -453,7 +453,7 @@ const TalentSuccessModal = ({ talent, onClose }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <motion.div
@@ -461,7 +461,7 @@ const TalentSuccessModal = ({ talent, onClose }) => {
         animate={{ scale: 1, rotate: 0 }}
         exit={{ scale: 0.5, opacity: 0 }}
         transition={{ type: 'spring', bounce: 0.5 }}
-        className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-emerald-500/30 p-8 max-w-md w-full text-center"
+        className="bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-emerald-500/30 p-6 sm:p-8 max-w-md w-full text-center"
         onClick={e => e.stopPropagation()}
       >
         {/* Animation celebratoire */}
@@ -622,10 +622,17 @@ const SkillTreePage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4" />
-            <p className="text-gray-400">Chargement de l'arbre de compétences...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+          {/* Animated background */}
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4" />
+              <p className="text-gray-400">Chargement de l'arbre de compétences...</p>
+            </div>
           </div>
         </div>
       </Layout>
@@ -634,20 +641,28 @@ const SkillTreePage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-8 px-4">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-amber-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-24 sm:pb-8">
 
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
+            className="text-center mb-6 sm:mb-8"
           >
-            <h1 className="text-4xl font-bold text-white mb-2">
-              🌳 Arbre de Compétences
+            <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2">
+              Arbre de Compétences
             </h1>
-            <p className="text-gray-400">
-              Progressez automatiquement via les quêtes et choisissez vos talents
+            <p className="text-gray-400 text-sm sm:text-base">
+              Progressez via les quêtes et choisissez vos talents
             </p>
           </motion.div>
 
@@ -656,72 +671,72 @@ const SkillTreePage = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-amber-500/20 border border-amber-500/50 rounded-xl p-4 mb-8 flex items-center gap-4"
+              className="bg-amber-500/20 border border-amber-500/30 rounded-2xl p-4 mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4"
             >
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ repeat: Infinity, duration: 1 }}
-                className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0"
               >
-                <Gift className="w-6 h-6 text-white" />
+                <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </motion.div>
-              <div className="flex-1">
-                <h3 className="font-bold text-amber-300">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-amber-300 text-sm sm:text-base">
                   {totalUnspentPoints} talent{totalUnspentPoints > 1 ? 's' : ''} à choisir!
                 </h3>
-                <p className="text-sm text-amber-200/70">
-                  Vous avez progressé dans vos compétences. Sélectionnez vos bonus!
+                <p className="text-xs sm:text-sm text-amber-200/70">
+                  Sélectionnez vos bonus!
                 </p>
               </div>
             </motion.div>
           )}
 
           {/* Stats Header */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 text-center"
+              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-3 sm:p-4 text-center"
             >
-              <div className="text-3xl font-bold text-purple-400">{globalStats.totalXP}</div>
-              <div className="text-sm text-gray-400">XP Skills Total</div>
+              <div className="text-2xl sm:text-3xl font-bold text-purple-400">{globalStats.totalXP}</div>
+              <div className="text-xs sm:text-sm text-gray-400">XP Total</div>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 text-center"
+              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-3 sm:p-4 text-center"
             >
-              <div className="text-3xl font-bold text-emerald-400">
+              <div className="text-2xl sm:text-3xl font-bold text-emerald-400">
                 {globalStats.totalTalents}/{globalStats.maxTalents}
               </div>
-              <div className="text-sm text-gray-400">Talents Choisis</div>
+              <div className="text-xs sm:text-sm text-gray-400">Talents</div>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 text-center"
+              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-3 sm:p-4 text-center"
             >
-              <div className="text-3xl font-bold text-blue-400">
+              <div className="text-2xl sm:text-3xl font-bold text-blue-400">
                 {globalStats.skillsStarted}/{globalStats.totalSkills}
               </div>
-              <div className="text-sm text-gray-400">Skills Démarrés</div>
+              <div className="text-xs sm:text-sm text-gray-400">Skills</div>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 text-center"
+              className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-3 sm:p-4 text-center"
             >
-              <div className="text-3xl font-bold text-amber-400">
+              <div className="text-2xl sm:text-3xl font-bold text-amber-400">
                 +{Object.values(activeBonus).reduce((a, b) => a + b, 0)}%
               </div>
-              <div className="text-sm text-gray-400">Bonus Total</div>
+              <div className="text-xs sm:text-sm text-gray-400">Bonus</div>
             </motion.div>
           </div>
 
@@ -730,13 +745,12 @@ const SkillTreePage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-8 flex items-start gap-3"
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 mb-6 sm:mb-8 flex items-start gap-3"
           >
             <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-200">
-              <span className="font-bold">Comment ça marche:</span> Complétez des quêtes pour gagner de l'XP dans vos compétences.
-              À chaque palier atteint (100, 400, 1000 XP), choisissez un talent parmi plusieurs options.
-              Les bonus s'accumulent et boostent vos gains!
+            <div className="text-xs sm:text-sm text-gray-300">
+              <span className="font-bold text-blue-400">Comment ça marche:</span> Complétez des quêtes pour gagner de l'XP.
+              À chaque palier (100, 400, 1000 XP), choisissez un talent. Les bonus s'accumulent!
             </div>
           </motion.div>
 
@@ -751,20 +765,20 @@ const SkillTreePage = () => {
                 exit={{ opacity: 0, x: -20 }}
               >
                 {/* Header branche */}
-                <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-3 sm:gap-4 mb-6">
                   <button
                     onClick={() => setSelectedBranch(null)}
-                    className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20"
+                    className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
                   >
                     <ChevronLeft className="w-5 h-5 text-white" />
                   </button>
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{SKILL_BRANCHES[selectedBranch]?.emoji}</span>
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl sm:text-3xl">{SKILL_BRANCHES[selectedBranch]?.emoji}</span>
+                    <div className="min-w-0">
+                      <h2 className="text-lg sm:text-2xl font-bold text-white truncate">
                         {SKILL_BRANCHES[selectedBranch]?.name}
                       </h2>
-                      <p className="text-gray-400">
+                      <p className="text-gray-400 text-xs sm:text-base truncate">
                         {SKILL_BRANCHES[selectedBranch]?.description}
                       </p>
                     </div>
@@ -790,8 +804,8 @@ const SkillTreePage = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
               >
-                <h2 className="text-xl font-bold text-white mb-4">Branches de Compétences</h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <h2 className="text-lg sm:text-xl font-bold text-white mb-4">Branches de Compétences</h2>
+                <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {Object.entries(SKILL_BRANCHES).map(([branchId, branch], index) => (
                     <motion.div
                       key={branchId}
@@ -817,20 +831,20 @@ const SkillTreePage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-8 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl border border-purple-500/30 p-6"
+              className="mt-6 sm:mt-8 bg-white/5 backdrop-blur-xl rounded-2xl border border-purple-500/20 p-4 sm:p-6"
             >
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-400" />
                 Vos Bonus Actifs
               </h3>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 {Object.entries(activeBonus).map(([type, value]) => (
                   <div
                     key={type}
-                    className="bg-white/10 rounded-lg px-4 py-2"
+                    className="bg-white/10 rounded-xl px-3 sm:px-4 py-2"
                   >
-                    <div className="text-lg font-bold text-emerald-400">+{value}%</div>
-                    <div className="text-xs text-gray-400 capitalize">{type.replace(/_/g, ' ')}</div>
+                    <div className="text-base sm:text-lg font-bold text-emerald-400">+{value}%</div>
+                    <div className="text-[10px] sm:text-xs text-gray-400 capitalize">{type.replace(/_/g, ' ')}</div>
                   </div>
                 ))}
               </div>

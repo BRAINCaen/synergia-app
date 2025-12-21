@@ -170,10 +170,20 @@ const InfosPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center p-6">
-          <div className="text-center">
-            <Loader className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
-            <p className="text-white/60">Chargement des informations...</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+              className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500/30 to-indigo-600/20 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            >
+              <Info className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400" />
+            </motion.div>
+            <p className="text-gray-400 text-sm sm:text-lg">Chargement...</p>
           </div>
         </div>
       </Layout>
@@ -182,64 +192,91 @@ const InfosPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-4 md:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-violet-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
 
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                  <Info className="w-8 h-8 text-purple-400" />
-                  Informations Équipe
-                </h1>
-                <p className="text-white/60">
-                  Partagez des informations importantes avec toute l'équipe
-                </p>
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8 max-w-7xl mx-auto">
+
+          {/* Header */}
+          <div className="mb-4 sm:mb-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-500/30 to-indigo-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+                  >
+                    <Info className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
+                  </motion.div>
+                  <div>
+                    <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
+                      Informations Équipe
+                    </h1>
+                    <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                      Partagez des infos importantes
+                    </p>
+                  </div>
+                </div>
+
+                <motion.button
+                  onClick={() => { setEditingInfo(null); setShowCreateModal(true); }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2.5 sm:px-4 sm:py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="hidden sm:inline">Nouvelle Info</span>
+                </motion.button>
               </div>
 
               {unvalidatedCount > 0 && (
-                <div className="flex items-center gap-3 bg-orange-500/20 backdrop-blur-sm border border-orange-400/30 rounded-xl px-4 py-2">
-                  <Bell className="w-5 h-5 text-orange-400 animate-pulse" />
-                  <span className="text-white font-semibold">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 bg-orange-500/20 backdrop-blur-xl border border-orange-400/30 rounded-xl px-3 sm:px-4 py-2.5"
+                >
+                  <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 animate-pulse" />
+                  <span className="text-white font-medium text-sm sm:text-base">
                     {unvalidatedCount} nouvelle{unvalidatedCount > 1 ? 's' : ''} info{unvalidatedCount > 1 ? 's' : ''}
                   </span>
-                </div>
+                </motion.div>
               )}
-
-              <button
-                onClick={() => { setEditingInfo(null); setShowCreateModal(true); }}
-                className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-purple-500/50"
-              >
-                <Plus className="w-5 h-5" />
-                Nouvelle Info
-              </button>
             </div>
-          </motion.div>
+          </div>
 
-          {/* 💡 SECTION BOÎTE À IDÉES */}
-          <div className="mb-8">
-            <button
+          {/* SECTION BOÎTE À IDÉES */}
+          <div className="mb-4 sm:mb-6">
+            <motion.button
               onClick={() => setShowIdeaBox(!showIdeaBox)}
-              className={`w-full p-4 rounded-xl border transition-all duration-300 flex items-center justify-between ${
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all duration-300 flex items-center justify-between backdrop-blur-xl ${
                 showIdeaBox
                   ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-400/50'
-                  : 'bg-white/5 border-white/20 hover:border-yellow-400/30'
+                  : 'bg-white/5 border-white/10 hover:border-yellow-400/30'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
-                  <Lightbulb className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                  <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <h2 className="text-xl font-bold text-white">Boîte à Idées</h2>
-                  <p className="text-gray-400 text-sm">
-                    {ideaStats.total} idées • {ideaStats.adopted} adoptées • {ideaStats.implemented} implémentées
+                  <h2 className="text-base sm:text-xl font-bold text-white">Boîte à Idées</h2>
+                  <p className="text-gray-400 text-xs sm:text-sm">
+                    {ideaStats.total} idées • {ideaStats.adopted} adoptées
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm font-medium">
-                  +{IDEA_XP.SUBMIT} XP / idée
+                <span className="hidden sm:inline px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm font-medium">
+                  +{IDEA_XP.SUBMIT} XP
                 </span>
                 {showIdeaBox ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -247,7 +284,7 @@ const InfosPage = () => {
                   <ChevronDown className="w-5 h-5 text-gray-400" />
                 )}
               </div>
-            </button>
+            </motion.button>
 
             {/* Contenu Boîte à Idées */}
             <AnimatePresence>
@@ -258,45 +295,45 @@ const InfosPage = () => {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-4 bg-white/5 backdrop-blur-xl border border-white/20 rounded-xl p-6">
+                  <div className="mt-3 sm:mt-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6">
                     {/* Header + Bouton Nouvelle Idée */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                       <div>
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                          <Sparkles className="w-5 h-5 text-yellow-400" />
+                        <h3 className="text-sm sm:text-lg font-semibold text-white flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                           Workflow des idées
                         </h3>
-                        <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-400">
-                          <span>1. Soumettre (+{IDEA_XP.SUBMIT} XP)</span>
-                          <span className="hidden md:inline">→</span>
-                          <span>2. Votes équipe</span>
-                          <span className="hidden md:inline">→</span>
-                          <span>3. Review Admin</span>
-                          <span className="hidden md:inline">→</span>
-                          <span>4. Adoptée (+{IDEA_XP.ADOPTED} XP)</span>
-                          <span className="hidden md:inline">→</span>
-                          <span>5. Implémentée (+{IDEA_XP.IMPLEMENTED} XP)</span>
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs sm:text-sm text-gray-400">
+                          <span>1. Soumettre</span>
+                          <span>→</span>
+                          <span>2. Votes</span>
+                          <span>→</span>
+                          <span>3. Review</span>
+                          <span>→</span>
+                          <span className="text-green-400">Adoptée!</span>
                         </div>
                       </div>
-                      <button
+                      <motion.button
                         onClick={() => setShowNewIdeaModal(true)}
-                        className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center gap-2 whitespace-nowrap"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-3 sm:px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-xl font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center gap-2 whitespace-nowrap text-sm"
                       >
                         <Lightbulb className="w-4 h-4" />
                         Nouvelle Idée
-                      </button>
+                      </motion.button>
                     </div>
 
-                    {/* Badges liés aux idées - depuis le système unifié */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
+                    {/* Badges liés aux idées */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-xl">
                       {Object.values(UNIFIED_BADGE_DEFINITIONS)
                         .filter(b => b.category === BADGE_CATEGORIES.IDEAS)
                         .slice(0, 4)
                         .map(badge => (
                           <div key={badge.id} className="text-center">
-                            <div className="text-3xl mb-2">{badge.icon}</div>
-                            <div className="font-medium text-white text-sm">{badge.name}</div>
-                            <div className="text-xs text-gray-400">{badge.description}</div>
+                            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">{badge.icon}</div>
+                            <div className="font-medium text-white text-xs sm:text-sm">{badge.name}</div>
+                            <div className="text-[10px] sm:text-xs text-gray-400 hidden sm:block">{badge.description}</div>
                           </div>
                         ))
                       }
@@ -304,26 +341,28 @@ const InfosPage = () => {
 
                     {/* Liste des idées */}
                     {ideasLoading ? (
-                      <div className="flex items-center justify-center py-8">
+                      <div className="flex items-center justify-center py-6 sm:py-8">
                         <div className="w-8 h-8 border-4 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
                       </div>
                     ) : ideas.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Lightbulb className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                        <p className="text-gray-400">Aucune idée pour le moment</p>
-                        <p className="text-sm text-gray-500">Soyez le premier à proposer une idée !</p>
+                      <div className="text-center py-6 sm:py-8">
+                        <Lightbulb className="w-10 h-10 sm:w-12 sm:h-12 text-gray-600 mx-auto mb-3" />
+                        <p className="text-gray-400 text-sm sm:text-base">Aucune idée pour le moment</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Soyez le premier à proposer une idée !</p>
                       </div>
                     ) : (
-                      <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                      <div className="space-y-2 sm:space-y-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
                         {ideas.map((idea) => {
                           const hasVoted = idea.votes?.some(v => v.oderId === user?.uid);
                           const isAuthor = idea.authorId === user?.uid;
                           const categoryConfig = IDEA_CATEGORIES[idea.category?.toUpperCase()] || IDEA_CATEGORIES.OTHER;
 
                           return (
-                            <div
+                            <motion.div
                               key={idea.id}
-                              className={`p-4 rounded-lg border transition-all ${
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`p-3 sm:p-4 rounded-xl border transition-all ${
                                 idea.status === IDEA_STATUS.IMPLEMENTED
                                   ? 'bg-green-500/10 border-green-500/30'
                                   : idea.status === IDEA_STATUS.ADOPTED
@@ -335,30 +374,30 @@ const InfosPage = () => {
                                   : 'bg-white/5 border-white/10'
                               }`}
                             >
-                              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                                <div className="flex-1">
-                                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                                    <span className="text-lg">{categoryConfig.icon}</span>
-                                    <h4 className="font-medium text-white">{idea.title}</h4>
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                                    <span className="text-base sm:text-lg">{categoryConfig.icon}</span>
+                                    <h4 className="font-medium text-white text-sm sm:text-base truncate">{idea.title}</h4>
                                     {idea.status === IDEA_STATUS.IMPLEMENTED && (
-                                      <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs rounded-full">Implémentée</span>
+                                      <span className="px-1.5 sm:px-2 py-0.5 bg-green-500/20 text-green-300 text-[10px] sm:text-xs rounded-full">Implémentée</span>
                                     )}
                                     {idea.status === IDEA_STATUS.ADOPTED && (
-                                      <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">Adoptée</span>
+                                      <span className="px-1.5 sm:px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs rounded-full">Adoptée</span>
                                     )}
                                     {idea.status === IDEA_STATUS.REJECTED && (
-                                      <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs rounded-full">Rejetée</span>
+                                      <span className="px-1.5 sm:px-2 py-0.5 bg-red-500/20 text-red-300 text-[10px] sm:text-xs rounded-full">Rejetée</span>
                                     )}
                                     {(idea.voteCount || 0) >= 5 && idea.status === IDEA_STATUS.POPULAR && (
-                                      <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 text-xs rounded-full flex items-center gap-1">
+                                      <span className="px-1.5 sm:px-2 py-0.5 bg-yellow-500/20 text-yellow-300 text-[10px] sm:text-xs rounded-full flex items-center gap-1">
                                         <TrendingUp className="w-3 h-3" /> Populaire
                                       </span>
                                     )}
                                   </div>
                                   {idea.description && (
-                                    <p className="text-sm text-gray-400 mb-2">{idea.description}</p>
+                                    <p className="text-xs sm:text-sm text-gray-400 mb-2 line-clamp-2">{idea.description}</p>
                                   )}
-                                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                                  <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-gray-500">
                                     <span>Par {idea.authorName}</span>
                                     {idea.createdAt && (
                                       <span>{new Date(idea.createdAt).toLocaleDateString('fr-FR')}</span>
@@ -367,56 +406,64 @@ const InfosPage = () => {
                                 </div>
 
                                 {/* Votes et Actions */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 sm:gap-2">
                                   {/* Compteur de votes */}
-                                  <div className="flex items-center gap-1 px-3 py-1 bg-white/10 rounded-full">
-                                    <ThumbsUp className={`w-4 h-4 ${hasVoted ? 'text-yellow-400' : 'text-gray-400'}`} />
-                                    <span className="text-white font-medium">{idea.voteCount || 0}</span>
+                                  <div className="flex items-center gap-1 px-2 sm:px-3 py-1 bg-white/10 rounded-full">
+                                    <ThumbsUp className={`w-3 h-3 sm:w-4 sm:h-4 ${hasVoted ? 'text-yellow-400' : 'text-gray-400'}`} />
+                                    <span className="text-white font-medium text-xs sm:text-sm">{idea.voteCount || 0}</span>
                                   </div>
 
-                                  {/* Bouton voter (si pas auteur et pas terminé) */}
+                                  {/* Bouton voter */}
                                   {!isAuthor && ![IDEA_STATUS.IMPLEMENTED, IDEA_STATUS.REJECTED].includes(idea.status) && (
-                                    <button
+                                    <motion.button
                                       onClick={() => hasVoted ? handleRemoveVote(idea.id) : handleVoteIdea(idea.id)}
-                                      className={`p-2 rounded-lg transition-colors ${
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.9 }}
+                                      className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
                                         hasVoted
                                           ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'
                                           : 'bg-white/10 text-gray-400 hover:bg-white/20 hover:text-white'
                                       }`}
                                       title={hasVoted ? 'Retirer mon vote' : 'Voter pour cette idée'}
                                     >
-                                      {hasVoted ? <ThumbsDown className="w-4 h-4" /> : <ThumbsUp className="w-4 h-4" />}
-                                    </button>
+                                      {hasVoted ? <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ThumbsUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                                    </motion.button>
                                   )}
 
                                   {/* Actions Admin */}
                                   {userIsAdmin && idea.status !== IDEA_STATUS.IMPLEMENTED && idea.status !== IDEA_STATUS.REJECTED && (
                                     <div className="flex gap-1">
                                       {idea.status !== IDEA_STATUS.ADOPTED && (
-                                        <button
+                                        <motion.button
                                           onClick={() => handleAdoptIdea(idea.id)}
-                                          className="p-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors"
+                                          whileHover={{ scale: 1.1 }}
+                                          whileTap={{ scale: 0.9 }}
+                                          className="p-1.5 sm:p-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors"
                                           title="Adopter cette idée"
                                         >
-                                          <Check className="w-4 h-4" />
-                                        </button>
+                                          <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                        </motion.button>
                                       )}
                                       {idea.status === IDEA_STATUS.ADOPTED && (
-                                        <button
+                                        <motion.button
                                           onClick={() => handleImplementIdea(idea.id)}
-                                          className="p-2 bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors"
+                                          whileHover={{ scale: 1.1 }}
+                                          whileTap={{ scale: 0.9 }}
+                                          className="p-1.5 sm:p-2 bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors"
                                           title="Marquer comme implémentée"
                                         >
-                                          <CheckCircle className="w-4 h-4" />
-                                        </button>
+                                          <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                        </motion.button>
                                       )}
-                                      <button
+                                      <motion.button
                                         onClick={() => handleRejectIdea(idea.id)}
-                                        className="p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        className="p-1.5 sm:p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
                                         title="Rejeter cette idée"
                                       >
-                                        <XOctagon className="w-4 h-4" />
-                                      </button>
+                                        <XOctagon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </motion.button>
                                     </div>
                                   )}
                                 </div>
@@ -424,15 +471,15 @@ const InfosPage = () => {
 
                               {/* Commentaire de review */}
                               {idea.reviewComment && (
-                                <div className="mt-3 pt-3 border-t border-white/10">
-                                  <p className="text-sm text-gray-400 flex items-center gap-2">
-                                    <MessageSquare className="w-4 h-4" />
+                                <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
+                                  <p className="text-xs sm:text-sm text-gray-400 flex items-center gap-2">
+                                    <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
                                     <span className="font-medium">{idea.reviewerName}:</span>
                                     {idea.reviewComment}
                                   </p>
                                 </div>
                               )}
-                            </div>
+                            </motion.div>
                           );
                         })}
                       </div>
@@ -444,17 +491,17 @@ const InfosPage = () => {
           </div>
 
           {/* LISTE DES INFORMATIONS */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <AnimatePresence mode="popLayout">
               {infos.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-12 text-center"
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 sm:p-12 text-center"
                 >
-                  <Info className="w-16 h-16 text-white/40 mx-auto mb-4" />
-                  <p className="text-white/60 text-lg">Aucune information pour le moment</p>
+                  <Info className="w-12 h-12 sm:w-16 sm:h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 text-sm sm:text-lg">Aucune information pour le moment</p>
                 </motion.div>
               ) : (
                 infos.map((info) => (
@@ -493,14 +540,14 @@ const InfosPage = () => {
           )}
         </AnimatePresence>
 
-        {/* 💡 MODAL NOUVELLE IDÉE */}
+        {/* MODAL NOUVELLE IDÉE */}
         <AnimatePresence>
           {showNewIdeaModal && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4"
               onClick={() => setShowNewIdeaModal(false)}
             >
               <motion.div
@@ -508,81 +555,85 @@ const InfosPage = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gradient-to-br from-gray-900 to-purple-900 border border-yellow-400/30 rounded-xl p-6 max-w-md w-full"
+                className="bg-gradient-to-br from-slate-900 to-yellow-950/30 border border-yellow-500/30 rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
               >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
-                    <Lightbulb className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                    <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-white">Nouvelle Idée</h3>
-                    <p className="text-sm text-gray-400">+{IDEA_XP.SUBMIT} XP automatiquement</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-white">Nouvelle Idée</h3>
+                    <p className="text-xs sm:text-sm text-gray-400">+{IDEA_XP.SUBMIT} XP automatiquement</p>
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmitIdea} className="space-y-4">
+                <form onSubmit={handleSubmitIdea} className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Titre *</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1">Titre *</label>
                     <input
                       type="text"
                       value={ideaForm.title}
                       onChange={(e) => setIdeaForm({ ...ideaForm, title: e.target.value })}
                       placeholder="Résumé de votre idée..."
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50"
+                      className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500/50 text-sm sm:text-base"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1">Description</label>
                     <textarea
                       value={ideaForm.description}
                       onChange={(e) => setIdeaForm({ ...ideaForm, description: e.target.value })}
                       placeholder="Détaillez votre idée..."
-                      rows={4}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50 resize-none"
+                      rows={3}
+                      className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500/50 resize-none text-sm sm:text-base"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Catégorie</label>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1">Catégorie</label>
                     <select
                       value={ideaForm.category}
                       onChange={(e) => setIdeaForm({ ...ideaForm, category: e.target.value })}
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/50"
+                      className="w-full px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-yellow-500/50 text-sm sm:text-base"
                     >
                       {Object.entries(IDEA_CATEGORIES).map(([key, cat]) => (
-                        <option key={key} value={cat.id} className="bg-gray-900">
+                        <option key={key} value={cat.id} className="bg-slate-900">
                           {cat.icon} {cat.label}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                    <h4 className="font-medium text-yellow-300 mb-2">Gamification</h4>
-                    <ul className="text-sm text-gray-400 space-y-1">
-                      <li>• Soumettre une idée: <span className="text-yellow-400">+{IDEA_XP.SUBMIT} XP</span></li>
-                      <li>• Si adoptée: <span className="text-purple-400">+{IDEA_XP.ADOPTED} XP</span> + Badge "Innovateur"</li>
-                      <li>• Si implémentée par vous: <span className="text-green-400">+{IDEA_XP.IMPLEMENTED} XP</span> + Badge "Bâtisseur"</li>
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 sm:p-4">
+                    <h4 className="font-medium text-yellow-300 mb-2 text-sm sm:text-base">Gamification</h4>
+                    <ul className="text-xs sm:text-sm text-gray-400 space-y-1">
+                      <li>• Soumettre: <span className="text-yellow-400">+{IDEA_XP.SUBMIT} XP</span></li>
+                      <li>• Si adoptée: <span className="text-purple-400">+{IDEA_XP.ADOPTED} XP</span></li>
+                      <li>• Si implémentée: <span className="text-green-400">+{IDEA_XP.IMPLEMENTED} XP</span></li>
                     </ul>
                   </div>
 
-                  <div className="flex gap-3 pt-4">
-                    <button
+                  <div className="flex gap-2 sm:gap-3 pt-2 sm:pt-4">
+                    <motion.button
                       type="button"
                       onClick={() => setShowNewIdeaModal(false)}
-                      className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-1 px-3 sm:px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl transition-colors text-sm sm:text-base"
                     >
                       Annuler
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
                       type="submit"
-                      className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center justify-center gap-2"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex-1 px-3 sm:px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-xl font-medium hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                       <Lightbulb className="w-4 h-4" />
                       Soumettre
-                    </button>
+                    </motion.button>
                   </div>
                 </form>
               </motion.div>
@@ -719,143 +770,156 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className={`bg-white/10 backdrop-blur-sm border rounded-2xl p-6 transition-all duration-300 ${
-        isValidated ? 'border-white/20' : 'border-purple-400/50 shadow-lg shadow-purple-500/20'
+      className={`bg-white/5 backdrop-blur-xl border rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-all duration-300 ${
+        isValidated ? 'border-white/10' : 'border-purple-400/50 shadow-lg shadow-purple-500/20'
       }`}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3 flex-1">
-          {/* ✅ AVATAR AVEC PHOTO DE PROFIL */}
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+          {/* AVATAR */}
           {info.authorAvatar ? (
             <img
               src={info.authorAvatar}
               alt={info.authorName}
-              className="w-10 h-10 rounded-full object-cover border-2 border-purple-500/50"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-purple-500/50 flex-shrink-0"
             />
           ) : (
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center text-white font-bold border-2 border-purple-500/50">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center text-white font-bold border-2 border-purple-500/50 text-sm sm:text-base flex-shrink-0">
               {info.authorName?.charAt(0) || '?'}
             </div>
           )}
 
-          <div>
-            <p className="text-white font-semibold">{info.authorName}</p>
-            <p className="text-white/40 text-sm">
+          <div className="min-w-0">
+            <p className="text-white font-semibold text-sm sm:text-base truncate">{info.authorName}</p>
+            <p className="text-gray-500 text-xs sm:text-sm">
               {info.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', {
-                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
               })}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {canEdit && (
-            <button onClick={() => onEdit(info)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-              <Edit className="w-4 h-4 text-white/60" />
-            </button>
+            <motion.button
+              onClick={() => onEdit(info)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+            </motion.button>
           )}
           {canDelete && (
-            <button onClick={() => onDelete(info.id)} className="p-2 hover:bg-red-500/20 rounded-lg transition-colors">
-              <Trash2 className="w-4 h-4 text-red-400" />
-            </button>
+            <motion.button
+              onClick={() => onDelete(info.id)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="p-1.5 sm:p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" />
+            </motion.button>
           )}
         </div>
       </div>
 
-      {info.text && <p className="text-white mb-4 whitespace-pre-wrap">{info.text}</p>}
+      {info.text && <p className="text-white text-sm sm:text-base mb-3 sm:mb-4 whitespace-pre-wrap">{info.text}</p>}
 
       {info.media && (
-        <div className="mb-4 rounded-xl overflow-hidden">
+        <div className="mb-3 sm:mb-4 rounded-xl overflow-hidden">
           {info.media.type === 'image' ? (
-            <img src={info.media.url} alt="Image" className="w-full max-h-96 object-contain bg-black/20" />
+            <img src={info.media.url} alt="Image" className="w-full max-h-64 sm:max-h-96 object-contain bg-black/20" />
           ) : (
-            <video src={info.media.url} controls className="w-full max-h-96 bg-black/20" />
+            <video src={info.media.url} controls className="w-full max-h-64 sm:max-h-96 bg-black/20" />
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-4 border-t border-white/10">
-        {/* ✅ BOUTON POUR VOIR QUI A VALIDÉ */}
+      <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-white/10">
+        {/* BOUTON POUR VOIR QUI A VALIDÉ */}
         <button
           onClick={() => setShowValidators(!showValidators)}
-          className="flex items-center gap-2 text-white/60 text-sm hover:text-white/80 transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 text-gray-400 text-xs sm:text-sm hover:text-gray-300 transition-colors"
         >
-          <Users className="w-4 h-4" />
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>{validatorCount} vue{validatorCount > 1 ? 's' : ''}</span>
           {validatorCount > 0 && (
             showValidators ? (
-              <ChevronUp className="w-4 h-4" />
+              <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             ) : (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             )
           )}
         </button>
 
         {!isValidated ? (
-          <button
+          <motion.button
             onClick={() => onValidate(info.id)}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all duration-300"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold flex items-center gap-1.5 sm:gap-2 transition-all text-xs sm:text-sm"
           >
-            <Check className="w-4 h-4" />
-            Marquer comme vu
-          </button>
+            <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Marquer comme vu</span>
+            <span className="sm:hidden">Vu</span>
+          </motion.button>
         ) : (
-          <div className="flex items-center gap-2 text-green-400">
-            <CheckCircle className="w-5 h-5" />
-            <span className="font-semibold">Validé</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-green-400">
+            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="font-semibold text-xs sm:text-sm">Validé</span>
           </div>
         )}
       </div>
 
-      {/* ✅ LISTE DES VALIDEURS (AFFICHÉE SI CLIQUÉ) */}
+      {/* LISTE DES VALIDEURS */}
       <AnimatePresence>
         {showValidators && validatorCount > 0 && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-4 pt-4 border-t border-white/10"
+            className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/10"
           >
-            <p className="text-white/60 text-sm mb-3 font-semibold flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              Vu par {validatorCount} personne{validatorCount > 1 ? 's' : ''} :
+            <p className="text-gray-400 text-xs sm:text-sm mb-2 sm:mb-3 font-semibold flex items-center gap-2">
+              <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Vu par {validatorCount} personne{validatorCount > 1 ? 's' : ''}
             </p>
 
             {loadingValidators ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader className="w-5 h-5 text-purple-400 animate-spin" />
-                <span className="text-white/40 ml-2 text-sm">Chargement...</span>
+              <div className="flex items-center justify-center py-3 sm:py-4">
+                <Loader className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400 animate-spin" />
+                <span className="text-gray-500 ml-2 text-xs sm:text-sm">Chargement...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 max-h-36 sm:max-h-48 overflow-y-auto">
                 {validatorsWithNames.map((validator, index) => (
                   <div
                     key={validator.odot || index}
-                    className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2"
+                    className="flex items-center gap-2 bg-white/5 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2"
                   >
                     {/* Avatar du valideur */}
                     {validator.userAvatar ? (
                       <img
                         src={validator.userAvatar}
                         alt={validator.userName}
-                        className="w-6 h-6 rounded-full object-cover border border-green-500/50"
+                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-green-500/50"
                       />
                     ) : (
-                      <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold">
                         {validator.userName?.charAt(0) || '?'}
                       </div>
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">
+                      <p className="text-white text-xs sm:text-sm font-medium truncate">
                         {validator.userName}
                       </p>
-                      <p className="text-white/40 text-xs">
+                      <p className="text-gray-500 text-[10px] sm:text-xs">
                         {formatValidationDate(validator.validatedAt)}
                       </p>
                     </div>
 
-                    <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 flex-shrink-0" />
                   </div>
                 ))}
               </div>
@@ -980,7 +1044,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
       onClick={uploading ? undefined : onClose}
     >
       <motion.div
@@ -988,66 +1052,70 @@ const CreateInfoModal = ({ info, user, onClose }) => {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-gradient-to-br from-gray-900 to-purple-900 border border-white/20 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-gradient-to-br from-slate-900 to-purple-950 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-2xl font-bold text-white">
             {info ? 'Modifier l\'information' : 'Nouvelle information'}
           </h2>
-          <button
+          <motion.button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors"
             disabled={uploading}
           >
-            <X className="w-6 h-6 text-white/60" />
-          </button>
+            <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+          </motion.button>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-white/80 mb-2 font-semibold">Message</label>
+        <div className="mb-4 sm:mb-6">
+          <label className="block text-gray-300 mb-2 font-semibold text-sm sm:text-base">Message</label>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Écrivez votre information ici..."
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-purple-400 transition-colors resize-none"
-            rows={6}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors resize-none text-sm sm:text-base"
+            rows={5}
             disabled={uploading}
           />
         </div>
 
-        <div className="mb-6">
-          <label className="block text-white/80 mb-2 font-semibold">Fichier (optionnel)</label>
+        <div className="mb-4 sm:mb-6">
+          <label className="block text-gray-300 mb-2 font-semibold text-sm sm:text-base">Fichier (optionnel)</label>
 
           {filePreview ? (
             <div className="relative rounded-xl overflow-hidden bg-black/20">
               {fileType === 'image' ? (
-                <img src={filePreview} alt="Preview" className="w-full max-h-64 object-contain" />
+                <img src={filePreview} alt="Preview" className="w-full max-h-48 sm:max-h-64 object-contain" />
               ) : (
-                <video src={filePreview} controls className="w-full max-h-64" />
+                <video src={filePreview} controls className="w-full max-h-48 sm:max-h-64" />
               )}
               {!uploading && (
-                <button
+                <motion.button
                   onClick={() => {
                     setFile(null);
                     setFilePreview(null);
                     setFileType(null);
                     if (fileInputRef.current) fileInputRef.current.value = '';
                   }}
-                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 sm:p-2 rounded-lg transition-colors"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </motion.button>
               )}
             </div>
           ) : (
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full bg-white/10 border-2 border-dashed border-white/30 hover:border-purple-400 rounded-xl p-8 flex flex-col items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-white/5 border-2 border-dashed border-white/20 hover:border-purple-500/50 rounded-xl p-6 sm:p-8 flex flex-col items-center gap-2 sm:gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Upload className="w-12 h-12 text-white/60" />
-              <p className="text-white/80 font-semibold">Cliquez pour ajouter une image ou vidéo</p>
-              <p className="text-white/40 text-sm">Aucune limite de taille</p>
+              <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-gray-500" />
+              <p className="text-gray-300 font-semibold text-sm sm:text-base">Ajouter une image ou vidéo</p>
+              <p className="text-gray-500 text-xs sm:text-sm">Aucune limite de taille</p>
             </button>
           )}
 
@@ -1063,16 +1131,16 @@ const CreateInfoModal = ({ info, user, onClose }) => {
 
         {/* BARRE DE PROGRESSION */}
         {uploading && (
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-white/80 text-sm font-semibold">{uploadStatus || 'Préparation...'}</span>
+              <span className="text-gray-300 text-xs sm:text-sm font-semibold">{uploadStatus || 'Préparation...'}</span>
               {uploadProgress > 0 && (
-                <span className="text-purple-400 text-sm font-bold">{Math.round(uploadProgress)}%</span>
+                <span className="text-purple-400 text-xs sm:text-sm font-bold">{Math.round(uploadProgress)}%</span>
               )}
             </div>
 
             {uploadProgress > 0 && (
-              <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden mb-2">
+              <div className="w-full bg-white/10 rounded-full h-2 sm:h-3 overflow-hidden mb-2">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${uploadProgress}%` }}
@@ -1082,50 +1150,54 @@ const CreateInfoModal = ({ info, user, onClose }) => {
               </div>
             )}
 
-            <div className="flex items-center gap-2 text-white/60 text-xs">
-              <Loader className="w-4 h-4 animate-spin" />
+            <div className="flex items-center gap-2 text-gray-500 text-xs">
+              <Loader className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
               <span>Ne fermez pas cette fenêtre...</span>
             </div>
           </div>
         )}
 
         {error && (
-          <div className="mb-6 bg-red-500/20 border border-red-400/30 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="mb-4 sm:mb-6 bg-red-500/20 border border-red-500/30 rounded-xl p-3 sm:p-4">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-red-200 text-sm font-semibold mb-1">Erreur</p>
-                <p className="text-red-200 text-sm">{error}</p>
+                <p className="text-red-300 text-xs sm:text-sm font-semibold mb-0.5 sm:mb-1">Erreur</p>
+                <p className="text-red-200/80 text-xs sm:text-sm">{error}</p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex gap-3">
-          <button
+        <div className="flex gap-2 sm:gap-3">
+          <motion.button
             onClick={onClose}
             disabled={uploading}
-            className="flex-1 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex-1 bg-white/10 hover:bg-white/15 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
           >
             Annuler
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             onClick={handleSubmit}
             disabled={uploading || (!text.trim() && !file && !info?.media)}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white px-6 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
           >
             {uploading ? (
               <>
-                <Loader className="w-5 h-5 animate-spin" />
-                En cours...
+                <Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                <span className="hidden sm:inline">En cours...</span>
               </>
             ) : (
               <>
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                 {info ? 'Mettre à jour' : 'Publier'}
               </>
             )}
-          </button>
+          </motion.button>
         </div>
       </motion.div>
     </motion.div>

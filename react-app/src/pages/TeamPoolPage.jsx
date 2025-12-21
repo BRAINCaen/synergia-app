@@ -230,14 +230,20 @@ const TeamPoolPage = () => {
   // État de chargement
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-green-600/15 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 text-center">
           <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"
-          />
-          <p className="text-gray-400">Chargement de la cagnotte...</p>
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1, repeat: Infinity }}
+            className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-green-500/30 to-emerald-600/20 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          >
+            <Users className="w-7 h-7 sm:w-8 sm:h-8 text-green-400" />
+          </motion.div>
+          <p className="text-gray-400 text-sm sm:text-lg">Chargement de la cagnotte...</p>
         </div>
       </div>
     );
@@ -246,17 +252,22 @@ const TeamPoolPage = () => {
   // Erreur
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800/50 border border-red-500/30 rounded-xl p-8 text-center max-w-md">
-          <span className="text-5xl mb-4 block">❌</span>
-          <h2 className="text-xl font-bold text-white mb-2">Erreur de chargement</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <button
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center p-3 sm:p-4 relative overflow-hidden">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-red-600/20 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 bg-white/5 backdrop-blur-xl border border-red-500/30 rounded-xl sm:rounded-2xl p-6 sm:p-8 text-center max-w-md">
+          <span className="text-4xl sm:text-5xl mb-4 block">❌</span>
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-2">Erreur de chargement</h2>
+          <p className="text-gray-400 mb-4 text-sm sm:text-base">{error}</p>
+          <motion.button
             onClick={refreshPoolData}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="px-4 sm:px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl text-white transition-all text-sm sm:text-base"
           >
             Réessayer
-          </button>
+          </motion.button>
         </div>
       </div>
     );
@@ -276,52 +287,71 @@ const TeamPoolPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+      {/* Animated background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-green-600/15 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-emerald-600/10 rounded-full blur-3xl" />
+        <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+      </div>
+
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="max-w-7xl mx-auto"
+        className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8 max-w-7xl mx-auto"
       >
-        {/* 🎯 HEADER */}
-        <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
-              <span className="text-4xl">💰</span>
-              Cagnotte d'Équipe
-            </h1>
-            <p className="text-gray-400 mt-2">
-              XP collectifs pour des récompenses partagées • Taux: {autoContributionRate || 20}%
-            </p>
-          </div>
-          <div className="flex gap-3 mt-4 md:mt-0">
+        {/* HEADER */}
+        <motion.div variants={itemVariants} className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="p-2.5 sm:p-3 bg-gradient-to-br from-green-500/30 to-emerald-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+              >
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />
+              </motion.div>
+              <div>
+                <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-green-200 to-white bg-clip-text text-transparent">
+                  Cagnotte d'Équipe
+                </h1>
+                <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                  Taux: {autoContributionRate || 20}%
+                </p>
+              </div>
+            </div>
+
             <motion.button
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, rotate: 180 }}
               whileTap={{ scale: 0.95 }}
               onClick={refreshPoolData}
-              className="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-xl text-gray-300 hover:bg-gray-600/50 transition-all flex items-center gap-2"
+              className="p-2.5 sm:p-3 bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-xl transition-colors"
             >
-              <RefreshCw className="w-4 h-4" />
-              Actualiser
+              <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </motion.button>
+          </div>
+
+          <div className="flex gap-2 sm:gap-3">
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowContributionModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-green-500/25 transition-all flex items-center gap-2"
+              className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-green-500/25 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <Plus className="w-4 h-4" />
               Contribuer
             </motion.button>
             {userIsAdmin && (
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setShowRateModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl text-white font-semibold hover:shadow-lg transition-all flex items-center gap-2"
+                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl text-white font-semibold transition-all flex items-center gap-2 text-sm sm:text-base"
               >
                 <Zap className="w-4 h-4" />
-                Taux
+                <span className="hidden sm:inline">Taux</span>
               </motion.button>
             )}
           </div>
@@ -330,20 +360,20 @@ const TeamPoolPage = () => {
         {/* 🏆 HERO CARD - CAGNOTTE PRINCIPALE */}
         <motion.div
           variants={itemVariants}
-          className="bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-500 rounded-2xl p-6 md:p-8 mb-8 relative overflow-hidden"
+          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 relative overflow-hidden"
         >
           {/* Effets de fond */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-300 rounded-full blur-3xl" />
+          <div className="absolute inset-0 opacity-30 pointer-events-none">
+            <div className="absolute top-0 right-0 w-48 sm:w-64 h-48 sm:h-64 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-36 sm:w-48 h-36 sm:h-48 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full blur-3xl" />
           </div>
 
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between">
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
             {/* Montant principal */}
-            <div className="text-center md:text-left mb-6 md:mb-0">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-5xl">{getLevelEmoji(safeStats.currentLevel)}</span>
-                <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${getLevelGradient(safeStats.currentLevel)} text-white text-sm font-bold`}>
+            <div className="text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-2 sm:gap-3 mb-2">
+                <span className="text-3xl sm:text-5xl">{getLevelEmoji(safeStats.currentLevel)}</span>
+                <div className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-gradient-to-r ${getLevelGradient(safeStats.currentLevel)} text-white text-xs sm:text-sm font-bold`}>
                   Niveau {safeStats.currentLevel}
                 </div>
               </div>
@@ -351,31 +381,31 @@ const TeamPoolPage = () => {
                 key={safeStats.totalXP}
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
-                className="text-5xl md:text-6xl font-black text-white mb-2"
+                className="text-3xl sm:text-5xl md:text-6xl font-black bg-gradient-to-r from-white via-green-200 to-white bg-clip-text text-transparent mb-1 sm:mb-2"
               >
-                {safeStats.totalXP.toLocaleString()} <span className="text-3xl">XP</span>
+                {safeStats.totalXP.toLocaleString()} <span className="text-xl sm:text-3xl">XP</span>
               </motion.div>
-              <p className="text-white/80">
+              <p className="text-gray-400 text-xs sm:text-sm">
                 {safeStats.contributorsCount} contributeurs • {safeStats.totalContributions} contributions
               </p>
             </div>
 
             {/* Progression niveau suivant */}
             {safeStats.nextLevel && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 w-full md:w-80">
-                <div className="flex justify-between text-white/80 text-sm mb-2">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 w-full md:w-80">
+                <div className="flex justify-between text-gray-400 text-xs sm:text-sm mb-2">
                   <span>Vers {safeStats.nextLevel}</span>
-                  <span>{safeStats.progressToNext.progress}%</span>
+                  <span className="text-green-400">{safeStats.progressToNext.progress}%</span>
                 </div>
-                <div className="w-full bg-white/20 rounded-full h-3 mb-2">
+                <div className="w-full bg-white/10 rounded-full h-2 sm:h-3 mb-2">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${safeStats.progressToNext.progress}%` }}
                     transition={{ duration: 1, delay: 0.5 }}
-                    className={`h-3 rounded-full bg-gradient-to-r ${getLevelGradient(safeStats.nextLevel)}`}
+                    className={`h-2 sm:h-3 rounded-full bg-gradient-to-r ${getLevelGradient(safeStats.nextLevel)}`}
                   />
                 </div>
-                <p className="text-white/60 text-sm text-center">
+                <p className="text-gray-500 text-xs sm:text-sm text-center">
                   Encore {safeStats.progressToNext.xpNeeded?.toLocaleString() || 0} XP
                 </p>
               </div>
@@ -384,9 +414,9 @@ const TeamPoolPage = () => {
         </motion.div>
 
         {/* 📊 GRILLE STATS + TOP CONTRIBUTEURS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {/* Stats rapides */}
-          <motion.div variants={itemVariants} className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <motion.div variants={itemVariants} className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
             {[
               { label: 'Cette semaine', value: safeStats.weeklyContributions, icon: '📅', gradient: 'from-blue-500 to-cyan-500' },
               { label: 'Ce mois', value: safeStats.monthlyContributions, icon: '📆', gradient: 'from-green-500 to-emerald-500' },
@@ -396,15 +426,15 @@ const TeamPoolPage = () => {
               <motion.div
                 key={index}
                 whileHover={{ scale: 1.02, y: -2 }}
-                className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4"
+                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4"
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">{stat.icon}</span>
-                  <span className="text-gray-400 text-sm">{stat.label}</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                  <span className="text-lg sm:text-xl">{stat.icon}</span>
+                  <span className="text-gray-400 text-xs sm:text-sm">{stat.label}</span>
                 </div>
-                <div className={`text-2xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent`}>
+                <div className={`text-lg sm:text-2xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent`}>
                   {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
-                  {index < 3 && <span className="text-sm text-gray-400 ml-1">XP</span>}
+                  {index < 3 && <span className="text-xs sm:text-sm text-gray-400 ml-1">XP</span>}
                 </div>
               </motion.div>
             ))}
@@ -413,27 +443,27 @@ const TeamPoolPage = () => {
           {/* Top contributeurs */}
           <motion.div
             variants={itemVariants}
-            className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4"
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4"
           >
-            <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-400" />
+            <h3 className="text-white font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
               Top Contributeurs
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {topContributors.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-4">Aucun contributeur</p>
+                <p className="text-gray-400 text-xs sm:text-sm text-center py-4">Aucun contributeur</p>
               ) : (
                 topContributors.map((contributor, index) => (
                   <div key={contributor.userId} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-base sm:text-lg">
                         {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅'}
                       </span>
-                      <span className="text-gray-300 text-sm truncate max-w-[120px]">
+                      <span className="text-gray-300 text-xs sm:text-sm truncate max-w-[100px] sm:max-w-[120px]">
                         {contributor.email?.split('@')[0] || 'Anonyme'}
                       </span>
                     </div>
-                    <span className="text-green-400 font-semibold text-sm">
+                    <span className="text-green-400 font-semibold text-xs sm:text-sm">
                       +{contributor.total?.toLocaleString()} XP
                     </span>
                   </div>
@@ -446,27 +476,27 @@ const TeamPoolPage = () => {
         {/* 📜 HISTORIQUE RÉCENT */}
         <motion.div
           variants={itemVariants}
-          className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 mb-8"
+          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6"
         >
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-400" />
+          <h3 className="text-white font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             Contributions récentes
           </h3>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {recentContributions.length === 0 ? (
-              <p className="text-gray-400 text-sm">Aucune contribution récente</p>
+              <p className="text-gray-400 text-xs sm:text-sm">Aucune contribution récente</p>
             ) : (
               recentContributions.map((contrib) => (
                 <motion.div
                   key={contrib.id}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-gray-700/50 rounded-lg px-3 py-2 flex items-center gap-2"
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2"
                 >
-                  <span className="text-green-400">+{contrib.amount}</span>
-                  <span className="text-gray-400 text-sm">par</span>
-                  <span className="text-gray-300 text-sm">{contrib.userEmail?.split('@')[0]}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  <span className="text-green-400 text-sm sm:text-base">+{contrib.amount}</span>
+                  <span className="text-gray-400 text-xs sm:text-sm">par</span>
+                  <span className="text-gray-300 text-xs sm:text-sm">{contrib.userEmail?.split('@')[0]}</span>
+                  <span className={`text-xs px-1.5 sm:px-2 py-0.5 rounded-full ${
                     contrib.type === 'manual' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'
                   }`}>
                     {contrib.type === 'manual' ? 'Manuel' : 'Auto'}
@@ -479,24 +509,24 @@ const TeamPoolPage = () => {
 
         {/* 🎁 SECTION RÉCOMPENSES */}
         <motion.div variants={itemVariants}>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-4 md:mb-0">
-              <Gift className="w-6 h-6 text-pink-400" />
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2 mb-3 md:mb-0">
+              <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400" />
               Récompenses d'Équipe
             </h2>
 
             {/* Filtres catégories */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {categories.map((cat) => (
                 <motion.button
                   key={cat.id}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1 ${
                     selectedCategory === cat.id
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                      : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-300 hover:bg-white/10'
                   }`}
                 >
                   <span>{cat.icon}</span>
@@ -507,7 +537,7 @@ const TeamPoolPage = () => {
           </div>
 
           {/* Grille récompenses */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
             {filteredRewards.map((reward) => {
               const isAffordable = affordableRewards.some(r => r.id === reward.id);
 
@@ -515,33 +545,33 @@ const TeamPoolPage = () => {
                 <motion.div
                   key={reward.id}
                   variants={itemVariants}
-                  whileHover={{ scale: isAffordable ? 1.03 : 1, y: isAffordable ? -4 : 0 }}
-                  className={`bg-gray-800/50 border rounded-xl overflow-hidden transition-all ${
+                  whileHover={{ scale: isAffordable ? 1.02 : 1, y: isAffordable ? -2 : 0 }}
+                  className={`bg-white/5 backdrop-blur-xl border rounded-xl overflow-hidden transition-all ${
                     isAffordable
-                      ? 'border-green-500/50 hover:border-green-400'
-                      : 'border-gray-700/50 opacity-60'
+                      ? 'border-green-500/30 hover:border-green-400/50'
+                      : 'border-white/10 opacity-60'
                   }`}
                 >
                   {/* Badge niveau */}
-                  <div className={`px-3 py-1 bg-gradient-to-r ${getLevelGradient(reward.level)} text-white text-xs font-bold`}>
+                  <div className={`px-2 sm:px-3 py-0.5 sm:py-1 bg-gradient-to-r ${getLevelGradient(reward.level)} text-white text-xs font-bold`}>
                     {reward.level}
                   </div>
 
-                  <div className="p-4">
-                    <div className="text-center mb-3">
+                  <div className="p-2.5 sm:p-4">
+                    <div className="text-center mb-2 sm:mb-3">
                       <motion.span
-                        className="text-4xl block mb-2"
+                        className="text-2xl sm:text-4xl block mb-1.5 sm:mb-2"
                         animate={isAffordable ? { y: [0, -5, 0] } : {}}
                         transition={{ duration: 2, repeat: Infinity }}
                       >
                         {reward.icon}
                       </motion.span>
-                      <h4 className="text-white font-semibold">{reward.name}</h4>
-                      <p className="text-gray-400 text-sm mt-1 line-clamp-2">{reward.description}</p>
+                      <h4 className="text-white font-semibold text-xs sm:text-base">{reward.name}</h4>
+                      <p className="text-gray-400 text-xs mt-0.5 sm:mt-1 line-clamp-2">{reward.description}</p>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-yellow-400 font-bold">
+                    <div className="flex items-center justify-between mt-2 sm:mt-4">
+                      <div className="text-yellow-400 font-bold text-xs sm:text-base">
                         {reward.cost?.toLocaleString()} XP
                       </div>
                       {userIsAdmin && (
@@ -550,10 +580,10 @@ const TeamPoolPage = () => {
                           whileTap={{ scale: 0.9 }}
                           onClick={() => handlePurchaseReward(reward)}
                           disabled={!isAffordable}
-                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                          className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg text-xs font-medium transition-all ${
                             isAffordable
                               ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white'
-                              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                              : 'bg-white/10 text-gray-500 cursor-not-allowed'
                           }`}
                         >
                           {isAffordable ? 'Acheter' : 'Insuffisant'}
@@ -570,23 +600,23 @@ const TeamPoolPage = () => {
         {/* 💡 COMMENT ÇA MARCHE */}
         <motion.div
           variants={itemVariants}
-          className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 mt-8"
+          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 sm:p-6 mt-4 sm:mt-6"
         >
-          <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-yellow-400" />
+          <h3 className="text-white font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
             Comment ça marche ?
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {[
               { icon: '🎯', title: 'Contribution Auto', desc: `${autoContributionRate || 20}% de tes XP vont automatiquement à la cagnotte` },
               { icon: '💪', title: 'Garde tes XP', desc: `Tu gardes ${100 - (autoContributionRate || 20)}% pour tes récompenses perso` },
               { icon: '🎁', title: 'Récompenses', desc: 'Les admins achètent des récompenses pour toute l\'équipe' }
             ].map((item, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <span className="text-2xl">{item.icon}</span>
+              <div key={index} className="flex items-start gap-2 sm:gap-3">
+                <span className="text-xl sm:text-2xl">{item.icon}</span>
                 <div>
-                  <h4 className="text-white font-medium">{item.title}</h4>
-                  <p className="text-gray-400 text-sm">{item.desc}</p>
+                  <h4 className="text-white font-medium text-sm sm:text-base">{item.title}</h4>
+                  <p className="text-gray-400 text-xs sm:text-sm">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -601,7 +631,7 @@ const TeamPoolPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
             onClick={() => setShowContributionModal(false)}
           >
             <motion.div
@@ -609,34 +639,34 @@ const TeamPoolPage = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-md"
+              className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-green-400" />
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
                   Contribuer à la Cagnotte
                 </h3>
-                <button onClick={() => setShowContributionModal(false)} className="text-gray-400 hover:text-white">
+                <button onClick={() => setShowContributionModal(false)} className="text-gray-400 hover:text-white p-1">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="mb-6">
-                <label className="text-gray-400 text-sm mb-2 block">Montant XP</label>
+              <div className="mb-4 sm:mb-6">
+                <label className="text-gray-400 text-xs sm:text-sm mb-2 block">Montant XP</label>
                 <input
                   type="number"
                   value={contributionAmount}
                   onChange={(e) => setContributionAmount(Math.max(10, parseInt(e.target.value) || 0))}
                   min="10"
                   step="10"
-                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white text-xl font-bold text-center focus:border-green-500 focus:outline-none transition-all"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white text-lg sm:text-xl font-bold text-center focus:border-green-500 focus:outline-none transition-all"
                 />
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 mt-2 sm:mt-3">
                   {[50, 100, 250, 500].map((amount) => (
                     <button
                       key={amount}
                       onClick={() => setContributionAmount(amount)}
-                      className="flex-1 py-2 bg-gray-700/50 rounded-lg text-gray-300 hover:bg-gray-600/50 transition-all text-sm"
+                      className="flex-1 py-1.5 sm:py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:bg-white/10 transition-all text-xs sm:text-sm"
                     >
                       {amount}
                     </button>
@@ -649,7 +679,7 @@ const TeamPoolPage = () => {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleContribution}
                 disabled={contributing}
-                className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-bold text-lg hover:shadow-lg hover:shadow-green-500/25 transition-all disabled:opacity-50"
+                className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-bold text-sm sm:text-lg hover:shadow-lg hover:shadow-green-500/25 transition-all disabled:opacity-50"
               >
                 {contributing ? 'Contribution en cours...' : `Contribuer ${contributionAmount} XP`}
               </motion.button>
@@ -665,7 +695,7 @@ const TeamPoolPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
             onClick={() => setShowPurchaseModal(false)}
           >
             <motion.div
@@ -673,35 +703,35 @@ const TeamPoolPage = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-md"
+              className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md"
             >
-              <div className="text-center mb-6">
-                <span className="text-6xl block mb-4">{selectedReward.icon}</span>
-                <h3 className="text-xl font-bold text-white">{selectedReward.name}</h3>
-                <p className="text-gray-400 mt-2">{selectedReward.description}</p>
+              <div className="text-center mb-4 sm:mb-6">
+                <span className="text-4xl sm:text-6xl block mb-3 sm:mb-4">{selectedReward.icon}</span>
+                <h3 className="text-lg sm:text-xl font-bold text-white">{selectedReward.name}</h3>
+                <p className="text-gray-400 text-sm mt-2">{selectedReward.description}</p>
               </div>
 
-              <div className="bg-gray-700/50 rounded-xl p-4 mb-6">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Coût</span>
-                  <span className="text-yellow-400 font-bold text-xl">{selectedReward.cost?.toLocaleString()} XP</span>
+                  <span className="text-gray-400 text-sm">Coût</span>
+                  <span className="text-yellow-400 font-bold text-lg sm:text-xl">{selectedReward.cost?.toLocaleString()} XP</span>
                 </div>
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-gray-400">Cagnotte actuelle</span>
-                  <span className="text-white font-semibold">{safeStats.totalXP.toLocaleString()} XP</span>
+                  <span className="text-gray-400 text-sm">Cagnotte actuelle</span>
+                  <span className="text-white font-semibold text-sm sm:text-base">{safeStats.totalXP.toLocaleString()} XP</span>
                 </div>
-                <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-600">
-                  <span className="text-gray-400">Après achat</span>
-                  <span className="text-green-400 font-semibold">
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10">
+                  <span className="text-gray-400 text-sm">Après achat</span>
+                  <span className="text-green-400 font-semibold text-sm sm:text-base">
                     {(safeStats.totalXP - (selectedReward.cost || 0)).toLocaleString()} XP
                   </span>
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowPurchaseModal(false)}
-                  className="flex-1 py-3 bg-gray-700 rounded-xl text-gray-300 font-semibold hover:bg-gray-600 transition-all"
+                  className="flex-1 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-gray-300 font-semibold hover:bg-white/10 transition-all text-sm sm:text-base"
                 >
                   Annuler
                 </button>
@@ -710,7 +740,7 @@ const TeamPoolPage = () => {
                   whileTap={{ scale: 0.98 }}
                   onClick={confirmPurchase}
                   disabled={purchasing}
-                  className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-bold hover:shadow-lg transition-all disabled:opacity-50"
+                  className="flex-1 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-bold hover:shadow-lg transition-all disabled:opacity-50 text-sm sm:text-base"
                 >
                   {purchasing ? 'Achat...' : 'Confirmer'}
                 </motion.button>
@@ -727,7 +757,7 @@ const TeamPoolPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
             onClick={() => setShowRateModal(false)}
           >
             <motion.div
@@ -735,32 +765,32 @@ const TeamPoolPage = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-md"
+              className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-400" />
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                   Taux de Contribution
                 </h3>
-                <button onClick={() => setShowRateModal(false)} className="text-gray-400 hover:text-white">
+                <button onClick={() => setShowRateModal(false)} className="text-gray-400 hover:text-white p-1">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="mb-6">
-                <label className="text-gray-400 text-sm mb-2 block">
+              <div className="mb-4 sm:mb-6">
+                <label className="text-gray-400 text-xs sm:text-sm mb-2 block">
                   Pourcentage prélevé sur chaque gain XP
                 </label>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 sm:gap-4">
                   <input
                     type="range"
                     min="5"
                     max="50"
                     value={dynamicRate}
                     onChange={(e) => setDynamicRate(parseInt(e.target.value))}
-                    className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
                   />
-                  <span className="text-2xl font-bold text-purple-400 w-16 text-right">{dynamicRate}%</span>
+                  <span className="text-xl sm:text-2xl font-bold text-purple-400 w-14 sm:w-16 text-right">{dynamicRate}%</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                   <span>5%</span>
@@ -768,8 +798,8 @@ const TeamPoolPage = () => {
                 </div>
               </div>
 
-              <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-6">
-                <p className="text-purple-300 text-sm">
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                <p className="text-purple-300 text-xs sm:text-sm">
                   <strong>Impact:</strong> Chaque membre contribuera {dynamicRate}% de ses XP gagnés à la cagnotte d'équipe.
                 </p>
               </div>
@@ -778,7 +808,7 @@ const TeamPoolPage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleUpdateRate}
-                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl text-white font-bold hover:shadow-lg transition-all"
+                className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl text-white font-bold hover:shadow-lg transition-all text-sm sm:text-base"
               >
                 Appliquer {dynamicRate}%
               </motion.button>

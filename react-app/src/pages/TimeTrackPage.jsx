@@ -412,33 +412,41 @@ const TimeTrackPage = () => {
   // ========================================
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-cyan-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-pink-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-24 sm:pb-8">
+
           {/* ========================================
               HEADER
           ======================================== */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-6 sm:mb-8"
           >
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                  🕐 Badgeuse
+                <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                  Badgeuse
                 </h1>
-                <p className="text-gray-400 text-lg">
-                  Pointage arrivée et départ - Multiple pointages autorisés
+                <p className="text-gray-400 text-sm sm:text-lg">
+                  Pointage arrivée et départ
                 </p>
               </div>
-              
+
               <div className="flex gap-3">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => window.location.reload()}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 backdrop-blur-sm text-white rounded-lg border border-gray-700/50 hover:border-purple-500/50 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-xl text-white rounded-xl border border-white/10 hover:bg-white/10 transition-all text-sm sm:text-base"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Actualiser
@@ -449,20 +457,20 @@ const TimeTrackPage = () => {
             {/* ========================================
                 STATS CARDS
             ======================================== */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
                 whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-6 text-white"
+                className="bg-gradient-to-br from-blue-500/80 to-cyan-500/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 text-white border border-white/20"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <Clock className="w-6 h-6" />
-                  <h3 className="text-sm font-medium opacity-90">Aujourd'hui</h3>
+                <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                  <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <h3 className="text-xs sm:text-sm font-medium opacity-90">Aujourd'hui</h3>
                 </div>
-                <div className="text-3xl font-bold mb-1">{formatTime(workingTime)}</div>
-                <div className="text-sm opacity-75">Temps total travaillé</div>
+                <div className="text-xl sm:text-3xl font-bold mb-1">{formatTime(workingTime)}</div>
+                <div className="text-xs sm:text-sm opacity-75">Temps travaillé</div>
               </motion.div>
 
               <motion.div
@@ -470,14 +478,14 @@ const TimeTrackPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl p-6 text-white"
+                className="bg-gradient-to-br from-green-500/80 to-emerald-500/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 text-white border border-white/20"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <TrendingUp className="w-6 h-6" />
-                  <h3 className="text-sm font-medium opacity-90">Cette semaine</h3>
+                <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <h3 className="text-xs sm:text-sm font-medium opacity-90">Semaine</h3>
                 </div>
-                <div className="text-3xl font-bold mb-1">{stats.thisWeekHours}h</div>
-                <div className="text-sm opacity-75">Heures travaillées</div>
+                <div className="text-xl sm:text-3xl font-bold mb-1">{stats.thisWeekHours}h</div>
+                <div className="text-xs sm:text-sm opacity-75">Heures</div>
               </motion.div>
 
               <motion.div
@@ -485,14 +493,14 @@ const TimeTrackPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-6 text-white"
+                className="bg-gradient-to-br from-purple-500/80 to-pink-500/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 text-white border border-white/20"
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <Coffee className="w-6 h-6" />
-                  <h3 className="text-sm font-medium opacity-90">Segments</h3>
+                <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                  <Coffee className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <h3 className="text-xs sm:text-sm font-medium opacity-90">Segments</h3>
                 </div>
-                <div className="text-3xl font-bold mb-1">{getTodaySegments().length}</div>
-                <div className="text-sm opacity-75">Pointages aujourd'hui</div>
+                <div className="text-xl sm:text-3xl font-bold mb-1">{getTodaySegments().length}</div>
+                <div className="text-xs sm:text-sm opacity-75">Aujourd'hui</div>
               </motion.div>
 
               <motion.div
@@ -500,23 +508,23 @@ const TimeTrackPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
                 whileHover={{ scale: 1.02 }}
-                className={`rounded-xl p-6 text-white ${
+                className={`rounded-2xl p-4 sm:p-6 text-white backdrop-blur-xl border border-white/20 ${
                   isCurrentlyWorking
-                    ? 'bg-gradient-to-br from-green-500 to-green-600' 
-                    : 'bg-gradient-to-br from-gray-600 to-gray-700'
+                    ? 'bg-gradient-to-br from-green-500/80 to-green-600/80'
+                    : 'bg-white/5'
                 }`}
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <CheckCircle className={`w-6 h-6 ${isCurrentlyWorking ? 'animate-pulse' : ''}`} />
-                  <h3 className="text-sm font-medium opacity-90">Statut</h3>
+                <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                  <CheckCircle className={`w-5 h-5 sm:w-6 sm:h-6 ${isCurrentlyWorking ? 'animate-pulse' : ''}`} />
+                  <h3 className="text-xs sm:text-sm font-medium opacity-90">Statut</h3>
                 </div>
-                <div className="text-3xl font-bold mb-1">
-                  {isCurrentlyWorking ? 'Au travail' : 'Hors travail'}
+                <div className="text-lg sm:text-3xl font-bold mb-1">
+                  {isCurrentlyWorking ? 'Au travail' : 'Hors'}
                 </div>
-                <div className="text-sm opacity-75">
-                  {isCurrentlyWorking 
+                <div className="text-xs sm:text-sm opacity-75">
+                  {isCurrentlyWorking
                     ? `Depuis ${formatHour(currentSegmentStart)}`
-                    : 'Disponible pour pointer'
+                    : 'Disponible'
                   }
                 </div>
               </motion.div>
@@ -530,46 +538,46 @@ const TimeTrackPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50 mb-8"
+            className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-8 border border-white/10 mb-6 sm:mb-8"
           >
             <div className="text-center">
               {/* Heure actuelle */}
-              <div className="mb-8">
-                <div className="text-6xl font-mono font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                  {new Date().toLocaleTimeString('fr-FR', { 
-                    hour: '2-digit', 
+              <div className="mb-6 sm:mb-8">
+                <div className="text-4xl sm:text-6xl font-mono font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                  {new Date().toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit'
                   })}
                 </div>
-                <div className="text-xl text-gray-400">
-                  {new Date().toLocaleDateString('fr-FR', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+                <div className="text-sm sm:text-xl text-gray-400">
+                  {new Date().toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                   })}
                 </div>
               </div>
 
               {/* Boutons de pointage */}
-              <div className="flex justify-center gap-6 flex-wrap">
+              <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleArrival}
                   disabled={isCurrentlyWorking}
-                  className={`flex items-center gap-3 px-12 py-6 rounded-xl shadow-xl text-xl font-bold transition-all ${
+                  className={`flex items-center gap-3 px-6 sm:px-12 py-4 sm:py-6 rounded-2xl shadow-xl text-base sm:text-xl font-bold transition-all ${
                     isCurrentlyWorking
-                      ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                      ? 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/10'
                       : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-green-500/50'
                   }`}
                 >
-                  <LogIn className="w-8 h-8" />
+                  <LogIn className="w-6 h-6 sm:w-8 sm:h-8" />
                   <div className="text-left">
                     <div>Pointer l'arrivée</div>
-                    <div className="text-sm font-normal opacity-75">
-                      {isCurrentlyWorking ? 'Déjà au travail' : 'Commencer un segment'}
+                    <div className="text-xs sm:text-sm font-normal opacity-75">
+                      {isCurrentlyWorking ? 'Déjà au travail' : 'Commencer'}
                     </div>
                   </div>
                 </motion.button>
@@ -579,35 +587,35 @@ const TimeTrackPage = () => {
                   whileTap={{ scale: 0.95 }}
                   onClick={handleDeparture}
                   disabled={!isCurrentlyWorking}
-                  className={`flex items-center gap-3 px-12 py-6 rounded-xl shadow-xl text-xl font-bold transition-all ${
+                  className={`flex items-center gap-3 px-6 sm:px-12 py-4 sm:py-6 rounded-2xl shadow-xl text-base sm:text-xl font-bold transition-all ${
                     !isCurrentlyWorking
-                      ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                      ? 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/10'
                       : 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:shadow-red-500/50'
                   }`}
                 >
-                  <LogOut className="w-8 h-8" />
+                  <LogOut className="w-6 h-6 sm:w-8 sm:h-8" />
                   <div className="text-left">
                     <div>Pointer le départ</div>
-                    <div className="text-sm font-normal opacity-75">
-                      {!isCurrentlyWorking ? 'Pas au travail' : 'Terminer le segment'}
+                    <div className="text-xs sm:text-sm font-normal opacity-75">
+                      {!isCurrentlyWorking ? 'Pas au travail' : 'Terminer'}
                     </div>
                   </div>
                 </motion.button>
               </div>
 
               {/* Info multi-pointages */}
-              <div className="mt-8 space-y-3">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/50 rounded-lg">
+              <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-2 sm:gap-3">
+                <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-blue-400 font-medium">
-                    Synchronisé en temps réel avec Firebase
+                  <span className="text-xs sm:text-sm text-blue-400 font-medium">
+                    Sync temps réel
                   </span>
                 </div>
-                
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg ml-2">
+
+                <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
                   <Coffee className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm text-purple-400 font-medium">
-                    Multiple pointages autorisés (pause déjeuner, etc.)
+                  <span className="text-xs sm:text-sm text-purple-400 font-medium">
+                    Multi-pointages
                   </span>
                 </div>
               </div>
@@ -622,16 +630,16 @@ const TimeTrackPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50 mb-8"
+              className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-8 border border-white/10 mb-6 sm:mb-8"
             >
-              <h3 className="text-2xl font-bold text-white flex items-center gap-3 mb-6">
-                <Coffee className="w-6 h-6 text-purple-400" />
+              <h3 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <Coffee className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
                 Segments de travail aujourd'hui
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 {getTodaySegments().map((segment, index) => {
-                  const duration = segment.departure 
+                  const duration = segment.departure
                     ? Math.floor((segment.departure.timestamp - segment.arrival.timestamp) / 1000)
                     : Math.floor((Date.now() - segment.arrival.timestamp.getTime()) / 1000);
 
@@ -641,39 +649,40 @@ const TimeTrackPage = () => {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`bg-gray-800/50 rounded-lg p-5 border ${
-                        segment.isActive 
-                          ? 'border-green-500/50 shadow-lg shadow-green-500/20' 
-                          : 'border-gray-700/50'
+                      whileHover={{ scale: 1.02 }}
+                      className={`bg-white/5 backdrop-blur-xl rounded-xl p-4 sm:p-5 border ${
+                        segment.isActive
+                          ? 'border-green-500/50 shadow-lg shadow-green-500/20'
+                          : 'border-white/10'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${
+                          <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${
                             segment.isActive ? 'bg-green-400 animate-pulse' : 'bg-blue-400'
                           }`} />
-                          <span className="font-semibold text-white">
+                          <span className="font-semibold text-white text-sm sm:text-base">
                             Segment {index + 1}
                           </span>
                         </div>
-                        <span className="text-xl font-bold text-white">
+                        <span className="text-lg sm:text-xl font-bold text-white">
                           {formatTime(duration)}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                         <div>
                           <div className="text-gray-400 mb-1">Arrivée</div>
                           <div className="flex items-center gap-2 text-green-400 font-semibold">
-                            <LogIn className="w-4 h-4" />
+                            <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             {formatHour(segment.arrival.timestamp)}
                           </div>
                         </div>
                         <div>
                           <div className="text-gray-400 mb-1">Départ</div>
                           <div className="flex items-center gap-2 text-red-400 font-semibold">
-                            <LogOut className="w-4 h-4" />
-                            {segment.departure 
+                            <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            {segment.departure
                               ? formatHour(segment.departure.timestamp)
                               : 'En cours...'
                             }
@@ -682,7 +691,7 @@ const TimeTrackPage = () => {
                       </div>
 
                       {segment.isActive && (
-                        <div className="mt-3 pt-3 border-t border-gray-700/50">
+                        <div className="mt-3 pt-3 border-t border-white/10">
                           <div className="text-xs text-green-400 flex items-center gap-2">
                             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                             Segment actif
@@ -703,25 +712,25 @@ const TimeTrackPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700/50"
+            className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-8 border border-white/10"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-white flex items-center gap-3">
-                <Calendar className="w-6 h-6 text-purple-400" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
                 Historique des pointages
               </h3>
-              <span className="text-sm text-gray-400">
+              <span className="text-xs sm:text-sm text-gray-400">
                 {pointages.filter(p => p.status !== 'deleted').length} pointage{pointages.filter(p => p.status !== 'deleted').length > 1 ? 's' : ''}
               </span>
             </div>
 
             {loading ? (
-              <div className="text-center py-16">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
-                <p className="text-gray-400">Chargement des pointages...</p>
+              <div className="text-center py-12 sm:py-16">
+                <div className="animate-spin rounded-full h-12 w-12 sm:h-16 sm:w-16 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                <p className="text-gray-400 text-sm sm:text-base">Chargement des pointages...</p>
               </div>
             ) : pointages.filter(p => p.status !== 'deleted').length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {pointages
                   .filter(p => p.status !== 'deleted')
                   .map((pointage, index) => (
@@ -731,44 +740,44 @@ const TimeTrackPage = () => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                       whileHover={{ scale: 1.01 }}
-                      className="bg-gray-800/50 rounded-lg p-5 hover:bg-gray-700/50 transition-all border border-gray-700/50 hover:border-purple-500/50"
+                      className="bg-white/5 backdrop-blur-xl rounded-xl p-3 sm:p-5 hover:bg-white/10 transition-all border border-white/10 hover:border-purple-500/30"
                     >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center space-x-4 flex-1">
-                          <div className={`p-3 rounded-lg ${
-                            pointage.type === 'arrival' 
-                              ? 'bg-green-500/20' 
+                      <div className="flex items-center justify-between gap-3 sm:gap-4">
+                        <div className="flex items-center gap-3 sm:space-x-4 flex-1 min-w-0">
+                          <div className={`p-2 sm:p-3 rounded-xl flex-shrink-0 ${
+                            pointage.type === 'arrival'
+                              ? 'bg-green-500/20'
                               : 'bg-red-500/20'
                           }`}>
                             {pointage.type === 'arrival' ? (
-                              <LogIn className="w-6 h-6 text-green-400" />
+                              <LogIn className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
                             ) : (
-                              <LogOut className="w-6 h-6 text-red-400" />
+                              <LogOut className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" />
                             )}
                           </div>
-                          
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-white text-lg">
+
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-white text-sm sm:text-lg">
                               {pointage.type === 'arrival' ? 'Arrivée' : 'Départ'}
                             </h4>
-                            <p className="text-sm text-gray-400">
-                              {pointage.date.toLocaleDateString('fr-FR', { 
-                                weekday: 'long', 
-                                day: 'numeric', 
-                                month: 'long' 
+                            <p className="text-xs sm:text-sm text-gray-400 truncate">
+                              {pointage.date.toLocaleDateString('fr-FR', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long'
                               })}
                             </p>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center gap-4">
+
+                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                           <div className="text-right">
-                            <div className="text-white font-bold text-2xl">
+                            <div className="text-white font-bold text-lg sm:text-2xl">
                               {formatHour(pointage.timestamp)}
                             </div>
-                            <div className={`text-sm ${
-                              pointage.validated 
-                                ? 'text-green-400' 
+                            <div className={`text-xs sm:text-sm ${
+                              pointage.validated
+                                ? 'text-green-400'
                                 : 'text-yellow-400'
                             }`}>
                               {pointage.validated ? '✓ Validé' : '⏳ En attente'}
@@ -779,7 +788,7 @@ const TimeTrackPage = () => {
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => deletePointage(pointage.id)}
-                            className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg border border-red-500/50 transition-all"
+                            className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-xl border border-red-500/50 transition-all"
                           >
                             <X className="w-4 h-4 text-red-400" />
                           </motion.button>
@@ -789,10 +798,10 @@ const TimeTrackPage = () => {
                   ))}
               </div>
             ) : (
-              <div className="text-center py-16">
-                <Timer className="w-20 h-20 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-white mb-2">Aucun pointage enregistré</h3>
-                <p className="text-gray-400 text-lg mb-6">
+              <div className="text-center py-12 sm:py-16">
+                <Timer className="w-16 h-16 sm:w-20 sm:h-20 text-gray-600 mx-auto mb-4" />
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Aucun pointage enregistré</h3>
+                <p className="text-gray-400 text-sm sm:text-lg mb-6">
                   Pointez votre arrivée pour commencer
                 </p>
               </div>
@@ -804,17 +813,28 @@ const TimeTrackPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8 }}
-            className="mt-6 text-center"
+            className="mt-6 sm:mt-8"
           >
-            <p className="text-gray-500 text-sm">
-              💾 Tous les pointages sont automatiquement sauvegardés dans Firebase
-              <br />
-              ☕ Vous pouvez pointer et dépointer plusieurs fois par jour (pause déjeuner, etc.)
-              <br />
-              📊 Les données seront validées par l'admin et synchronisées avec le planning
-              <br />
-              💰 Elles serviront à générer les éléments de fiche de paie
-            </p>
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm text-gray-400">
+                <div className="flex items-start gap-2">
+                  <span className="flex-shrink-0">💾</span>
+                  <span>Pointages sauvegardés automatiquement</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="flex-shrink-0">☕</span>
+                  <span>Multi-pointages par jour (pause déjeuner, etc.)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="flex-shrink-0">📊</span>
+                  <span>Validation admin et sync planning</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="flex-shrink-0">💰</span>
+                  <span>Génération des fiches de paie</span>
+                </div>
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>

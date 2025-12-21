@@ -973,16 +973,20 @@ const PulsePage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-          <div className="text-center">
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-pink-600/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 text-center">
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 1, repeat: Infinity }}
-              className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-pink-500/30 to-rose-600/20 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
             >
-              <Heart className="w-8 h-8 text-white" />
+              <Heart className="w-7 h-7 sm:w-8 sm:h-8 text-pink-400" />
             </motion.div>
-            <p className="text-white text-lg">Chargement...</p>
+            <p className="text-gray-400 text-sm sm:text-lg">Chargement...</p>
           </div>
         </div>
       </Layout>
@@ -991,29 +995,45 @@ const PulsePage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-pink-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-rose-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8 max-w-7xl mx-auto">
 
           {/* Header */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-                  <Heart className="w-8 h-8 text-pink-400" />
-                  Pulse & Badgeuse
-                </h1>
-                <p className="text-gray-400 text-sm">
-                  Pointez et indiquez votre etat quotidien
-                </p>
+              <div className="flex items-center gap-3 sm:gap-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="p-2.5 sm:p-3 bg-gradient-to-br from-pink-500/30 to-rose-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+                >
+                  <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-pink-400" />
+                </motion.div>
+                <div>
+                  <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-pink-200 to-white bg-clip-text text-transparent">
+                    Pulse & Badgeuse
+                  </h1>
+                  <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                    Pointez et indiquez votre etat quotidien
+                  </p>
+                </div>
               </div>
 
               <motion.button
                 onClick={refresh}
                 whileHover={{ scale: 1.05, rotate: 180 }}
                 whileTap={{ scale: 0.95 }}
-                className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                className="p-2 sm:p-2.5 bg-white/5 backdrop-blur-xl border border-white/10 hover:bg-white/10 rounded-xl transition-all"
               >
-                <RefreshCw className="w-5 h-5 text-white" />
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </motion.button>
             </div>
 
