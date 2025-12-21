@@ -820,6 +820,7 @@ const CampaignsPage = () => {
             </motion.div>
           )}
         </div>
+        </div>
 
         {/* 📝 MODAL FORMULAIRE CAMPAGNE */}
         <AnimatePresence>
