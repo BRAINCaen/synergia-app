@@ -114,7 +114,86 @@ const useGameStore = create(
 
       getLevelProgress: () => {
         const stats = get().userStats;
-        return Math.min((stats.currentXp / 100) * 100, 100);
+        const progress = getXPProgress(stats.totalXp);
+        return progress.progressPercent || 0;
+      },
+
+      getCurrentLevel: () => {
+        const stats = get().userStats;
+        return calculateLevel(stats.totalXp);
+      },
+
+      // 🏆 LEADERBOARD
+      loadLeaderboard: async () => {
+        // Stub - leaderboard chargé ailleurs
+        return get().leaderboard;
+      },
+
+      // 🔔 NOTIFICATIONS
+      markNotificationAsRead: (notificationId) => {
+        const state = get();
+        const updated = state.notifications.map(n =>
+          n.id === notificationId ? { ...n, read: true } : n
+        );
+        set({ notifications: updated });
+      },
+
+      clearNotifications: () => {
+        set({ notifications: [] });
+      },
+
+      // 🏅 BADGES
+      getUnlockedBadges: () => {
+        return get().userStats.badges || [];
+      },
+
+      getAvailableBadges: () => {
+        // Retourne les badges possibles
+        return ['welcome', 'first_quest', 'team_player', 'streak_7', 'streak_30', 'level_10', 'level_25', 'level_50'];
+      },
+
+      // 📊 INSIGHTS
+      getUserInsights: () => {
+        const stats = get().userStats;
+        return {
+          totalXp: stats.totalXp,
+          level: stats.level,
+          tasksCompleted: stats.tasksCompleted,
+          loginStreak: stats.loginStreak,
+          badgeCount: (stats.badges || []).length
+        };
+      },
+
+      getUserRank: () => {
+        const stats = get().userStats;
+        const level = calculateLevel(stats.totalXp);
+        // Retourne le rang basé sur le niveau
+        if (level >= 90) return { rank: 'Immortel', icon: '🌟' };
+        if (level >= 75) return { rank: 'Légende', icon: '✨' };
+        if (level >= 60) return { rank: 'Maître', icon: '👑' };
+        if (level >= 45) return { rank: 'Champion', icon: '🏆' };
+        if (level >= 30) return { rank: 'Héros', icon: '🛡️' };
+        if (level >= 20) return { rank: 'Aventurier', icon: '🏹' };
+        if (level >= 10) return { rank: 'Initié', icon: '⚔️' };
+        return { rank: 'Apprenti', icon: '🌱' };
+      },
+
+      predictTimeToNextLevel: () => {
+        const stats = get().userStats;
+        const progress = getXPProgress(stats.totalXp);
+        // Estimation basée sur ~1250 XP/mois
+        const xpNeeded = progress.xpToNextLevel || 500;
+        const daysEstimate = Math.ceil(xpNeeded / 42); // ~42 XP/jour
+        return { daysEstimate, xpNeeded };
+      },
+
+      getXpRecommendations: () => {
+        return [
+          { action: 'Compléter une quête', xp: '10-50 XP' },
+          { action: 'Participer à un défi', xp: '25-100 XP' },
+          { action: 'Connexion quotidienne', xp: '5 XP' },
+          { action: 'Streak de 7 jours', xp: '+15 XP bonus' }
+        ];
       },
 
       // 🔄 UTILITIES

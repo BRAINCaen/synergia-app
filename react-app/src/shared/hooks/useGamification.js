@@ -109,7 +109,7 @@ export const useGamification = () => {
     getUnlockedBadges,
     getAvailableBadges,
     getUserInsights,
-    getUserRank: (userId = user?.uid) => getUserRank(userId),
+    getUserRank,
     predictTimeToNextLevel,
     getXpRecommendations,
 
