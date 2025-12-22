@@ -564,10 +564,10 @@ const InfosPage = () => {
                                   )}
 
                                   {/* Actions Admin */}
-                                  {userIsAdmin && idea.status !== IDEA_STATUS.IMPLEMENTED && idea.status !== IDEA_STATUS.REJECTED && (
+                                  {userIsAdmin && idea.status !== IDEA_STATUS.REJECTED && (
                                     <div className="flex gap-1">
                                       {/* Bouton Adopter - désactivé si quorum non atteint */}
-                                      {idea.status !== IDEA_STATUS.ADOPTED && (
+                                      {idea.status !== IDEA_STATUS.ADOPTED && idea.status !== IDEA_STATUS.IMPLEMENTED && (
                                         <motion.button
                                           onClick={() => handleAdoptIdea(idea.id)}
                                           whileHover={(idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM ? { scale: 1.1 } : {}}
@@ -596,7 +596,7 @@ const InfosPage = () => {
                                           <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                         </motion.button>
                                       )}
-                                      {/* Bouton Relancer le vote */}
+                                      {/* Bouton Relancer le vote - visible même pour les idées implémentées */}
                                       <motion.button
                                         onClick={() => handleRelaunchVote(idea.id)}
                                         whileHover={{ scale: 1.1 }}
@@ -606,15 +606,17 @@ const InfosPage = () => {
                                       >
                                         <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                       </motion.button>
-                                      <motion.button
-                                        onClick={() => handleRejectIdea(idea.id)}
-                                        whileHover={{ scale: 1.1 }}
-                                        whileTap={{ scale: 0.9 }}
-                                        className="p-1.5 sm:p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
-                                        title="Rejeter cette idée"
-                                      >
-                                        <XOctagon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                      </motion.button>
+                                      {idea.status !== IDEA_STATUS.IMPLEMENTED && (
+                                        <motion.button
+                                          onClick={() => handleRejectIdea(idea.id)}
+                                          whileHover={{ scale: 1.1 }}
+                                          whileTap={{ scale: 0.9 }}
+                                          className="p-1.5 sm:p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+                                          title="Rejeter cette idée"
+                                        >
+                                          <XOctagon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                        </motion.button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
