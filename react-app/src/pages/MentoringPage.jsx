@@ -12,6 +12,7 @@ import {
   AlertTriangle, Shield, CheckCircle
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
+import SponsorshipSection from '../components/mentoring/SponsorshipSection.jsx';
 import { useMentoring } from '../shared/hooks/useMentoring.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import {
@@ -917,6 +918,13 @@ const MentoringPage = () => {
                 />
               ))
             )}
+          </div>
+
+          {/* ==========================================
+              🤝 SECTION PARRAINAGE
+              ========================================== */}
+          <div className="mt-8 sm:mt-10">
+            <SponsorshipSection />
           </div>
 
           {/* ==========================================
