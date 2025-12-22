@@ -1013,16 +1013,16 @@ const PulsePage = () => {
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="p-2.5 sm:p-3 bg-gradient-to-br from-pink-500/30 to-rose-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
+                  className="p-2.5 sm:p-3 bg-gradient-to-br from-slate-500/30 to-blue-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
                 >
-                  <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-pink-400" />
+                  <span className="text-2xl sm:text-3xl">🛡️</span>
                 </motion.div>
                 <div>
-                  <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-pink-200 to-white bg-clip-text text-transparent">
-                    Pulse & Badgeuse
+                  <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-blue-200 to-white bg-clip-text text-transparent">
+                    Poste de Garde
                   </h1>
                   <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-                    Pointez et indiquez votre etat quotidien
+                    Pointez votre arrivée et indiquez votre état
                   </p>
                 </div>
               </div>
