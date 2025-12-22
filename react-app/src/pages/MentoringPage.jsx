@@ -18,8 +18,10 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import {
   collection,
   getDocs,
+  addDoc,
   query,
-  orderBy
+  orderBy,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -687,6 +689,8 @@ const MentoringPage = () => {
   const [certifications, setCertifications] = useState([]);
   const [trainingsLoading, setTrainingsLoading] = useState(true);
   const [activeTrainingView, setActiveTrainingView] = useState('trainings'); // trainings, certifications, plan
+  const [selectedTrainingType, setSelectedTrainingType] = useState('all'); // Filtre par type
+  const [showAddTrainingModal, setShowAddTrainingModal] = useState(false);
 
   // Types de formations
   const trainingTypes = [
@@ -696,6 +700,12 @@ const MentoringPage = () => {
     { id: 'certification', label: 'Certification', color: 'orange', icon: '📜' },
     { id: 'safety', label: 'Sécurité', color: 'red', icon: '🦺' }
   ];
+
+  // Filtrer les formations par type
+  const filteredTrainings = useMemo(() => {
+    if (selectedTrainingType === 'all') return trainings;
+    return trainings.filter(t => t.type === selectedTrainingType);
+  }, [trainings, selectedTrainingType]);
 
   // Charger les formations
   useEffect(() => {
@@ -1007,17 +1017,43 @@ const MentoringPage = () => {
               </div>
             )}
 
-            {/* Types de formations */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
-              {trainingTypes.map((type) => (
-                <div
-                  key={type.id}
-                  className="p-3 bg-white/5 rounded-xl border border-white/10 text-center hover:bg-white/10 transition-colors"
-                >
-                  <div className="text-2xl mb-1">{type.icon}</div>
-                  <div className="text-gray-300 text-xs">{type.label}</div>
-                </div>
-              ))}
+            {/* Types de formations - Filtres cliquables */}
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-6">
+              <button
+                onClick={() => setSelectedTrainingType('all')}
+                className={`p-3 rounded-xl border text-center transition-all ${
+                  selectedTrainingType === 'all'
+                    ? 'bg-amber-500/20 border-amber-500/50 ring-2 ring-amber-500/30'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <div className="text-2xl mb-1">📋</div>
+                <div className={`text-xs ${selectedTrainingType === 'all' ? 'text-amber-300' : 'text-gray-300'}`}>Toutes</div>
+              </button>
+              {trainingTypes.map((type) => {
+                const count = trainings.filter(t => t.type === type.id).length;
+                return (
+                  <button
+                    key={type.id}
+                    onClick={() => setSelectedTrainingType(type.id)}
+                    className={`p-3 rounded-xl border text-center transition-all relative ${
+                      selectedTrainingType === type.id
+                        ? 'bg-amber-500/20 border-amber-500/50 ring-2 ring-amber-500/30'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">{type.icon}</div>
+                    <div className={`text-xs ${selectedTrainingType === type.id ? 'text-amber-300' : 'text-gray-300'}`}>
+                      {type.label}
+                    </div>
+                    {count > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full text-white text-xs flex items-center justify-center">
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Contenu selon la vue */}
@@ -1027,14 +1063,19 @@ const MentoringPage = () => {
                 <p className="text-gray-400">Chargement...</p>
               </div>
             ) : activeTrainingView === 'trainings' ? (
-              trainings.length === 0 ? (
+              filteredTrainings.length === 0 ? (
                 <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
                   <Award className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 mb-2">Aucune formation enregistrée</p>
+                  <p className="text-gray-400 mb-2">
+                    {selectedTrainingType === 'all'
+                      ? 'Aucune formation enregistrée'
+                      : `Aucune formation de type "${trainingTypes.find(t => t.id === selectedTrainingType)?.label}"`}
+                  </p>
                   <p className="text-gray-500 text-sm mb-4">Commencez à planifier les formations</p>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowAddTrainingModal(true)}
                     className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
@@ -1043,7 +1084,17 @@ const MentoringPage = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {trainings.map((training) => {
+                  {/* Bouton ajouter en haut de la liste */}
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => setShowAddTrainingModal(true)}
+                    className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-dashed border-white/20 text-gray-400 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Ajouter une formation
+                  </motion.button>
+                  {filteredTrainings.map((training) => {
                     const type = trainingTypes.find(t => t.id === training.type) || trainingTypes[0];
                     const date = training.date?.toDate?.() || new Date(training.date);
 
@@ -1134,10 +1185,119 @@ const MentoringPage = () => {
                 )}
               </div>
             ) : (
-              <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
-                <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 mb-2">Plan de formation annuel</p>
-                <p className="text-gray-500 text-sm">À venir prochainement</p>
+              /* Plan de formation annuel */
+              <div className="space-y-4">
+                {/* Résumé annuel */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30 rounded-xl p-4">
+                    <h4 className="text-blue-300 font-medium mb-2">📅 Prévues cette année</h4>
+                    <div className="text-3xl font-bold text-white">{trainings.filter(t => {
+                      const d = t.date?.toDate?.() || new Date(t.date);
+                      return d.getFullYear() === new Date().getFullYear();
+                    }).length}</div>
+                    <p className="text-gray-400 text-sm mt-1">formations planifiées</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 rounded-xl p-4">
+                    <h4 className="text-green-300 font-medium mb-2">✅ Réalisées</h4>
+                    <div className="text-3xl font-bold text-white">{trainingStats.completedThisYear}</div>
+                    <p className="text-gray-400 text-sm mt-1">formations complétées</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30 rounded-xl p-4">
+                    <h4 className="text-purple-300 font-medium mb-2">⏳ À venir</h4>
+                    <div className="text-3xl font-bold text-white">{trainingStats.upcomingTrainings}</div>
+                    <p className="text-gray-400 text-sm mt-1">formations à venir</p>
+                  </div>
+                </div>
+
+                {/* Calendrier simplifié par mois */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <h4 className="text-white font-medium mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-amber-400" />
+                    Calendrier des formations {new Date().getFullYear()}
+                  </h4>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    {['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'].map((month, index) => {
+                      const monthTrainings = trainings.filter(t => {
+                        const d = t.date?.toDate?.() || new Date(t.date);
+                        return d.getMonth() === index && d.getFullYear() === new Date().getFullYear();
+                      });
+                      const isPast = index < new Date().getMonth();
+                      const isCurrent = index === new Date().getMonth();
+                      return (
+                        <div
+                          key={month}
+                          className={`p-3 rounded-lg text-center transition-all ${
+                            isCurrent
+                              ? 'bg-amber-500/30 border-2 border-amber-500'
+                              : isPast
+                              ? 'bg-white/5 border border-white/5'
+                              : 'bg-white/5 border border-white/10'
+                          }`}
+                        >
+                          <div className={`text-xs font-medium ${isCurrent ? 'text-amber-300' : 'text-gray-400'}`}>
+                            {month}
+                          </div>
+                          <div className={`text-lg font-bold mt-1 ${
+                            monthTrainings.length > 0 ? 'text-white' : 'text-gray-600'
+                          }`}>
+                            {monthTrainings.length}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Liste des formations à venir */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <h4 className="text-white font-medium mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-green-400" />
+                    Prochaines formations
+                  </h4>
+                  {trainingStats.upcomingTrainings === 0 ? (
+                    <div className="text-center py-6 text-gray-500">
+                      <p>Aucune formation planifiée</p>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setActiveTrainingView('trainings');
+                          setShowAddTrainingModal(true);
+                        }}
+                        className="mt-3 text-amber-400 hover:text-amber-300 text-sm"
+                      >
+                        + Planifier une formation
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {trainings
+                        .filter(t => {
+                          const d = t.date?.toDate?.() || new Date(t.date);
+                          return d > new Date() && t.status === 'scheduled';
+                        })
+                        .sort((a, b) => {
+                          const dA = a.date?.toDate?.() || new Date(a.date);
+                          const dB = b.date?.toDate?.() || new Date(b.date);
+                          return dA - dB;
+                        })
+                        .slice(0, 5)
+                        .map(training => {
+                          const type = trainingTypes.find(t => t.id === training.type) || trainingTypes[0];
+                          const date = training.date?.toDate?.() || new Date(training.date);
+                          return (
+                            <div key={training.id} className="flex items-center gap-3 p-2 bg-white/5 rounded-lg">
+                              <span className="text-xl">{type.icon}</span>
+                              <div className="flex-1">
+                                <div className="text-white text-sm font-medium">{training.title}</div>
+                                <div className="text-gray-500 text-xs">{date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </motion.div>
@@ -1164,7 +1324,240 @@ const MentoringPage = () => {
         onSubmit={submitFeedback}
         FEEDBACK_RATINGS={FEEDBACK_RATINGS}
       />
+
+      {/* Modal Ajout Formation */}
+      <AddTrainingModal
+        isOpen={showAddTrainingModal}
+        onClose={() => setShowAddTrainingModal(false)}
+        trainingTypes={trainingTypes}
+        onAdd={async (trainingData) => {
+          try {
+            const trainingsRef = collection(db, 'hr_trainings');
+            const docRef = await addDoc(trainingsRef, {
+              ...trainingData,
+              createdAt: serverTimestamp(),
+              createdBy: user?.uid,
+              status: 'scheduled'
+            });
+            // Ajouter à la liste locale
+            setTrainings(prev => [{
+              id: docRef.id,
+              ...trainingData,
+              status: 'scheduled'
+            }, ...prev]);
+            return { success: true };
+          } catch (error) {
+            console.error('Erreur ajout formation:', error);
+            return { success: false, error };
+          }
+        }}
+      />
     </Layout>
+  );
+};
+
+// ==========================================
+// MODAL AJOUT FORMATION
+// ==========================================
+
+const AddTrainingModal = ({ isOpen, onClose, trainingTypes, onAdd }) => {
+  const [form, setForm] = useState({
+    title: '',
+    type: 'internal',
+    date: '',
+    duration: '1',
+    description: '',
+    location: '',
+    trainer: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.title || !form.date) return;
+
+    setSaving(true);
+    const result = await onAdd({
+      ...form,
+      date: new Date(form.date),
+      duration: parseInt(form.duration) || 1
+    });
+
+    if (result.success) {
+      onClose();
+      setForm({
+        title: '',
+        type: 'internal',
+        date: '',
+        duration: '1',
+        description: '',
+        location: '',
+        trainer: ''
+      });
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-slate-800 rounded-2xl border border-white/10 w-full max-w-lg max-h-[90vh] flex flex-col"
+      >
+        <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+          <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <Award className="w-5 h-5 text-amber-400" />
+            Nouvelle Formation
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+            {/* Titre */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Titre de la formation *
+              </label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Ex: Formation sécurité incendie"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+                required
+              />
+            </div>
+
+            {/* Type de formation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Type de formation
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {trainingTypes.map((type) => (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, type: type.id }))}
+                    className={`p-3 rounded-xl border text-center transition-all ${
+                      form.type === type.id
+                        ? 'bg-amber-500/20 border-amber-500/50 ring-2 ring-amber-500/30'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="text-xl mb-1">{type.icon}</div>
+                    <div className={`text-xs ${form.type === type.id ? 'text-amber-300' : 'text-gray-400'}`}>
+                      {type.label}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date et durée */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Date *
+                </label>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Durée (jours)
+                </label>
+                <select
+                  value={form.duration}
+                  onChange={(e) => setForm(f => ({ ...f, duration: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none"
+                >
+                  <option value="1" className="bg-gray-800">1 jour</option>
+                  <option value="2" className="bg-gray-800">2 jours</option>
+                  <option value="3" className="bg-gray-800">3 jours</option>
+                  <option value="5" className="bg-gray-800">5 jours</option>
+                  <option value="10" className="bg-gray-800">10 jours</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Lieu */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Lieu
+              </label>
+              <input
+                type="text"
+                value={form.location}
+                onChange={(e) => setForm(f => ({ ...f, location: e.target.value }))}
+                placeholder="Ex: Salle de réunion, En ligne..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Formateur */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Formateur / Organisme
+              </label>
+              <input
+                type="text"
+                value={form.trainer}
+                onChange={(e) => setForm(f => ({ ...f, trainer: e.target.value }))}
+                placeholder="Ex: Marie Dupont, AFPA..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Objectifs et contenu de la formation..."
+                rows={3}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Boutons */}
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-white/10 bg-slate-800 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !form.title || !form.date}
+              className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {saving ? 'Enregistrement...' : 'Ajouter la formation'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
   );
 };
 
