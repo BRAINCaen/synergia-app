@@ -1,7 +1,7 @@
 // ==========================================
 // react-app/src/pages/AdminRolePermissionsPage.jsx
-// PAGE ADMINISTRATION DES PERMISSIONS PAR ROLE SYNERGIA V3.0
-// DESIGN GLASSMORPHISM + NOUVELLES FONCTIONNALITES
+// PAGE ADMINISTRATION DES PERMISSIONS UTILISATEURS V4.0
+// SYSTÈME COMPLET DE GESTION DES DROITS PAR MODULE
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -15,8 +15,6 @@ import {
   Edit,
   Save,
   X,
-  Plus,
-  Trash2,
   CheckCircle,
   AlertTriangle,
   Eye,
@@ -32,12 +30,9 @@ import {
   UserPlus,
   Layers,
   Database,
-  Monitor,
   BookOpen,
   Search,
   Filter,
-  Download,
-  Upload,
   History,
   TrendingUp,
   Flag,
@@ -49,11 +44,36 @@ import {
   RefreshCw,
   ChevronRight,
   ChevronDown,
-  AlertCircle
+  AlertCircle,
+  UserCog,
+  Key,
+  Briefcase,
+  Heart,
+  DollarSign,
+  Palette,
+  Bell,
+  Mail,
+  Phone,
+  MapPin,
+  Building,
+  Clipboard,
+  Timer,
+  Star,
+  Sparkles,
+  GraduationCap,
+  Megaphone,
+  Package,
+  Wrench,
+  Handshake,
+  ShieldCheck,
+  ShieldAlert,
+  ToggleLeft,
+  ToggleRight,
+  Info
 } from 'lucide-react';
 
 // Firebase
-import { collection, getDocs, doc, getDoc, updateDoc, setDoc, query, where, orderBy, limit, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 // Hooks
@@ -80,173 +100,387 @@ const showNotification = (message, type = 'info') => {
   }, 3000);
 };
 
-// ROLES SYNERGIA AVEC PERMISSIONS DEFINIES
-const SYNERGIA_ROLES = {
-  mentoring: {
-    id: 'mentoring',
-    name: 'Mentorat & Formation Interne',
-    icon: '🎓',
-    color: 'from-green-500 to-emerald-600',
-    bgColor: 'bg-green-500/20',
-    description: 'Formation et accompagnement des equipes',
-    defaultPermissions: ['onboarding_admin', 'training_access', 'mentoring_rights'],
-    adminSections: ['Onboarding', 'Formation'],
-    priority: 1
-  },
-  organization: {
-    id: 'organization',
-    name: 'Organisation Interne du Travail',
-    icon: '📋',
-    color: 'from-purple-500 to-violet-600',
-    bgColor: 'bg-purple-500/20',
-    description: 'Coordination et organisation des equipes',
-    defaultPermissions: ['planning_admin', 'timetrack_admin', 'tasks_admin', 'projects_admin'],
-    adminSections: ['Planning', 'Pointeuse', 'Taches', 'Projets'],
-    priority: 2
-  },
-  gamemaster: {
-    id: 'gamemaster',
-    name: 'Game Master',
-    icon: '🎮',
+// ==========================================
+// DÉFINITION COMPLÈTE DES MODULES ET PERMISSIONS
+// ==========================================
+
+const PERMISSION_MODULES = {
+  // ===== ADMINISTRATION SYSTÈME =====
+  system_admin: {
+    id: 'system_admin',
+    name: 'Administration Système',
+    icon: ShieldCheck,
     color: 'from-red-500 to-rose-600',
     bgColor: 'bg-red-500/20',
-    description: 'Animation des sessions et management general',
-    defaultPermissions: ['session_admin', 'user_management', 'analytics_admin', 'full_access'],
-    adminSections: ['Sessions', 'Utilisateurs', 'Analytics', 'Systeme'],
-    priority: 3
+    description: 'Accès complet à tous les paramètres système',
+    category: 'admin',
+    permissions: [
+      { id: 'system_full_access', name: 'Accès complet système', icon: Crown, level: 'god', description: 'Tous les droits sans restriction' },
+      { id: 'system_settings', name: 'Paramètres Synergia', icon: Settings, level: 'admin', description: 'Modifier les paramètres globaux' },
+      { id: 'system_users_manage', name: 'Gérer tous les utilisateurs', icon: Users, level: 'admin', description: 'Créer, modifier, supprimer des comptes' },
+      { id: 'system_roles_manage', name: 'Gérer les rôles', icon: Key, level: 'admin', description: 'Attribuer et modifier les rôles' },
+      { id: 'system_permissions_manage', name: 'Gérer les permissions', icon: Lock, level: 'admin', description: 'Modifier les droits des utilisateurs' },
+      { id: 'system_logs_view', name: 'Voir les logs système', icon: FileText, level: 'admin', description: 'Consulter l\'historique des actions' }
+    ]
   },
-  reputation: {
-    id: 'reputation',
-    name: 'Gestion des Avis & Reputation',
-    icon: '⭐',
-    color: 'from-yellow-500 to-amber-600',
-    bgColor: 'bg-yellow-500/20',
-    description: 'Gestion de l\'image et communication',
-    defaultPermissions: ['reviews_admin', 'communication_admin', 'social_media_admin'],
-    adminSections: ['Avis', 'Communication', 'Reseaux Sociaux'],
-    priority: 4
+
+  // ===== ANALYTICS & RAPPORTS =====
+  analytics: {
+    id: 'analytics',
+    name: 'Analytics & Rapports',
+    icon: BarChart3,
+    color: 'from-blue-500 to-cyan-600',
+    bgColor: 'bg-blue-500/20',
+    description: 'Statistiques et tableaux de bord',
+    category: 'admin',
+    permissions: [
+      { id: 'analytics_view_basic', name: 'Voir stats basiques', icon: Eye, level: 'view', description: 'Statistiques générales' },
+      { id: 'analytics_view_detailed', name: 'Voir stats détaillées', icon: PieChart, level: 'edit', description: 'Rapports complets avec détails' },
+      { id: 'analytics_view_team', name: 'Voir stats équipe', icon: Users, level: 'edit', description: 'Performance de toute l\'équipe' },
+      { id: 'analytics_view_individual', name: 'Voir stats individuelles', icon: UserCog, level: 'edit', description: 'Performance par collaborateur' },
+      { id: 'analytics_export', name: 'Exporter les données', icon: FileText, level: 'admin', description: 'Export PDF/Excel des rapports' },
+      { id: 'analytics_admin', name: 'Administration analytics', icon: Crown, level: 'admin', description: 'Configuration des tableaux de bord' }
+    ]
   },
-  content: {
-    id: 'content',
-    name: 'Creation de Contenu & Affichages',
-    icon: '🎨',
-    color: 'from-pink-500 to-rose-600',
-    bgColor: 'bg-pink-500/20',
-    description: 'Creation de contenu et design',
-    defaultPermissions: ['content_admin', 'design_admin', 'media_admin'],
-    adminSections: ['Contenu', 'Design', 'Medias'],
-    priority: 5
+
+  // ===== PLANNING & HORAIRES =====
+  planning: {
+    id: 'planning',
+    name: 'Planning & Horaires',
+    icon: Calendar,
+    color: 'from-purple-500 to-violet-600',
+    bgColor: 'bg-purple-500/20',
+    description: 'Gestion des plannings et emplois du temps',
+    category: 'tools',
+    permissions: [
+      { id: 'planning_view_own', name: 'Voir son planning', icon: Eye, level: 'view', description: 'Consulter son propre emploi du temps' },
+      { id: 'planning_view_team', name: 'Voir planning équipe', icon: Users, level: 'view', description: 'Consulter les plannings de tous' },
+      { id: 'planning_edit_own', name: 'Modifier son planning', icon: Edit, level: 'edit', description: 'Changer ses propres horaires' },
+      { id: 'planning_edit_team', name: 'Modifier planning équipe', icon: UserCog, level: 'admin', description: 'Gérer les plannings de tous' },
+      { id: 'planning_create_events', name: 'Créer des événements', icon: Calendar, level: 'edit', description: 'Ajouter des réunions, événements' },
+      { id: 'planning_admin', name: 'Administration planning', icon: Crown, level: 'admin', description: 'Paramétrage complet du planning' }
+    ]
   },
-  maintenance: {
-    id: 'maintenance',
-    name: 'Entretien & Maintenance',
-    icon: '🔧',
+
+  // ===== POINTEUSE & TEMPS =====
+  timetracking: {
+    id: 'timetracking',
+    name: 'Pointeuse & Temps de travail',
+    icon: Timer,
     color: 'from-orange-500 to-amber-600',
     bgColor: 'bg-orange-500/20',
-    description: 'Maintenance technique et materiel',
-    defaultPermissions: ['maintenance_admin', 'equipment_admin', 'technical_admin'],
-    adminSections: ['Maintenance', 'Equipement', 'Technique'],
-    priority: 6
+    description: 'Suivi du temps et pointages',
+    category: 'tools',
+    permissions: [
+      { id: 'time_clock_own', name: 'Pointer soi-même', icon: Clock, level: 'view', description: 'Enregistrer ses propres pointages' },
+      { id: 'time_view_own', name: 'Voir son historique', icon: Eye, level: 'view', description: 'Consulter ses heures' },
+      { id: 'time_view_team', name: 'Voir historique équipe', icon: Users, level: 'edit', description: 'Consulter les heures de tous' },
+      { id: 'time_edit_own', name: 'Corriger ses pointages', icon: Edit, level: 'edit', description: 'Modifier ses propres entrées' },
+      { id: 'time_edit_team', name: 'Corriger pointages équipe', icon: UserCog, level: 'admin', description: 'Modifier les pointages de tous' },
+      { id: 'time_validate', name: 'Valider les heures', icon: CheckCircle, level: 'admin', description: 'Approuver les feuilles de temps' },
+      { id: 'time_admin', name: 'Administration pointeuse', icon: Crown, level: 'admin', description: 'Paramétrage de la pointeuse' }
+    ]
   },
-  stock: {
-    id: 'stock',
-    name: 'Gestion des Stocks & Materiel',
-    icon: '📦',
-    color: 'from-blue-500 to-indigo-600',
-    bgColor: 'bg-blue-500/20',
-    description: 'Inventaires et approvisionnements',
-    defaultPermissions: ['inventory_admin', 'stock_admin', 'suppliers_admin'],
-    adminSections: ['Inventaire', 'Stock', 'Fournisseurs'],
-    priority: 7
+
+  // ===== RESSOURCES HUMAINES =====
+  hr: {
+    id: 'hr',
+    name: 'Ressources Humaines',
+    icon: Briefcase,
+    color: 'from-pink-500 to-rose-600',
+    bgColor: 'bg-pink-500/20',
+    description: 'Informations sensibles des collaborateurs',
+    category: 'admin',
+    permissions: [
+      { id: 'hr_view_own', name: 'Voir son dossier RH', icon: Eye, level: 'view', description: 'Consulter ses propres infos' },
+      { id: 'hr_view_basic', name: 'Voir infos basiques équipe', icon: Users, level: 'view', description: 'Nom, poste, département' },
+      { id: 'hr_view_contact', name: 'Voir coordonnées', icon: Phone, level: 'edit', description: 'Email, téléphone, adresse' },
+      { id: 'hr_view_sensitive', name: 'Voir infos sensibles', icon: ShieldAlert, level: 'admin', description: 'Salaire, contrat, documents' },
+      { id: 'hr_edit_profiles', name: 'Modifier profils', icon: Edit, level: 'admin', description: 'Modifier les fiches collaborateurs' },
+      { id: 'hr_manage_contracts', name: 'Gérer contrats', icon: FileText, level: 'admin', description: 'Documents contractuels' },
+      { id: 'hr_admin', name: 'Administration RH', icon: Crown, level: 'admin', description: 'Accès complet aux dossiers RH' }
+    ]
   },
-  partnerships: {
-    id: 'partnerships',
-    name: 'Partenariats & Referencement',
-    icon: '🤝',
+
+  // ===== QUÊTES & TÂCHES =====
+  tasks: {
+    id: 'tasks',
+    name: 'Quêtes & Tâches',
+    icon: Target,
+    color: 'from-green-500 to-emerald-600',
+    bgColor: 'bg-green-500/20',
+    description: 'Gestion des missions et objectifs',
+    category: 'gamification',
+    permissions: [
+      { id: 'tasks_view_own', name: 'Voir ses quêtes', icon: Eye, level: 'view', description: 'Consulter ses missions' },
+      { id: 'tasks_view_team', name: 'Voir quêtes équipe', icon: Users, level: 'view', description: 'Consulter les missions de tous' },
+      { id: 'tasks_create', name: 'Créer des quêtes', icon: Target, level: 'edit', description: 'Ajouter de nouvelles missions' },
+      { id: 'tasks_assign', name: 'Assigner des quêtes', icon: UserPlus, level: 'edit', description: 'Attribuer des missions à d\'autres' },
+      { id: 'tasks_validate', name: 'Valider les quêtes', icon: CheckCircle, level: 'admin', description: 'Approuver les missions terminées' },
+      { id: 'tasks_manage_xp', name: 'Gérer l\'XP des quêtes', icon: Zap, level: 'admin', description: 'Modifier les points attribués' },
+      { id: 'tasks_admin', name: 'Administration quêtes', icon: Crown, level: 'admin', description: 'Paramétrage complet des quêtes' }
+    ]
+  },
+
+  // ===== CAMPAGNES & OBJECTIFS =====
+  campaigns: {
+    id: 'campaigns',
+    name: 'Campagnes & Objectifs',
+    icon: Flag,
     color: 'from-indigo-500 to-purple-600',
     bgColor: 'bg-indigo-500/20',
-    description: 'Relations externes et partenariats',
-    defaultPermissions: ['partnerships_admin', 'external_relations_admin', 'marketing_admin'],
-    adminSections: ['Partenariats', 'Relations Externes', 'Marketing'],
-    priority: 8
+    description: 'Campagnes d\'objectifs collectifs',
+    category: 'gamification',
+    permissions: [
+      { id: 'campaigns_view', name: 'Voir les campagnes', icon: Eye, level: 'view', description: 'Consulter les objectifs' },
+      { id: 'campaigns_participate', name: 'Participer', icon: Target, level: 'view', description: 'Contribuer aux campagnes' },
+      { id: 'campaigns_create', name: 'Créer des campagnes', icon: Flag, level: 'edit', description: 'Lancer de nouvelles campagnes' },
+      { id: 'campaigns_edit', name: 'Modifier les campagnes', icon: Edit, level: 'edit', description: 'Changer les paramètres' },
+      { id: 'campaigns_validate', name: 'Valider les objectifs', icon: CheckCircle, level: 'admin', description: 'Approuver les contributions' },
+      { id: 'campaigns_admin', name: 'Administration campagnes', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== RÉCOMPENSES & BOUTIQUE =====
+  rewards: {
+    id: 'rewards',
+    name: 'Récompenses & Boutique',
+    icon: Gift,
+    color: 'from-yellow-500 to-amber-600',
+    bgColor: 'bg-yellow-500/20',
+    description: 'Système de récompenses et échanges',
+    category: 'gamification',
+    permissions: [
+      { id: 'rewards_view', name: 'Voir les récompenses', icon: Eye, level: 'view', description: 'Consulter le catalogue' },
+      { id: 'rewards_claim', name: 'Réclamer des récompenses', icon: Gift, level: 'view', description: 'Échanger ses points' },
+      { id: 'rewards_create', name: 'Créer des récompenses', icon: Sparkles, level: 'edit', description: 'Ajouter au catalogue' },
+      { id: 'rewards_edit', name: 'Modifier les récompenses', icon: Edit, level: 'edit', description: 'Changer prix et détails' },
+      { id: 'rewards_validate', name: 'Valider les demandes', icon: CheckCircle, level: 'admin', description: 'Approuver les échanges' },
+      { id: 'rewards_manage_stock', name: 'Gérer les stocks', icon: Package, level: 'admin', description: 'Inventaire des récompenses' },
+      { id: 'rewards_admin', name: 'Administration boutique', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== BADGES & ACHIEVEMENTS =====
+  badges: {
+    id: 'badges',
+    name: 'Badges & Succès',
+    icon: Trophy,
+    color: 'from-amber-500 to-yellow-600',
+    bgColor: 'bg-amber-500/20',
+    description: 'Système de badges et accomplissements',
+    category: 'gamification',
+    permissions: [
+      { id: 'badges_view', name: 'Voir les badges', icon: Eye, level: 'view', description: 'Consulter les badges disponibles' },
+      { id: 'badges_view_team', name: 'Voir badges équipe', icon: Users, level: 'view', description: 'Badges des collègues' },
+      { id: 'badges_create', name: 'Créer des badges', icon: Award, level: 'edit', description: 'Concevoir nouveaux badges' },
+      { id: 'badges_assign', name: 'Attribuer des badges', icon: UserPlus, level: 'admin', description: 'Donner des badges manuellement' },
+      { id: 'badges_admin', name: 'Administration badges', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== XP & GAMIFICATION =====
+  gamification: {
+    id: 'gamification',
+    name: 'XP & Niveaux',
+    icon: Zap,
+    color: 'from-cyan-500 to-blue-600',
+    bgColor: 'bg-cyan-500/20',
+    description: 'Système d\'expérience et progression',
+    category: 'gamification',
+    permissions: [
+      { id: 'xp_view_own', name: 'Voir son XP', icon: Eye, level: 'view', description: 'Consulter sa progression' },
+      { id: 'xp_view_team', name: 'Voir XP équipe', icon: Users, level: 'view', description: 'Classement et stats' },
+      { id: 'xp_grant_manual', name: 'Attribuer de l\'XP', icon: Zap, level: 'admin', description: 'Donner de l\'XP manuellement' },
+      { id: 'xp_remove', name: 'Retirer de l\'XP', icon: AlertTriangle, level: 'admin', description: 'Enlever des points' },
+      { id: 'xp_configure', name: 'Configurer l\'XP', icon: Settings, level: 'admin', description: 'Paramètres de gain/perte' },
+      { id: 'xp_admin', name: 'Administration XP', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== BOOSTS & BONUS =====
+  boosts: {
+    id: 'boosts',
+    name: 'Boosts & Bonus',
+    icon: Sparkles,
+    color: 'from-fuchsia-500 to-pink-600',
+    bgColor: 'bg-fuchsia-500/20',
+    description: 'Bonus temporaires et multiplicateurs',
+    category: 'gamification',
+    permissions: [
+      { id: 'boosts_view', name: 'Voir les boosts', icon: Eye, level: 'view', description: 'Consulter les bonus actifs' },
+      { id: 'boosts_activate', name: 'Activer des boosts', icon: Zap, level: 'edit', description: 'Lancer des bonus' },
+      { id: 'boosts_create', name: 'Créer des boosts', icon: Sparkles, level: 'admin', description: 'Concevoir nouveaux bonus' },
+      { id: 'boosts_admin', name: 'Administration boosts', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== CAGNOTTE ÉQUIPE =====
+  teampool: {
+    id: 'teampool',
+    name: 'Cagnotte Équipe',
+    icon: DollarSign,
+    color: 'from-emerald-500 to-teal-600',
+    bgColor: 'bg-emerald-500/20',
+    description: 'Cagnotte collective et achats',
+    category: 'team',
+    permissions: [
+      { id: 'teampool_view', name: 'Voir la cagnotte', icon: Eye, level: 'view', description: 'Consulter le solde' },
+      { id: 'teampool_view_details', name: 'Voir les détails', icon: FileText, level: 'view', description: 'Historique des transactions' },
+      { id: 'teampool_contribute', name: 'Contribuer', icon: DollarSign, level: 'edit', description: 'Ajouter à la cagnotte' },
+      { id: 'teampool_purchase', name: 'Faire des achats', icon: Gift, level: 'admin', description: 'Utiliser la cagnotte' },
+      { id: 'teampool_configure', name: 'Configurer les taux', icon: Settings, level: 'admin', description: 'Paramètres de contribution' },
+      { id: 'teampool_admin', name: 'Administration cagnotte', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== MENTORAT & FORMATION =====
+  mentoring: {
+    id: 'mentoring',
+    name: 'Mentorat & Formation',
+    icon: GraduationCap,
+    color: 'from-teal-500 to-cyan-600',
+    bgColor: 'bg-teal-500/20',
+    description: 'Parrainage et apprentissage',
+    category: 'team',
+    permissions: [
+      { id: 'mentoring_view', name: 'Voir l\'académie', icon: Eye, level: 'view', description: 'Consulter les formations' },
+      { id: 'mentoring_be_mentee', name: 'Être parrainé', icon: GraduationCap, level: 'view', description: 'Avoir un parrain' },
+      { id: 'mentoring_be_mentor', name: 'Être parrain', icon: UserPlus, level: 'edit', description: 'Parrainer des collègues' },
+      { id: 'mentoring_create_content', name: 'Créer des formations', icon: BookOpen, level: 'edit', description: 'Ajouter du contenu' },
+      { id: 'mentoring_admin', name: 'Administration mentorat', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== PULSE & SONDAGES =====
+  pulse: {
+    id: 'pulse',
+    name: 'Pulse & Sondages',
+    icon: MessageSquare,
+    color: 'from-violet-500 to-purple-600',
+    bgColor: 'bg-violet-500/20',
+    description: 'Sondages et feedback équipe',
+    category: 'communication',
+    permissions: [
+      { id: 'pulse_view', name: 'Voir les sondages', icon: Eye, level: 'view', description: 'Consulter les sondages actifs' },
+      { id: 'pulse_participate', name: 'Participer', icon: MessageSquare, level: 'view', description: 'Répondre aux sondages' },
+      { id: 'pulse_view_results', name: 'Voir les résultats', icon: PieChart, level: 'edit', description: 'Résultats détaillés' },
+      { id: 'pulse_create', name: 'Créer des sondages', icon: Clipboard, level: 'edit', description: 'Lancer de nouveaux sondages' },
+      { id: 'pulse_admin', name: 'Administration pulse', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== INFOS & COMMUNICATION =====
+  communication: {
+    id: 'communication',
+    name: 'Infos & Communication',
+    icon: Megaphone,
+    color: 'from-rose-500 to-red-600',
+    bgColor: 'bg-rose-500/20',
+    description: 'Annonces et boîte à idées',
+    category: 'communication',
+    permissions: [
+      { id: 'infos_view', name: 'Voir les annonces', icon: Eye, level: 'view', description: 'Consulter les actualités' },
+      { id: 'infos_create', name: 'Créer des annonces', icon: Megaphone, level: 'edit', description: 'Publier des informations' },
+      { id: 'ideas_submit', name: 'Soumettre des idées', icon: Sparkles, level: 'view', description: 'Proposer des idées' },
+      { id: 'ideas_vote', name: 'Voter pour les idées', icon: Heart, level: 'view', description: 'Voter pour les propositions' },
+      { id: 'ideas_manage', name: 'Gérer les idées', icon: Settings, level: 'admin', description: 'Accepter/refuser les idées' },
+      { id: 'communication_admin', name: 'Administration comm', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== PERSONNALISATION =====
+  customization: {
+    id: 'customization',
+    name: 'Personnalisation',
+    icon: Palette,
+    color: 'from-pink-500 to-fuchsia-600',
+    bgColor: 'bg-pink-500/20',
+    description: 'Avatars et personnalisation',
+    category: 'user',
+    permissions: [
+      { id: 'custom_own', name: 'Personnaliser son profil', icon: Palette, level: 'view', description: 'Modifier son apparence' },
+      { id: 'custom_unlock_items', name: 'Débloquer des items', icon: Unlock, level: 'view', description: 'Utiliser ses points' },
+      { id: 'custom_create_items', name: 'Créer des items', icon: Sparkles, level: 'admin', description: 'Ajouter au catalogue' },
+      { id: 'custom_admin', name: 'Administration custom', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== ONBOARDING =====
+  onboarding: {
+    id: 'onboarding',
+    name: 'Onboarding & Intégration',
+    icon: BookOpen,
+    color: 'from-lime-500 to-green-600',
+    bgColor: 'bg-lime-500/20',
+    description: 'Parcours d\'intégration',
+    category: 'admin',
+    permissions: [
+      { id: 'onboarding_view', name: 'Voir son parcours', icon: Eye, level: 'view', description: 'Consulter son onboarding' },
+      { id: 'onboarding_view_team', name: 'Voir parcours équipe', icon: Users, level: 'edit', description: 'Suivre les nouvelles recrues' },
+      { id: 'onboarding_edit', name: 'Modifier le parcours', icon: Edit, level: 'admin', description: 'Éditer le contenu' },
+      { id: 'onboarding_admin', name: 'Administration onboarding', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== PROJETS =====
+  projects: {
+    id: 'projects',
+    name: 'Projets & Conquêtes',
+    icon: Layers,
+    color: 'from-sky-500 to-blue-600',
+    bgColor: 'bg-sky-500/20',
+    description: 'Gestion de projets',
+    category: 'tools',
+    permissions: [
+      { id: 'projects_view', name: 'Voir les projets', icon: Eye, level: 'view', description: 'Consulter les projets' },
+      { id: 'projects_participate', name: 'Participer', icon: Users, level: 'view', description: 'Rejoindre des projets' },
+      { id: 'projects_create', name: 'Créer des projets', icon: Layers, level: 'edit', description: 'Lancer de nouveaux projets' },
+      { id: 'projects_manage', name: 'Gérer les projets', icon: Settings, level: 'admin', description: 'Modifier tous les projets' },
+      { id: 'projects_admin', name: 'Administration projets', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== NOTIFICATIONS =====
+  notifications: {
+    id: 'notifications',
+    name: 'Notifications',
+    icon: Bell,
+    color: 'from-orange-500 to-red-600',
+    bgColor: 'bg-orange-500/20',
+    description: 'Système de notifications',
+    category: 'admin',
+    permissions: [
+      { id: 'notif_receive', name: 'Recevoir des notifs', icon: Bell, level: 'view', description: 'Notifications personnelles' },
+      { id: 'notif_send_team', name: 'Envoyer à l\'équipe', icon: Mail, level: 'edit', description: 'Notifier l\'équipe' },
+      { id: 'notif_send_all', name: 'Envoyer à tous', icon: Megaphone, level: 'admin', description: 'Notifications globales' },
+      { id: 'notif_admin', name: 'Administration notifs', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
   }
 };
 
-// NOUVELLES PERMISSIONS POUR MODULES RECENTS
-const MODULE_PERMISSIONS = {
-  'Campagnes & Quetes': [
-    { id: 'campaigns_view', name: 'Consulter campagnes', icon: Flag, level: 'view' },
-    { id: 'campaigns_create', name: 'Creer campagnes', icon: Plus, level: 'create' },
-    { id: 'campaigns_edit', name: 'Modifier campagnes', icon: Edit, level: 'edit' },
-    { id: 'campaigns_admin', name: 'Administration campagnes', icon: Crown, level: 'admin' },
-    { id: 'quests_assign', name: 'Assigner des quetes', icon: Target, level: 'edit' }
-  ],
-  'Cagnotte Equipe': [
-    { id: 'teampool_view', name: 'Consulter cagnotte', icon: Eye, level: 'view' },
-    { id: 'teampool_contribute', name: 'Contribuer manuellement', icon: Plus, level: 'create' },
-    { id: 'teampool_purchase', name: 'Acheter recompenses', icon: Gift, level: 'admin' },
-    { id: 'teampool_rate', name: 'Modifier taux contribution', icon: Settings, level: 'admin' }
-  ],
-  'Pulse & Sondages': [
-    { id: 'pulse_view', name: 'Consulter sondages', icon: MessageSquare, level: 'view' },
-    { id: 'pulse_create', name: 'Creer sondages', icon: Plus, level: 'create' },
-    { id: 'pulse_results', name: 'Voir resultats complets', icon: PieChart, level: 'edit' },
-    { id: 'pulse_admin', name: 'Administration sondages', icon: Crown, level: 'admin' }
-  ],
-  'Checkpoints & Objectifs': [
-    { id: 'checkpoints_view', name: 'Consulter checkpoints', icon: Target, level: 'view' },
-    { id: 'checkpoints_validate', name: 'Valider objectifs', icon: CheckCircle, level: 'edit' },
-    { id: 'checkpoints_create', name: 'Creer checkpoints', icon: Plus, level: 'create' },
-    { id: 'checkpoints_admin', name: 'Administration checkpoints', icon: Crown, level: 'admin' }
-  ],
-  'Boosts & Bonus': [
-    { id: 'boosts_view', name: 'Consulter boosts', icon: Zap, level: 'view' },
-    { id: 'boosts_activate', name: 'Activer boosts', icon: Zap, level: 'create' },
-    { id: 'boosts_create', name: 'Creer nouveaux boosts', icon: Plus, level: 'admin' },
-    { id: 'boosts_admin', name: 'Administration boosts', icon: Crown, level: 'admin' }
-  ],
-  'Gamification': [
-    { id: 'gamification_view', name: 'Consulter stats', icon: TrendingUp, level: 'view' },
-    { id: 'gamification_xp', name: 'Attribuer XP manuellement', icon: Award, level: 'edit' },
-    { id: 'gamification_badges', name: 'Gerer badges', icon: Trophy, level: 'admin' },
-    { id: 'gamification_admin', name: 'Administration complete', icon: Crown, level: 'admin' }
-  ],
-  'Escape Progression': [
-    { id: 'escape_view', name: 'Consulter progression', icon: Gamepad2, level: 'view' },
-    { id: 'escape_validate', name: 'Valider etapes', icon: CheckCircle, level: 'edit' },
-    { id: 'escape_admin', name: 'Administration escape', icon: Crown, level: 'admin' }
-  ],
-  'Onboarding': [
-    { id: 'onboarding_view', name: 'Consulter onboarding', icon: Eye, level: 'view' },
-    { id: 'onboarding_edit', name: 'Modifier contenu onboarding', icon: Edit, level: 'edit' },
-    { id: 'onboarding_admin', name: 'Administration complete onboarding', icon: Crown, level: 'admin' }
-  ],
-  'Planning': [
-    { id: 'planning_view', name: 'Consulter planning', icon: Calendar, level: 'view' },
-    { id: 'planning_edit', name: 'Modifier planning', icon: Edit, level: 'edit' },
-    { id: 'planning_admin', name: 'Administration planning', icon: Crown, level: 'admin' }
-  ],
-  'Taches': [
-    { id: 'tasks_view', name: 'Consulter taches', icon: CheckCircle, level: 'view' },
-    { id: 'tasks_edit', name: 'Modifier taches', icon: Edit, level: 'edit' },
-    { id: 'tasks_admin', name: 'Administration taches', icon: Crown, level: 'admin' }
-  ],
-  'Analytics': [
-    { id: 'analytics_view', name: 'Consulter analytics', icon: BarChart3, level: 'view' },
-    { id: 'analytics_export', name: 'Exporter donnees', icon: Download, level: 'edit' },
-    { id: 'analytics_admin', name: 'Administration analytics', icon: Crown, level: 'admin' }
-  ],
-  'Utilisateurs': [
-    { id: 'users_view', name: 'Consulter utilisateurs', icon: Users, level: 'view' },
-    { id: 'users_edit', name: 'Modifier utilisateurs', icon: Edit, level: 'edit' },
-    { id: 'user_management', name: 'Gestion complete utilisateurs', icon: Crown, level: 'admin' }
-  ]
+// Catégories pour l'affichage
+const CATEGORIES = {
+  admin: { name: 'Administration', icon: ShieldCheck, color: 'from-red-500 to-rose-600' },
+  tools: { name: 'Outils', icon: Wrench, color: 'from-purple-500 to-violet-600' },
+  gamification: { name: 'Gamification', icon: Gamepad2, color: 'from-green-500 to-emerald-600' },
+  team: { name: 'Équipe', icon: Users, color: 'from-blue-500 to-cyan-600' },
+  communication: { name: 'Communication', icon: MessageSquare, color: 'from-pink-500 to-rose-600' },
+  user: { name: 'Utilisateur', icon: UserCog, color: 'from-amber-500 to-yellow-600' }
+};
+
+// Niveaux de permissions
+const PERMISSION_LEVELS = {
+  god: { name: 'DIEU', color: 'bg-gradient-to-r from-yellow-500 to-amber-500', textColor: 'text-yellow-300', icon: Crown },
+  admin: { name: 'Admin', color: 'bg-gradient-to-r from-red-500 to-rose-500', textColor: 'text-red-300', icon: ShieldCheck },
+  edit: { name: 'Éditeur', color: 'bg-gradient-to-r from-blue-500 to-indigo-500', textColor: 'text-blue-300', icon: Edit },
+  view: { name: 'Lecture', color: 'bg-gradient-to-r from-green-500 to-emerald-500', textColor: 'text-green-300', icon: Eye }
 };
 
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
 };
 
 const itemVariants = {
@@ -255,123 +489,83 @@ const itemVariants = {
 };
 
 /**
- * PAGE ADMINISTRATION DES PERMISSIONS PAR ROLE
+ * PAGE ADMINISTRATION DES PERMISSIONS V4
  */
 const AdminRolePermissionsPage = () => {
   const { user } = useAuthStore();
 
-  // Etats principaux
+  // États principaux
   const [loading, setLoading] = useState(true);
-  const [members, setMembers] = useState([]);
-  const [rolePermissions, setRolePermissions] = useState({});
-  const [editingRole, setEditingRole] = useState(null);
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [showMemberModal, setShowMemberModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('roles');
+  const [saving, setSaving] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('users');
   const [expandedModules, setExpandedModules] = useState({});
-
-  // Etats pour gestion des roles utilisateurs
-  const [editingMember, setEditingMember] = useState(null);
-  const [showEditRolesModal, setShowEditRolesModal] = useState(false);
-  const [memberRolesEditing, setMemberRolesEditing] = useState([]);
-  const [savingMemberRoles, setSavingMemberRoles] = useState(false);
-
-  // Etats pour l'historique
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showUserModal, setShowUserModal] = useState(false);
   const [permissionHistory, setPermissionHistory] = useState([]);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-  // Etats pour les statistiques
+  // Stats
   const [stats, setStats] = useState({
-    totalPermissions: 0,
-    activeRoles: 0,
-    usersWithRoles: 0,
-    recentChanges: 0
+    totalUsers: 0,
+    usersWithPermissions: 0,
+    totalPermissionsGranted: 0,
+    admins: 0
   });
 
   /**
-   * CHARGER LES DONNEES
+   * CHARGER LES DONNÉES
    */
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Charger les membres avec leurs roles
+      // Charger tous les utilisateurs
       const usersRef = collection(db, 'users');
       const usersSnapshot = await getDocs(usersRef);
 
-      const teamMembers = [];
-      let usersWithRolesCount = 0;
+      const allUsers = [];
+      let usersWithPerms = 0;
+      let totalPerms = 0;
+      let adminCount = 0;
 
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();
-        teamMembers.push({
+        const userPerms = userData.modulePermissions || {};
+        const permCount = Object.values(userPerms).flat().length;
+
+        if (permCount > 0) usersWithPerms++;
+        totalPerms += permCount;
+
+        if (userData.isAdmin || userData.role === 'admin') adminCount++;
+
+        allUsers.push({
           id: doc.id,
           ...userData,
-          synergiaRoles: userData.synergiaRoles || []
+          modulePermissions: userPerms,
+          permissionCount: permCount
         });
-        if (userData.synergiaRoles?.length > 0) usersWithRolesCount++;
       });
 
-      setMembers(teamMembers);
-
-      // Charger les permissions par role depuis Firebase
-      const permissionsRef = collection(db, 'rolePermissions');
-      const permissionsSnapshot = await getDocs(permissionsRef);
-
-      const permissions = {};
-      let totalPerms = 0;
-
-      permissionsSnapshot.forEach((doc) => {
-        permissions[doc.id] = doc.data();
-        totalPerms += (doc.data().permissions || []).length;
+      // Trier par nom
+      allUsers.sort((a, b) => {
+        const nameA = a.displayName || a.email || '';
+        const nameB = b.displayName || b.email || '';
+        return nameA.localeCompare(nameB);
       });
 
-      // Initialiser les permissions par defaut si elles n'existent pas
-      for (const [roleId, roleData] of Object.entries(SYNERGIA_ROLES)) {
-        if (!permissions[roleId]) {
-          permissions[roleId] = {
-            roleId,
-            permissions: roleData.defaultPermissions,
-            adminSections: roleData.adminSections,
-            updatedAt: new Date().toISOString(),
-            updatedBy: 'system'
-          };
-        }
-      }
-
-      setRolePermissions(permissions);
-
-      // Charger l'historique des modifications
-      try {
-        const historyRef = collection(db, 'permissionHistory');
-        const historyQuery = query(historyRef, orderBy('timestamp', 'desc'), limit(50));
-        const historySnapshot = await getDocs(historyQuery);
-
-        const history = [];
-        historySnapshot.forEach((doc) => {
-          history.push({ id: doc.id, ...doc.data() });
-        });
-        setPermissionHistory(history);
-      } catch {
-        // Collection peut ne pas exister
-        setPermissionHistory([]);
-      }
-
-      // Calculer les stats
+      setUsers(allUsers);
       setStats({
-        totalPermissions: totalPerms,
-        activeRoles: Object.keys(permissions).length,
-        usersWithRoles: usersWithRolesCount,
-        recentChanges: permissionHistory.filter(h => {
-          const date = new Date(h.timestamp?.seconds * 1000 || h.timestamp);
-          const now = new Date();
-          return (now - date) < 7 * 24 * 60 * 60 * 1000; // 7 jours
-        }).length
+        totalUsers: allUsers.length,
+        usersWithPermissions: usersWithPerms,
+        totalPermissionsGranted: totalPerms,
+        admins: adminCount
       });
 
     } catch (error) {
-      console.error('Erreur chargement donnees:', error);
+      console.error('Erreur chargement données:', error);
       showNotification('Erreur lors du chargement', 'error');
     } finally {
       setLoading(false);
@@ -379,201 +573,191 @@ const AdminRolePermissionsPage = () => {
   };
 
   /**
-   * ENREGISTRER MODIFICATION DANS L'HISTORIQUE
+   * OUVRIR LE MODAL D'ÉDITION PERMISSIONS
    */
-  const logPermissionChange = async (action, roleId, details) => {
-    try {
-      const historyRef = collection(db, 'permissionHistory');
-      await addDoc(historyRef, {
-        action,
-        roleId,
-        details,
-        userId: user.uid,
-        userEmail: user.email,
-        timestamp: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Erreur log historique:', error);
-    }
+  const openUserPermissions = (targetUser) => {
+    setSelectedUser(targetUser);
+    setUserPermissions(targetUser.modulePermissions || {});
+    setExpandedModules({});
+    setShowUserModal(true);
   };
 
   /**
-   * SAUVEGARDER LES PERMISSIONS D'UN ROLE
+   * TOGGLE UNE PERMISSION
    */
-  const saveRolePermissions = async (roleId, newPermissions) => {
-    try {
-      const rolePermissionRef = doc(db, 'rolePermissions', roleId);
+  const togglePermission = (moduleId, permissionId) => {
+    setUserPermissions(prev => {
+      const modulePerms = prev[moduleId] || [];
+      const newModulePerms = modulePerms.includes(permissionId)
+        ? modulePerms.filter(p => p !== permissionId)
+        : [...modulePerms, permissionId];
 
-      const permissionData = {
-        roleId,
-        permissions: newPermissions,
-        adminSections: SYNERGIA_ROLES[roleId]?.adminSections || [],
-        updatedAt: new Date().toISOString(),
-        updatedBy: user.uid
+      return {
+        ...prev,
+        [moduleId]: newModulePerms
       };
+    });
+  };
 
-      await setDoc(rolePermissionRef, permissionData);
+  /**
+   * ACTIVER TOUTES LES PERMISSIONS D'UN MODULE
+   */
+  const toggleAllModulePermissions = (moduleId, enable) => {
+    const module = PERMISSION_MODULES[moduleId];
+    if (!module) return;
 
-      // Log dans l'historique
-      await logPermissionChange('UPDATE_PERMISSIONS', roleId, {
-        permissionsCount: newPermissions.length,
-        permissions: newPermissions
+    setUserPermissions(prev => ({
+      ...prev,
+      [moduleId]: enable ? module.permissions.map(p => p.id) : []
+    }));
+  };
+
+  /**
+   * ACTIVER TOUTES LES PERMISSIONS (GOD MODE)
+   */
+  const enableAllPermissions = () => {
+    const allPerms = {};
+    Object.entries(PERMISSION_MODULES).forEach(([moduleId, module]) => {
+      allPerms[moduleId] = module.permissions.map(p => p.id);
+    });
+    setUserPermissions(allPerms);
+  };
+
+  /**
+   * DÉSACTIVER TOUTES LES PERMISSIONS
+   */
+  const disableAllPermissions = () => {
+    setUserPermissions({});
+  };
+
+  /**
+   * SAUVEGARDER LES PERMISSIONS
+   */
+  const savePermissions = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setSaving(true);
+
+      const userRef = doc(db, 'users', selectedUser.id);
+
+      // Calculer si l'utilisateur doit avoir le flag isAdmin
+      const hasAdminPermissions = Object.entries(userPermissions).some(([moduleId, perms]) => {
+        const module = PERMISSION_MODULES[moduleId];
+        return perms.some(permId => {
+          const perm = module?.permissions.find(p => p.id === permId);
+          return perm?.level === 'admin' || perm?.level === 'god';
+        });
       });
 
-      setRolePermissions(prev => ({
-        ...prev,
-        [roleId]: permissionData
-      }));
+      // Mettre à jour l'utilisateur
+      await updateDoc(userRef, {
+        modulePermissions: userPermissions,
+        isAdmin: hasAdminPermissions,
+        role: hasAdminPermissions ? 'admin' : 'member',
+        'profile.role': hasAdminPermissions ? 'admin' : 'member',
+        permissionsUpdatedAt: new Date().toISOString(),
+        permissionsUpdatedBy: user.uid
+      });
 
-      showNotification('Permissions mises a jour avec succes', 'success');
-      setEditingRole(null);
+      // Log dans l'historique
+      try {
+        const historyRef = collection(db, 'permissionHistory');
+        await addDoc(historyRef, {
+          action: 'UPDATE_USER_PERMISSIONS',
+          targetUserId: selectedUser.id,
+          targetUserEmail: selectedUser.email,
+          permissions: userPermissions,
+          adminId: user.uid,
+          adminEmail: user.email,
+          timestamp: serverTimestamp()
+        });
+      } catch (e) {
+        console.warn('Historique non enregistré:', e);
+      }
+
+      // Mettre à jour l'état local
+      setUsers(prev => prev.map(u =>
+        u.id === selectedUser.id
+          ? {
+              ...u,
+              modulePermissions: userPermissions,
+              isAdmin: hasAdminPermissions,
+              role: hasAdminPermissions ? 'admin' : 'member',
+              permissionCount: Object.values(userPermissions).flat().length
+            }
+          : u
+      ));
+
+      showNotification('Permissions sauvegardées avec succès !', 'success');
+      setShowUserModal(false);
 
     } catch (error) {
-      console.error('Erreur sauvegarde permissions:', error);
+      console.error('Erreur sauvegarde:', error);
       showNotification('Erreur lors de la sauvegarde', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
   /**
    * TOGGLE MODULE EXPAND
    */
-  const toggleModule = (moduleName) => {
+  const toggleModule = (moduleId) => {
     setExpandedModules(prev => ({
       ...prev,
-      [moduleName]: !prev[moduleName]
+      [moduleId]: !prev[moduleId]
     }));
   };
 
   /**
-   * TOGGLE PERMISSION
+   * OBTENIR LE RÉSUMÉ DES PERMISSIONS D'UN USER
    */
-  const togglePermission = (roleId, permissionId) => {
-    setRolePermissions(prev => {
-      const currentPermissions = prev[roleId]?.permissions || [];
-      const newPermissions = currentPermissions.includes(permissionId)
-        ? currentPermissions.filter(p => p !== permissionId)
-        : [...currentPermissions, permissionId];
+  const getUserPermissionSummary = (targetUser) => {
+    const perms = targetUser.modulePermissions || {};
+    const summary = { admin: 0, edit: 0, view: 0, total: 0 };
 
-      return {
-        ...prev,
-        [roleId]: {
-          ...prev[roleId],
-          permissions: newPermissions
-        }
-      };
-    });
-  };
+    Object.entries(perms).forEach(([moduleId, permIds]) => {
+      const module = PERMISSION_MODULES[moduleId];
+      if (!module) return;
 
-  /**
-   * OUVRIR MODAL GESTION ROLES UTILISATEUR
-   */
-  const openEditMemberRoles = (member) => {
-    setEditingMember(member);
-    const currentRoleIds = (member.synergiaRoles || []).map(role => role.roleId);
-    setMemberRolesEditing(currentRoleIds);
-    setShowEditRolesModal(true);
-  };
-
-  /**
-   * TOGGLE UN ROLE POUR UN MEMBRE
-   */
-  const toggleMemberRole = (roleId) => {
-    setMemberRolesEditing(prev => {
-      if (prev.includes(roleId)) {
-        return prev.filter(id => id !== roleId);
-      } else {
-        return [...prev, roleId];
-      }
-    });
-  };
-
-  /**
-   * SAUVEGARDER LES ROLES D'UN MEMBRE
-   */
-  const saveMemberRoles = async () => {
-    if (!editingMember) return;
-
-    try {
-      setSavingMemberRoles(true);
-
-      const newSynergiaRoles = memberRolesEditing.map(roleId => {
-        const existingRole = editingMember.synergiaRoles?.find(r => r.roleId === roleId);
-
-        if (existingRole) {
-          return existingRole;
-        } else {
-          const roleData = SYNERGIA_ROLES[roleId];
-          return {
-            roleId: roleId,
-            roleName: roleData.name,
-            assignedAt: new Date().toISOString(),
-            assignedBy: user.uid,
-            xpInRole: 0,
-            tasksCompleted: 0,
-            level: 'debutant',
-            permissions: roleData.defaultPermissions || [],
-            lastActivity: new Date().toISOString(),
-            isActive: true,
-            roleIcon: roleData.icon,
-            roleColor: roleData.color
-          };
+      permIds.forEach(permId => {
+        const perm = module.permissions.find(p => p.id === permId);
+        if (perm) {
+          summary.total++;
+          if (perm.level === 'admin' || perm.level === 'god') summary.admin++;
+          else if (perm.level === 'edit') summary.edit++;
+          else summary.view++;
         }
       });
+    });
 
-      const userRef = doc(db, 'users', editingMember.id);
-      await updateDoc(userRef, {
-        synergiaRoles: newSynergiaRoles,
-        lastRoleUpdate: new Date().toISOString()
-      });
-
-      // Log dans l'historique
-      await logPermissionChange('UPDATE_USER_ROLES', 'user_' + editingMember.id, {
-        userId: editingMember.id,
-        userEmail: editingMember.email,
-        rolesCount: newSynergiaRoles.length,
-        roles: newSynergiaRoles.map(r => r.roleId)
-      });
-
-      setMembers(prev => prev.map(m =>
-        m.id === editingMember.id
-          ? { ...m, synergiaRoles: newSynergiaRoles }
-          : m
-      ));
-
-      showNotification('Roles mis a jour avec succes', 'success');
-      setShowEditRolesModal(false);
-      setEditingMember(null);
-
-    } catch (error) {
-      console.error('Erreur sauvegarde roles membre:', error);
-      showNotification('Erreur lors de la sauvegarde des roles', 'error');
-    } finally {
-      setSavingMemberRoles(false);
-    }
+    return summary;
   };
 
   /**
-   * OBTENIR LES MEMBRES PAR ROLE
+   * FILTRER LES UTILISATEURS
    */
-  const getMembersByRole = (roleId) => {
-    return members.filter(member =>
-      member.synergiaRoles?.some(role => role.roleId === roleId)
-    );
-  };
-
-  /**
-   * FILTRER LES MEMBRES
-   */
-  const filteredMembers = useMemo(() => {
-    if (!searchTerm) return members;
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm) return users;
     const search = searchTerm.toLowerCase();
-    return members.filter(m =>
-      m.displayName?.toLowerCase().includes(search) ||
-      m.email?.toLowerCase().includes(search)
+    return users.filter(u =>
+      u.displayName?.toLowerCase().includes(search) ||
+      u.email?.toLowerCase().includes(search)
     );
-  }, [members, searchTerm]);
+  }, [users, searchTerm]);
 
-  // Charger les donnees au montage
+  /**
+   * FILTRER LES MODULES PAR CATÉGORIE
+   */
+  const filteredModules = useMemo(() => {
+    if (selectedCategory === 'all') return Object.entries(PERMISSION_MODULES);
+    return Object.entries(PERMISSION_MODULES).filter(([, module]) =>
+      module.category === selectedCategory
+    );
+  }, [selectedCategory]);
+
+  // Charger les données au montage
   useEffect(() => {
     loadData();
   }, []);
@@ -581,20 +765,14 @@ const AdminRolePermissionsPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center relative overflow-hidden">
-          <div className="fixed inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
-            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
-          </div>
-          <div className="relative z-10 text-center">
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 flex items-center justify-center">
+          <div className="text-center">
             <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500/30 to-purple-600/20 backdrop-blur-xl border border-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            >
-              <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-blue-400" />
-            </motion.div>
-            <p className="text-gray-400 text-sm sm:text-lg">Chargement des permissions...</p>
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"
+            />
+            <p className="text-gray-400">Chargement des permissions...</p>
           </div>
         </div>
       </Layout>
@@ -604,688 +782,482 @@ const AdminRolePermissionsPage = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/50 to-slate-950 relative overflow-hidden">
-        {/* Animated background */}
+        {/* Background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -left-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
-          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-3xl" />
-          <div className="absolute top-2/3 right-1/4 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl" />
+          <div className="absolute -top-40 -left-40 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl" />
         </div>
 
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-8 max-w-7xl mx-auto"
+          className="relative z-10 px-3 sm:px-6 py-4 sm:py-6 pb-24 max-w-7xl mx-auto"
         >
           {/* HEADER */}
-          <motion.div variants={itemVariants} className="mb-4 sm:mb-6">
+          <motion.div variants={itemVariants} className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-500/30 to-purple-500/20 backdrop-blur-xl border border-white/10 rounded-xl"
-                >
-                  <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
-                </motion.div>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-xl border border-white/10 rounded-xl">
+                  <Shield className="w-8 h-8 text-purple-400" />
+                </div>
                 <div>
-                  <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-blue-200 to-white bg-clip-text text-transparent">
-                    Permissions & Roles
+                  <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
+                    Gestion des Permissions
                   </h1>
-                  <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-                    Administration des acces Synergia
+                  <p className="text-gray-400 text-sm mt-1">
+                    Contrôle complet des accès par utilisateur
                   </p>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowHistoryModal(true)}
-                  className="px-3 sm:px-4 py-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all flex items-center gap-2 text-sm"
-                >
-                  <History className="w-4 h-4" />
-                  <span className="hidden sm:inline">Historique</span>
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05, rotate: 180 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={loadData}
-                  className="p-2 sm:p-2.5 bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-xl transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </motion.button>
-              </div>
+              <motion.button
+                whileHover={{ scale: 1.05, rotate: 180 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={loadData}
+                className="p-2.5 bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/10 rounded-xl transition-colors"
+              >
+                <RefreshCw className="w-5 h-5 text-white" />
+              </motion.button>
             </div>
           </motion.div>
 
-          {/* STATS CARDS */}
-          <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          {/* STATS */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             {[
-              { label: 'Roles actifs', value: stats.activeRoles, icon: Shield, color: 'from-blue-500 to-cyan-500' },
-              { label: 'Utilisateurs', value: stats.usersWithRoles, icon: Users, color: 'from-green-500 to-emerald-500' },
-              { label: 'Permissions', value: stats.totalPermissions, icon: Lock, color: 'from-purple-500 to-pink-500' },
-              { label: 'Modifs recentes', value: stats.recentChanges, icon: History, color: 'from-orange-500 to-amber-500' }
+              { label: 'Utilisateurs', value: stats.totalUsers, icon: Users, color: 'from-blue-500 to-cyan-500' },
+              { label: 'Avec permissions', value: stats.usersWithPermissions, icon: Key, color: 'from-green-500 to-emerald-500' },
+              { label: 'Permissions totales', value: stats.totalPermissionsGranted, icon: Lock, color: 'from-purple-500 to-pink-500' },
+              { label: 'Administrateurs', value: stats.admins, icon: Crown, color: 'from-yellow-500 to-amber-500' }
             ].map((stat, index) => (
               <motion.div
                 key={index}
                 whileHover={{ scale: 1.02, y: -2 }}
-                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 sm:p-4"
+                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4"
               >
-                <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                  <stat.icon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                  <span className="text-gray-400 text-xs sm:text-sm">{stat.label}</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <stat.icon className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-400 text-xs">{stat.label}</span>
                 </div>
-                <div className={`text-xl sm:text-2xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
+                <div className={`text-2xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
                   {stat.value}
                 </div>
               </motion.div>
             ))}
           </motion.div>
 
-          {/* ONGLETS */}
-          <motion.div variants={itemVariants} className="mb-4 sm:mb-6">
-            <div className="flex gap-1 bg-white/5 backdrop-blur-xl border border-white/10 p-1 rounded-xl">
-              {[
-                { id: 'roles', label: 'Permissions par Role', icon: Shield },
-                { id: 'members', label: 'Membres et Acces', icon: Users },
-                { id: 'modules', label: 'Modules', icon: Layers }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2 sm:px-4 rounded-lg transition-all text-xs sm:text-sm ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                </button>
-              ))}
+          {/* SEARCH BAR */}
+          <motion.div variants={itemVariants} className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un utilisateur..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 text-sm"
+              />
             </div>
           </motion.div>
 
-          {/* CONTENU PERMISSIONS PAR ROLE */}
-          {activeTab === 'roles' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-              {Object.entries(SYNERGIA_ROLES)
-                .sort(([,a], [,b]) => a.priority - b.priority)
-                .map(([roleId, roleData]) => {
-                  const roleMembers = getMembersByRole(roleId);
-                  const permissions = rolePermissions[roleId] || {};
-                  const isEditing = editingRole === roleId;
+          {/* USERS LIST */}
+          <motion.div variants={itemVariants} className="space-y-3">
+            {filteredUsers.map((targetUser) => {
+              const summary = getUserPermissionSummary(targetUser);
+              const isCurrentUser = targetUser.id === user?.uid;
+              const isAdmin = targetUser.isAdmin || targetUser.role === 'admin';
 
-                  return (
-                    <motion.div
-                      key={roleId}
-                      variants={itemVariants}
-                      whileHover={{ scale: isEditing ? 1 : 1.01 }}
-                      className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden"
-                    >
-                      {/* En-tete du role */}
-                      <div className={`p-4 sm:p-6 ${roleData.bgColor} border-b border-white/10`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <span className="text-2xl sm:text-3xl">{roleData.icon}</span>
-                            <div>
-                              <h3 className="text-base sm:text-lg font-semibold text-white">{roleData.name}</h3>
-                              <p className="text-gray-300 text-xs sm:text-sm">{roleData.description}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xl sm:text-2xl font-bold text-white">{roleMembers.length}</div>
-                            <div className="text-xs text-gray-400">membre{roleMembers.length > 1 ? 's' : ''}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Sections d'administration */}
-                      <div className="p-4 sm:p-6">
-                        <div className="flex items-center justify-between mb-3 sm:mb-4">
-                          <h4 className="text-white font-medium text-sm sm:text-base">Permissions actives</h4>
-                          {!isEditing ? (
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => setEditingRole(roleId)}
-                              className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs sm:text-sm"
-                            >
-                              <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              <span>Modifier</span>
-                            </motion.button>
-                          ) : (
-                            <div className="flex gap-2">
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => saveRolePermissions(roleId, permissions.permissions || [])}
-                                className="flex items-center gap-1 text-green-400 hover:text-green-300 text-xs sm:text-sm"
-                              >
-                                <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                <span>Sauver</span>
-                              </motion.button>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setEditingRole(null)}
-                                className="flex items-center gap-1 text-gray-400 hover:text-gray-300 text-xs sm:text-sm"
-                              >
-                                <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                <span>Annuler</span>
-                              </motion.button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Permissions actuelles */}
-                        <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
-                          {(permissions.permissions || []).slice(0, isEditing ? undefined : 5).map(permission => (
-                            <span
-                              key={permission}
-                              className={`px-2 py-1 rounded-lg text-xs ${
-                                isEditing
-                                  ? 'bg-green-500/20 text-green-300 cursor-pointer hover:bg-red-500/20 hover:text-red-300'
-                                  : 'bg-white/10 text-gray-300'
-                              }`}
-                              onClick={() => isEditing && togglePermission(roleId, permission)}
-                            >
-                              {permission.replace(/_/g, ' ')}
-                              {isEditing && <X className="w-3 h-3 inline ml-1" />}
-                            </span>
-                          ))}
-                          {!isEditing && (permissions.permissions || []).length > 5 && (
-                            <span className="px-2 py-1 bg-white/5 rounded-lg text-xs text-gray-400">
-                              +{(permissions.permissions || []).length - 5} autres
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Mode edition - Ajouter permissions */}
-                        {isEditing && (
-                          <div className="space-y-2 mb-3 sm:mb-4">
-                            <p className="text-gray-400 text-xs">Cliquez pour ajouter des permissions:</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {Object.entries(MODULE_PERMISSIONS).slice(0, 3).flatMap(([, perms]) =>
-                                perms.filter(p => !(permissions.permissions || []).includes(p.id)).slice(0, 2)
-                              ).map(perm => (
-                                <span
-                                  key={perm.id}
-                                  onClick={() => togglePermission(roleId, perm.id)}
-                                  className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-lg text-xs cursor-pointer hover:bg-blue-500/30"
-                                >
-                                  + {perm.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Membres ayant ce role */}
-                        {roleMembers.length > 0 && (
-                          <div className="pt-3 sm:pt-4 border-t border-white/10">
-                            <h5 className="text-gray-400 text-xs sm:text-sm font-medium mb-2">Membres</h5>
-                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                              {roleMembers.slice(0, 4).map(member => (
-                                <div key={member.id} className="flex items-center gap-1.5 bg-white/5 rounded-full px-2 py-1">
-                                  <div className="w-5 h-5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                                    {(member.displayName?.[0] || member.email?.[0] || '?').toUpperCase()}
-                                  </div>
-                                  <span className="text-gray-300 text-xs truncate max-w-[80px]">
-                                    {member.displayName || member.email?.split('@')[0]}
-                                  </span>
-                                </div>
-                              ))}
-                              {roleMembers.length > 4 && (
-                                <span className="text-gray-400 text-xs px-2 py-1">
-                                  +{roleMembers.length - 4}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-            </div>
-          )}
-
-          {/* CONTENU MEMBRES ET ACCES */}
-          {activeTab === 'members' && (
-            <motion.div variants={itemVariants} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl">
-              <div className="p-4 sm:p-6 border-b border-white/10">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-white">Membres de l'equipe</h3>
-                    <p className="text-gray-400 text-sm">Vue d'ensemble des acces par membre</p>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Rechercher..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 text-sm w-full sm:w-64"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 sm:p-6">
-                <div className="space-y-3">
-                  {filteredMembers.map(member => {
-                    const memberRoles = member.synergiaRoles || [];
-                    const allPermissions = new Set();
-
-                    memberRoles.forEach(memberRole => {
-                      const rolePermissionData = rolePermissions[memberRole.roleId];
-                      if (rolePermissionData?.permissions) {
-                        rolePermissionData.permissions.forEach(permission =>
-                          allPermissions.add(permission)
-                        );
-                      }
-                    });
-
-                    return (
-                      <motion.div
-                        key={member.id}
-                        whileHover={{ scale: 1.01 }}
-                        className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                              {(member.displayName?.[0] || member.email?.[0] || '?').toUpperCase()}
-                            </div>
-                            <div>
-                              <h4 className="text-white font-medium text-sm sm:text-base">
-                                {member.displayName || member.email}
-                              </h4>
-                              <p className="text-gray-400 text-xs sm:text-sm">
-                                {memberRoles.length} role{memberRoles.length > 1 ? 's' : ''} - {allPermissions.size} permission{allPermissions.size > 1 ? 's' : ''}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => openEditMemberRoles(member)}
-                              className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm"
-                            >
-                              <Settings className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">Gerer</span>
-                            </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => {
-                                setSelectedMember(member);
-                                setShowMemberModal(true);
-                              }}
-                              className="flex items-center gap-1.5 bg-white/10 text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </motion.button>
-                          </div>
-                        </div>
-
-                        {/* Roles du membre */}
-                        {memberRoles.length > 0 ? (
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            {memberRoles.map(memberRole => {
-                              const roleData = SYNERGIA_ROLES[memberRole.roleId];
-                              if (!roleData) return null;
-
-                              return (
-                                <div key={memberRole.roleId} className={`flex items-center gap-1 ${roleData.bgColor} rounded-lg px-2 py-1`}>
-                                  <span className="text-sm">{roleData.icon}</span>
-                                  <span className="text-gray-200 text-xs">{roleData.name.split(' ')[0]}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="mt-3 text-gray-500 text-xs italic">
-                            Aucun role assigne
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* CONTENU MODULES */}
-          {activeTab === 'modules' && (
-            <motion.div variants={itemVariants} className="space-y-3">
-              {Object.entries(MODULE_PERMISSIONS).map(([moduleName, permissions]) => (
-                <div key={moduleName} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => toggleModule(moduleName)}
-                    className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-white/5 transition-colors"
-                  >
+              return (
+                <motion.div
+                  key={targetUser.id}
+                  whileHover={{ scale: 1.005 }}
+                  className={`bg-white/5 backdrop-blur-xl border rounded-xl p-4 transition-all ${
+                    isAdmin ? 'border-yellow-500/30' : 'border-white/10'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* User info */}
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gradient-to-br from-blue-500/30 to-purple-500/20 rounded-lg">
-                        <Layers className="w-5 h-5 text-blue-400" />
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold ${
+                        isAdmin
+                          ? 'bg-gradient-to-br from-yellow-500 to-amber-600'
+                          : 'bg-gradient-to-br from-purple-500 to-pink-600'
+                      }`}>
+                        {targetUser.customization?.avatar ||
+                         (targetUser.displayName?.[0] || targetUser.email?.[0] || '?').toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="text-white font-semibold text-sm sm:text-base">{moduleName}</h3>
-                        <p className="text-gray-400 text-xs sm:text-sm">{permissions.length} permissions disponibles</p>
-                      </div>
-                    </div>
-                    <motion.div
-                      animate={{ rotate: expandedModules[moduleName] ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    </motion.div>
-                  </button>
-
-                  <AnimatePresence>
-                    {expandedModules[moduleName] && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="border-t border-white/10"
-                      >
-                        <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                          {permissions.map(perm => (
-                            <div key={perm.id} className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
-                              <div className={`p-2 rounded-lg ${
-                                perm.level === 'admin' ? 'bg-red-500/20' :
-                                perm.level === 'edit' ? 'bg-yellow-500/20' :
-                                perm.level === 'create' ? 'bg-blue-500/20' :
-                                'bg-green-500/20'
-                              }`}>
-                                <perm.icon className={`w-4 h-4 ${
-                                  perm.level === 'admin' ? 'text-red-400' :
-                                  perm.level === 'edit' ? 'text-yellow-400' :
-                                  perm.level === 'create' ? 'text-blue-400' :
-                                  'text-green-400'
-                                }`} />
-                              </div>
-                              <div>
-                                <p className="text-white text-sm font-medium">{perm.name}</p>
-                                <p className="text-gray-500 text-xs">{perm.id}</p>
-                              </div>
-                              <span className={`ml-auto px-2 py-0.5 rounded text-xs ${
-                                perm.level === 'admin' ? 'bg-red-500/20 text-red-300' :
-                                perm.level === 'edit' ? 'bg-yellow-500/20 text-yellow-300' :
-                                perm.level === 'create' ? 'bg-blue-500/20 text-blue-300' :
-                                'bg-green-500/20 text-green-300'
-                              }`}>
-                                {perm.level}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </motion.div>
-
-        {/* MODAL GESTION DES ROLES D'UN MEMBRE */}
-        <AnimatePresence>
-          {showEditRolesModal && editingMember && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50"
-              onClick={() => setShowEditRolesModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto"
-              >
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-white">
-                      Gerer les roles de {editingMember.displayName || editingMember.email?.split('@')[0]}
-                    </h3>
-                    <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                      Cochez les roles a assigner
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowEditRolesModal(false)}
-                    className="text-gray-400 hover:text-white p-1"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-
-                <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
-                  {Object.entries(SYNERGIA_ROLES)
-                    .sort(([,a], [,b]) => a.priority - b.priority)
-                    .map(([roleId, roleData]) => {
-                      const isChecked = memberRolesEditing.includes(roleId);
-
-                      return (
-                        <label
-                          key={roleId}
-                          className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                            isChecked
-                              ? 'border-blue-500 bg-blue-500/10'
-                              : 'border-white/10 hover:border-white/20'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleMemberRole(roleId)}
-                            className="w-5 h-5 text-blue-600 bg-white/10 border-white/20 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-xl sm:text-2xl">{roleData.icon}</span>
-                          <div className="flex-1">
-                            <h4 className="text-white font-medium text-sm sm:text-base">{roleData.name}</h4>
-                            <p className="text-gray-400 text-xs sm:text-sm">{roleData.description}</p>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {roleData.adminSections.map(section => (
-                                <span key={section} className="bg-white/10 text-gray-300 text-xs px-2 py-0.5 rounded">
-                                  {section}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                </div>
-
-                <div className="flex justify-end gap-2 sm:gap-3">
-                  <button
-                    onClick={() => setShowEditRolesModal(false)}
-                    className="px-4 py-2 bg-white/5 border border-white/10 text-gray-300 rounded-xl hover:bg-white/10 transition-colors text-sm"
-                    disabled={savingMemberRoles}
-                  >
-                    Annuler
-                  </button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={saveMemberRoles}
-                    disabled={savingMemberRoles}
-                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl flex items-center gap-2 disabled:opacity-50 text-sm"
-                  >
-                    {savingMemberRoles ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Sauvegarde...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        <span>Sauvegarder</span>
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* MODAL DETAILS MEMBRE */}
-        <AnimatePresence>
-          {showMemberModal && selectedMember && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50"
-              onClick={() => setShowMemberModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-              >
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h3 className="text-lg sm:text-xl font-semibold text-white">
-                    Permissions de {selectedMember.displayName || selectedMember.email?.split('@')[0]}
-                  </h3>
-                  <button
-                    onClick={() => setShowMemberModal(false)}
-                    className="text-gray-400 hover:text-white p-1"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-
-                <div className="space-y-3 sm:space-y-4">
-                  {selectedMember.synergiaRoles && selectedMember.synergiaRoles.length > 0 ? (
-                    selectedMember.synergiaRoles.map(memberRole => {
-                      const roleData = SYNERGIA_ROLES[memberRole.roleId];
-                      const rolePermissionData = rolePermissions[memberRole.roleId];
-
-                      if (!roleData) return null;
-
-                      return (
-                        <div key={memberRole.roleId} className={`${roleData.bgColor} border border-white/10 rounded-xl p-4`}>
-                          <div className="flex items-center gap-3 mb-3">
-                            <span className="text-2xl">{roleData.icon}</span>
-                            <div>
-                              <h4 className="text-white font-medium">{roleData.name}</h4>
-                              <p className="text-gray-400 text-xs sm:text-sm">
-                                Assigne le {memberRole.assignedAt ? new Date(memberRole.assignedAt).toLocaleDateString('fr-FR') : 'Date inconnue'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {rolePermissionData?.permissions && (
-                            <div className="space-y-2">
-                              <h5 className="text-gray-300 text-sm font-medium">Permissions:</h5>
-                              <div className="flex flex-wrap gap-1.5">
-                                {rolePermissionData.permissions.map(permission => (
-                                  <span key={permission} className="bg-white/10 text-white text-xs px-2 py-1 rounded-lg">
-                                    {permission.replace(/_/g, ' ')}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-white font-medium">
+                            {targetUser.displayName || targetUser.email?.split('@')[0] || 'Utilisateur'}
+                          </h3>
+                          {isAdmin && (
+                            <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-300 text-xs rounded-full flex items-center gap-1">
+                              <Crown className="w-3 h-3" /> Admin
+                            </span>
+                          )}
+                          {isCurrentUser && (
+                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">
+                              Vous
+                            </span>
                           )}
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center text-gray-500 py-8">
-                      <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Aucun role assigne a ce membre</p>
+                        <p className="text-gray-500 text-sm">{targetUser.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Permission summary */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex gap-2">
+                        {summary.admin > 0 && (
+                          <span className="px-2 py-1 bg-red-500/20 text-red-300 text-xs rounded-lg flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" /> {summary.admin}
+                          </span>
+                        )}
+                        {summary.edit > 0 && (
+                          <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-lg flex items-center gap-1">
+                            <Edit className="w-3 h-3" /> {summary.edit}
+                          </span>
+                        )}
+                        {summary.view > 0 && (
+                          <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded-lg flex items-center gap-1">
+                            <Eye className="w-3 h-3" /> {summary.view}
+                          </span>
+                        )}
+                        {summary.total === 0 && (
+                          <span className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-lg">
+                            Aucune permission
+                          </span>
+                        )}
+                      </div>
+
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => openUserPermissions(targetUser)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl text-sm font-medium"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Gérer
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  {/* Quick permission overview */}
+                  {summary.total > 0 && (
+                    <div className="mt-3 pt-3 border-t border-white/5">
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(targetUser.modulePermissions || {}).slice(0, 5).map(([moduleId]) => {
+                          const module = PERMISSION_MODULES[moduleId];
+                          if (!module) return null;
+                          return (
+                            <span
+                              key={moduleId}
+                              className={`px-2 py-1 ${module.bgColor} text-white/80 text-xs rounded-lg flex items-center gap-1`}
+                            >
+                              <module.icon className="w-3 h-3" />
+                              {module.name.split(' ')[0]}
+                            </span>
+                          );
+                        })}
+                        {Object.keys(targetUser.modulePermissions || {}).length > 5 && (
+                          <span className="px-2 py-1 bg-white/10 text-gray-400 text-xs rounded-lg">
+                            +{Object.keys(targetUser.modulePermissions).length - 5} modules
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </motion.div>
+              );
+            })}
 
-        {/* MODAL HISTORIQUE */}
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Aucun utilisateur trouvé</p>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+
+        {/* MODAL GESTION PERMISSIONS */}
         <AnimatePresence>
-          {showHistoryModal && (
+          {showUserModal && selectedUser && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50"
-              onClick={() => setShowHistoryModal(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center p-2 sm:p-4 z-50 overflow-y-auto"
+              onClick={() => setShowUserModal(false)}
             >
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+                className="bg-slate-900/98 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-5xl my-4 overflow-hidden"
               >
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500/30 to-purple-500/20 rounded-lg">
-                      <History className="w-5 h-5 text-blue-400" />
+                {/* Modal Header */}
+                <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-xl border-b border-white/10 p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-2xl font-bold text-white">
+                        {selectedUser.customization?.avatar ||
+                         (selectedUser.displayName?.[0] || selectedUser.email?.[0] || '?').toUpperCase()}
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">
+                          {selectedUser.displayName || selectedUser.email?.split('@')[0]}
+                        </h2>
+                        <p className="text-gray-400 text-sm">{selectedUser.email}</p>
+                      </div>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-white">Historique des modifications</h3>
+                    <button
+                      onClick={() => setShowUserModal(false)}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    >
+                      <X className="w-6 h-6 text-gray-400" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setShowHistoryModal(false)}
-                    className="text-gray-400 hover:text-white p-1"
-                  >
-                    <X size={24} />
-                  </button>
+
+                  {/* Quick actions */}
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={enableAllPermissions}
+                      className="flex items-center gap-2 px-3 py-2 bg-yellow-500/20 text-yellow-300 rounded-lg text-sm hover:bg-yellow-500/30 transition-colors"
+                    >
+                      <Crown className="w-4 h-4" />
+                      Tout activer (GOD)
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={disableAllPermissions}
+                      className="flex items-center gap-2 px-3 py-2 bg-red-500/20 text-red-300 rounded-lg text-sm hover:bg-red-500/30 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      Tout désactiver
+                    </motion.button>
+                  </div>
+
+                  {/* Category filter */}
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <button
+                      onClick={() => setSelectedCategory('all')}
+                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        selectedCategory === 'all'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                      }`}
+                    >
+                      Tous
+                    </button>
+                    {Object.entries(CATEGORIES).map(([catId, cat]) => (
+                      <button
+                        key={catId}
+                        onClick={() => setSelectedCategory(catId)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          selectedCategory === catId
+                            ? `bg-gradient-to-r ${cat.color} text-white`
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                        }`}
+                      >
+                        <cat.icon className="w-3.5 h-3.5" />
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="space-y-2 sm:space-y-3">
-                  {permissionHistory.length > 0 ? (
-                    permissionHistory.map((entry, index) => (
-                      <div key={entry.id || index} className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 rounded text-xs ${
-                                entry.action === 'UPDATE_PERMISSIONS' ? 'bg-blue-500/20 text-blue-300' :
-                                entry.action === 'UPDATE_USER_ROLES' ? 'bg-purple-500/20 text-purple-300' :
-                                'bg-gray-500/20 text-gray-300'
-                              }`}>
-                                {entry.action?.replace(/_/g, ' ')}
-                              </span>
-                              <span className="text-gray-400 text-xs">{entry.roleId}</span>
+                {/* Modal Body - Modules list */}
+                <div className="p-4 sm:p-6 max-h-[60vh] overflow-y-auto">
+                  <div className="space-y-3">
+                    {filteredModules.map(([moduleId, module]) => {
+                      const modulePerms = userPermissions[moduleId] || [];
+                      const allEnabled = modulePerms.length === module.permissions.length;
+                      const someEnabled = modulePerms.length > 0;
+                      const isExpanded = expandedModules[moduleId];
+
+                      return (
+                        <div
+                          key={moduleId}
+                          className={`border rounded-xl overflow-hidden transition-all ${
+                            someEnabled ? 'border-white/20 bg-white/5' : 'border-white/10 bg-white/[0.02]'
+                          }`}
+                        >
+                          {/* Module header */}
+                          <div
+                            className={`p-4 cursor-pointer hover:bg-white/5 transition-colors ${module.bgColor}`}
+                            onClick={() => toggleModule(moduleId)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 bg-gradient-to-br ${module.color} rounded-lg`}>
+                                  <module.icon className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                  <h3 className="text-white font-medium">{module.name}</h3>
+                                  <p className="text-gray-400 text-xs">{module.description}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                {/* Quick toggle all */}
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleAllModulePermissions(moduleId, !allEnabled);
+                                  }}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    allEnabled
+                                      ? 'bg-green-500/30 text-green-300'
+                                      : someEnabled
+                                        ? 'bg-yellow-500/30 text-yellow-300'
+                                        : 'bg-white/10 text-gray-400'
+                                  }`}
+                                >
+                                  {allEnabled ? (
+                                    <ToggleRight className="w-5 h-5" />
+                                  ) : (
+                                    <ToggleLeft className="w-5 h-5" />
+                                  )}
+                                </motion.button>
+
+                                {/* Count badge */}
+                                <span className={`px-2 py-1 rounded-lg text-xs ${
+                                  modulePerms.length > 0
+                                    ? 'bg-green-500/20 text-green-300'
+                                    : 'bg-white/10 text-gray-500'
+                                }`}>
+                                  {modulePerms.length}/{module.permissions.length}
+                                </span>
+
+                                {/* Expand arrow */}
+                                <motion.div
+                                  animate={{ rotate: isExpanded ? 180 : 0 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                                </motion.div>
+                              </div>
                             </div>
-                            <p className="text-gray-300 text-sm mt-1">{entry.userEmail}</p>
                           </div>
-                          <span className="text-gray-500 text-xs">
-                            {entry.timestamp?.seconds
-                              ? new Date(entry.timestamp.seconds * 1000).toLocaleString('fr-FR')
-                              : 'Date inconnue'
-                            }
-                          </span>
+
+                          {/* Permissions list */}
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="border-t border-white/10"
+                              >
+                                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {module.permissions.map((perm) => {
+                                    const isEnabled = modulePerms.includes(perm.id);
+                                    const levelConfig = PERMISSION_LEVELS[perm.level];
+
+                                    return (
+                                      <motion.label
+                                        key={perm.id}
+                                        whileHover={{ scale: 1.01 }}
+                                        whileTap={{ scale: 0.99 }}
+                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                                          isEnabled
+                                            ? 'bg-white/10 border-2 border-green-500/50'
+                                            : 'bg-white/5 border-2 border-transparent hover:border-white/20'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isEnabled}
+                                          onChange={() => togglePermission(moduleId, perm.id)}
+                                          className="sr-only"
+                                        />
+
+                                        {/* Custom checkbox */}
+                                        <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+                                          isEnabled
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-white/10 border border-white/20'
+                                        }`}>
+                                          {isEnabled && <CheckCircle className="w-3.5 h-3.5" />}
+                                        </div>
+
+                                        {/* Icon */}
+                                        <div className={`p-1.5 rounded-lg ${isEnabled ? 'bg-white/20' : 'bg-white/5'}`}>
+                                          <perm.icon className={`w-4 h-4 ${isEnabled ? 'text-white' : 'text-gray-400'}`} />
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className={`text-sm font-medium ${isEnabled ? 'text-white' : 'text-gray-300'}`}>
+                                              {perm.name}
+                                            </span>
+                                            <span className={`px-1.5 py-0.5 ${levelConfig.color} text-white text-[10px] rounded font-bold`}>
+                                              {levelConfig.name}
+                                            </span>
+                                          </div>
+                                          <p className="text-gray-500 text-xs truncate">{perm.description}</p>
+                                        </div>
+                                      </motion.label>
+                                    );
+                                  })}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-500 py-8">
-                      <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Aucun historique disponible</p>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur-xl border-t border-white/10 p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-gray-400 text-sm">
+                      {Object.values(userPermissions).flat().length} permissions sélectionnées
                     </div>
-                  )}
+                    <div className="flex gap-3">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setShowUserModal(false)}
+                        className="px-6 py-2.5 bg-white/5 border border-white/10 text-gray-300 rounded-xl hover:bg-white/10 transition-colors"
+                        disabled={saving}
+                      >
+                        Annuler
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={savePermissions}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl disabled:opacity-50 font-medium"
+                      >
+                        {saving ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Sauvegarde...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Sauvegarder
+                          </>
+                        )}
+                      </motion.button>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>

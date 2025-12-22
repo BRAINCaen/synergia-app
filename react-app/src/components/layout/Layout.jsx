@@ -11,6 +11,7 @@ import { useAuthStore } from '../../shared/stores/authStore.js';
 import useNotificationToast from '../../shared/hooks/useNotificationToast.js';
 import { NotificationCenter, NotificationToast } from '../notifications';
 import { useTheme } from '../../shared/hooks/useTheme.js';
+import { hasAdminMenuAccess } from '../../core/services/modulePermissionsService.js';
 
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD
@@ -540,7 +541,7 @@ const Layout = memo(({ children }) => {
         onClose={closeMenu}
         navigateFunction={navigateFunction}
         userEmail={user?.email}
-        userIsAdmin={user?.isAdmin || user?.role === 'admin' || user?.profile?.isAdmin}
+        userIsAdmin={hasAdminMenuAccess(user)}
       />
 
       {/* 🔔 MODULE 6: CENTRE DE NOTIFICATIONS AMÉLIORÉ */}
