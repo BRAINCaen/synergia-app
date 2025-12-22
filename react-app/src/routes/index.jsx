@@ -17,7 +17,7 @@ import ProfilePage from '../pages/ProfilePage.jsx';
 import BadgesPage from '../pages/BadgesPage.jsx';
 import GamificationPage from '../pages/GamificationPage.jsx';
 import RewardsPage from '../pages/RewardsPage.jsx';
-import BoostsPage from '../pages/BoostsPage.jsx';
+import TavernePage from '../pages/TavernePage.jsx';
 import ChallengesPage from '../pages/ChallengesPage.jsx'; // 🎯 MODULE 10
 import ProfileCustomizationPage from '../pages/ProfileCustomizationPage.jsx'; // 🎨 MODULE 13
 import PulsePage from '../pages/PulsePage.jsx'; // 💗 MODULE PULSE
@@ -77,7 +77,7 @@ const AppRoutes = () => {
         <Route path="/gamification" element={<GamificationPage />} />
         <Route path="/badges" element={<BadgesPage />} />
         <Route path="/rewards" element={<RewardsPage />} />
-        <Route path="/boosts" element={<BoostsPage />} />
+        <Route path="/taverne" element={<TavernePage />} /> {/* 🍺 TAVERNE - Messages & Boosts */}
         <Route path="/challenges" element={<ChallengesPage />} /> {/* 🎯 MODULE 10 */}
         <Route path="/skills" element={<SkillTreePage />} /> {/* 🌳 MODULE SKILL TREE */}
 
