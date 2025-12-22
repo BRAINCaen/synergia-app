@@ -56,7 +56,8 @@ export const IDEA_CATEGORIES = {
 export const IDEA_THRESHOLDS = {
   POPULAR: 5,     // Votes pour devenir populaire
   HOT: 10,        // Votes pour être "hot"
-  TRENDING: 3     // Votes en 24h pour être trending
+  TRENDING: 3,    // Votes en 24h pour être trending
+  QUORUM: 3       // Votes minimum requis pour pouvoir adopter une idée
 };
 
 /**
@@ -259,6 +260,7 @@ export const ideaService = {
 
   /**
    * 👑 Review par le Maître de Guilde - Adopter une idée (+100 XP auteur)
+   * Requiert que le quorum de votes soit atteint
    */
   async adoptIdea(ideaId, reviewerId, reviewerName, comment = '') {
     try {
@@ -272,6 +274,12 @@ export const ideaService = {
       }
 
       const ideaData = ideaDoc.data();
+      const voteCount = ideaData.voteCount || 0;
+
+      // Vérifier que le quorum est atteint
+      if (voteCount < IDEA_THRESHOLDS.QUORUM) {
+        throw new Error(`Quorum non atteint. ${voteCount}/${IDEA_THRESHOLDS.QUORUM} votes requis.`);
+      }
 
       await updateDoc(ideaRef, {
         status: IDEA_STATUS.ADOPTED,
@@ -406,6 +414,72 @@ export const ideaService = {
       return { success: true };
     } catch (error) {
       console.error('❌ [IDEAS] Erreur rejet:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 🔄 Relancer le vote sur une idée (ADMIN uniquement)
+   * Remet l'idée en statut PENDING et réinitialise les votes
+   */
+  async relaunchVote(ideaId, adminId, adminName, reason = '') {
+    try {
+      console.log('🔄 [IDEAS] Relance vote idée:', ideaId, 'par:', adminName);
+
+      const ideaRef = doc(db, 'ideas', ideaId);
+      const ideaDoc = await getDoc(ideaRef);
+
+      if (!ideaDoc.exists()) {
+        throw new Error('Idée non trouvée');
+      }
+
+      const ideaData = ideaDoc.data();
+      const previousStatus = ideaData.status;
+      const previousVoteCount = ideaData.voteCount || 0;
+
+      // Réinitialiser l'idée pour un nouveau vote
+      await updateDoc(ideaRef, {
+        status: IDEA_STATUS.PENDING,
+        votes: [],
+        voteCount: 0,
+        // Garder un historique des relances
+        voteHistory: arrayUnion({
+          relaunchedAt: new Date().toISOString(),
+          relaunchedBy: adminId,
+          relaunchedByName: adminName,
+          reason: reason,
+          previousStatus,
+          previousVoteCount
+        }),
+        // Réinitialiser le review
+        reviewedBy: null,
+        reviewerName: null,
+        reviewedAt: null,
+        reviewComment: null,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [IDEAS] Vote relancé, précédent statut:', previousStatus, 'votes:', previousVoteCount);
+
+      // Notifier l'auteur de la relance
+      try {
+        await notificationService.sendNotification(ideaData.authorId, {
+          type: 'idea_vote_relaunched',
+          title: '🔄 Vote relancé sur votre idée',
+          message: `L'admin ${adminName} a relancé le vote sur "${ideaData.title}"${reason ? `: ${reason}` : ''}`,
+          data: { ideaId, ideaTitle: ideaData.title }
+        });
+      } catch (notifError) {
+        console.warn('⚠️ [IDEAS] Erreur notification relance:', notifError);
+      }
+
+      return {
+        success: true,
+        previousStatus,
+        previousVoteCount
+      };
+    } catch (error) {
+      console.error('❌ [IDEAS] Erreur relance vote:', error);
       throw error;
     }
   },
