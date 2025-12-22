@@ -404,6 +404,21 @@ const AdminRewardsPage = () => {
           'gamification.lastRewardRedeemed': serverTimestamp(),
           lastActivity: serverTimestamp()
         });
+
+        // 🏖️ Si c'est un jour de congé bonus, mettre à jour le compteur de congés
+        if (request.rewardId === 'fullDay') {
+          console.log(`🏖️ Ajout de 1 jour bonus au compteur congés pour ${request.userName}`);
+          await updateDoc(userRef, {
+            'leaveBalance.bonusOffDays': increment(1),
+            'leaveBalance.lastUpdated': new Date().toISOString()
+          });
+        } else if (request.rewardId === 'halfDay') {
+          console.log(`🌅 Ajout de 0.5 jour bonus au compteur congés pour ${request.userName}`);
+          await updateDoc(userRef, {
+            'leaveBalance.bonusOffDays': increment(0.5),
+            'leaveBalance.lastUpdated': new Date().toISOString()
+          });
+        }
       }
 
       setShowModal(false);

@@ -161,6 +161,8 @@ const PlanningAdvancedPage = () => {
     halfDayPeriod: 'morning'
   });
   const [submittingLeave, setSubmittingLeave] = useState(false);
+  const [selectedCellForLeave, setSelectedCellForLeave] = useState(null); // { date, employeeId }
+  const [allPendingLeaves, setAllPendingLeaves] = useState([]); // Toutes les demandes en attente (tous users)
 
   // ==========================================
   // CHARGEMENT INITIAL
@@ -190,9 +192,10 @@ const PlanningAdvancedPage = () => {
       setMyLeaveRequests(requests);
     }, { userId: user.uid });
 
-    // Écouter les demandes en attente (admin)
+    // Écouter TOUTES les demandes en attente (pour affichage sur planning)
     const unsubPending = leaveRequestService.subscribeToRequests((requests) => {
-      setPendingLeaveRequests(requests);
+      setPendingLeaveRequests(requests.filter(r => r.userId !== user.uid)); // Autres users pour admin
+      setAllPendingLeaves(requests); // Toutes pour affichage
     }, { status: 'pending' });
 
     return () => {
@@ -989,6 +992,32 @@ const PlanningAdvancedPage = () => {
       default:
         return null; // Pas de limite
     }
+  };
+
+  // Vérifier si un employé a une demande EN ATTENTE pour une date
+  const getPendingLeaveForCell = (employeeId, date) => {
+    return allPendingLeaves.find(leave => {
+      const leaveStart = new Date(leave.startDate);
+      const leaveEnd = new Date(leave.endDate);
+      const cellDate = new Date(date);
+
+      return leave.userId === employeeId &&
+        cellDate >= leaveStart &&
+        cellDate <= leaveEnd;
+    });
+  };
+
+  // Ouvrir le modal de demande de congés depuis une cellule
+  const openLeaveRequestFromCell = (date) => {
+    setSelectedCellForLeave({ date });
+    setLeaveRequestForm({
+      leaveType: 'paid_leave',
+      startDate: date,
+      endDate: date,
+      reason: '',
+      halfDayPeriod: 'morning'
+    });
+    setShowLeaveRequestModal(true);
   };
 
   // ==========================================
@@ -2158,9 +2187,11 @@ const PlanningAdvancedPage = () => {
                         {weekDates.map(date => {
                           const shift = getShiftForCell(employee.id, date);
                           const approvedLeave = getApprovedLeaveForCell(employee.id, date);
+                          const pendingLeave = getPendingLeaveForCell(employee.id, date);
                           const isOver = dragOverCell?.employeeId === employee.id && dragOverCell?.date === date;
                           const dateAnalysis = getDateAnalysis(date);
                           const hasHighDemand = dateAnalysis && dateAnalysis.isSpecial;
+                          const isCurrentUser = employee.id === user?.uid;
 
                           return (
                             <td
@@ -2169,6 +2200,8 @@ const PlanningAdvancedPage = () => {
                                 isOver ? 'bg-purple-500/20 border-2 border-purple-500' : ''
                               } ${
                                 hasHighDemand ? 'bg-orange-500/5' : ''
+                              } ${
+                                pendingLeave ? 'bg-yellow-500/5' : ''
                               }`}
                               onDragOver={handleDragOver}
                               onDragEnter={() => handleDragEnter(employee.id, date)}
@@ -2294,7 +2327,7 @@ const PlanningAdvancedPage = () => {
                                     backgroundColor: LEAVE_TYPES[approvedLeave.leaveType]?.color || '#F59E0B',
                                     borderLeft: `4px solid rgba(0,0,0,0.3)`
                                   }}
-                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] shadow-lg"
+                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] shadow-lg relative"
                                 >
                                   <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 rounded-lg pointer-events-none" />
                                   <div className="relative z-10">
@@ -2304,19 +2337,63 @@ const PlanningAdvancedPage = () => {
                                     <div className="text-white text-[10px] sm:text-xs font-bold text-center drop-shadow-md">
                                       {LEAVE_TYPES[approvedLeave.leaveType]?.label || 'Congé'}
                                     </div>
-                                    {approvedLeave.halfDay && (
+                                    {approvedLeave.isHalfDay && (
                                       <div className="text-white/80 text-[9px] sm:text-[10px] text-center mt-0.5">
-                                        {approvedLeave.halfDayPeriod === 'morning' ? 'Matin' : 'Après-midi'}
+                                        {approvedLeave.halfDayPeriod === 'morning' ? 'Matin' : approvedLeave.halfDayPeriod === 'afternoon' ? 'Après-midi' : 'Soirée'}
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              ) : pendingLeave ? (
+                                /* ⏳ Affichage demande EN ATTENTE */
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  style={{
+                                    borderColor: LEAVE_TYPES[pendingLeave.leaveType]?.color || '#F59E0B'
+                                  }}
+                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] border-2 border-dashed bg-gray-700/20 relative"
+                                >
+                                  <div className="absolute top-1 right-1">
+                                    <span className="text-[8px] sm:text-[10px] bg-yellow-500/30 text-yellow-300 px-1.5 py-0.5 rounded-full">
+                                      En attente
+                                    </span>
+                                  </div>
+                                  <div className="relative z-10 pt-3">
+                                    <div className="text-lg sm:text-xl text-center mb-1 opacity-70">
+                                      {LEAVE_TYPES[pendingLeave.leaveType]?.emoji || '🏖️'}
+                                    </div>
+                                    <div className="text-gray-300 text-[9px] sm:text-[10px] font-medium text-center">
+                                      {LEAVE_TYPES[pendingLeave.leaveType]?.label || 'Congé'}
+                                    </div>
+                                    {pendingLeave.isHalfDay && (
+                                      <div className="text-gray-400 text-[8px] sm:text-[9px] text-center mt-0.5">
+                                        {pendingLeave.halfDayPeriod === 'morning' ? 'Matin' : pendingLeave.halfDayPeriod === 'afternoon' ? 'Après-midi' : 'Soirée'}
                                       </div>
                                     )}
                                   </div>
                                 </motion.div>
                               ) : (
-                                <div
-                                  onClick={() => openAddShiftModal(employee.id, date)}
-                                  className="min-h-[60px] sm:min-h-[80px] flex items-center justify-center text-gray-600 hover:bg-gray-700/20 hover:text-purple-400 rounded-lg transition-colors cursor-pointer group"
-                                >
-                                  <Plus className="w-5 h-5 sm:w-6 sm:h-6 group-hover:scale-110 transition-transform" />
+                                /* Cellule vide - options selon l'utilisateur */
+                                <div className="min-h-[60px] sm:min-h-[80px] flex flex-col items-center justify-center gap-1 rounded-lg transition-colors group">
+                                  {/* Bouton ajouter shift (admin) */}
+                                  <button
+                                    onClick={() => openAddShiftModal(employee.id, date)}
+                                    className="p-1.5 text-gray-600 hover:bg-gray-700/30 hover:text-purple-400 rounded-lg transition-colors"
+                                    title="Ajouter un shift"
+                                  >
+                                    <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                  {/* Bouton demande congé (utilisateur courant) */}
+                                  {isCurrentUser && (
+                                    <button
+                                      onClick={() => openLeaveRequestFromCell(date)}
+                                      className="p-1.5 text-gray-600 hover:bg-amber-500/20 hover:text-amber-400 rounded-lg transition-colors"
+                                      title="Demander un congé"
+                                    >
+                                      <Palmtree className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </td>
