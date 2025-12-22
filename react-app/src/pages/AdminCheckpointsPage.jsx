@@ -157,7 +157,7 @@ const AdminCheckpointsPage = () => {
               <Flag size={28} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Gestion des Checkpoints</h1>
+              <h1 className="text-2xl font-bold text-white">🎓 Académie - Gestion</h1>
               <p className="text-gray-400">Maître de Guilde</p>
             </div>
           </div>

@@ -43,7 +43,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/team', label: 'Équipe', icon: '👥' },
       { path: '/pulse', label: 'Pulse & Pointage', icon: '💗' },
       { path: '/mentoring', label: 'Mentorat', icon: '🎓' },
-      { path: '/checkpoints', label: 'Checkpoints', icon: '🏁' },
+      { path: '/checkpoints', label: 'Académie', icon: '🎓' },
       { path: '/customization', label: 'Personnalisation', icon: '🎨' },
       { path: '/settings', label: 'Paramètres', icon: '⚙️' }
     ]},
@@ -56,7 +56,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/admin/analytics', label: 'Analytics', icon: '📊' },
       { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
       { path: '/admin/objective-validation', label: 'Gestion Campagnes', icon: '🎯' },
-      { path: '/admin/checkpoints', label: 'Checkpoints', icon: '🏁' },
+      { path: '/admin/checkpoints', label: 'Académie', icon: '🎓' },
       { path: '/admin/rewards', label: 'Validation Récompenses', icon: '🎁' },
       { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
       { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
