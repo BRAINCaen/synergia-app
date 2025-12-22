@@ -30,6 +30,7 @@ import { db } from '../core/firebase.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 import Layout from '../components/layout/Layout';
+import { exportService } from '../core/services/exportService.js';
 
 /**
  * 🔄 PAGE ADMIN SYNCHRONISATION - GESTION FIREBASE
@@ -135,24 +136,30 @@ const AdminSyncPage = () => {
   };
 
   const handleExportData = async () => {
-    addLog('📥 Export des données en cours...', 'info');
+    addLog('📥 Export PDF des données en cours...', 'info');
     try {
       const data = {
-        users: syncStats.users,
-        tasks: syncStats.tasks,
-        projects: syncStats.projects,
-        badges: syncStats.badges,
-        exportDate: new Date().toISOString()
+        'Statistiques Utilisateurs': {
+          Total: syncStats.users || 0,
+          Dernière_sync: new Date().toLocaleDateString('fr-FR')
+        },
+        'Statistiques Tâches': {
+          Total: syncStats.tasks || 0
+        },
+        'Statistiques Projets': {
+          Total: syncStats.projects || 0
+        },
+        'Statistiques Badges': {
+          Total: syncStats.badges || 0
+        }
       };
-      
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `synergia-export-${Date.now()}.json`;
-      a.click();
-      
-      addLog('✅ Export réussi', 'success');
+
+      await exportService.exportGenericDataToPDF(data, {
+        title: 'Export Synchronisation',
+        fileName: 'synergia-sync-export'
+      });
+
+      addLog('✅ Export PDF réussi', 'success');
     } catch (error) {
       addLog(`❌ Erreur export: ${error.message}`, 'error');
     }

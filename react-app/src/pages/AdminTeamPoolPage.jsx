@@ -38,6 +38,7 @@ import {
   getDocs 
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { exportService } from '../core/services/exportService.js';
 
 /**
  * ⚙️ PAGE ADMIN POUR GESTION DE LA CAGNOTTE COLLECTIVE
@@ -268,25 +269,24 @@ const AdminTeamPoolPage = () => {
     </div>
   );
 
-  // 📥 EXPORTER LES DONNÉES
-  const exportData = () => {
-    const exportData = {
-      poolStats: stats,
-      contributions: contributions.slice(0, 100), // Limiter pour la taille
-      purchases: purchases,
-      contributors: contributorsStats,
-      exportDate: new Date().toISOString()
-    };
-    
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `cagnotte-equipe-${new Date().toISOString().split('T')[0]}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+  // 📥 EXPORTER LES DONNÉES EN PDF
+  const exportData = async () => {
+    try {
+      await exportService.exportTeamPoolToPDF({
+        stats: {
+          totalXP: stats?.totalXP || poolData?.totalXP || 0,
+          contributionsCount: contributions.length,
+          withdrawalsCount: purchases.length,
+          challengesCompleted: stats?.challengesCompleted || 0,
+          activeContributors: contributorsStats.length
+        },
+        contributions: contributions.slice(0, 100),
+        withdrawals: purchases,
+        challenges: []
+      });
+    } catch (error) {
+      console.error('❌ Erreur export PDF:', error);
+    }
   };
 
   if (loading || adminLoading) {

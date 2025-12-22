@@ -1081,6 +1081,1080 @@ class ExportService {
 
     return { success: true, fileName };
   }
+
+  // ==========================================
+  // 📊 EXPORT ANALYTICS ADMIN (PDF STYLISÉ)
+  // ==========================================
+
+  /**
+   * Exporter les analytics complètes en PDF stylisé pour impression
+   */
+  async exportAnalyticsToPDF(analyticsData, options = {}) {
+    const {
+      title = 'Rapport Analytics Complet',
+      timeframe = 'Tout le temps'
+    } = options;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // ==========================================
+    // PAGE 1: HEADER ET MÉTRIQUES CLÉS
+    // ==========================================
+
+    // Header avec dégradé simulé (bandes de couleur)
+    doc.setFillColor(30, 41, 59); // Slate 800
+    doc.rect(0, 0, pageWidth, 50, 'F');
+    doc.setFillColor(99, 102, 241); // Indigo
+    doc.rect(0, 48, pageWidth, 4, 'F');
+
+    // Logo et titre
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(28);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SYNERGIA', 15, 28);
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Analytics Administration', 15, 40);
+
+    // Date et période
+    doc.setFontSize(10);
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, pageWidth - 75, 25);
+    doc.text(`Période: ${this.formatTimeframe(timeframe)}`, pageWidth - 75, 35);
+
+    yPosition = 65;
+
+    // Section titre
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📊 Vue d\'ensemble', 15, yPosition);
+    yPosition += 15;
+
+    // Cartes métriques principales (4 cartes en ligne)
+    const metrics = [
+      {
+        label: 'Utilisateurs',
+        value: analyticsData.users?.total || 0,
+        subtext: `+${analyticsData.users?.newThisWeek || 0} cette semaine`,
+        color: [59, 130, 246] // Blue
+      },
+      {
+        label: 'Taux Complétion',
+        value: `${analyticsData.tasks?.completionRate || 0}%`,
+        subtext: `${analyticsData.tasks?.completed || 0} quêtes`,
+        color: [34, 197, 94] // Green
+      },
+      {
+        label: 'Badges Attribués',
+        value: analyticsData.badges?.awarded || 0,
+        subtext: `${analyticsData.badges?.total || 0} disponibles`,
+        color: [245, 158, 11] // Amber
+      },
+      {
+        label: 'XP Total Système',
+        value: this.formatNumber(analyticsData.gamification?.totalXpSystem || 0),
+        subtext: `Niv. moyen: ${analyticsData.gamification?.averageLevel || 1}`,
+        color: [139, 92, 246] // Purple
+      }
+    ];
+
+    const cardWidth = (pageWidth - 40) / 4;
+    const cardHeight = 35;
+
+    metrics.forEach((metric, index) => {
+      const x = 15 + (index * (cardWidth + 5));
+
+      // Fond de carte
+      doc.setFillColor(...metric.color);
+      doc.roundedRect(x, yPosition, cardWidth - 3, cardHeight, 3, 3, 'F');
+
+      // Texte
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(metric.label, x + 5, yPosition + 10);
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(String(metric.value), x + 5, yPosition + 22);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(metric.subtext, x + 5, yPosition + 30);
+    });
+
+    yPosition += cardHeight + 20;
+
+    // ==========================================
+    // SECTION UTILISATEURS
+    // ==========================================
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('👥 Analyse des Utilisateurs', 15, yPosition);
+    yPosition += 10;
+
+    // Stats utilisateurs en grille
+    const userStats = [
+      ['Total', analyticsData.users?.total || 0],
+      ['Actifs', analyticsData.users?.active || 0],
+      ['Nouveaux aujourd\'hui', analyticsData.users?.newToday || 0],
+      ['Nouveaux semaine', analyticsData.users?.newThisWeek || 0],
+      ['Taux rétention', `${analyticsData.users?.retention || 0}%`]
+    ];
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Métrique', 'Valeur']],
+      body: userStats,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 50, fontStyle: 'bold' },
+        1: { cellWidth: 30, halign: 'center' }
+      },
+      tableWidth: 85,
+      margin: { left: 15 }
+    });
+
+    // Top 10 utilisateurs
+    yPosition = doc.lastAutoTable.finalY + 15;
+
+    if (analyticsData.users?.list?.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('🏆 Top 10 Utilisateurs', 15, yPosition);
+      yPosition += 8;
+
+      const topUsers = (analyticsData.users?.list || []).slice(0, 10).map((user, index) => [
+        `${index + 1}`,
+        user.name || 'Sans nom',
+        `Niv. ${user.level || 1}`,
+        this.formatNumber(user.xp || 0),
+        user.tasksCompleted || 0,
+        user.badges || 0
+      ]);
+
+      doc.autoTable({
+        startY: yPosition,
+        head: [['#', 'Utilisateur', 'Niveau', 'XP', 'Quêtes', 'Badges']],
+        body: topUsers,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [99, 102, 241],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 45 },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 25, halign: 'right' },
+          4: { cellWidth: 20, halign: 'center' },
+          5: { cellWidth: 20, halign: 'center' }
+        }
+      });
+    }
+
+    // ==========================================
+    // PAGE 2: QUÊTES ET PROJETS
+    // ==========================================
+    doc.addPage();
+    yPosition = 20;
+
+    // Header page 2
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SYNERGIA - Analytics (suite)', 15, 17);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Page 2`, pageWidth - 30, 17);
+
+    yPosition = 35;
+
+    // Section Quêtes
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('⚔️ Analyse des Quêtes', 15, yPosition);
+    yPosition += 10;
+
+    const taskStats = [
+      ['Total', analyticsData.tasks?.total || 0],
+      ['Accomplies', analyticsData.tasks?.completed || 0],
+      ['En cours', analyticsData.tasks?.inProgress || 0],
+      ['En attente', analyticsData.tasks?.pending || 0],
+      ['Taux complétion', `${analyticsData.tasks?.completionRate || 0}%`],
+      ['XP moyen/quête', analyticsData.tasks?.averageXp || 0],
+      ['XP total distribué', this.formatNumber(analyticsData.tasks?.totalXpAwarded || 0)]
+    ];
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Métrique', 'Valeur']],
+      body: taskStats,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [34, 197, 94],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 50, fontStyle: 'bold' },
+        1: { cellWidth: 35, halign: 'center' }
+      },
+      tableWidth: 90,
+      margin: { left: 15 }
+    });
+
+    // Top contributeurs quêtes
+    yPosition = doc.lastAutoTable.finalY + 15;
+
+    if (analyticsData.tasks?.byUser?.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('🎯 Top Contributeurs', 15, yPosition);
+      yPosition += 8;
+
+      const topContributors = (analyticsData.tasks?.byUser || []).slice(0, 10).map((user) => {
+        const rate = user.total > 0 ? Math.round((user.completed / user.total) * 100) : 0;
+        return [
+          user.userName || 'Inconnu',
+          user.total || 0,
+          user.completed || 0,
+          `${rate}%`,
+          this.formatNumber(user.xp || 0)
+        ];
+      });
+
+      doc.autoTable({
+        startY: yPosition,
+        head: [['Utilisateur', 'Total', 'Complétées', 'Taux', 'XP']],
+        body: topContributors,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [34, 197, 94],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 45 },
+          1: { cellWidth: 20, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 25, halign: 'right' }
+        }
+      });
+    }
+
+    // Section Projets
+    yPosition = doc.lastAutoTable.finalY + 20;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📁 Analyse des Projets', 15, yPosition);
+    yPosition += 10;
+
+    const projectStats = [
+      ['Total projets', analyticsData.projects?.total || 0],
+      ['Actifs', analyticsData.projects?.active || 0],
+      ['Terminés', analyticsData.projects?.completed || 0],
+      ['En pause', analyticsData.projects?.paused || 0],
+      ['Taux complétion', `${analyticsData.projects?.completionRate || 0}%`]
+    ];
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Métrique', 'Valeur']],
+      body: projectStats,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [139, 92, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 50, fontStyle: 'bold' },
+        1: { cellWidth: 30, halign: 'center' }
+      },
+      tableWidth: 85,
+      margin: { left: 15 }
+    });
+
+    // ==========================================
+    // PAGE 3: GAMIFICATION & BADGES
+    // ==========================================
+    doc.addPage();
+    yPosition = 20;
+
+    // Header page 3
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SYNERGIA - Gamification & Badges', 15, 17);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Page 3`, pageWidth - 30, 17);
+
+    yPosition = 35;
+
+    // Section Gamification
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('🎮 Statistiques Gamification', 15, yPosition);
+    yPosition += 10;
+
+    const gamificationStats = [
+      ['XP Total Système', this.formatNumber(analyticsData.gamification?.totalXpSystem || 0)],
+      ['Niveau Moyen', analyticsData.gamification?.averageLevel || 1],
+      ['XP Moyen par Quête', analyticsData.tasks?.averageXp || 0]
+    ];
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Métrique', 'Valeur']],
+      body: gamificationStats,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [139, 92, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 50, fontStyle: 'bold' },
+        1: { cellWidth: 35, halign: 'center' }
+      },
+      tableWidth: 90,
+      margin: { left: 15 }
+    });
+
+    // Distribution des niveaux
+    yPosition = doc.lastAutoTable.finalY + 15;
+
+    if (analyticsData.gamification?.levelDistribution) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('📈 Distribution des Niveaux', 15, yPosition);
+      yPosition += 8;
+
+      const levelData = Object.entries(analyticsData.gamification.levelDistribution)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([level, count]) => {
+          const percentage = analyticsData.users?.total > 0
+            ? Math.round((count / analyticsData.users.total) * 100)
+            : 0;
+          return [`Niveau ${level}`, count, `${percentage}%`];
+        });
+
+      doc.autoTable({
+        startY: yPosition,
+        head: [['Niveau', 'Utilisateurs', '%']],
+        body: levelData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [139, 92, 246],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 30, fontStyle: 'bold' },
+          1: { cellWidth: 30, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center' }
+        },
+        tableWidth: 90,
+        margin: { left: 15 }
+      });
+    }
+
+    // Section Badges
+    yPosition = doc.lastAutoTable.finalY + 20;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('🏆 Analyse des Badges', 15, yPosition);
+    yPosition += 10;
+
+    const badgeStats = [
+      ['Badges disponibles', analyticsData.badges?.total || 0],
+      ['Badges attribués', analyticsData.badges?.awarded || 0],
+      ['Moyenne par utilisateur', analyticsData.users?.total > 0
+        ? Math.round(analyticsData.badges?.awarded / analyticsData.users.total)
+        : 0]
+    ];
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Métrique', 'Valeur']],
+      body: badgeStats,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [245, 158, 11],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 50, fontStyle: 'bold' },
+        1: { cellWidth: 30, halign: 'center' }
+      },
+      tableWidth: 85,
+      margin: { left: 15 }
+    });
+
+    // Top badges
+    yPosition = doc.lastAutoTable.finalY + 15;
+
+    if (analyticsData.badges?.popular?.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('⭐ Badges les Plus Attribués', 15, yPosition);
+      yPosition += 8;
+
+      const topBadges = (analyticsData.badges?.popular || []).slice(0, 10).map((badge) => [
+        badge.icon || '🏅',
+        badge.name || 'Badge',
+        badge.rarity || 'common',
+        badge.earnedCount || 0
+      ]);
+
+      doc.autoTable({
+        startY: yPosition,
+        head: [['', 'Badge', 'Rareté', 'Attribués']],
+        body: topBadges,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [245, 158, 11],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 45, fontStyle: 'bold' },
+          2: { cellWidth: 30, halign: 'center' },
+          3: { cellWidth: 25, halign: 'center' }
+        }
+      });
+    }
+
+    // ==========================================
+    // FOOTER SUR TOUTES LES PAGES
+    // ==========================================
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+
+      // Ligne de séparation footer
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, pageHeight - 20, pageWidth - 15, pageHeight - 20);
+
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `SYNERGIA - Rapport Analytics Complet - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 12,
+        { align: 'center' }
+      );
+      doc.text(
+        `Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+        pageWidth / 2,
+        pageHeight - 7,
+        { align: 'center' }
+      );
+    }
+
+    // Sauvegarder
+    const fileName = `synergia-analytics-complete-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+
+    return { success: true, fileName };
+  }
+
+  /**
+   * Exporter les données de la cagnotte d'équipe en PDF
+   */
+  async exportTeamPoolToPDF(poolData, options = {}) {
+    const {
+      stats = {},
+      contributions = [],
+      withdrawals = [],
+      challenges = []
+    } = poolData;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // Header
+    doc.setFillColor(245, 158, 11); // Amber
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 43, pageWidth, 4, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('💰 SYNERGIA', 15, 25);
+
+    doc.setFontSize(12);
+    doc.text('Rapport Cagnotte d\'Équipe', 15, 37);
+
+    doc.setFontSize(10);
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 60, 25);
+
+    yPosition = 60;
+
+    // Métriques principales
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📊 Vue d\'ensemble', 15, yPosition);
+    yPosition += 12;
+
+    const poolStats = [
+      ['XP Total Cagnotte', this.formatNumber(stats.totalXP || 0)],
+      ['Contributions', stats.contributionsCount || 0],
+      ['Retraits', stats.withdrawalsCount || 0],
+      ['Défis Complétés', stats.challengesCompleted || 0],
+      ['Contributeurs Actifs', stats.activeContributors || 0]
+    ];
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Métrique', 'Valeur']],
+      body: poolStats,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [245, 158, 11],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 10,
+        cellPadding: 5
+      },
+      columnStyles: {
+        0: { cellWidth: 60, fontStyle: 'bold' },
+        1: { cellWidth: 40, halign: 'center' }
+      },
+      tableWidth: 105,
+      margin: { left: 15 }
+    });
+
+    // Contributions récentes
+    yPosition = doc.lastAutoTable.finalY + 20;
+
+    if (contributions.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('📥 Dernières Contributions', 15, yPosition);
+      yPosition += 8;
+
+      const contribData = contributions.slice(0, 15).map(c => [
+        c.userName || 'Anonyme',
+        `+${c.amount || 0} XP`,
+        c.reason || '-',
+        new Date(c.date?.toDate?.() || c.date || Date.now()).toLocaleDateString('fr-FR')
+      ]);
+
+      doc.autoTable({
+        startY: yPosition,
+        head: [['Contributeur', 'Montant', 'Raison', 'Date']],
+        body: contribData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [34, 197, 94],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3
+        }
+      });
+    }
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `SYNERGIA - Cagnotte Équipe - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    const fileName = `synergia-cagnotte-equipe-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+
+    return { success: true, fileName };
+  }
+
+  /**
+   * Exporter les paramètres de configuration en PDF
+   */
+  async exportSettingsToPDF(configData, options = {}) {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // Header
+    doc.setFillColor(99, 102, 241); // Indigo
+    doc.rect(0, 0, pageWidth, 40, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('⚙️ SYNERGIA', 15, 25);
+
+    doc.setFontSize(12);
+    doc.text('Configuration Système', 15, 35);
+
+    doc.setFontSize(10);
+    doc.text(`Export: ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 55, 25);
+
+    yPosition = 55;
+
+    // Sections de configuration
+    const sections = Object.entries(configData);
+
+    sections.forEach(([sectionName, sectionData]) => {
+      if (yPosition > pageHeight - 50) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`📋 ${sectionName}`, 15, yPosition);
+      yPosition += 8;
+
+      if (typeof sectionData === 'object' && sectionData !== null) {
+        const configRows = Object.entries(sectionData).map(([key, value]) => {
+          let displayValue = value;
+          if (typeof value === 'boolean') displayValue = value ? 'Oui' : 'Non';
+          else if (typeof value === 'object') displayValue = JSON.stringify(value);
+          return [key, String(displayValue)];
+        });
+
+        if (configRows.length > 0) {
+          doc.autoTable({
+            startY: yPosition,
+            head: [['Paramètre', 'Valeur']],
+            body: configRows,
+            theme: 'striped',
+            headStyles: {
+              fillColor: [99, 102, 241],
+              textColor: [255, 255, 255],
+              fontStyle: 'bold',
+              fontSize: 8
+            },
+            styles: {
+              fontSize: 8,
+              cellPadding: 3
+            },
+            columnStyles: {
+              0: { cellWidth: 60, fontStyle: 'bold' },
+              1: { cellWidth: 'auto' }
+            }
+          });
+
+          yPosition = doc.lastAutoTable.finalY + 15;
+        }
+      }
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `SYNERGIA - Configuration - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    const fileName = `synergia-config-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+
+    return { success: true, fileName };
+  }
+
+  // ==========================================
+  // EXPORT DONNÉES GÉNÉRIQUES (PDF)
+  // ==========================================
+
+  /**
+   * Exporter des données génériques en PDF (backup, sync, etc.)
+   */
+  async exportGenericDataToPDF(data, options = {}) {
+    const {
+      title = 'Export Données',
+      subtitle = 'Synergia',
+      fileName = 'synergia-export'
+    } = options;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // Header
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📊 SYNERGIA', 15, 25);
+
+    doc.setFontSize(12);
+    doc.text(title, 15, 35);
+
+    doc.setFontSize(10);
+    doc.text(`Export: ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 55, 25);
+
+    yPosition = 55;
+
+    // Parcourir les données
+    const processData = (obj, prefix = '') => {
+      Object.entries(obj).forEach(([key, value]) => {
+        if (yPosition > pageHeight - 30) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          // Section header
+          doc.setTextColor(99, 102, 241);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`📋 ${key}`, 15, yPosition);
+          yPosition += 8;
+
+          const entries = Object.entries(value);
+          if (entries.length > 0) {
+            const tableData = entries.map(([k, v]) => {
+              let displayValue = v;
+              if (typeof v === 'boolean') displayValue = v ? 'Oui' : 'Non';
+              else if (typeof v === 'object') displayValue = JSON.stringify(v).substring(0, 50) + '...';
+              else if (v === null || v === undefined) displayValue = '-';
+              return [k, String(displayValue)];
+            });
+
+            doc.autoTable({
+              startY: yPosition,
+              head: [['Paramètre', 'Valeur']],
+              body: tableData,
+              theme: 'striped',
+              headStyles: {
+                fillColor: [99, 102, 241],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 8
+              },
+              styles: {
+                fontSize: 8,
+                cellPadding: 2
+              },
+              columnStyles: {
+                0: { cellWidth: 50, fontStyle: 'bold' },
+                1: { cellWidth: 'auto' }
+              }
+            });
+
+            yPosition = doc.lastAutoTable.finalY + 10;
+          }
+        } else if (Array.isArray(value) && value.length > 0) {
+          doc.setTextColor(34, 197, 94);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`📋 ${key} (${value.length} éléments)`, 15, yPosition);
+          yPosition += 8;
+
+          // Si c'est un tableau d'objets, créer un tableau
+          if (typeof value[0] === 'object') {
+            const headers = Object.keys(value[0]).slice(0, 5);
+            const tableData = value.slice(0, 20).map(item =>
+              headers.map(h => {
+                let val = item[h];
+                if (typeof val === 'object') val = JSON.stringify(val).substring(0, 20);
+                return String(val || '-').substring(0, 30);
+              })
+            );
+
+            doc.autoTable({
+              startY: yPosition,
+              head: [headers],
+              body: tableData,
+              theme: 'striped',
+              headStyles: {
+                fillColor: [34, 197, 94],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 7
+              },
+              styles: {
+                fontSize: 7,
+                cellPadding: 2
+              }
+            });
+
+            yPosition = doc.lastAutoTable.finalY + 10;
+          }
+        }
+      });
+    };
+
+    processData(data);
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `SYNERGIA - ${title} - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    const finalFileName = `${fileName}-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(finalFileName);
+
+    return { success: true, fileName: finalFileName };
+  }
+
+  /**
+   * Exporter l'historique XP en PDF
+   */
+  async exportHistoryToPDF(historyData, options = {}) {
+    const {
+      title = 'Historique Complet',
+      userName = 'Admin'
+    } = options;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // Header
+    doc.setFillColor(139, 92, 246); // Purple
+    doc.rect(0, 0, pageWidth, 45, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('🔮 SYNERGIA', 15, 25);
+
+    doc.setFontSize(12);
+    doc.text('Historique des Actions', 15, 37);
+
+    doc.setFontSize(10);
+    doc.text(`Exporté le ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 60, 25);
+    doc.text(`Total: ${historyData.length} événements`, pageWidth - 60, 35);
+
+    yPosition = 60;
+
+    // Résumé
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📊 Résumé', 15, yPosition);
+    yPosition += 10;
+
+    // Compter par type
+    const typeCounts = historyData.reduce((acc, item) => {
+      const type = item.type || 'autre';
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {});
+
+    const summaryData = Object.entries(typeCounts).map(([type, count]) => [type, count]);
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Type', 'Nombre']],
+      body: summaryData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [139, 92, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 50, fontStyle: 'bold' },
+        1: { cellWidth: 30, halign: 'center' }
+      },
+      tableWidth: 85,
+      margin: { left: 15 }
+    });
+
+    // Détails
+    yPosition = doc.lastAutoTable.finalY + 20;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📋 Détails des Événements', 15, yPosition);
+    yPosition += 8;
+
+    const eventData = historyData.slice(0, 50).map((item) => {
+      const date = item.timestamp?.toDate?.()?.toLocaleDateString('fr-FR') ||
+                  item.date?.toDate?.()?.toLocaleDateString('fr-FR') ||
+                  new Date(item.timestamp || item.date).toLocaleDateString('fr-FR') || '-';
+      return [
+        date,
+        item.type || 'action',
+        item.userName || item.user || '-',
+        item.description || item.details || '-'
+      ];
+    });
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Date', 'Type', 'Utilisateur', 'Détails']],
+      body: eventData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [139, 92, 246],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8
+      },
+      styles: {
+        fontSize: 7,
+        cellPadding: 2
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 'auto' }
+      }
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `SYNERGIA - Historique - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    const fileName = `synergia-historique-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+
+    return { success: true, fileName };
+  }
+
+  // ==========================================
+  // HELPERS
+  // ==========================================
+
+  /**
+   * Formater un nombre avec séparateurs
+   */
+  formatNumber(num) {
+    return num?.toLocaleString('fr-FR') || '0';
+  }
+
+  /**
+   * Formater la période temporelle
+   */
+  formatTimeframe(timeframe) {
+    const labels = {
+      'today': 'Aujourd\'hui',
+      'week': '7 derniers jours',
+      'month': '30 derniers jours',
+      'all': 'Tout le temps'
+    };
+    return labels[timeframe] || timeframe;
+  }
 }
 
 // Export singleton

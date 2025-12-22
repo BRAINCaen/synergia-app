@@ -47,6 +47,7 @@ import { db } from '../core/firebase.js';
 
 // Services
 import rolePermissionsService from '../core/services/rolePermissionsService.js';
+import { exportService } from '../core/services/exportService.js';
 
 // Hooks
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -379,31 +380,25 @@ const AdminSettingsPage = () => {
   };
 
   /**
-   * 📈 EXPORTER LA CONFIGURATION
+   * 📈 EXPORTER LA CONFIGURATION EN PDF
    */
-  const exportConfig = () => {
-    const configToExport = {
-      version: settings.app.version,
-      exportDate: new Date().toISOString(),
-      settings,
-      metadata: {
-        exportedBy: user?.email || 'admin',
-        totalSections: Object.keys(settings).length,
-        totalSettings: Object.values(settings).reduce((acc, section) => acc + Object.keys(section).length, 0)
-      }
-    };
+  const exportConfig = async () => {
+    try {
+      const configToExport = {
+        'Version Application': {
+          version: settings.app.version,
+          exportDate: new Date().toLocaleDateString('fr-FR'),
+          exportedBy: user?.email || 'admin'
+        },
+        ...settings
+      };
 
-    const dataStr = JSON.stringify(configToExport, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `synergia-config-v4-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-
-    URL.revokeObjectURL(url);
-    showNotification('Configuration exportée avec succès', 'success');
+      await exportService.exportSettingsToPDF(configToExport);
+      showNotification('📄 Configuration exportée en PDF', 'success');
+    } catch (error) {
+      console.error('❌ Erreur export PDF:', error);
+      showNotification('Erreur lors de l\'export', 'error');
+    }
   };
 
   /**
