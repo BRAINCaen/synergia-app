@@ -11,7 +11,7 @@ import {
   TrendingUp, Award, X, Info, Gift, Crown, Shield,
   Target, Users, Lightbulb, MessageCircle, Briefcase,
   BookOpen, Palette, AlertCircle, Lock, Check, ZoomIn, ZoomOut, Move,
-  HelpCircle, List, Grid3X3, ChevronDown, ChevronUp
+  HelpCircle, List, LayoutGrid, ChevronDown, ChevronUp
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import { useSkillTree } from '../shared/hooks/useSkillTree.js';
@@ -1240,7 +1240,7 @@ const SkillTreePage = () => {
                     }`}
                     title="Vue arbre"
                   >
-                    <Grid3X3 className="h-4 w-4" />
+                    <LayoutGrid className="h-4 w-4" />
                   </button>
                 </div>
 
