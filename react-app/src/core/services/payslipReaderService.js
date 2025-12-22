@@ -10,7 +10,49 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 // Configurer le worker PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Utiliser plusieurs CDN avec fallback
+const PDF_WORKER_URLS = [
+  `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`,
+  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`,
+  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+];
+
+let workerInitialized = false;
+let workerInitPromise = null;
+
+// Tester et utiliser le premier CDN disponible
+async function initPDFWorker() {
+  // Ne pas réinitialiser si déjà fait
+  if (workerInitialized) return;
+
+  // Si l'init est en cours, attendre
+  if (workerInitPromise) return workerInitPromise;
+
+  workerInitPromise = (async () => {
+    for (const url of PDF_WORKER_URLS) {
+      try {
+        const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
+        if (response.ok) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = url;
+          console.log('✅ PDF.js worker configuré:', url);
+          workerInitialized = true;
+          return;
+        }
+      } catch (e) {
+        console.warn(`⚠️ CDN non disponible: ${url}`);
+      }
+    }
+    // Fallback: désactiver le worker (fonctionne mais plus lent)
+    console.warn('⚠️ Aucun CDN disponible, mode sans worker (main thread)');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    workerInitialized = true;
+  })();
+
+  return workerInitPromise;
+}
+
+// Pré-initialiser au chargement du module
+initPDFWorker();
 
 /**
  * 📊 PATTERNS DE RECHERCHE POUR BULLETINS DE PAIE FRANÇAIS
@@ -193,9 +235,18 @@ class PayslipReaderService {
     try {
       console.log('📄 Conversion PDF en images...');
 
-      // Charger le PDF
+      // S'assurer que le worker est configuré
+      await initPDFWorker();
+
+      // Charger le PDF avec options robustes
       const arrayBuffer = await this.fileToArrayBuffer(file);
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      });
+      const pdf = await loadingTask.promise;
 
       console.log(`📄 PDF chargé: ${pdf.numPages} page(s)`);
 
