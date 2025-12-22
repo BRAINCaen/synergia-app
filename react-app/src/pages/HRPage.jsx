@@ -1172,6 +1172,10 @@ const LeavesTab = ({ employees, onRefresh }) => {
   const [loading, setLoading] = useState(true);
   const [showNewLeaveModal, setShowNewLeaveModal] = useState(false);
   const [filter, setFilter] = useState('all'); // all, pending, approved, rejected
+  const [subTab, setSubTab] = useState('requests'); // 'requests' ou 'balances'
+  const [employeeBalances, setEmployeeBalances] = useState({});
+  const [editingBalance, setEditingBalance] = useState(null);
+  const [balanceForm, setBalanceForm] = useState({ paidLeaveDays: 25, bonusOffDays: 0, rttDays: 0 });
 
   // Types de congés
   const leaveTypes = [
@@ -1185,7 +1189,48 @@ const LeavesTab = ({ employees, onRefresh }) => {
 
   useEffect(() => {
     loadLeaveRequests();
-  }, []);
+    loadEmployeeBalances();
+  }, [employees]);
+
+  // Charger les soldes de congés de tous les employés
+  const loadEmployeeBalances = async () => {
+    try {
+      const balances = {};
+      for (const emp of employees) {
+        const userDoc = await getDoc(doc(db, 'users', emp.id));
+        if (userDoc.exists()) {
+          balances[emp.id] = userDoc.data().leaveBalance || {
+            paidLeaveDays: 25,
+            bonusOffDays: 0,
+            rttDays: 0,
+            usedPaidLeaveDays: 0,
+            usedBonusDays: 0,
+            usedRttDays: 0
+          };
+        }
+      }
+      setEmployeeBalances(balances);
+    } catch (error) {
+      console.error('Erreur chargement soldes:', error);
+    }
+  };
+
+  // Mettre à jour le solde d'un employé
+  const updateEmployeeBalance = async (employeeId) => {
+    try {
+      await updateDoc(doc(db, 'users', employeeId), {
+        leaveBalance: {
+          ...employeeBalances[employeeId],
+          ...balanceForm,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+      setEditingBalance(null);
+      loadEmployeeBalances();
+    } catch (error) {
+      console.error('Erreur mise à jour solde:', error);
+    }
+  };
 
   const loadLeaveRequests = async () => {
     try {
@@ -1273,10 +1318,156 @@ const LeavesTab = ({ employees, onRefresh }) => {
         <StatCard title="Total demandes" value={leaveRequests.length} icon={FileText} color="purple" />
       </div>
 
+      {/* Sous-onglets */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setSubTab('requests')}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            subTab === 'requests'
+              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+              : 'bg-gray-800/50 text-gray-400 hover:text-white'
+          }`}
+        >
+          📋 Demandes
+        </button>
+        <button
+          onClick={() => setSubTab('balances')}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            subTab === 'balances'
+              ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
+              : 'bg-gray-800/50 text-gray-400 hover:text-white'
+          }`}
+        >
+          🏖️ Compteurs CP
+        </button>
+      </div>
+
+      {/* Vue Compteurs */}
+      {subTab === 'balances' && (
+        <GlassCard>
+          <div className="mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Gestion des Compteurs</h2>
+            <p className="text-gray-400 text-sm">Gérez les soldes de congés de chaque employé</p>
+          </div>
+
+          <div className="space-y-3">
+            {employees.map((emp) => {
+              const balance = employeeBalances[emp.id] || {};
+              const isEditing = editingBalance === emp.id;
+
+              return (
+                <div
+                  key={emp.id}
+                  className="bg-gray-800/40 rounded-xl p-4 border border-gray-700/50"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* Info employé */}
+                    <div className="flex items-center gap-3">
+                      {emp.photoURL ? (
+                        <img src={emp.photoURL} alt={emp.displayName} className="w-10 h-10 rounded-full" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                          {emp.displayName?.charAt(0) || '?'}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white font-medium">{emp.displayName || emp.email}</p>
+                        <p className="text-gray-400 text-sm">{emp.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Compteurs */}
+                    {isEditing ? (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-400 text-sm">🏖️ CP:</span>
+                          <input
+                            type="number"
+                            value={balanceForm.paidLeaveDays}
+                            onChange={(e) => setBalanceForm({ ...balanceForm, paidLeaveDays: parseInt(e.target.value) || 0 })}
+                            className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-center text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-purple-400 text-sm">🎁 Bonus:</span>
+                          <input
+                            type="number"
+                            value={balanceForm.bonusOffDays}
+                            onChange={(e) => setBalanceForm({ ...balanceForm, bonusOffDays: parseInt(e.target.value) || 0 })}
+                            className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-center text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-400 text-sm">⏰ RTT:</span>
+                          <input
+                            type="number"
+                            value={balanceForm.rttDays}
+                            onChange={(e) => setBalanceForm({ ...balanceForm, rttDays: parseInt(e.target.value) || 0 })}
+                            className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-center text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateEmployeeBalance(emp.id)}
+                            className="p-2 bg-green-600 hover:bg-green-500 rounded-lg transition-colors"
+                          >
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </button>
+                          <button
+                            onClick={() => setEditingBalance(null)}
+                            className="p-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors"
+                          >
+                            <X className="w-4 h-4 text-white" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="bg-amber-500/20 border border-amber-500/30 rounded-lg px-3 py-1.5">
+                          <span className="text-amber-300 text-sm">
+                            🏖️ CP: <strong>{(balance.paidLeaveDays || 25) - (balance.usedPaidLeaveDays || 0)}</strong>/{balance.paidLeaveDays || 25}
+                          </span>
+                        </div>
+                        <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-1.5">
+                          <span className="text-purple-300 text-sm">
+                            🎁 Bonus: <strong>{(balance.bonusOffDays || 0) - (balance.usedBonusDays || 0)}</strong>/{balance.bonusOffDays || 0}
+                          </span>
+                        </div>
+                        <div className="bg-green-500/20 border border-green-500/30 rounded-lg px-3 py-1.5">
+                          <span className="text-green-300 text-sm">
+                            ⏰ RTT: <strong>{(balance.rttDays || 0) - (balance.usedRttDays || 0)}</strong>/{balance.rttDays || 0}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingBalance(emp.id);
+                            setBalanceForm({
+                              paidLeaveDays: balance.paidLeaveDays || 25,
+                              bonusOffDays: balance.bonusOffDays || 0,
+                              rttDays: balance.rttDays || 0
+                            });
+                          }}
+                          className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                          title="Modifier les compteurs"
+                        >
+                          <Edit className="w-4 h-4 text-gray-300" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </GlassCard>
+      )}
+
+      {/* Vue Demandes */}
+      {subTab === 'requests' && (
       <GlassCard>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Gestion des Congés</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Demandes de Congés</h2>
             <p className="text-gray-400 text-sm">Demandes de congés et absences</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1371,6 +1562,7 @@ const LeavesTab = ({ employees, onRefresh }) => {
           </div>
         )}
       </GlassCard>
+      )}
     </motion.div>
   );
 };
