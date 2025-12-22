@@ -2427,6 +2427,7 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
     fileName: ''
   });
   const [uploading, setUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
 
   // 📄 États pour le scan de bulletin de paie
   const [showScanModal, setShowScanModal] = useState(false);
@@ -2487,15 +2488,45 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
       period: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
       fileName: ''
     });
+    setUploadFile(null); // Reset le fichier sélectionné
     setShowUploadModal(true);
   };
 
-  // Simuler upload (dans un vrai cas, utiliser Firebase Storage)
+  // Handler pour la sélection de fichier
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Vérifier la taille (max 10 Mo)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('❌ Le fichier est trop volumineux (max 10 Mo)');
+        return;
+      }
+      // Vérifier le type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/png', 'image/jpeg'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('❌ Type de fichier non autorisé. Utilisez PDF, DOC, DOCX, PNG ou JPG.');
+        return;
+      }
+      setUploadFile(file);
+      // Auto-remplir le titre si vide
+      if (!uploadForm.title) {
+        const fileName = file.name.replace(/\.[^/.]+$/, ''); // Enlever l'extension
+        setUploadForm(prev => ({ ...prev, title: fileName }));
+      }
+    }
+  };
+
+  // Upload du document
   const handleUpload = async () => {
-    if (!selectedEmployee || !uploadForm.title) return;
+    if (!selectedEmployee || !uploadForm.title || !uploadFile) {
+      alert('❌ Veuillez remplir tous les champs obligatoires et sélectionner un fichier');
+      return;
+    }
 
     setUploading(true);
     try {
+      // TODO: Dans un vrai cas, uploader d'abord le fichier vers Firebase Storage
+      // et récupérer l'URL. Pour l'instant on enregistre les métadonnées.
       const result = await hrDocumentService.createDocument({
         employeeId: selectedEmployee.id,
         employeeName: selectedEmployee.name,
@@ -2503,19 +2534,23 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
         title: uploadForm.title,
         description: uploadForm.description,
         period: uploadForm.period,
-        fileName: uploadForm.fileName || `${uploadForm.title}.pdf`,
-        fileSize: 0,
-        mimeType: 'application/pdf',
+        fileName: uploadFile.name,
+        fileSize: uploadFile.size,
+        mimeType: uploadFile.type,
         uploadedBy: currentUser.uid,
         uploadedByName: currentUser.displayName || currentUser.email
       });
 
       if (result.success) {
         setShowUploadModal(false);
-        // Notification succès
+        setUploadFile(null);
+        alert('✅ Document ajouté avec succès !');
+      } else {
+        alert('❌ Erreur: ' + result.error);
       }
     } catch (error) {
       console.error('Erreur upload:', error);
+      alert('❌ Erreur lors de l\'upload: ' + error.message);
     } finally {
       setUploading(false);
     }
@@ -3037,14 +3072,41 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                 </div>
 
                 {/* Zone upload fichier */}
-                <div className="border-2 border-dashed border-white/20 hover:border-green-500/50 rounded-xl p-6 text-center transition-colors cursor-pointer">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-400 text-sm">
-                    Cliquez ou glissez un fichier ici
-                  </p>
-                  <p className="text-gray-500 text-xs mt-1">
-                    PDF, DOC, DOCX (max 10 Mo)
-                  </p>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Fichier *</label>
+                  <label className={`block border-2 border-dashed ${uploadFile ? 'border-green-500/50 bg-green-500/10' : 'border-white/20 hover:border-green-500/50'} rounded-xl p-6 text-center transition-colors cursor-pointer`}>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                    {uploadFile ? (
+                      <>
+                        <File className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                        <p className="text-green-400 font-medium text-sm">
+                          {uploadFile.name}
+                        </p>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {(uploadFile.size / 1024 / 1024).toFixed(2)} Mo
+                        </p>
+                        <p className="text-gray-400 text-xs mt-2">
+                          Cliquez pour changer de fichier
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-400 text-sm">
+                          Cliquez ou glissez un fichier ici
+                        </p>
+                        <p className="text-gray-500 text-xs mt-1">
+                          PDF, DOC, DOCX, PNG, JPG (max 10 Mo)
+                        </p>
+                      </>
+                    )}
+                  </label>
                 </div>
               </div>
 
@@ -3057,7 +3119,7 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                 </button>
                 <button
                   onClick={handleUpload}
-                  disabled={!uploadForm.title || uploading}
+                  disabled={!uploadForm.title || !uploadFile || uploading}
                   className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {uploading ? (
