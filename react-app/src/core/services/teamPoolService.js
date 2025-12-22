@@ -177,8 +177,15 @@ class TeamPoolService {
 
         // 2. Calculer les nouvelles valeurs
         const newTotalXP = (poolData.totalXP || 0) + contributionAmount;
-        const newContributorsCount = poolData.contributorsCount || 0;
         const newTotalContributions = (poolData.totalContributions || 0) + 1;
+
+        // 2b. Vérifier si c'est un nouveau contributeur unique
+        const existingContributors = poolData.contributors || [];
+        const isNewContributor = !existingContributors.includes(userId);
+        const updatedContributors = isNewContributor
+          ? [...existingContributors, userId]
+          : existingContributors;
+        const newContributorsCount = updatedContributors.length;
 
         // 3. Déterminer le nouveau niveau
         const newLevel = this.calculatePoolLevel(newTotalXP);
@@ -192,6 +199,8 @@ class TeamPoolService {
           totalXP: newTotalXP,
           currentLevel: newLevel,
           totalContributions: newTotalContributions,
+          contributors: updatedContributors,
+          contributorsCount: newContributorsCount,
           updatedAt: serverTimestamp(),
           'statistics.weeklyContributions': (poolData.statistics?.weeklyContributions || 0) + contributionAmount,
           'statistics.monthlyContributions': (poolData.statistics?.monthlyContributions || 0) + contributionAmount,
