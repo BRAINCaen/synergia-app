@@ -25,6 +25,7 @@ import SkillTreePage from '../pages/SkillTreePage.jsx'; // 🌳 MODULE SKILL TRE
 import MentoringPage from '../pages/MentoringPage.jsx'; // 🎓 MODULE MENTORING (ACADÉMIE)
 import TeamPage from '../pages/TeamPage.jsx';
 import OnboardingPage from '../pages/OnboardingPage.jsx';
+import TutorialPage from '../pages/TutorialPage.jsx'; // 📚 GUIDE TUTORIEL
 
 // ✨ PAGES RH & PLANNING
 import HRPage from '../pages/HRPage.jsx';
@@ -90,6 +91,7 @@ const AppRoutes = () => {
         
         {/* OUTILS */}
         <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/tutorial" element={<TutorialPage />} /> {/* 📚 GUIDE TUTORIEL */}
 
         {/* ✨ MODULES RH & PLANNING */}
         <Route path="/hr" element={<HRPage />} />
