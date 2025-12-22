@@ -194,6 +194,12 @@ const PlanningAdvancedPage = () => {
 
     // Écouter TOUTES les demandes en attente (pour affichage sur planning)
     const unsubPending = leaveRequestService.subscribeToRequests((requests) => {
+      console.log('📋 Demandes en attente chargées:', requests.length, requests.map(r => ({
+        userId: r.userId,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        type: r.leaveType
+      })));
       setPendingLeaveRequests(requests.filter(r => r.userId !== user.uid)); // Autres users pour admin
       setAllPendingLeaves(requests); // Toutes pour affichage
     }, { status: 'pending' });
@@ -968,13 +974,15 @@ const PlanningAdvancedPage = () => {
   // Vérifier si un employé a un congé approuvé pour une date
   const getApprovedLeaveForCell = (employeeId, date) => {
     return approvedLeaves.find(leave => {
-      const leaveStart = new Date(leave.startDate);
-      const leaveEnd = new Date(leave.endDate);
-      const cellDate = new Date(date);
+      // Normaliser les dates pour éviter les problèmes de timezone
+      const leaveStartStr = leave.startDate?.split('T')[0] || leave.startDate;
+      const leaveEndStr = leave.endDate?.split('T')[0] || leave.endDate;
+      const cellDateStr = date?.split('T')[0] || date;
 
+      // Comparer les chaînes de date directement (format YYYY-MM-DD)
       return leave.userId === employeeId &&
-        cellDate >= leaveStart &&
-        cellDate <= leaveEnd;
+        cellDateStr >= leaveStartStr &&
+        cellDateStr <= leaveEndStr;
     });
   };
 
@@ -996,14 +1004,17 @@ const PlanningAdvancedPage = () => {
 
   // Vérifier si un employé a une demande EN ATTENTE pour une date
   const getPendingLeaveForCell = (employeeId, date) => {
+    // date est au format "YYYY-MM-DD"
     return allPendingLeaves.find(leave => {
-      const leaveStart = new Date(leave.startDate);
-      const leaveEnd = new Date(leave.endDate);
-      const cellDate = new Date(date);
+      // Normaliser les dates pour éviter les problèmes de timezone
+      const leaveStartStr = leave.startDate?.split('T')[0] || leave.startDate;
+      const leaveEndStr = leave.endDate?.split('T')[0] || leave.endDate;
+      const cellDateStr = date?.split('T')[0] || date;
 
+      // Comparer les chaînes de date directement (format YYYY-MM-DD)
       return leave.userId === employeeId &&
-        cellDate >= leaveStart &&
-        cellDate <= leaveEnd;
+        cellDateStr >= leaveStartStr &&
+        cellDateStr <= leaveEndStr;
     });
   };
 
