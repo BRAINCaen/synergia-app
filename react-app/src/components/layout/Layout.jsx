@@ -36,11 +36,11 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/badges', label: 'Badges', icon: '🏆' },
       { path: '/skills', label: 'Competences', icon: '🌳' },
       { path: '/challenges', label: 'Defis Equipe', icon: '🎯' },
-      { path: '/rewards', label: 'Recompenses', icon: '🎁' },
-      { path: '/boosts', label: 'Boosts', icon: '⚡' }
+      { path: '/rewards', label: 'Recompenses', icon: '🎁' }
     ]},
     { section: 'ÉQUIPE', items: [
       { path: '/team', label: 'Équipe', icon: '👥' },
+      { path: '/boosts', label: 'Boosts', icon: '⚡' },
       { path: '/pulse', label: 'Pulse & Pointage', icon: '💗' },
       { path: '/mentoring', label: 'Mentorat', icon: '🎓' },
       { path: '/checkpoints', label: 'Académie', icon: '🎓' },
