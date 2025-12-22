@@ -5,13 +5,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  Plus, 
-  Save, 
-  Calendar, 
-  Tag, 
-  User, 
+import {
+  X,
+  Plus,
+  Save,
+  Calendar,
+  User,
   AlertTriangle,
   Clock,
   Trophy,
@@ -20,7 +19,6 @@ import {
   Edit,
   Star,
   Target,
-  Shield,
   Repeat,
   Users,
   Info,
@@ -40,81 +38,6 @@ import { db } from '../../core/firebase.js';
 import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SKILLS, SKILL_BRANCHES } from '../../core/services/skillService.js';
 
-
-/**
- * 🎭 RÔLES SYNERGIA OFFICIELS
- */
-const SYNERGIA_ROLES = {
-  game_master: {
-    id: 'game_master',
-    name: 'Game Master',
-    icon: '🕹️',
-    color: 'bg-gradient-to-r from-purple-500 to-pink-500',
-    textColor: 'text-purple-600',
-    description: 'Animateur des sessions, garant de l\'immersion et satisfaction client'
-  },
-  maintenance: {
-    id: 'maintenance',
-    name: 'Entretien & Maintenance',
-    icon: '🛠️',
-    color: 'bg-gradient-to-r from-orange-500 to-red-500',
-    textColor: 'text-orange-600',
-    description: 'Garant du bon état, sécurité et qualité des salles'
-  },
-  reputation: {
-    id: 'reputation',
-    name: 'Gestion des Avis & Réputation',
-    icon: '🌟',
-    color: 'bg-gradient-to-r from-yellow-500 to-amber-500',
-    textColor: 'text-yellow-600',
-    description: 'Modération et réponse aux avis, amélioration réputation'
-  },
-  stock: {
-    id: 'stock',
-    name: 'Gestion des Stocks',
-    icon: '📦',
-    color: 'bg-gradient-to-r from-blue-500 to-cyan-500',
-    textColor: 'text-blue-600',
-    description: 'Inventaires, commandes, approvisionnement'
-  },
-  communication: {
-    id: 'communication',
-    name: 'Communication & Marketing',
-    icon: '📣',
-    color: 'bg-gradient-to-r from-pink-500 to-rose-500',
-    textColor: 'text-pink-600',
-    description: 'Réseaux sociaux, campagnes marketing, communication externe'
-  },
-  b2b: {
-    id: 'b2b',
-    name: 'Relations B2B',
-    icon: '🤝',
-    color: 'bg-gradient-to-r from-indigo-500 to-purple-500',
-    textColor: 'text-indigo-600',
-    description: 'Prospection, partenariats, team building entreprises'
-  },
-  administrative: {
-    id: 'administrative',
-    name: 'Administratif',
-    icon: '📋',
-    color: 'bg-gradient-to-r from-gray-500 to-slate-500',
-    textColor: 'text-gray-600',
-    description: 'Gestion administrative, comptabilité, RH'
-  }
-};
-
-/**
- * 🎯 CATÉGORIES DE QUÊTES
- */
-const QUEST_CATEGORIES = {
-  general: { label: 'Général', icon: '📋', color: 'gray' },
-  maintenance: { label: 'Maintenance', icon: '🛠️', color: 'orange' },
-  customer_service: { label: 'Service Client', icon: '🎯', color: 'blue' },
-  marketing: { label: 'Marketing', icon: '📣', color: 'pink' },
-  administrative: { label: 'Administratif', icon: '📄', color: 'gray' },
-  inventory: { label: 'Inventaire', icon: '📦', color: 'cyan' },
-  cleaning: { label: 'Nettoyage', icon: '🧹', color: 'green' }
-};
 
 /**
  * 🎮 NIVEAUX DE DIFFICULTÉ
@@ -163,11 +86,9 @@ const NewTaskModal = ({
     description: '',
     priority: 'medium',
     difficulty: 'medium',
-    category: 'general',
     status: 'todo',
     xpReward: 50,
     estimatedHours: 1,
-    roleId: null,
     dueDate: '',
     scheduledDate: '',
     openToVolunteers: false,
@@ -189,11 +110,9 @@ const NewTaskModal = ({
         description: task.description || '',
         priority: task.priority || 'medium',
         difficulty: task.difficulty || 'medium',
-        category: task.category || 'general',
         status: task.status || 'todo',
         xpReward: task.xpReward || 50,
         estimatedHours: task.estimatedHours || 1,
-        roleId: task.roleId || null,
         dueDate: task.dueDate || '',
         scheduledDate: task.scheduledDate || '',
         openToVolunteers: task.openToVolunteers || false,
@@ -359,11 +278,9 @@ const NewTaskModal = ({
         description: formData.description?.trim() || '',
         priority: formData.priority || 'medium',
         difficulty: formData.difficulty || 'medium',
-        category: formData.category || 'general',
         status: formData.status || 'todo',
         xpReward: formData.xpReward,
         estimatedHours: parseFloat(formData.estimatedHours) || 1,
-        roleId: formData.roleId || null,
         dueDate: formData.dueDate || null,
         scheduledDate: formData.scheduledDate || null,
         openToVolunteers: Boolean(formData.openToVolunteers),
@@ -547,25 +464,6 @@ const NewTaskModal = ({
                   </select>
                 </div>
 
-                {/* Catégorie */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <Tag className="w-4 h-4 inline mr-2 text-indigo-600" />
-                    Catégorie
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                  >
-                    {Object.entries(QUEST_CATEGORIES).map(([key, cat]) => (
-                      <option key={key} value={key}>
-                        {cat.icon} {cat.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               {/* Temps estimé et XP */}
@@ -599,27 +497,6 @@ const NewTaskModal = ({
                     <span className="text-xs text-yellow-600">Calculé automatiquement</span>
                   </div>
                 </div>
-              </div>
-
-              {/* Rôle Synergia */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Shield className="w-4 h-4 inline mr-2 text-indigo-600" />
-                  Rôle Synergia (optionnel)
-                </label>
-                <select
-                  name="roleId"
-                  value={formData.roleId || ''}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
-                >
-                  <option value="">Aucun rôle spécifique</option>
-                  {Object.entries(SYNERGIA_ROLES).map(([key, role]) => (
-                    <option key={key} value={key}>
-                      {role.icon} {role.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               {/* 🌳 Compétences requises */}

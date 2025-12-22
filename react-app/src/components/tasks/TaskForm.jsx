@@ -5,11 +5,11 @@
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  Plus, 
-  Upload, 
-  Image as ImageIcon, 
+import {
+  X,
+  Plus,
+  Upload,
+  Image as ImageIcon,
   Video as VideoIcon,
   Play,
   FileVideo,
@@ -23,81 +23,13 @@ import {
   Target,
   Flag,
   Trophy,
-  Tag,
   Calendar,
   FileText,
-  Shield,
   Repeat,
   Heart
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { storageService } from '../../core/services/storageService.js';
-
-/**
- * 🎭 RÔLES SYNERGIA COMPLETS
- */
-const SYNERGIA_ROLES = {
-  maintenance: {
-    id: 'maintenance',
-    name: 'Entretien & Maintenance',
-    icon: '🔧',
-    color: 'bg-orange-500'
-  },
-  reputation: {
-    id: 'reputation',
-    name: 'Gestion des Avis & Réputation',
-    icon: '⭐',
-    color: 'bg-yellow-500'
-  },
-  stock: {
-    id: 'stock',
-    name: 'Gestion des Stocks & Matériel',
-    icon: '📦',
-    color: 'bg-blue-500'
-  },
-  organization: {
-    id: 'organization',
-    name: 'Organisation Interne',
-    icon: '📋',
-    color: 'bg-purple-500'
-  },
-  content: {
-    id: 'content',
-    name: 'Création de Contenu',
-    icon: '🎨',
-    color: 'bg-pink-500'
-  },
-  mentoring: {
-    id: 'mentoring',
-    name: 'Mentorat & Formation',
-    icon: '🎓',
-    color: 'bg-green-500'
-  },
-  partnerships: {
-    id: 'partnerships',
-    name: 'Partenariats & Référencement',
-    icon: '🤝',
-    color: 'bg-indigo-500'
-  },
-  communication: {
-    id: 'communication',
-    name: 'Communication & Réseaux',
-    icon: '📱',
-    color: 'bg-cyan-500'
-  },
-  b2b: {
-    id: 'b2b',
-    name: 'Relations B2B & Devis',
-    icon: '💼',
-    color: 'bg-slate-500'
-  },
-  gamification: {
-    id: 'gamification',
-    name: 'Gamification & XP',
-    icon: '🎮',
-    color: 'bg-red-500'
-  }
-};
 
 /**
  * 🔄 CONFIGURATION RÉCURRENCE COMPLÈTE
@@ -258,7 +190,6 @@ const TaskForm = ({
     description: '',
     priority: 'medium',
     difficulty: 'normal',
-    roleId: '',
     xpReward: 25,
     estimatedHours: 1,
     dueDate: '',
@@ -447,7 +378,6 @@ const TaskForm = ({
       
       console.log('📝 Création tâche complète avec toutes les fonctionnalités:', {
         title: formData.title,
-        role: formData.roleId,
         recurring: formData.isRecurring,
         hasMedia: !!selectedFile,
         mediaType: fileType,
@@ -466,12 +396,7 @@ const TaskForm = ({
         // Métadonnées de base
         createdBy: user.uid,
         creatorName: user.displayName || user.email,
-        
-        // Rôle Synergia
-        category: formData.roleId, // Pour compatibilité
-        roleId: formData.roleId,
-        roleName: SYNERGIA_ROLES[formData.roleId]?.name || null,
-        
+
         // Média (si présent)
         hasMedia: !!mediaData,
         mediaUrl: mediaData?.url || null,
@@ -525,7 +450,6 @@ const TaskForm = ({
         description: '',
         priority: 'medium',
         difficulty: 'normal',
-        roleId: '',
         xpReward: 25,
         estimatedHours: 1,
         dueDate: '',
@@ -630,38 +554,6 @@ const TaskForm = ({
                       required
                     />
                   </div>
-                </div>
-
-                {/* ✅ RÔLE SYNERGIA */}
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield className="w-5 h-5 text-purple-600" />
-                    <h3 className="font-medium text-gray-900">Rôle Synergia</h3>
-                    <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">Nouveau</span>
-                  </div>
-                  
-                  <select
-                    value={formData.roleId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, roleId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    disabled={loading || uploading}
-                  >
-                    <option value="">Sélectionner un rôle (optionnel)</option>
-                    {Object.values(SYNERGIA_ROLES).map(role => (
-                      <option key={role.id} value={role.id}>
-                        {role.icon} {role.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {formData.roleId && SYNERGIA_ROLES[formData.roleId] && (
-                    <div className="mt-2 p-2 bg-white border border-purple-200 rounded flex items-center gap-2">
-                      <span className="text-lg">{SYNERGIA_ROLES[formData.roleId].icon}</span>
-                      <span className="text-sm text-purple-700 font-medium">
-                        {SYNERGIA_ROLES[formData.roleId].name}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* ✅ DIFFICULTÉ ET PRIORITÉ */}

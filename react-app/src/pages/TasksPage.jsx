@@ -53,7 +53,6 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
-import { SYNERGIA_ROLES } from '../core/data/roles.js';
 
 // Constantes
 const QUEST_STATUS = {
@@ -132,8 +131,6 @@ const FilterBottomSheet = ({
   setSelectedStatus,
   selectedPriority,
   setSelectedPriority,
-  selectedRole,
-  setSelectedRole,
   sortOrder,
   setSortOrder
 }) => (
@@ -235,21 +232,6 @@ const FilterBottomSheet = ({
               </div>
             </div>
 
-            {/* Role */}
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Role Synergia</label>
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500"
-              >
-                <option value="all">Tous les roles</option>
-                {Object.values(SYNERGIA_ROLES).map(role => (
-                  <option key={role.id} value={role.id}>{role.icon} {role.name}</option>
-                ))}
-              </select>
-            </div>
-
             {/* Tri */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">Ordre de tri</label>
@@ -310,7 +292,6 @@ const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
-  const [selectedRole, setSelectedRole] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [showFilters, setShowFilters] = useState(false);
@@ -461,9 +442,6 @@ const TasksPage = () => {
     if (selectedPriority !== 'all') {
       filtered = filtered.filter(task => task.priority === selectedPriority);
     }
-    if (selectedRole !== 'all') {
-      filtered = filtered.filter(task => task.synergia_role === selectedRole);
-    }
 
     // Tri
     filtered.sort((a, b) => {
@@ -473,7 +451,7 @@ const TasksPage = () => {
     });
 
     setFilteredTasks(filtered);
-  }, [tasks, activeTab, searchTerm, selectedStatus, selectedPriority, selectedRole, sortBy, sortOrder, user?.uid]);
+  }, [tasks, activeTab, searchTerm, selectedStatus, selectedPriority, sortBy, sortOrder, user?.uid]);
 
   // Handlers
   const handleViewDetails = useCallback((task) => {
@@ -650,8 +628,7 @@ const TasksPage = () => {
   // Nombre de filtres actifs
   const activeFiltersCount = [
     selectedStatus !== 'all',
-    selectedPriority !== 'all',
-    selectedRole !== 'all'
+    selectedPriority !== 'all'
   ].filter(Boolean).length;
 
   return (
@@ -1214,8 +1191,6 @@ const TasksPage = () => {
         setSelectedStatus={setSelectedStatus}
         selectedPriority={selectedPriority}
         setSelectedPriority={setSelectedPriority}
-        selectedRole={selectedRole}
-        setSelectedRole={setSelectedRole}
         sortOrder={sortOrder}
         setSortOrder={setSortOrder}
       />
