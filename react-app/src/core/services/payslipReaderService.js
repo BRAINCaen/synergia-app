@@ -62,52 +62,69 @@ const PAYSLIP_PATTERNS = {
   // Congés payés acquis (CP N)
   cpAcquis: [
     /CP\s*(?:N|acquis)\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
-    /Cong[eé]s\s*(?:payés\s*)?acquis\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Acquis\s*CP\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Cong[eé]s\s*(?:pay[eé]s\s*)?acquis\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Acquis\s*(?:CP|cong[eé]s)\s*[:\s]*(\d+[.,]?\d*)/i,
     /Droits\s*acquis\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
-    /CP\s*ACQUIS\s*[:\s]*(\d+[.,]?\d*)/i
+    /CP\s*ACQUIS\s*[:\s]*(\d+[.,]?\d*)/i,
+    /ACQUIS\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Nb\s*jours\s*acquis\s*[:\s]*(\d+[.,]?\d*)/i
   ],
 
-  // Congés payés restants / Solde
+  // Congés payés restants / Solde (PRIORITAIRE)
   cpSolde: [
-    /Solde\s*(?:CP|cong[eé]s)\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
+    /Solde\s*(?:CP|cong[eé]s?\s*pay[eé]s?)\s*[:\s]*(\d+[.,]?\d*)/i,
     /CP\s*(?:restants?|disponibles?)\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Reste\s*(?:à\s*prendre\s*)?[:\s]*(\d+[.,]?\d*)\s*j/i,
-    /SOLDE\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
-    /Disponible\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
-    /Total\s*disponible\s*[:\s]*(\d+[.,]?\d*)/i
+    /Reste\s*(?:[àa]\s*prendre\s*)?[:\s]*(\d+[.,]?\d*)\s*j/i,
+    /SOLDE\s*(?:CP\s*)?[:\s]*(\d+[.,]?\d*)/i,
+    /Disponible[s]?\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
+    /Total\s*(?:CP\s*)?disponible\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Droit\s*CP\s*[:\s]*(\d+[.,]?\d*)/i,
+    /CONGES\s*PAYES\s*[:\s]*(\d+[.,]?\d*)/i,
+    /C\.?P\.?\s*[:\s]*(\d+[.,]?\d*)\s*(?:j|jour)/i,
+    /Cumul\s*CP\s*[:\s]*(\d+[.,]?\d*)/i,
+    /(?:Nb|Nombre)\s*(?:de\s*)?jours?\s*(?:CP|cong[eé]s?)\s*[:\s]*(\d+[.,]?\d*)/i,
+    /CP\s+(\d+[.,]\d+)\s*j/i,
+    /(\d+[.,]\d+)\s*j(?:ours?)?\s*(?:de\s*)?CP/i
   ],
 
   // CP N-1 (année précédente)
   cpN1: [
     /CP\s*N-1\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Cong[eé]s\s*N-1\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Report\s*N-1\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Ancien\s*solde\s*[:\s]*(\d+[.,]?\d*)/i
+    /Cong[eé]s?\s*N-1\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Report\s*(?:N-1|ann[eé]e\s*pr[eé]c[eé]dente)\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Ancien\s*solde\s*[:\s]*(\d+[.,]?\d*)/i,
+    /N-1\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
+    /Reliquat\s*[:\s]*(\d+[.,]?\d*)/i
   ],
 
   // CP pris
   cpPris: [
     /CP\s*pris\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Cong[eé]s\s*pris\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Cong[eé]s?\s*pris\s*[:\s]*(\d+[.,]?\d*)/i,
     /Pris\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
-    /Jours\s*pris\s*[:\s]*(\d+[.,]?\d*)/i
+    /Jours?\s*pris\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Consomm[eé]s?\s*[:\s]*(\d+[.,]?\d*)/i
   ],
 
   // RTT
   rtt: [
-    /RTT\s*(?:acquis|disponibles?|solde)\s*[:\s]*(\d+[.,]?\d*)/i,
+    /RTT\s*(?:acquis|disponibles?|solde|restants?)?\s*[:\s]*(\d+[.,]?\d*)/i,
     /Solde\s*RTT\s*[:\s]*(\d+[.,]?\d*)/i,
-    /RTT\s*[:\s]*(\d+[.,]?\d*)\s*j/i
+    /RTT\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
+    /R\.?T\.?T\.?\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Jours?\s*RTT\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Compteur\s*RTT\s*[:\s]*(\d+[.,]?\d*)/i
   ],
 
   // Période du bulletin
   periode: [
     /P[eé]riode\s*[:\s]*(\w+\s*\d{4})/i,
     /Mois\s*[:\s]*(\w+\s*\d{4})/i,
-    /Bulletin\s*(?:du\s*)?(\w+\s*\d{4})/i,
+    /Bulletin\s*(?:du\s*|de\s*)?(\w+\s*\d{4})/i,
     /(\d{2}\/\d{4})/,
-    /(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)\s*\d{4}/i
+    /(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)\s*\d{4}/i,
+    /(\d{2})\/(\d{4})/,
+    /Paie\s*(?:du\s*)?(\d{2}\/\d{4})/i
   ]
 };
 
@@ -223,6 +240,66 @@ class PayslipReaderService {
    */
   isPDF(file) {
     return file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+  }
+
+  /**
+   * Extraire le texte directement d'un PDF (sans OCR)
+   * Beaucoup plus rapide et précis pour les PDF numériques
+   * @param {File} file - Fichier PDF
+   * @returns {Promise<string>} Texte extrait
+   */
+  async extractTextDirectlyFromPDF(file) {
+    try {
+      console.log('📄 Extraction directe du texte PDF...');
+
+      // S'assurer que le worker est configuré
+      await initPDFWorker();
+
+      // Charger le PDF
+      const arrayBuffer = await this.fileToArrayBuffer(file);
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        useWorkerFetch: false,
+        isEvalSupported: false
+      });
+      const pdf = await loadingTask.promise;
+
+      console.log(`📄 PDF chargé: ${pdf.numPages} page(s)`);
+
+      let fullText = '';
+
+      // Extraire le texte de chaque page
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+
+        // Reconstituer le texte avec les positions
+        const textItems = textContent.items;
+        let lastY = null;
+        let pageText = '';
+
+        for (const item of textItems) {
+          if (item.str) {
+            // Ajouter un saut de ligne si on change de ligne
+            if (lastY !== null && Math.abs(item.transform[5] - lastY) > 5) {
+              pageText += '\n';
+            }
+            pageText += item.str + ' ';
+            lastY = item.transform[5];
+          }
+        }
+
+        fullText += pageText + '\n\n';
+        page.cleanup();
+      }
+
+      console.log(`✅ Texte extrait directement: ${fullText.length} caractères`);
+      return fullText.trim();
+
+    } catch (error) {
+      console.error('❌ Erreur extraction directe PDF:', error);
+      throw error;
+    }
   }
 
   /**
@@ -466,25 +543,49 @@ class PayslipReaderService {
         // ==========================================
         progressCallback({ step: 'pdf', progress: 10, message: 'Lecture du PDF...' });
 
-        // Convertir le PDF en images
-        const images = await this.convertPDFToImages(file, 2.5); // Scale 2.5 pour bonne qualité
+        // D'ABORD: Essayer l'extraction directe du texte (PDF numérique)
+        progressCallback({ step: 'extract', progress: 20, message: 'Extraction du texte...' });
 
-        progressCallback({ step: 'ocr', progress: 30, message: `OCR de ${images.length} page(s)...` });
+        try {
+          text = await this.extractTextDirectlyFromPDF(file);
+          console.log(`📄 Texte extrait directement: ${text.length} caractères`);
 
-        // Extraire le texte de chaque page
-        for (let i = 0; i < images.length; i++) {
-          const pageProgress = 30 + (40 * (i + 1) / images.length);
-          progressCallback({
-            step: 'ocr',
-            progress: Math.round(pageProgress),
-            message: `OCR page ${i + 1}/${images.length}...`
-          });
-
-          const pageText = await this.extractTextFromImage(images[i]);
-          text += pageText + '\n\n';
+          // Vérifier si on a assez de texte (sinon c'est probablement un scan)
+          if (text.length < 100) {
+            console.log('⚠️ Peu de texte trouvé, passage en mode OCR...');
+            text = ''; // Reset pour forcer l'OCR
+          }
+        } catch (extractError) {
+          console.warn('⚠️ Extraction directe échouée, passage en mode OCR:', extractError);
+          text = '';
         }
 
-        console.log(`✅ PDF traité: ${images.length} page(s), ${text.length} caractères extraits`);
+        // Si pas assez de texte, utiliser l'OCR (PDF scanné)
+        if (text.length < 100) {
+          progressCallback({ step: 'ocr', progress: 30, message: 'PDF scanné détecté, OCR en cours...' });
+
+          // Convertir le PDF en images
+          const images = await this.convertPDFToImages(file, 2.5);
+
+          progressCallback({ step: 'ocr', progress: 40, message: `OCR de ${images.length} page(s)...` });
+
+          // Extraire le texte de chaque page
+          for (let i = 0; i < images.length; i++) {
+            const pageProgress = 40 + (30 * (i + 1) / images.length);
+            progressCallback({
+              step: 'ocr',
+              progress: Math.round(pageProgress),
+              message: `OCR page ${i + 1}/${images.length}...`
+            });
+
+            const pageText = await this.extractTextFromImage(images[i]);
+            text += pageText + '\n\n';
+          }
+
+          console.log(`✅ PDF traité par OCR: ${images.length} page(s), ${text.length} caractères`);
+        } else {
+          console.log(`✅ PDF numérique traité: ${text.length} caractères (extraction directe)`);
+        }
 
       } else {
         // ==========================================
