@@ -60,6 +60,14 @@ const NOTIFICATION_TYPES = {
   IDEA_ADOPTED: 'idea_adopted',
   IDEA_IMPLEMENTED: 'idea_implemented',
 
+  // Congés
+  LEAVE_REQUEST: 'leave_request',
+  LEAVE_APPROVED: 'leave_approved',
+  LEAVE_REJECTED: 'leave_rejected',
+
+  // Messages privés
+  MESSAGE_RECEIVED: 'message_received',
+
   // Système
   SYSTEM: 'system',
   MENTION: 'mention'
@@ -933,6 +941,173 @@ class NotificationService {
       return { success: true, count: usersSnapshot.size };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification achat équipe:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ==========================================
+  // 🏖️ NOTIFICATIONS CONGÉS
+  // ==========================================
+
+  /**
+   * 🏖️ NOTIFIER LES ADMINS PLANNING D'UNE DEMANDE DE CONGÉ
+   */
+  async notifyLeaveRequest(data) {
+    try {
+      const { requestId, userId, userName, leaveType, leaveLabel, startDate, endDate, reason } = data;
+
+      // Récupérer tous les utilisateurs
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+
+      // Récupérer les permissions des rôles
+      const rolePermSnapshot = await getDocs(collection(db, 'rolePermissions'));
+      const rolePermissions = {};
+      rolePermSnapshot.forEach(doc => {
+        rolePermissions[doc.id] = doc.data().permissions || [];
+      });
+
+      let notifiedCount = 0;
+
+      for (const userDoc of usersSnapshot.docs) {
+        if (userDoc.id === userId) continue; // Ne pas notifier le demandeur
+
+        const userData = userDoc.data();
+        let hasPlanningAdmin = false;
+
+        // Vérifier si admin global
+        if (userData.isAdmin === true || userData.role === 'admin') {
+          hasPlanningAdmin = true;
+        }
+
+        // Vérifier les rôles Synergia
+        const userRoles = userData.synergiaRoles || [];
+        for (const role of userRoles) {
+          const perms = rolePermissions[role.roleId] || [];
+          if (perms.includes('planning_admin') || perms.includes('full_access')) {
+            hasPlanningAdmin = true;
+            break;
+          }
+        }
+
+        // Vérifier si rôle organisation
+        if (userRoles.some(r => r.roleId === 'organization')) {
+          hasPlanningAdmin = true;
+        }
+
+        if (hasPlanningAdmin) {
+          await this.createNotification({
+            userId: userDoc.id,
+            type: NOTIFICATION_TYPES.LEAVE_REQUEST,
+            title: '🏖️ Nouvelle demande de congé',
+            message: `${userName} demande un ${leaveLabel} du ${startDate}${endDate !== startDate ? ` au ${endDate}` : ''}`,
+            icon: '🏖️',
+            link: '/hr?tab=leaves',
+            data: {
+              requestId,
+              requesterId: userId,
+              requesterName: userName,
+              leaveType,
+              startDate,
+              endDate,
+              reason
+            },
+            priority: 'high'
+          });
+          notifiedCount++;
+        }
+      }
+
+      console.log(`🏖️ [NOTIF] ${notifiedCount} admins planning notifiés de la demande de congé`);
+      return { success: true, count: notifiedCount };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification demande congé:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ NOTIFIER L'UTILISATEUR D'UN CONGÉ APPROUVÉ
+   */
+  async notifyLeaveApproved(userId, data) {
+    try {
+      const { requestId, leaveLabel, startDate, endDate, approverName } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.LEAVE_APPROVED,
+        title: '✅ Congé approuvé !',
+        message: `Votre demande de ${leaveLabel} du ${startDate}${endDate !== startDate ? ` au ${endDate}` : ''} a été approuvée par ${approverName}`,
+        icon: '✅',
+        link: '/planning',
+        data: { requestId, leaveLabel, startDate, endDate, approverName },
+        priority: 'high'
+      });
+
+      console.log(`✅ [NOTIF] Utilisateur ${userId} notifié - congé approuvé`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification congé approuvé:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ❌ NOTIFIER L'UTILISATEUR D'UN CONGÉ REFUSÉ
+   */
+  async notifyLeaveRejected(userId, data) {
+    try {
+      const { requestId, leaveLabel, startDate, endDate, rejectedByName, reason } = data;
+
+      await this.createNotification({
+        userId,
+        type: NOTIFICATION_TYPES.LEAVE_REJECTED,
+        title: '❌ Congé refusé',
+        message: `Votre demande de ${leaveLabel} du ${startDate}${endDate !== startDate ? ` au ${endDate}` : ''} a été refusée${reason ? `. Raison: ${reason}` : ''}`,
+        icon: '❌',
+        link: '/planning',
+        data: { requestId, leaveLabel, startDate, endDate, rejectedByName, reason },
+        priority: 'high'
+      });
+
+      console.log(`❌ [NOTIF] Utilisateur ${userId} notifié - congé refusé`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification congé refusé:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ==========================================
+  // 💬 NOTIFICATIONS MESSAGES
+  // ==========================================
+
+  /**
+   * 💬 NOTIFIER UN NOUVEAU MESSAGE PRIVÉ
+   */
+  async notifyMessageReceived(recipientId, data) {
+    try {
+      const { senderId, senderName, senderPhoto, messagePreview, conversationId } = data;
+
+      await this.createNotification({
+        userId: recipientId,
+        type: NOTIFICATION_TYPES.MESSAGE_RECEIVED,
+        title: '💬 Nouveau message',
+        message: `${senderName} vous a envoyé un message : "${messagePreview.substring(0, 50)}${messagePreview.length > 50 ? '...' : ''}"`,
+        icon: '💬',
+        link: '/taverne',
+        data: {
+          senderId,
+          senderName,
+          senderPhoto,
+          conversationId
+        },
+        priority: 'medium'
+      });
+
+      console.log(`💬 [NOTIF] Utilisateur ${recipientId} notifié - nouveau message de ${senderName}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification message:', error);
       return { success: false, error: error.message };
     }
   }
