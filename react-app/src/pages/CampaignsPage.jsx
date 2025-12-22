@@ -1092,10 +1092,10 @@ const CampaignsPage = () => {
         <AnimatePresence>
           {showChallengeModal && (
             <TeamChallengeModal
+              isOpen={true}
               onClose={() => setShowChallengeModal(false)}
               onSubmit={handleCreateChallenge}
-              types={TEAM_CHALLENGE_TYPES}
-              creating={challengeCreating}
+              isLoading={challengeCreating}
             />
           )}
         </AnimatePresence>
