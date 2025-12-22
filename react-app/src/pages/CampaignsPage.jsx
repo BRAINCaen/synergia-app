@@ -200,7 +200,7 @@ const CampaignsPage = () => {
   const userIsAdmin = isAdmin(user);
 
   // 🎯 ONGLET ACTIF (campagnes ou défis)
-  const [activeTab, setActiveTab] = useState('campagnes');
+  // Page unifiée - plus de tabs
 
   // 📊 ÉTATS CAMPAGNES
   const [campaigns, setCampaigns] = useState([]);
@@ -693,94 +693,55 @@ const CampaignsPage = () => {
                 </div>
 
                 {/* Actions du header */}
-                <div className="flex items-center gap-2 sm:gap-4">
-                  {activeTab === 'campagnes' && (
-                    <>
-                      <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
-                        <button
-                          onClick={() => setViewMode('grid')}
-                          className={`p-2 rounded-lg transition-all duration-200 ${
-                            viewMode === 'grid'
-                              ? 'bg-purple-600 text-white shadow-lg'
-                              : 'text-gray-400 hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          <Grid className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setViewMode('list')}
-                          className={`p-2 rounded-lg transition-all duration-200 ${
-                            viewMode === 'list'
-                              ? 'bg-purple-600 text-white shadow-lg'
-                              : 'text-gray-400 hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          <List className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowCampaignForm(true)}
-                        className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 text-sm sm:text-base"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span className="hidden sm:inline">Nouvelle Campagne</span>
-                        <span className="sm:hidden">Nouveau</span>
-                      </motion.button>
-                    </>
-                  )}
-
-                  {activeTab === 'defis' && (
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowChallengeModal(true)}
-                      className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 text-sm sm:text-base"
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="hidden sm:flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        viewMode === 'grid'
+                          ? 'bg-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
                     >
-                      <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline">Nouveau Défi</span>
-                      <span className="sm:hidden">Nouveau</span>
-                    </motion.button>
-                  )}
+                      <Grid className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        viewMode === 'list'
+                          ? 'bg-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowCampaignForm(true)}
+                    className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg flex items-center gap-1.5 text-xs sm:text-sm"
+                  >
+                    <Flag className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Campagne</span>
+                    <span className="sm:hidden">+</span>
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowChallengeModal(true)}
+                    className="px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg flex items-center gap-1.5 text-xs sm:text-sm"
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Défi</span>
+                    <span className="sm:hidden">+</span>
+                  </motion.button>
                 </div>
               </motion.div>
 
-              {/* Onglets Campagnes / Défis */}
-              <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <motion.button
-                  onClick={() => setActiveTab('campagnes')}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium transition-all text-sm sm:text-base flex items-center gap-2 ${
-                    activeTab === 'campagnes'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/20'
-                      : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Flag className="h-4 w-4" />
-                  <span>Campagnes</span>
-                  <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">{stats.total}</span>
-                </motion.button>
-                <motion.button
-                  onClick={() => setActiveTab('defis')}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium transition-all text-sm sm:text-base flex items-center gap-2 ${
-                    activeTab === 'defis'
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-pink-500/20'
-                      : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Users className="h-4 w-4" />
-                  <span>Défis Équipe</span>
-                  <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">{challenges?.length || 0}</span>
-                </motion.button>
-              </div>
-
               {/* Statistiques rapides - CAMPAGNES */}
-              {activeTab === 'campagnes' && (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -852,11 +813,9 @@ const CampaignsPage = () => {
                 </div>
               </motion.div>
             </div>
-              )}
 
               {/* Statistiques rapides - DÉFIS */}
-              {activeTab === 'defis' && (
-                <div className="bg-gradient-to-r from-purple-600/80 via-blue-600/80 to-cyan-500/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 relative overflow-hidden border border-white/20">
+                <div className="bg-gradient-to-r from-purple-600/80 via-blue-600/80 to-cyan-500/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 relative overflow-hidden border border-white/20 mt-4">
                   <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl" />
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-300 rounded-full blur-3xl" />
@@ -890,13 +849,18 @@ const CampaignsPage = () => {
                     </div>
                   </div>
                 </div>
-              )}
           </div>
         </div>
 
-        {/* 🔍 FILTRES ET RECHERCHE - CAMPAGNES */}
-        {activeTab === 'campagnes' && (
-        <>
+        {/* 🏰 SECTION CAMPAGNES */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 pt-4">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Flag className="h-5 w-5 text-blue-400" />
+            Campagnes
+            <span className="text-sm font-normal text-gray-400">({stats.total})</span>
+          </h2>
+        </div>
+
         {/* 🔍 FILTRES ET RECHERCHE */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
           <motion.div
@@ -1030,11 +994,16 @@ const CampaignsPage = () => {
             </motion.div>
           )}
         </div>
-        </>
-        )}
 
-        {/* 🎯 CONTENU DÉFIS D'ÉQUIPE */}
-        {activeTab === 'defis' && (
+        {/* 🎯 SECTION DÉFIS D'ÉQUIPE */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 pt-6 sm:pt-8">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5 text-purple-400" />
+            Défis d'Équipe
+            <span className="text-sm font-normal text-gray-400">({challenges?.length || 0})</span>
+          </h2>
+        </div>
+
           <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
             {/* Filtres défis */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
@@ -1103,7 +1072,6 @@ const CampaignsPage = () => {
               </div>
             )}
           </div>
-        )}
         </div>
 
         {/* 📝 MODAL FORMULAIRE CAMPAGNE */}
