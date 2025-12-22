@@ -5,11 +5,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Users, Crown, Trophy, Star, Zap, Filter, Search, Mail, MessageCircle, 
+import {
+  Users, Crown, Trophy, Star, Zap, Filter, Search,
   Phone, MapPin, Calendar, Award, Target, TrendingUp, Eye, UserPlus,
-  Send, X, RefreshCw, Settings, MoreVertical, Heart, Shield, Flame,
-  Clock, CheckCircle, AlertCircle, MessageSquare, Video, Plus, Edit,
+  X, RefreshCw, Settings, MoreVertical, Heart, Shield, Flame,
+  Clock, CheckCircle, AlertCircle, Plus, Edit,
   Trash2, Ban, UserX, UserCheck, Lock, Unlock, AlertTriangle
 } from 'lucide-react';
 
@@ -27,13 +27,10 @@ import {
   query,
   orderBy,
   limit,
-  where,
-  addDoc,
   serverTimestamp,
   onSnapshot,
   updateDoc,
   doc,
-  getDoc,
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
@@ -69,19 +66,9 @@ const TeamPage = () => {
   // États interface
   const [selectedMember, setSelectedMember] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
-  const [showMessageModal, setShowMessageModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
-  // États messagerie
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [messageRecipient, setMessageRecipient] = useState(null);
-  const [conversations, setConversations] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [showConversations, setShowConversations] = useState(false);
-  const [activeConversation, setActiveConversation] = useState(null);
 
   // Vérifier si l'utilisateur est admin
   const isAdmin = forceAdminMode || user?.role === 'admin' || user?.email?.includes('@admin') || user?.isAdmin === true;
@@ -132,29 +119,21 @@ useEffect(() => {
    */
   useEffect(() => {
     let unsubscribeTeam = null;
-    let unsubscribeMessages = null;
-    
+
     const initializeData = async () => {
       // Charger les membres avec synchronisation temps réel
       unsubscribeTeam = await loadAllTeamMembers();
-      
-      // Charger la messagerie avec synchronisation temps réel
-      unsubscribeMessages = await loadMessagingData();
     };
-    
+
     if (user?.uid) {
       initializeData();
     }
-    
+
     // Nettoyage lors du démontage
     return () => {
       if (unsubscribeTeam && typeof unsubscribeTeam === 'function') {
         console.log('🧹 Nettoyage listener équipe');
         unsubscribeTeam();
-      }
-      if (unsubscribeMessages && typeof unsubscribeMessages === 'function') {
-        console.log('🧹 Nettoyage listener messagerie');
-        unsubscribeMessages();
       }
     };
 }, [user]);  // ✅ PAS [user?.uid]
@@ -405,70 +384,6 @@ const loadAllTeamMembers = async () => {
   }
 };
 
-  const loadMessagingData = async () => {
-    try {
-      if (!user?.uid) return;
-
-      console.log('💬 Chargement messagerie temps réel...');
-
-      // Écouter les messages en temps réel où l'utilisateur est participant
-      const messagesQuery = query(
-        collection(db, 'messages'),
-        where('participants', 'array-contains', user.uid),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-
-      const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-        const messagesData = [];
-        let unread = 0;
-        const conversationsMap = new Map();
-
-        snapshot.forEach((doc) => {
-          const messageData = { id: doc.id, ...doc.data() };
-          messagesData.push(messageData);
-          
-          // Compter les non lus
-          if (!messageData.read && messageData.recipientId === user.uid) {
-            unread++;
-          }
-
-          // Construire les conversations
-          const otherUserId = messageData.senderId === user.uid 
-            ? messageData.recipientId 
-            : messageData.senderId;
-          
-          if (!conversationsMap.has(otherUserId)) {
-            conversationsMap.set(otherUserId, {
-              userId: otherUserId,
-              userName: messageData.senderId === user.uid 
-                ? messageData.recipientName 
-                : messageData.senderName,
-              lastMessage: messageData.content,
-              lastMessageDate: messageData.createdAt,
-              unreadCount: 0
-            });
-          }
-
-          if (!messageData.read && messageData.recipientId === user.uid) {
-            const conv = conversationsMap.get(otherUserId);
-            conv.unreadCount++;
-          }
-        });
-
-        setMessages(messagesData);
-        setUnreadCount(unread);
-        setConversations(Array.from(conversationsMap.values()));
-        
-        console.log(`✅ ${messagesData.length} messages chargés, ${unread} non lus`);
-      });
-
-      return unsubscribe;
-
-    } catch (error) {
-      console.error('❌ Erreur chargement messagerie:', error);
-    }
-  };
 
   /**
    * 🔍 FILTRER LES MEMBRES
@@ -518,46 +433,19 @@ const loadAllTeamMembers = async () => {
       icon: TrendingUp, 
       color: "text-green-400" 
     },
-    { 
-      label: "XP Total", 
-      value: teamStats.totalXP.toLocaleString(), 
-      icon: Zap, 
-      color: "text-yellow-400" 
+    {
+      label: "XP Total",
+      value: teamStats.totalXP.toLocaleString(),
+      icon: Zap,
+      color: "text-yellow-400"
     },
-    { 
-      label: "Messages", 
-      value: `${unreadCount}/${messages.length}`, 
-      icon: MessageCircle, 
-      color: unreadCount > 0 ? "text-red-400" : "text-gray-400"
+    {
+      label: "Niveau Moyen",
+      value: teamStats.averageLevel,
+      icon: TrendingUp,
+      color: "text-purple-400"
     }
   ];
-
-  /**
-   * ✉️ ENVOYER UN MESSAGE
-   */
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !messageRecipient) return;
-
-    try {
-      await addDoc(collection(db, 'messages'), {
-        senderId: user.uid,
-        senderName: user.displayName || user.email,
-        recipientId: messageRecipient.id,
-        recipientName: messageRecipient.name,
-        content: newMessage,
-        participants: [user.uid, messageRecipient.id],
-        read: false,
-        createdAt: serverTimestamp()
-      });
-
-      setNewMessage('');
-      showNotification('Message envoyé avec succès !', 'success');
-      setShowMessageModal(false);
-    } catch (error) {
-      console.error('❌ Erreur envoi message:', error);
-      showNotification('Erreur lors de l\'envoi du message', 'error');
-    }
-  };
 
   /**
    * 🔧 ACTIONS ADMIN - MODIFIER UN MEMBRE
@@ -876,22 +764,7 @@ const loadAllTeamMembers = async () => {
               <div className="mb-6 sm:mb-8">
                 <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10">
 
-                  {/* Bouton conversations */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
-                    <h3 className="text-lg sm:text-xl font-bold text-white">Équipe</h3>
-                    <button
-                      onClick={() => setShowConversations(!showConversations)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl transition-colors relative"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                      <span>Conversations</span>
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Équipe</h3>
 
                   <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
 
@@ -964,67 +837,6 @@ const loadAllTeamMembers = async () => {
                   </div>
                 </div>
               </div>
-
-              {/* PANNEAU CONVERSATIONS */}
-              <AnimatePresence>
-                {showConversations && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-6 sm:mb-8"
-                  >
-                    <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10">
-                      <h3 className="text-lg sm:text-xl font-bold text-white mb-4">Conversations récentes</h3>
-
-                      {conversations.length === 0 ? (
-                        <div className="text-center text-gray-400 py-8">
-                          <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                          <p>Aucune conversation pour le moment</p>
-                          <p className="text-sm mt-2">Cliquez sur "Message" sur une carte membre pour démarrer</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {conversations.map((conv) => (
-                            <div
-                              key={conv.userId}
-                              className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 border border-white/5 transition-colors cursor-pointer"
-                              onClick={() => {
-                                const member = teamMembers.find(m => m.id === conv.userId);
-                                if (member) {
-                                  setMessageRecipient(member);
-                                  setActiveConversation(conv.userId);
-                                  setShowMessageModal(true);
-                                }
-                              }}
-                            >
-                              <div className="flex items-center gap-3 flex-1">
-                                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                                  <span className="text-white font-bold">
-                                    {conv.userName.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-white font-medium">{conv.userName}</span>
-                                    {conv.unreadCount > 0 && (
-                                      <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                        {conv.unreadCount}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-gray-400 text-sm truncate">{conv.lastMessage}</p>
-                                </div>
-                              </div>
-                              <MessageCircle className="w-5 h-5 text-blue-400 shrink-0" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
               {/* GRILLE DES MEMBRES */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-24 sm:pb-8">
@@ -1145,28 +957,16 @@ const loadAllTeamMembers = async () => {
                           </div>
                         )}
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              setSelectedMember(member);
-                              setShowMemberModal(true);
-                            }}
-                            className="flex-1 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm transition-colors flex items-center justify-center gap-1"
-                          >
-                            <Eye className="w-4 h-4" />
-                            Profil
-                          </button>
-                          <button
-                            onClick={() => {
-                              setMessageRecipient(member);
-                              setShowMessageModal(true);
-                            }}
-                            className="flex-1 px-3 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm transition-colors flex items-center justify-center gap-1"
-                          >
-                            <Mail className="w-4 h-4" />
-                            Message
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedMember(member);
+                            setShowMemberModal(true);
+                          }}
+                          className="w-full px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Voir le profil
+                        </button>
                       </div>
                     </motion.div>
                   );
@@ -1566,32 +1366,20 @@ const loadAllTeamMembers = async () => {
 )}
 
 {/* ACTIONS */}
-<div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t border-white/10">
-  <button
-    onClick={() => {
-      setMessageRecipient(selectedMember);
-      setShowMemberModal(false);
-      setShowMessageModal(true);
-    }}
-    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl transition-colors text-sm sm:text-base"
-  >
-    <Mail className="w-5 h-5" />
-    Envoyer un message
-  </button>
-
-  {isAdmin && (
+{isAdmin && (
+  <div className="flex gap-3 mt-6 pt-4 border-t border-white/10">
     <button
       onClick={() => {
         setShowMemberModal(false);
         handleEditMember(selectedMember);
       }}
-      className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl transition-colors text-sm sm:text-base"
+      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl transition-colors text-sm sm:text-base"
     >
       <Edit className="w-5 h-5" />
-      Modifier
+      Modifier le profil
     </button>
-  )}
-</div>
+  </div>
+)}
               </motion.div>
             </motion.div>
           )}
@@ -1735,115 +1523,6 @@ const loadAllTeamMembers = async () => {
           )}
         </AnimatePresence>
 
-        {/* MODAL MESSAGE */}
-        <AnimatePresence>
-          {showMessageModal && messageRecipient && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
-              onClick={() => setShowMessageModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] sm:max-h-[80vh] overflow-y-auto my-auto"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <MessageCircle className="w-6 h-6 text-blue-400 shrink-0" />
-                    <div className="min-w-0">
-                      <h3 className="text-lg sm:text-xl font-bold text-white truncate">Conversation avec {messageRecipient.name}</h3>
-                      <p className="text-gray-400 text-xs sm:text-sm truncate">{messageRecipient.email}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowMessageModal(false)}
-                    className="p-2 hover:bg-white/10 rounded-xl transition-colors shrink-0"
-                  >
-                    <X className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-
-                {/* Historique des messages */}
-                <div className="mb-6 max-h-72 sm:max-h-96 overflow-y-auto space-y-3 bg-white/5 rounded-xl p-4 border border-white/10">
-                  {messages
-                    .filter(msg =>
-                      (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
-                      (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
-                    )
-                    .sort((a, b) => {
-                      const aTime = a.createdAt?.toDate?.() || new Date(a.createdAt);
-                      const bTime = b.createdAt?.toDate?.() || new Date(b.createdAt);
-                      return aTime - bTime;
-                    })
-                    .map((message) => {
-                      const isOwn = message.senderId === user.uid;
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-[80%] sm:max-w-[70%] rounded-xl p-3 ${
-                            isOwn
-                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
-                              : 'bg-white/10 text-gray-100'
-                          }`}>
-                            <p className="text-sm">{message.content}</p>
-                            <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
-                              {message.createdAt?.toDate?.().toLocaleString() || 'À l\'instant'}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                  {messages.filter(msg =>
-                    (msg.senderId === user.uid && msg.recipientId === messageRecipient.id) ||
-                    (msg.senderId === messageRecipient.id && msg.recipientId === user.uid)
-                  ).length === 0 && (
-                    <div className="text-center text-gray-400 py-8">
-                      <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Aucun message échangé</p>
-                      <p className="text-sm mt-2">Démarrez la conversation ci-dessous</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Formulaire nouveau message */}
-                <div className="space-y-4">
-                  <textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Votre message..."
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 resize-none"
-                  />
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShowMessageModal(false)}
-                      className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-colors"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim()}
-                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      <Send className="w-4 h-4" />
-                      Envoyer
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </Layout>
   );
