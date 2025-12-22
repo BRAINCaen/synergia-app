@@ -548,53 +548,55 @@ const AdminAnalyticsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
 
           {/* 📊 HEADER AVEC ACTIONS */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-4">
-                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-3 rounded-xl">
-                  <BarChart3 className="w-8 h-8 text-white" />
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 sm:mb-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-2 sm:p-3 rounded-xl">
+                  <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-                    Analytics Administration Complètes
+                  <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                    Analytics Admin
                   </h1>
-                  <p className="text-gray-400 mt-2 flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    Dernière synchronisation : {analytics.activity.lastUpdated.toLocaleTimeString('fr-FR')}
+                  <p className="text-gray-400 text-xs sm:text-sm mt-1 flex items-center gap-2">
+                    <Activity className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Dernière synchro :</span> {analytics.activity.lastUpdated.toLocaleTimeString('fr-FR')}
                   </p>
                 </div>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 <select
                   value={timeframe}
                   onChange={(e) => setTimeframe(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="flex-1 sm:flex-none px-3 py-2 text-sm bg-gray-800 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   <option value="today">Aujourd'hui</option>
-                  <option value="week">7 derniers jours</option>
-                  <option value="month">30 derniers jours</option>
-                  <option value="all">Tout le temps</option>
+                  <option value="week">7 jours</option>
+                  <option value="month">30 jours</option>
+                  <option value="all">Tout</option>
                 </select>
 
                 <button
                   onClick={loadCompleteAnalytics}
-                  className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-4 py-2 rounded-xl transition-all duration-200"
+                  className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-3 py-2 rounded-xl transition-all duration-200"
+                  title="Actualiser"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  <span>Actualiser</span>
+                  <span className="hidden sm:inline">Actualiser</span>
                 </button>
 
                 <button
                   onClick={exportCompleteData}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-xl transition-all duration-200 shadow-lg"
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3 py-2 rounded-xl transition-all duration-200 shadow-lg"
+                  title="Export PDF"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Export PDF</span>
+                  <span className="hidden sm:inline">Export PDF</span>
                 </button>
               </div>
             </div>
@@ -629,30 +631,28 @@ const AdminAnalyticsPage = () => {
           </div>
 
           {/* 📈 MÉTRIQUES PRINCIPALES (TOUJOURS VISIBLES) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
             {/* Utilisateurs totaux */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-700/50 shadow-xl"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Utilisateurs totaux</p>
-                  <p className="text-4xl font-bold text-white mt-2">{analytics.users.total}</p>
-                  <div className="flex items-center gap-4 mt-3">
-                    <p className="text-green-400 text-sm flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3" />
-                      <span className="font-semibold">+{analytics.users.newThisWeek}</span> cette semaine
-                    </p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-gray-700">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">Utilisateurs</p>
+                  <p className="text-2xl sm:text-4xl font-bold text-white mt-1 sm:mt-2">{analytics.users.total}</p>
+                  <p className="text-green-400 text-xs sm:text-sm flex items-center gap-1 mt-2">
+                    <TrendingUp className="w-3 h-3 flex-shrink-0" />
+                    <span className="font-semibold">+{analytics.users.newThisWeek}</span>
+                    <span className="hidden sm:inline">cette semaine</span>
+                  </p>
+                  <div className="hidden sm:block mt-2 pt-2 border-t border-gray-700">
                     <p className="text-xs text-gray-500">Actifs: <span className="text-green-400 font-semibold">{analytics.users.active}</span></p>
-                    <p className="text-xs text-gray-500">Nouveaux aujourd'hui: <span className="text-blue-400 font-semibold">{analytics.users.newToday}</span></p>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-4 rounded-xl">
-                  <Users className="w-10 h-10 text-white" />
+                <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 sm:p-4 rounded-xl flex-shrink-0">
+                  <Users className="w-5 h-5 sm:w-10 sm:h-10 text-white" />
                 </div>
               </div>
             </motion.div>
@@ -662,25 +662,23 @@ const AdminAnalyticsPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-700/50 shadow-xl"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Taux de completion</p>
-                  <p className="text-4xl font-bold text-white mt-2">{analytics.tasks.completionRate}%</p>
-                  <div className="flex items-center gap-2 mt-3">
-                    <p className="text-blue-400 text-sm flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      <span className="font-semibold">{analytics.tasks.completed}</span> quêtes accomplies
-                    </p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-gray-700">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">Completion</p>
+                  <p className="text-2xl sm:text-4xl font-bold text-white mt-1 sm:mt-2">{analytics.tasks.completionRate}%</p>
+                  <p className="text-blue-400 text-xs sm:text-sm flex items-center gap-1 mt-2">
+                    <CheckCircle className="w-3 h-3 flex-shrink-0" />
+                    <span className="font-semibold">{analytics.tasks.completed}</span>
+                    <span className="hidden sm:inline">quêtes</span>
+                  </p>
+                  <div className="hidden sm:block mt-2 pt-2 border-t border-gray-700">
                     <p className="text-xs text-gray-500">En cours: <span className="text-yellow-400 font-semibold">{analytics.tasks.inProgress}</span></p>
-                    <p className="text-xs text-gray-500">En attente: <span className="text-gray-400 font-semibold">{analytics.tasks.pending}</span></p>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl">
-                  <Target className="w-10 h-10 text-white" />
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-2 sm:p-4 rounded-xl flex-shrink-0">
+                  <Target className="w-5 h-5 sm:w-10 sm:h-10 text-white" />
                 </div>
               </div>
             </motion.div>
@@ -690,24 +688,23 @@ const AdminAnalyticsPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-700/50 shadow-xl"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">Badges attribués</p>
-                  <p className="text-4xl font-bold text-white mt-2">{analytics.badges.awarded}</p>
-                  <div className="flex items-center gap-2 mt-3">
-                    <p className="text-yellow-400 text-sm flex items-center gap-1">
-                      <Trophy className="w-3 h-3" />
-                      <span className="font-semibold">{analytics.badges.total}</span> badges disponibles
-                    </p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-gray-700">
-                    <p className="text-xs text-gray-500">Moyenne: <span className="text-yellow-400 font-semibold">{analytics.users.total > 0 ? Math.round(analytics.badges.awarded / analytics.users.total) : 0}</span> par utilisateur</p>
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">Badges</p>
+                  <p className="text-2xl sm:text-4xl font-bold text-white mt-1 sm:mt-2">{analytics.badges.awarded}</p>
+                  <p className="text-yellow-400 text-xs sm:text-sm flex items-center gap-1 mt-2">
+                    <Trophy className="w-3 h-3 flex-shrink-0" />
+                    <span className="font-semibold">{analytics.badges.total}</span>
+                    <span className="hidden sm:inline">disponibles</span>
+                  </p>
+                  <div className="hidden sm:block mt-2 pt-2 border-t border-gray-700">
+                    <p className="text-xs text-gray-500">Moy: <span className="text-yellow-400 font-semibold">{analytics.users.total > 0 ? Math.round(analytics.badges.awarded / analytics.users.total) : 0}</span>/user</p>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-yellow-500 to-orange-600 p-4 rounded-xl">
-                  <Award className="w-10 h-10 text-white" />
+                <div className="bg-gradient-to-br from-yellow-500 to-orange-600 p-2 sm:p-4 rounded-xl flex-shrink-0">
+                  <Award className="w-5 h-5 sm:w-10 sm:h-10 text-white" />
                 </div>
               </div>
             </motion.div>
@@ -717,24 +714,23 @@ const AdminAnalyticsPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-700/50 shadow-xl"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium">XP Total Système</p>
-                  <p className="text-4xl font-bold text-white mt-2">{analytics.gamification.totalXpSystem.toLocaleString()}</p>
-                  <div className="flex items-center gap-2 mt-3">
-                    <p className="text-purple-400 text-sm flex items-center gap-1">
-                      <Zap className="w-3 h-3" />
-                      <span className="font-semibold">{analytics.tasks.averageXp}</span> XP moyen/quête
-                    </p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-gray-700">
-                    <p className="text-xs text-gray-500">Niveau moyen: <span className="text-purple-400 font-semibold">{analytics.gamification.averageLevel}</span></p>
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-400 text-xs sm:text-sm font-medium">XP Total</p>
+                  <p className="text-xl sm:text-4xl font-bold text-white mt-1 sm:mt-2">{analytics.gamification.totalXpSystem.toLocaleString()}</p>
+                  <p className="text-purple-400 text-xs sm:text-sm flex items-center gap-1 mt-2">
+                    <Zap className="w-3 h-3 flex-shrink-0" />
+                    <span className="font-semibold">{analytics.tasks.averageXp}</span>
+                    <span className="hidden sm:inline">XP/quête</span>
+                  </p>
+                  <div className="hidden sm:block mt-2 pt-2 border-t border-gray-700">
+                    <p className="text-xs text-gray-500">Niv. moyen: <span className="text-purple-400 font-semibold">{analytics.gamification.averageLevel}</span></p>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-4 rounded-xl">
-                  <Star className="w-10 h-10 text-white" />
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-2 sm:p-4 rounded-xl flex-shrink-0">
+                  <Star className="w-5 h-5 sm:w-10 sm:h-10 text-white" />
                 </div>
               </div>
             </motion.div>
@@ -742,53 +738,79 @@ const AdminAnalyticsPage = () => {
 
           {/* ==================== SECTION: VUE D'ENSEMBLE ==================== */}
           {activeSection === 'overview' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Analyse détaillée utilisateurs */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl"
               >
-                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                  <Users className="w-6 h-6 text-purple-400" />
-                  Analyse Détaillée des Utilisateurs
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
+                  Analyse Utilisateurs
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-gray-700/30 rounded-lg p-4">
-                    <p className="text-gray-400 text-sm">Nouveaux aujourd'hui</p>
-                    <p className="text-2xl font-bold text-white">{analytics.users.newToday}</p>
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                    <p className="text-gray-400 text-xs sm:text-sm">Aujourd'hui</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.users.newToday}</p>
                   </div>
-                  <div className="bg-gray-700/30 rounded-lg p-4">
-                    <p className="text-gray-400 text-sm">Nouveaux cette semaine</p>
-                    <p className="text-2xl font-bold text-white">{analytics.users.newThisWeek}</p>
+                  <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                    <p className="text-gray-400 text-xs sm:text-sm">Semaine</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.users.newThisWeek}</p>
                   </div>
-                  <div className="bg-gray-700/30 rounded-lg p-4">
-                    <p className="text-gray-400 text-sm">Taux de rétention</p>
-                    <p className="text-2xl font-bold text-white">{analytics.users.retention}%</p>
+                  <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                    <p className="text-gray-400 text-xs sm:text-sm">Rétention</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.users.retention}%</p>
                   </div>
                 </div>
 
-                {/* Top utilisateurs */}
-                <h4 className="text-lg font-semibold text-white mb-4">Top 10 Utilisateurs</h4>
-                <div className="overflow-x-auto">
+                {/* Top utilisateurs - Mobile: Cards / Desktop: Table */}
+                <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Top 10 Utilisateurs</h4>
+
+                {/* Version Mobile - Cards */}
+                <div className="sm:hidden space-y-3">
+                  {analytics.users.list.slice(0, 10).map((user, index) => (
+                    <div key={user.id} className="bg-gray-700/30 rounded-lg p-3 flex items-center gap-3">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
+                        index === 0 ? 'bg-yellow-500 text-yellow-900' :
+                        index === 1 ? 'bg-gray-400 text-gray-900' :
+                        index === 2 ? 'bg-orange-600 text-orange-900' :
+                        'bg-gray-700 text-gray-300'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium text-sm truncate">{user.name}</p>
+                        <div className="flex items-center gap-2 mt-1 text-xs">
+                          <span className="text-purple-400">Niv.{user.level}</span>
+                          <span className="text-yellow-400">{user.xp.toLocaleString()} XP</span>
+                          <span className="text-green-400">{user.tasksCompleted} quêtes</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Version Desktop - Table */}
+                <div className="hidden sm:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-700">
-                        <th className="text-left text-gray-400 font-medium p-3">Rang</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Utilisateur</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Niveau</th>
-                        <th className="text-left text-gray-400 font-medium p-3">XP Total</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Quêtes</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Badges</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Rôles</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Rang</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Utilisateur</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Niveau</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">XP</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Quêtes</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Badges</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm hidden lg:table-cell">Rôles</th>
                       </tr>
                     </thead>
                     <tbody>
                       {analytics.users.list.slice(0, 10).map((user, index) => (
                         <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
                           <td className="p-3">
-                            <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-sm ${
                               index === 0 ? 'bg-yellow-500 text-yellow-900' :
                               index === 1 ? 'bg-gray-400 text-gray-900' :
                               index === 2 ? 'bg-orange-600 text-orange-900' :
@@ -799,26 +821,26 @@ const AdminAnalyticsPage = () => {
                           </td>
                           <td className="p-3">
                             <div>
-                              <p className="text-white font-medium">{user.name}</p>
-                              <p className="text-gray-500 text-xs">{user.email}</p>
+                              <p className="text-white font-medium text-sm">{user.name}</p>
+                              <p className="text-gray-500 text-xs truncate max-w-[150px]">{user.email}</p>
                             </div>
                           </td>
                           <td className="p-3">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-bold">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-bold">
                               <Star className="w-3 h-3" />
                               {user.level}
                             </span>
                           </td>
                           <td className="p-3">
-                            <span className="text-yellow-400 font-bold">{user.xp.toLocaleString()}</span>
+                            <span className="text-yellow-400 font-bold text-sm">{user.xp.toLocaleString()}</span>
                           </td>
                           <td className="p-3">
-                            <span className="text-green-400 font-semibold">{user.tasksCompleted}</span>
+                            <span className="text-green-400 font-semibold text-sm">{user.tasksCompleted}</span>
                           </td>
                           <td className="p-3">
-                            <span className="text-yellow-400 font-semibold">{user.badges}</span>
+                            <span className="text-yellow-400 font-semibold text-sm">{user.badges}</span>
                           </td>
-                          <td className="p-3">
+                          <td className="p-3 hidden lg:table-cell">
                             <div className="flex gap-1 flex-wrap">
                               {user.roles.slice(0, 2).map((role, i) => (
                                 <span key={i} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
@@ -846,31 +868,56 @@ const AdminAnalyticsPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl"
             >
-              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <Users className="w-7 h-7 text-blue-400" />
-                Analyse Détaillée des Utilisateurs ({analytics.users.total})
+              <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                <Users className="w-5 h-5 sm:w-7 sm:h-7 text-blue-400" />
+                Utilisateurs ({analytics.users.total})
               </h3>
 
-              <div className="overflow-x-auto">
+              {/* Mobile Cards */}
+              <div className="sm:hidden space-y-3">
+                {analytics.users.list.map((user, index) => (
+                  <div key={user.id} className="bg-gray-700/30 rounded-lg p-3 flex items-center gap-3">
+                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm flex-shrink-0 ${
+                      index === 0 ? 'bg-yellow-500 text-yellow-900' :
+                      index === 1 ? 'bg-gray-400 text-gray-900' :
+                      index === 2 ? 'bg-orange-600 text-orange-900' :
+                      'bg-gray-700 text-gray-300'
+                    }`}>
+                      {index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium text-sm truncate">{user.name}</p>
+                      <div className="flex items-center gap-2 mt-1 text-xs">
+                        <span className="text-purple-400">Niv.{user.level}</span>
+                        <span className="text-yellow-400">{user.xp.toLocaleString()} XP</span>
+                        <span className="text-green-400">{user.tasksCompleted} quêtes</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-700">
-                      <th className="text-left text-gray-400 font-medium p-3">Rang</th>
-                      <th className="text-left text-gray-400 font-medium p-3">Utilisateur</th>
-                      <th className="text-left text-gray-400 font-medium p-3">Niveau</th>
-                      <th className="text-left text-gray-400 font-medium p-3">XP Total</th>
-                      <th className="text-left text-gray-400 font-medium p-3">Quêtes</th>
-                      <th className="text-left text-gray-400 font-medium p-3">Badges</th>
-                      <th className="text-left text-gray-400 font-medium p-3">Rôles</th>
+                      <th className="text-left text-gray-400 font-medium p-3 text-sm">Rang</th>
+                      <th className="text-left text-gray-400 font-medium p-3 text-sm">Utilisateur</th>
+                      <th className="text-left text-gray-400 font-medium p-3 text-sm">Niveau</th>
+                      <th className="text-left text-gray-400 font-medium p-3 text-sm">XP</th>
+                      <th className="text-left text-gray-400 font-medium p-3 text-sm">Quêtes</th>
+                      <th className="text-left text-gray-400 font-medium p-3 text-sm">Badges</th>
+                      <th className="text-left text-gray-400 font-medium p-3 text-sm hidden lg:table-cell">Rôles</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analytics.users.list.map((user, index) => (
                       <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
                         <td className="p-3">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${
+                          <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-sm ${
                             index === 0 ? 'bg-yellow-500 text-yellow-900' :
                             index === 1 ? 'bg-gray-400 text-gray-900' :
                             index === 2 ? 'bg-orange-600 text-orange-900' :
@@ -881,26 +928,26 @@ const AdminAnalyticsPage = () => {
                         </td>
                         <td className="p-3">
                           <div>
-                            <p className="text-white font-medium">{user.name}</p>
-                            <p className="text-gray-500 text-xs">{user.email}</p>
+                            <p className="text-white font-medium text-sm">{user.name}</p>
+                            <p className="text-gray-500 text-xs truncate max-w-[150px]">{user.email}</p>
                           </div>
                         </td>
                         <td className="p-3">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-bold">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-bold">
                             <Star className="w-3 h-3" />
                             {user.level}
                           </span>
                         </td>
                         <td className="p-3">
-                          <span className="text-yellow-400 font-bold">{user.xp.toLocaleString()}</span>
+                          <span className="text-yellow-400 font-bold text-sm">{user.xp.toLocaleString()}</span>
                         </td>
                         <td className="p-3">
-                          <span className="text-green-400 font-semibold">{user.tasksCompleted}</span>
+                          <span className="text-green-400 font-semibold text-sm">{user.tasksCompleted}</span>
                         </td>
                         <td className="p-3">
-                          <span className="text-yellow-400 font-semibold">{user.badges}</span>
+                          <span className="text-yellow-400 font-semibold text-sm">{user.badges}</span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 hidden lg:table-cell">
                           <div className="flex gap-1 flex-wrap">
                             {user.roles.slice(0, 2).map((role, i) => (
                               <span key={i} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
@@ -924,46 +971,71 @@ const AdminAnalyticsPage = () => {
 
           {/* ==================== SECTION: QUÊTES ==================== */}
           {activeSection === 'tasks' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl"
               >
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                  <Target className="w-7 h-7 text-green-400" />
-                  Analyse Détaillée des Quêtes
+                <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                  <Target className="w-5 h-5 sm:w-7 sm:h-7 text-green-400" />
+                  Analyse des Quêtes
                 </h3>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-gray-700/30 rounded-lg p-4">
-                    <p className="text-gray-400 text-sm">Total</p>
-                    <p className="text-2xl font-bold text-white">{analytics.tasks.total}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                    <p className="text-gray-400 text-xs sm:text-sm">Total</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.tasks.total}</p>
                   </div>
-                  <div className="bg-green-900/20 rounded-lg p-4 border border-green-500/30">
-                    <p className="text-green-400 text-sm">Accomplies</p>
-                    <p className="text-2xl font-bold text-white">{analytics.tasks.completed}</p>
+                  <div className="bg-green-900/20 rounded-lg p-2 sm:p-4 border border-green-500/30">
+                    <p className="text-green-400 text-xs sm:text-sm">Accomplies</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.tasks.completed}</p>
                   </div>
-                  <div className="bg-yellow-900/20 rounded-lg p-4 border border-yellow-500/30">
-                    <p className="text-yellow-400 text-sm">En cours</p>
-                    <p className="text-2xl font-bold text-white">{analytics.tasks.inProgress}</p>
+                  <div className="bg-yellow-900/20 rounded-lg p-2 sm:p-4 border border-yellow-500/30">
+                    <p className="text-yellow-400 text-xs sm:text-sm">En cours</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.tasks.inProgress}</p>
                   </div>
-                  <div className="bg-blue-900/20 rounded-lg p-4 border border-blue-500/30">
-                    <p className="text-blue-400 text-sm">En révision</p>
-                    <p className="text-2xl font-bold text-white">{analytics.tasks.inReview}</p>
+                  <div className="bg-blue-900/20 rounded-lg p-2 sm:p-4 border border-blue-500/30">
+                    <p className="text-blue-400 text-xs sm:text-sm">En révision</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.tasks.inReview}</p>
                   </div>
                 </div>
 
-                <h4 className="text-lg font-semibold text-white mb-4">Top 10 Contributeurs</h4>
-                <div className="overflow-x-auto">
+                <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Top 10 Contributeurs</h4>
+
+                {/* Mobile Cards */}
+                <div className="sm:hidden space-y-3">
+                  {analytics.tasks.byUser.slice(0, 10).map((userTask) => {
+                    const rate = userTask.total > 0 ? Math.round((userTask.completed / userTask.total) * 100) : 0;
+                    return (
+                      <div key={userTask.userId} className="bg-gray-700/30 rounded-lg p-3">
+                        <p className="text-white font-medium text-sm">{userTask.userName}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="text-gray-400">{userTask.total} total</span>
+                            <span className="text-green-400 font-semibold">{userTask.completed} ok</span>
+                            <span className="text-purple-400 font-bold">{userTask.xp.toLocaleString()} XP</span>
+                          </div>
+                          <span className="text-white font-bold text-sm">{rate}%</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+                          <div className="bg-green-500 h-full rounded-full" style={{ width: `${rate}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden sm:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-700">
-                        <th className="text-left text-gray-400 font-medium p-3">Utilisateur</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Quêtes totales</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Accomplies</th>
-                        <th className="text-left text-gray-400 font-medium p-3">Taux</th>
-                        <th className="text-left text-gray-400 font-medium p-3">XP gagné</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Utilisateur</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Total</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">OK</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">Taux</th>
+                        <th className="text-left text-gray-400 font-medium p-3 text-sm">XP</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -972,27 +1044,24 @@ const AdminAnalyticsPage = () => {
                         return (
                           <tr key={userTask.userId} className="border-b border-gray-700/50 hover:bg-gray-700/20">
                             <td className="p-3">
-                              <span className="text-white font-medium">{userTask.userName}</span>
+                              <span className="text-white font-medium text-sm">{userTask.userName}</span>
                             </td>
                             <td className="p-3">
-                              <span className="text-gray-300">{userTask.total}</span>
+                              <span className="text-gray-300 text-sm">{userTask.total}</span>
                             </td>
                             <td className="p-3">
-                              <span className="text-green-400 font-semibold">{userTask.completed}</span>
+                              <span className="text-green-400 font-semibold text-sm">{userTask.completed}</span>
                             </td>
                             <td className="p-3">
                               <div className="flex items-center gap-2">
-                                <div className="w-20 bg-gray-700 rounded-full h-2">
-                                  <div
-                                    className="bg-green-500 h-full rounded-full"
-                                    style={{ width: `${rate}%` }}
-                                  />
+                                <div className="w-16 bg-gray-700 rounded-full h-2">
+                                  <div className="bg-green-500 h-full rounded-full" style={{ width: `${rate}%` }} />
                                 </div>
                                 <span className="text-white text-sm font-medium">{rate}%</span>
                               </div>
                             </td>
                             <td className="p-3">
-                              <span className="text-purple-400 font-bold">{userTask.xp.toLocaleString()}</span>
+                              <span className="text-purple-400 font-bold text-sm">{userTask.xp.toLocaleString()}</span>
                             </td>
                           </tr>
                         );
@@ -1009,46 +1078,46 @@ const AdminAnalyticsPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl"
             >
-              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <Trophy className="w-7 h-7 text-yellow-400" />
-                Analyse Détaillée des Badges
+              <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                <Trophy className="w-5 h-5 sm:w-7 sm:h-7 text-yellow-400" />
+                Analyse des Badges
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Total badges</p>
-                  <p className="text-2xl font-bold text-white">{analytics.badges.total}</p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                  <p className="text-gray-400 text-xs sm:text-sm">Total</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{analytics.badges.total}</p>
                 </div>
-                <div className="bg-yellow-900/20 rounded-lg p-4 border border-yellow-500/30">
-                  <p className="text-yellow-400 text-sm">Badges attribués</p>
-                  <p className="text-2xl font-bold text-white">{analytics.badges.awarded}</p>
+                <div className="bg-yellow-900/20 rounded-lg p-2 sm:p-4 border border-yellow-500/30">
+                  <p className="text-yellow-400 text-xs sm:text-sm">Attribués</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{analytics.badges.awarded}</p>
                 </div>
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Moyenne par utilisateur</p>
-                  <p className="text-2xl font-bold text-white">
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                  <p className="text-gray-400 text-xs sm:text-sm">Moy/user</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">
                     {analytics.users.total > 0 ? Math.round(analytics.badges.awarded / analytics.users.total) : 0}
                   </p>
                 </div>
               </div>
 
-              <h4 className="text-lg font-semibold text-white mb-4">Top 10 Badges Les Plus Attribués</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Top 10 Badges</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {analytics.badges.popular.slice(0, 10).map((badge) => (
-                  <div key={badge.id} className="bg-gray-700/30 rounded-lg p-4 flex items-center gap-4">
-                    <div className="text-4xl">{badge.icon || '🏆'}</div>
-                    <div className="flex-1">
-                      <h5 className="text-white font-semibold">{badge.name}</h5>
-                      <p className="text-gray-400 text-sm capitalize">{badge.rarity} - {badge.category}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="flex-1 bg-gray-700 rounded-full h-2">
+                  <div key={badge.id} className="bg-gray-700/30 rounded-lg p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                    <div className="text-2xl sm:text-4xl flex-shrink-0">{badge.icon || '🏆'}</div>
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-white font-semibold text-sm sm:text-base truncate">{badge.name}</h5>
+                      <p className="text-gray-400 text-xs sm:text-sm capitalize">{badge.rarity}</p>
+                      <div className="flex items-center gap-2 mt-1 sm:mt-2">
+                        <div className="flex-1 bg-gray-700 rounded-full h-1.5 sm:h-2">
                           <div
                             className="bg-yellow-500 h-full rounded-full"
                             style={{ width: `${Math.min((badge.earnedCount / analytics.users.total) * 100, 100)}%` }}
                           />
                         </div>
-                        <span className="text-yellow-400 font-bold">{badge.earnedCount}</span>
+                        <span className="text-yellow-400 font-bold text-xs sm:text-sm">{badge.earnedCount}</span>
                       </div>
                     </div>
                   </div>
@@ -1062,59 +1131,59 @@ const AdminAnalyticsPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+              className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl"
             >
-              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <Briefcase className="w-7 h-7 text-purple-400" />
-                Analyse Détaillée des Projets
+              <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                <Briefcase className="w-5 h-5 sm:w-7 sm:h-7 text-purple-400" />
+                Analyse des Projets
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Total projets</p>
-                  <p className="text-2xl font-bold text-white">{analytics.projects.total}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                  <p className="text-gray-400 text-xs sm:text-sm">Total</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{analytics.projects.total}</p>
                 </div>
-                <div className="bg-green-900/20 rounded-lg p-4 border border-green-500/30">
-                  <p className="text-green-400 text-sm">Actifs</p>
-                  <p className="text-2xl font-bold text-white">{analytics.projects.active}</p>
+                <div className="bg-green-900/20 rounded-lg p-2 sm:p-4 border border-green-500/30">
+                  <p className="text-green-400 text-xs sm:text-sm">Actifs</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{analytics.projects.active}</p>
                 </div>
-                <div className="bg-blue-900/20 rounded-lg p-4 border border-blue-500/30">
-                  <p className="text-blue-400 text-sm">Terminés</p>
-                  <p className="text-2xl font-bold text-white">{analytics.projects.completed}</p>
+                <div className="bg-blue-900/20 rounded-lg p-2 sm:p-4 border border-blue-500/30">
+                  <p className="text-blue-400 text-xs sm:text-sm">Terminés</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{analytics.projects.completed}</p>
                 </div>
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Taux de completion</p>
-                  <p className="text-2xl font-bold text-white">{analytics.projects.completionRate}%</p>
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
+                  <p className="text-gray-400 text-xs sm:text-sm">Taux</p>
+                  <p className="text-lg sm:text-2xl font-bold text-white">{analytics.projects.completionRate}%</p>
                 </div>
               </div>
 
-              <h4 className="text-lg font-semibold text-white mb-4">Tous les Projets</h4>
-              <div className="space-y-3">
+              <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Tous les Projets</h4>
+              <div className="space-y-2 sm:space-y-3">
                 {analytics.projects.list.map((project) => {
                   const statusConfig = {
                     active: { color: 'green', label: 'Actif' },
                     in_progress: { color: 'green', label: 'En cours' },
                     completed: { color: 'blue', label: 'Terminé' },
                     done: { color: 'blue', label: 'Terminé' },
-                    paused: { color: 'yellow', label: 'En pause' },
-                    on_hold: { color: 'yellow', label: 'En pause' }
+                    paused: { color: 'yellow', label: 'Pause' },
+                    on_hold: { color: 'yellow', label: 'Pause' }
                   };
                   const config = statusConfig[project.status] || { color: 'gray', label: project.status };
 
                   return (
-                    <div key={project.id} className="bg-gray-700/20 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h5 className="text-white font-semibold text-lg">{project.name}</h5>
-                        <span className={`px-3 py-1 bg-${config.color}-900/30 border border-${config.color}-500/50 text-${config.color}-400 rounded-lg text-sm font-medium`}>
+                    <div key={project.id} className="bg-gray-700/20 rounded-lg p-3 sm:p-4">
+                      <div className="flex items-start sm:items-center justify-between gap-2 mb-2 sm:mb-3">
+                        <h5 className="text-white font-semibold text-sm sm:text-lg flex-1 min-w-0 truncate">{project.name}</h5>
+                        <span className={`px-2 py-0.5 sm:px-3 sm:py-1 bg-${config.color}-900/30 border border-${config.color}-500/50 text-${config.color}-400 rounded-lg text-xs sm:text-sm font-medium flex-shrink-0`}>
                           {config.label}
                         </span>
                       </div>
-                      <div className="flex items-center gap-6 text-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm">
                         <span className="text-gray-400">
                           Quêtes: <span className="text-white font-semibold">{project.tasksCompleted}/{project.tasksCount}</span>
                         </span>
                         <div className="flex-1 flex items-center gap-2">
-                          <div className="flex-1 bg-gray-700 rounded-full h-2">
+                          <div className="flex-1 bg-gray-700 rounded-full h-1.5 sm:h-2">
                             <div
                               className={`bg-${config.color}-500 h-full rounded-full`}
                               style={{ width: `${project.progress}%` }}
@@ -1132,37 +1201,37 @@ const AdminAnalyticsPage = () => {
 
           {/* ==================== SECTION: GAMIFICATION ==================== */}
           {activeSection === 'gamification' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl"
               >
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                  <Zap className="w-7 h-7 text-purple-400" />
-                  Analyse Gamification
+                <h3 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
+                  <Zap className="w-5 h-5 sm:w-7 sm:h-7 text-purple-400" />
+                  Gamification
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-purple-900/20 rounded-lg p-4 border border-purple-500/30">
-                    <p className="text-purple-400 text-sm">XP Total Système</p>
-                    <p className="text-3xl font-bold text-white">{analytics.gamification.totalXpSystem.toLocaleString()}</p>
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="bg-purple-900/20 rounded-lg p-2 sm:p-4 border border-purple-500/30">
+                    <p className="text-purple-400 text-xs sm:text-sm">XP Total</p>
+                    <p className="text-base sm:text-3xl font-bold text-white">{analytics.gamification.totalXpSystem.toLocaleString()}</p>
                   </div>
-                  <div className="bg-blue-900/20 rounded-lg p-4 border border-blue-500/30">
-                    <p className="text-blue-400 text-sm">Niveau Moyen</p>
-                    <p className="text-3xl font-bold text-white">{analytics.gamification.averageLevel}</p>
+                  <div className="bg-blue-900/20 rounded-lg p-2 sm:p-4 border border-blue-500/30">
+                    <p className="text-blue-400 text-xs sm:text-sm">Niv. Moy</p>
+                    <p className="text-base sm:text-3xl font-bold text-white">{analytics.gamification.averageLevel}</p>
                   </div>
-                  <div className="bg-yellow-900/20 rounded-lg p-4 border border-yellow-500/30">
-                    <p className="text-yellow-400 text-sm">XP Moyen/Quête</p>
-                    <p className="text-3xl font-bold text-white">{analytics.tasks.averageXp}</p>
+                  <div className="bg-yellow-900/20 rounded-lg p-2 sm:p-4 border border-yellow-500/30">
+                    <p className="text-yellow-400 text-xs sm:text-sm">XP/Quête</p>
+                    <p className="text-base sm:text-3xl font-bold text-white">{analytics.tasks.averageXp}</p>
                   </div>
                 </div>
 
-                <h4 className="text-lg font-semibold text-white mb-4">Top 10 Performers</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Top 10 Performers</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                   {analytics.gamification.topPerformers.slice(0, 10).map((user, index) => (
-                    <div key={user.id} className="bg-gray-700/20 rounded-lg p-4 flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                    <div key={user.id} className="bg-gray-700/20 rounded-lg p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+                      <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm sm:text-lg flex-shrink-0 ${
                         index === 0 ? 'bg-yellow-500 text-yellow-900' :
                         index === 1 ? 'bg-gray-400 text-gray-900' :
                         index === 2 ? 'bg-orange-600 text-orange-900' :
@@ -1170,20 +1239,20 @@ const AdminAnalyticsPage = () => {
                       }`}>
                         {index + 1}
                       </div>
-                      <div className="flex-1">
-                        <h5 className="text-white font-semibold">{user.name}</h5>
-                        <div className="flex items-center gap-3 mt-1 text-sm">
+                      <div className="flex-1 min-w-0">
+                        <h5 className="text-white font-semibold text-sm sm:text-base truncate">{user.name}</h5>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs sm:text-sm">
                           <span className="text-purple-400">
-                            <Star className="w-3 h-3 inline mr-1" />
-                            Niv. {user.level}
+                            <Star className="w-3 h-3 inline mr-0.5" />
+                            {user.level}
                           </span>
                           <span className="text-blue-400">
-                            <Zap className="w-3 h-3 inline mr-1" />
-                            {user.xp.toLocaleString()} XP
+                            <Zap className="w-3 h-3 inline mr-0.5" />
+                            {user.xp.toLocaleString()}
                           </span>
                           <span className="text-green-400">
-                            <CheckCircle className="w-3 h-3 inline mr-1" />
-                            {user.tasksCompleted} quêtes
+                            <CheckCircle className="w-3 h-3 inline mr-0.5" />
+                            {user.tasksCompleted}
                           </span>
                         </div>
                       </div>
@@ -1197,25 +1266,25 @@ const AdminAnalyticsPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 shadow-xl"
+                className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-700/50 shadow-xl"
               >
-                <h4 className="text-lg font-semibold text-white mb-4">Distribution des Niveaux</h4>
-                <div className="space-y-3">
+                <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Distribution des Niveaux</h4>
+                <div className="space-y-2 sm:space-y-3">
                   {Object.entries(analytics.gamification.levelDistribution)
                     .sort(([a], [b]) => Number(a) - Number(b))
                     .map(([level, count]) => {
                       const percentage = analytics.users.total > 0 ? (count / analytics.users.total) * 100 : 0;
                       return (
-                        <div key={level} className="flex items-center gap-4">
-                          <span className="text-white font-bold w-16">Niv. {level}</span>
-                          <div className="flex-1 bg-gray-700 rounded-full h-3">
+                        <div key={level} className="flex items-center gap-2 sm:gap-4">
+                          <span className="text-white font-bold text-xs sm:text-base w-10 sm:w-16">Niv.{level}</span>
+                          <div className="flex-1 bg-gray-700 rounded-full h-2 sm:h-3">
                             <div
                               className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
-                          <span className="text-white font-semibold w-12 text-right">{count}</span>
-                          <span className="text-gray-500 text-sm w-16 text-right">({percentage.toFixed(1)}%)</span>
+                          <span className="text-white font-semibold text-xs sm:text-base w-6 sm:w-12 text-right">{count}</span>
+                          <span className="text-gray-500 text-xs w-12 sm:w-16 text-right hidden sm:inline">({percentage.toFixed(1)}%)</span>
                         </div>
                       );
                     })}
