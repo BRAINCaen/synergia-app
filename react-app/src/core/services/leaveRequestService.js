@@ -364,14 +364,13 @@ class LeaveRequestService {
         });
       }
 
-      // Notifier l'utilisateur
-      await notificationService.createNotification({
-        userId: requestData.userId,
-        type: 'leave_approved',
-        title: '✅ Congés approuvés !',
-        message: `Votre demande de ${requestData.leaveTypeLabel} du ${new Date(requestData.startDate).toLocaleDateString('fr-FR')} au ${new Date(requestData.endDate).toLocaleDateString('fr-FR')} a été approuvée par ${adminName}.`,
-        icon: '🏖️',
-        link: '/planning'
+      // Notifier l'utilisateur via la méthode dédiée
+      await notificationService.notifyLeaveApproved(requestData.userId, {
+        requestId,
+        leaveLabel: requestData.leaveTypeLabel,
+        startDate: new Date(requestData.startDate).toLocaleDateString('fr-FR'),
+        endDate: new Date(requestData.endDate).toLocaleDateString('fr-FR'),
+        approverName: adminName
       });
 
       console.log('✅ Demande approuvée:', requestId);
@@ -406,14 +405,14 @@ class LeaveRequestService {
         updatedAt: serverTimestamp()
       });
 
-      // Notifier l'utilisateur
-      await notificationService.createNotification({
-        userId: requestData.userId,
-        type: 'leave_rejected',
-        title: '❌ Demande de congés refusée',
-        message: `Votre demande de ${requestData.leaveTypeLabel} a été refusée${reason ? `: ${reason}` : '.'}`,
-        icon: '🏖️',
-        link: '/planning'
+      // Notifier l'utilisateur via la méthode dédiée
+      await notificationService.notifyLeaveRejected(requestData.userId, {
+        requestId,
+        leaveLabel: requestData.leaveTypeLabel,
+        startDate: new Date(requestData.startDate).toLocaleDateString('fr-FR'),
+        endDate: new Date(requestData.endDate).toLocaleDateString('fr-FR'),
+        rejectedByName: adminName,
+        reason
       });
 
       console.log('✅ Demande refusée:', requestId);
@@ -527,33 +526,28 @@ class LeaveRequestService {
   // ==========================================
 
   /**
-   * Notifier les admins planning
+   * Notifier les admins planning (basé sur rôles et permissions)
+   * Utilise la méthode centralisée du notificationService
    */
   async notifyPlanningAdmins(userId, userName, requestData) {
     try {
-      // Récupérer les admins planning (ceux avec permission planning_admin)
-      const usersQuery = query(
-        collection(db, this.USERS_COLLECTION),
-        where('role', 'in', ['admin', 'manager'])
-      );
+      console.log('🔔 Envoi notifications aux admins planning...');
 
-      const usersSnapshot = await getDocs(usersQuery);
-
-      usersSnapshot.forEach(async (userDoc) => {
-        if (userDoc.id !== userId) {
-          await notificationService.createNotification({
-            userId: userDoc.id,
-            type: 'leave_request',
-            title: '📅 Nouvelle demande de congés',
-            message: `${userName} demande ${requestData.numberOfDays} jour(s) de ${requestData.leaveTypeLabel} du ${new Date(requestData.startDate).toLocaleDateString('fr-FR')} au ${new Date(requestData.endDate).toLocaleDateString('fr-FR')}`,
-            icon: '🏖️',
-            link: '/planning',
-            actionRequired: true
-          });
-        }
+      // Utiliser la méthode centralisée qui gère les rôles et permissions
+      const result = await notificationService.notifyLeaveRequest({
+        requestId: requestData.id || 'new',
+        userId,
+        userName,
+        leaveType: requestData.leaveType,
+        leaveLabel: requestData.leaveTypeLabel,
+        startDate: new Date(requestData.startDate).toLocaleDateString('fr-FR'),
+        endDate: new Date(requestData.endDate).toLocaleDateString('fr-FR'),
+        reason: requestData.reason
       });
 
-      console.log('✅ Admins planning notifiés');
+      if (result.success) {
+        console.log(`✅ ${result.count} admin(s) planning notifié(s)`);
+      }
     } catch (error) {
       console.error('❌ Erreur notification admins:', error);
     }

@@ -16,6 +16,7 @@ import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { boostService, BOOST_TYPES } from '../core/services/boostService.js';
 import { BoostButton } from '../components/boost';
+import notificationService from '../core/services/notificationService.js';
 import {
   collection,
   getDocs,
@@ -227,17 +228,27 @@ const TavernePage = () => {
     if (!newMessage.trim() || !recipientId) return;
 
     try {
-      await addDoc(collection(db, 'messages'), {
+      const messageContent = newMessage;
+      const docRef = await addDoc(collection(db, 'messages'), {
         senderId: user.uid,
         senderName: user.displayName || user.email,
         senderPhoto: user.photoURL || null,
         recipientId: recipientId,
         recipientName: recipientName,
         recipientPhoto: teamMembers.find(m => m.id === recipientId)?.photoURL || null,
-        content: newMessage,
+        content: messageContent,
         participants: [user.uid, recipientId],
         read: false,
         createdAt: serverTimestamp()
+      });
+
+      // Envoyer une notification au destinataire
+      await notificationService.notifyMessageReceived(recipientId, {
+        senderId: user.uid,
+        senderName: user.displayName || user.email,
+        senderPhoto: user.photoURL || null,
+        messagePreview: messageContent,
+        conversationId: docRef.id
       });
 
       setNewMessage('');
