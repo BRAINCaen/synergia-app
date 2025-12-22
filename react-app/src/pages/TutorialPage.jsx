@@ -326,6 +326,69 @@ const TUTORIAL_SECTIONS = [
         tips: ['Mode sombre par défaut', 'Autres thèmes disponibles', 'Confort visuel']
       }
     ]
+  },
+  {
+    id: 'taverne',
+    title: 'La Taverne',
+    icon: '🍺',
+    color: 'from-amber-500 to-orange-600',
+    description: 'Espace social : messagerie et boosts',
+    content: [
+      {
+        title: 'Qu\'est-ce que la Taverne ?',
+        text: 'La Taverne est votre espace social dans Synergia. C\'est le lieu de rencontre virtuel où vous pouvez discuter avec vos collègues et leur envoyer des encouragements (Boosts) !',
+        tips: ['Espace convivial', 'Communication d\'équipe', 'Encouragements mutuels']
+      },
+      {
+        title: 'Messagerie',
+        text: 'Échangez des messages privés avec vos collègues. Démarrez une nouvelle conversation ou continuez une discussion existante. Les messages non lus sont signalés.',
+        tips: ['Conversations privées', 'Historique conservé', 'Notifications temps réel']
+      },
+      {
+        title: 'Système de Boosts',
+        text: 'Les Boosts sont des encouragements que vous envoyez à vos collègues. Chaque Boost donne de l\'XP au destinataire ET à l\'envoyeur ! Types : 🔥 Motivation, ⭐ Excellent travail, 💪 Force, 🎯 Focus.',
+        tips: ['🔥 Boost Motivation', '⭐ Boost Excellence', '💪 Boost Force', '🎯 Boost Focus']
+      },
+      {
+        title: 'Historique des Boosts',
+        text: 'Consultez tous les Boosts que vous avez reçus et envoyés. Filtrez par type et suivez vos statistiques de Boosts.',
+        tips: ['Boosts reçus = XP gagné', 'Boosts envoyés = XP donné', 'Stats par type']
+      },
+      {
+        title: 'Feed d\'activité',
+        text: 'Suivez l\'activité sociale récente : derniers messages, Boosts reçus, interactions avec l\'équipe. Restez connecté !',
+        tips: ['Activité en temps réel', 'Vue combinée', 'Ne manquez rien']
+      }
+    ]
+  },
+  {
+    id: 'equipe',
+    title: 'Page Équipe',
+    icon: '👥',
+    color: 'from-blue-500 to-indigo-500',
+    description: 'Découvrez les membres de votre équipe',
+    content: [
+      {
+        title: 'Annuaire d\'équipe',
+        text: 'La page Équipe affiche tous les membres avec leurs profils : niveau, XP, rang, quêtes en cours. Découvrez qui fait partie de votre guilde !',
+        tips: ['Profils détaillés', 'Stats de chacun', 'Filtres de recherche']
+      },
+      {
+        title: 'Profils détaillés',
+        text: 'Cliquez sur un membre pour voir son profil complet : ses quêtes, ses badges, son historique, ses compétences.',
+        tips: ['Quêtes assignées', 'Badges obtenus', 'Progression visible']
+      },
+      {
+        title: 'Envoyer un Boost',
+        text: 'Depuis la page Équipe, envoyez directement un Boost à un collègue pour l\'encourager. C\'est rapide et ça fait du bien !',
+        tips: ['Boost depuis la carte', 'Choisissez le type', 'Message personnalisé']
+      },
+      {
+        title: 'Administration (Admins)',
+        text: 'Les administrateurs ont accès à un onglet spécial pour gérer les membres : modifier les profils, suspendre des comptes, attribuer des rôles.',
+        tips: ['Gestion des membres', 'Modification de profils', 'Contrôle des accès']
+      }
+    ]
   }
 ];
 
@@ -688,7 +751,7 @@ const TutorialPage = () => {
               Besoin d'aide supplémentaire ? Contactez votre administrateur.
             </p>
             <p className="text-gray-600 text-xs mt-2">
-              Synergia v4.0 - Guide mis à jour automatiquement
+              Synergia v4.1 - Guide mis à jour le 22/12/2024
             </p>
           </motion.div>
         </div>
