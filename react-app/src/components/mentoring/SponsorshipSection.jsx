@@ -379,7 +379,7 @@ const CreateSponsorshipModal = ({
                   setForm(f => ({
                     ...f,
                     menteeId: e.target.value,
-                    menteeName: selected?.displayName || '',
+                    menteeName: selected?.displayName || selected?.email || 'Utilisateur',
                     menteeAvatar: selected?.avatar || '👤',
                     menteeEmail: selected?.email || ''
                   }));
@@ -387,12 +387,15 @@ const CreateSponsorshipModal = ({
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-pink-500 focus:outline-none"
                 required
               >
-                <option value="">Sélectionnez un collaborateur</option>
-                {availableMentees.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.avatar} {user.displayName} (Niveau {user.level})
-                  </option>
-                ))}
+                <option value="" className="bg-gray-800 text-white">Sélectionnez un collaborateur</option>
+                {availableMentees.map(user => {
+                  const name = user.displayName || user.email?.split('@')[0] || 'Utilisateur';
+                  return (
+                    <option key={user.id} value={user.id} className="bg-gray-800 text-white">
+                      {user.avatar || '👤'} {name} - Niveau {user.level || 1}
+                    </option>
+                  );
+                })}
               </select>
             )}
           </div>
