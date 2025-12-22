@@ -1104,6 +1104,7 @@ const CampaignsPage = () => {
             )}
           </div>
         )}
+        </div>
 
         {/* 📝 MODAL FORMULAIRE CAMPAGNE */}
         <AnimatePresence>
