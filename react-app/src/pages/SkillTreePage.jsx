@@ -10,12 +10,255 @@ import {
   Zap, Star, Sparkles, ChevronRight, ChevronLeft,
   TrendingUp, Award, X, Info, Gift, Crown, Shield,
   Target, Users, Lightbulb, MessageCircle, Briefcase,
-  BookOpen, Palette, AlertCircle, Lock, Check, ZoomIn, ZoomOut, Move
+  BookOpen, Palette, AlertCircle, Lock, Check, ZoomIn, ZoomOut, Move,
+  HelpCircle, List, Grid3X3, ChevronDown, ChevronUp
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import { useSkillTree } from '../shared/hooks/useSkillTree.js';
 import { useGamification } from '../shared/hooks/useGamification.js';
 import { getFullProgressInfo, getRanks } from '../core/services/levelService.js';
+
+// ==========================================
+// TUTORIEL MODAL
+// ==========================================
+
+const TutorialModal = ({ onClose }) => {
+  const [step, setStep] = useState(0);
+
+  const steps = [
+    {
+      title: "🎮 Bienvenue dans l'Arbre de Compétences !",
+      content: "Ce système RPG vous permet de développer vos compétences professionnelles de manière ludique. Chaque action dans Synergia vous fait progresser !",
+      icon: "🌳"
+    },
+    {
+      title: "📊 Les 7 Branches de Compétences",
+      content: "Votre arbre comporte 7 branches : Relationnel, Technique, Communication, Organisation, Créativité, Pédagogie et Commercial. Chaque branche contient plusieurs skills à développer.",
+      icon: "🌿"
+    },
+    {
+      title: "⭐ Comment gagner de l'XP ?",
+      content: "Accomplissez des quêtes, participez aux défis d'équipe, connectez-vous quotidiennement... Chaque action vous rapporte de l'XP dans les compétences correspondantes !",
+      icon: "✨"
+    },
+    {
+      title: "🎯 Les Tiers de Progression",
+      content: "Chaque skill a 3 tiers (niveaux). En atteignant un tier, vous débloquez le choix d'un talent qui vous donne des bonus permanents !",
+      icon: "📈"
+    },
+    {
+      title: "🎁 Choisir vos Talents",
+      content: "Quand un skill atteint un nouveau tier, une notification apparaît. Cliquez sur le skill pour voir les talents disponibles et choisissez celui qui correspond à votre style !",
+      icon: "🏆"
+    },
+    {
+      title: "🚀 Les Rangs",
+      content: "En accumulant de l'XP, vous montez en niveau et débloquez des rangs (Apprenti → Initié → Aventurier...). Chaque rang donne des bonus d'XP et des avantages exclusifs !",
+      icon: "👑"
+    }
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-gradient-to-br from-slate-900 to-purple-900/50 rounded-2xl border border-white/20 p-5 sm:p-6 max-w-md w-full shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-3xl">{steps[step].icon}</span>
+            <span className="text-xs text-gray-400">Étape {step + 1}/{steps.length}</span>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Contenu */}
+        <h3 className="text-lg sm:text-xl font-bold text-white mb-3">{steps[step].title}</h3>
+        <p className="text-gray-300 text-sm leading-relaxed mb-6">{steps[step].content}</p>
+
+        {/* Indicateurs */}
+        <div className="flex justify-center gap-1.5 mb-4">
+          {steps.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setStep(i)}
+              className={`w-2 h-2 rounded-full transition-all ${i === step ? 'bg-purple-500 w-6' : 'bg-white/30'}`}
+            />
+          ))}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex gap-3">
+          {step > 0 && (
+            <button
+              onClick={() => setStep(step - 1)}
+              className="flex-1 py-2.5 bg-white/10 text-white rounded-xl font-medium hover:bg-white/20 transition-colors text-sm"
+            >
+              Précédent
+            </button>
+          )}
+          {step < steps.length - 1 ? (
+            <button
+              onClick={() => setStep(step + 1)}
+              className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-medium hover:from-purple-500 hover:to-pink-500 transition-colors text-sm"
+            >
+              Suivant
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-medium hover:from-emerald-500 hover:to-teal-500 transition-colors text-sm"
+            >
+              C'est compris ! 🎉
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ==========================================
+// VUE LISTE MOBILE-FRIENDLY
+// ==========================================
+
+const MobileSkillsView = ({ branchesData, onSkillClick, selectedSkill }) => {
+  const [expandedBranch, setExpandedBranch] = useState(null);
+
+  return (
+    <div className="space-y-3 px-4 pb-24">
+      {branchesData.map(({ branchId, branch, skills, config }) => {
+        const isExpanded = expandedBranch === branchId;
+        const totalXP = skills.reduce((sum, s) => sum + (s?.xp || 0), 0);
+        const totalTalents = skills.reduce((sum, s) => sum + (s?.talentsChosen || 0), 0);
+        const hasPending = skills.some(s => s?.pendingChoices > 0);
+
+        return (
+          <motion.div
+            key={branchId}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden"
+          >
+            {/* Header de branche */}
+            <button
+              onClick={() => setExpandedBranch(isExpanded ? null : branchId)}
+              className="w-full p-4 flex items-center gap-3 hover:bg-white/5 transition-colors"
+            >
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${config.gradient} flex items-center justify-center`}>
+                <span className="text-2xl">{branch.emoji}</span>
+              </div>
+              <div className="flex-1 text-left">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-white">{config.label}</h3>
+                  {hasPending && (
+                    <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded-full font-bold animate-pulse">
+                      NOUVEAU
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+                  <span>{totalXP} XP</span>
+                  <span>•</span>
+                  <span>{totalTalents}/{skills.length * 3} talents</span>
+                  <span>•</span>
+                  <span>{skills.length} skills</span>
+                </div>
+              </div>
+              <motion.div
+                animate={{ rotate: isExpanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              </motion.div>
+            </button>
+
+            {/* Liste des skills */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: 'auto' }}
+                  exit={{ height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 space-y-2">
+                    {skills.map((skill, idx) => {
+                      const hasPendingChoice = skill?.pendingChoices > 0;
+                      const tierLevel = skill?.level || 0;
+                      const progressPercent = skill?.progressToNext || 0;
+
+                      return (
+                        <motion.button
+                          key={skill?.id || idx}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          onClick={() => onSkillClick(skill)}
+                          className={`w-full p-3 rounded-xl border transition-all text-left ${
+                            hasPendingChoice
+                              ? 'bg-amber-500/20 border-amber-500/30'
+                              : selectedSkill?.id === skill?.id
+                                ? 'bg-purple-500/20 border-purple-500/30'
+                                : 'bg-white/5 border-white/10 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
+                              tierLevel >= 3 ? 'bg-purple-500/30' :
+                              tierLevel >= 2 ? 'bg-blue-500/30' :
+                              tierLevel >= 1 ? 'bg-emerald-500/30' : 'bg-white/10'
+                            }`}>
+                              {skill?.emoji || '⭐'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium text-white text-sm truncate">{skill?.name || 'Skill'}</h4>
+                                {hasPendingChoice && (
+                                  <Gift className="w-4 h-4 text-amber-400 animate-bounce flex-shrink-0" />
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      tierLevel >= 3 ? 'bg-purple-500' :
+                                      tierLevel >= 2 ? 'bg-blue-500' :
+                                      tierLevel >= 1 ? 'bg-emerald-500' : 'bg-gray-500'
+                                    }`}
+                                    style={{ width: `${progressPercent}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-gray-400">T{tierLevel}/3</span>
+                              </div>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+};
 
 // ==========================================
 // CONFIGURATION DES BRANCHES (positions radiales)
@@ -853,6 +1096,24 @@ const SkillTreePage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Nouveaux états pour mobile et tutoriel
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [viewMode, setViewMode] = useState('auto'); // 'auto', 'tree', 'list'
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Détecter la taille d'écran
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Déterminer la vue effective
+  const effectiveView = viewMode === 'auto' ? (isMobile ? 'list' : 'tree') : viewMode;
+
   // Centre du canvas
   const centerX = 450;
   const centerY = 450;
@@ -940,18 +1201,58 @@ const SkillTreePage = () => {
         {/* Header fixe */}
         <div className="relative z-20 px-4 py-4">
           <div className="max-w-7xl mx-auto">
-            {/* Titre */}
+            {/* Titre avec boutons d'action */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center mb-4"
+              className="flex items-center justify-between mb-4"
             >
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
-                Arbre de Compétences
-              </h1>
-              <p className="text-gray-400 text-sm">
-                Progressez via les quêtes et choisissez vos talents
-              </p>
+              <div className="flex-1">
+                <h1 className="text-xl sm:text-3xl font-bold text-white mb-0.5">
+                  Arbre de Compétences
+                </h1>
+                <p className="text-gray-400 text-xs sm:text-sm">
+                  Progressez via les quêtes et choisissez vos talents
+                </p>
+              </div>
+
+              {/* Boutons d'action */}
+              <div className="flex items-center gap-2">
+                {/* Toggle Vue */}
+                <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-lg transition-all ${
+                      effectiveView === 'list'
+                        ? 'bg-purple-600 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    }`}
+                    title="Vue liste"
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('tree')}
+                    className={`p-2 rounded-lg transition-all ${
+                      effectiveView === 'tree'
+                        ? 'bg-purple-600 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    }`}
+                    title="Vue arbre"
+                  >
+                    <Grid3X3 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Bouton Aide */}
+                <button
+                  onClick={() => setShowTutorial(true)}
+                  className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                  title="Comment ça marche ?"
+                >
+                  <HelpCircle className="h-5 w-5" />
+                </button>
+              </div>
             </motion.div>
 
             {/* Stats rapides */}
@@ -1034,7 +1335,17 @@ const SkillTreePage = () => {
           </div>
         </div>
 
-        {/* Canvas de l'arbre */}
+        {/* Vue Liste Mobile */}
+        {effectiveView === 'list' && (
+          <MobileSkillsView
+            branchesData={branchesData}
+            onSkillClick={setSelectedSkill}
+            selectedSkill={selectedSkill}
+          />
+        )}
+
+        {/* Canvas de l'arbre (Vue Desktop) */}
+        {effectiveView === 'tree' && (
         <div
           ref={containerRef}
           className="relative z-10 w-full flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
@@ -1171,6 +1482,7 @@ const SkillTreePage = () => {
             </div>
           </div>
         </div>
+        )}
 
         {/* Bonus actifs (footer) */}
         {Object.keys(activeBonus).length > 0 && (
@@ -1220,6 +1532,13 @@ const SkillTreePage = () => {
             talent={successModal}
             onClose={() => setSuccessModal(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Modal Tutoriel */}
+      <AnimatePresence>
+        {showTutorial && (
+          <TutorialModal onClose={() => setShowTutorial(false)} />
         )}
       </AnimatePresence>
     </Layout>
