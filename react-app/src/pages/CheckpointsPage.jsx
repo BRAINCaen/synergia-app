@@ -469,7 +469,7 @@ const CheckpointsPage = () => {
                 </motion.div>
                 <div>
                   <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-indigo-200 to-white bg-clip-text text-transparent">
-                    Checkpoint
+                    🎓 Académie
                   </h1>
                   <div className="flex items-center gap-2 text-gray-400 text-xs sm:text-sm mt-0.5">
                     <Calendar size={14} />

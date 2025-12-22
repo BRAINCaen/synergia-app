@@ -286,10 +286,10 @@ const InfosPage = () => {
                   </motion.div>
                   <div>
                     <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
-                      Informations Équipe
+                      📢 Le Crieur
                     </h1>
                     <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-                      Partagez des infos importantes
+                      Annonces et nouvelles de la guilde
                     </p>
                   </div>
                 </div>
