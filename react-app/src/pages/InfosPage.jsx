@@ -9,7 +9,8 @@ import {
   Info, Plus, Upload, X, Edit, Trash2, Check, AlertCircle,
   Loader, Send, CheckCircle, Eye, Bell, Users, ChevronDown, ChevronUp,
   // 💡 BOÎTE À IDÉES
-  Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, TrendingUp, Sparkles, XOctagon
+  Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, TrendingUp, Sparkles, XOctagon,
+  RefreshCw, Vote
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
@@ -20,7 +21,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 // 💡 SERVICE BOÎTE À IDÉES
-import { ideaService, IDEA_XP, IDEA_STATUS, IDEA_CATEGORIES } from '../core/services/ideaService.js';
+import { ideaService, IDEA_XP, IDEA_STATUS, IDEA_CATEGORIES, IDEA_THRESHOLDS } from '../core/services/ideaService.js';
 
 // 🏆 BADGES LIÉS AUX IDÉES
 import { UNIFIED_BADGE_DEFINITIONS, BADGE_CATEGORIES } from '../core/services/unifiedBadgeSystem.js';
@@ -163,6 +164,19 @@ const InfosPage = () => {
     try {
       await ideaService.rejectIdea(ideaId, user.uid, user.displayName, reason || '');
       alert('Idée rejetée');
+      loadIdeas();
+    } catch (error) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  // 💡 RELANCER LE VOTE (ADMIN)
+  const handleRelaunchVote = async (ideaId) => {
+    if (!window.confirm('Relancer le vote sur cette idée ? Les votes actuels seront réinitialisés.')) return;
+    const reason = prompt('Raison de la relance (optionnel):');
+    try {
+      const result = await ideaService.relaunchVote(ideaId, user.uid, user.displayName, reason || '');
+      alert(`✅ Vote relancé ! (précédemment ${result.previousVoteCount} votes)`);
       loadIdeas();
     } catch (error) {
       alert('Erreur: ' + error.message);
@@ -361,7 +375,10 @@ const InfosPage = () => {
                         <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 text-xs sm:text-sm text-gray-400">
                           <span>1. Soumettre</span>
                           <span>→</span>
-                          <span>2. Votes</span>
+                          <span className="flex items-center gap-1">
+                            2. <Vote className="w-3 h-3" /> Votes
+                            <span className="text-green-400 font-medium">({IDEA_THRESHOLDS.QUORUM} min)</span>
+                          </span>
                           <span>→</span>
                           <span>3. Review</span>
                           <span>→</span>
@@ -489,10 +506,20 @@ const InfosPage = () => {
 
                                 {/* Votes et Actions */}
                                 <div className="flex items-center gap-1.5 sm:gap-2">
-                                  {/* Compteur de votes */}
-                                  <div className="flex items-center gap-1 px-2 sm:px-3 py-1 bg-white/10 rounded-full">
-                                    <ThumbsUp className={`w-3 h-3 sm:w-4 sm:h-4 ${hasVoted ? 'text-yellow-400' : 'text-gray-400'}`} />
-                                    <span className="text-white font-medium text-xs sm:text-sm">{idea.voteCount || 0}</span>
+                                  {/* Compteur de votes avec indicateur de quorum */}
+                                  <div className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full ${
+                                    (idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM
+                                      ? 'bg-green-500/20 border border-green-500/30'
+                                      : 'bg-white/10'
+                                  }`}>
+                                    <Vote className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                                      (idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM ? 'text-green-400' : hasVoted ? 'text-yellow-400' : 'text-gray-400'
+                                    }`} />
+                                    <span className={`font-medium text-xs sm:text-sm ${
+                                      (idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM ? 'text-green-400' : 'text-white'
+                                    }`}>
+                                      {idea.voteCount || 0}/{IDEA_THRESHOLDS.QUORUM}
+                                    </span>
                                   </div>
 
                                   {/* Bouton voter */}
@@ -539,13 +566,21 @@ const InfosPage = () => {
                                   {/* Actions Admin */}
                                   {userIsAdmin && idea.status !== IDEA_STATUS.IMPLEMENTED && idea.status !== IDEA_STATUS.REJECTED && (
                                     <div className="flex gap-1">
+                                      {/* Bouton Adopter - désactivé si quorum non atteint */}
                                       {idea.status !== IDEA_STATUS.ADOPTED && (
                                         <motion.button
                                           onClick={() => handleAdoptIdea(idea.id)}
-                                          whileHover={{ scale: 1.1 }}
-                                          whileTap={{ scale: 0.9 }}
-                                          className="p-1.5 sm:p-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors"
-                                          title="Adopter cette idée"
+                                          whileHover={(idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM ? { scale: 1.1 } : {}}
+                                          whileTap={(idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM ? { scale: 0.9 } : {}}
+                                          disabled={(idea.voteCount || 0) < IDEA_THRESHOLDS.QUORUM}
+                                          className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+                                            (idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM
+                                              ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                                              : 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                                          }`}
+                                          title={(idea.voteCount || 0) >= IDEA_THRESHOLDS.QUORUM
+                                            ? 'Adopter cette idée'
+                                            : `Quorum non atteint (${idea.voteCount || 0}/${IDEA_THRESHOLDS.QUORUM} votes)`}
                                         >
                                           <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                         </motion.button>
@@ -561,6 +596,16 @@ const InfosPage = () => {
                                           <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                         </motion.button>
                                       )}
+                                      {/* Bouton Relancer le vote */}
+                                      <motion.button
+                                        onClick={() => handleRelaunchVote(idea.id)}
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        className="p-1.5 sm:p-2 bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30 transition-colors"
+                                        title="Relancer le vote (réinitialise les votes)"
+                                      >
+                                        <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      </motion.button>
                                       <motion.button
                                         onClick={() => handleRejectIdea(idea.id)}
                                         whileHover={{ scale: 1.1 }}
