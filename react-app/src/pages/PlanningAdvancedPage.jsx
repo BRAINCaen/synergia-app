@@ -2345,25 +2345,33 @@ const PlanningAdvancedPage = () => {
                                   </div>
                                 </motion.div>
                               ) : pendingLeave ? (
-                                /* ⏳ Affichage demande EN ATTENTE */
+                                /* ⏳ Affichage demande EN ATTENTE - visible par tous */
                                 <motion.div
                                   initial={{ opacity: 0, scale: 0.8 }}
                                   animate={{ opacity: 1, scale: 1 }}
+                                  whileHover={{ scale: 1.02 }}
                                   style={{
-                                    borderColor: LEAVE_TYPES[pendingLeave.leaveType]?.color || '#F59E0B'
+                                    borderColor: LEAVE_TYPES[pendingLeave.leaveType]?.color || '#F59E0B',
+                                    backgroundColor: `${LEAVE_TYPES[pendingLeave.leaveType]?.color}15` || 'rgba(245, 158, 11, 0.08)'
                                   }}
-                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] border-2 border-dashed bg-gray-700/20 relative"
+                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] border-2 border-dashed relative cursor-default"
+                                  title={`${pendingLeave.userName || 'Demande'} - ${LEAVE_TYPES[pendingLeave.leaveType]?.label || 'Congé'} en attente de validation`}
                                 >
+                                  {/* Badge En attente animé */}
                                   <div className="absolute top-1 right-1">
-                                    <span className="text-[8px] sm:text-[10px] bg-yellow-500/30 text-yellow-300 px-1.5 py-0.5 rounded-full">
-                                      En attente
-                                    </span>
+                                    <motion.span
+                                      animate={{ opacity: [0.7, 1, 0.7] }}
+                                      transition={{ duration: 2, repeat: Infinity }}
+                                      className="text-[8px] sm:text-[10px] bg-yellow-500/40 text-yellow-200 px-1.5 py-0.5 rounded-full font-medium border border-yellow-500/30"
+                                    >
+                                      ⏳ En attente
+                                    </motion.span>
                                   </div>
-                                  <div className="relative z-10 pt-3">
-                                    <div className="text-lg sm:text-xl text-center mb-1 opacity-70">
+                                  <div className="relative z-10 pt-4 sm:pt-3">
+                                    <div className="text-lg sm:text-xl text-center mb-1">
                                       {LEAVE_TYPES[pendingLeave.leaveType]?.emoji || '🏖️'}
                                     </div>
-                                    <div className="text-gray-300 text-[9px] sm:text-[10px] font-medium text-center">
+                                    <div className="text-gray-200 text-[9px] sm:text-[10px] font-medium text-center truncate">
                                       {LEAVE_TYPES[pendingLeave.leaveType]?.label || 'Congé'}
                                     </div>
                                     {pendingLeave.isHalfDay && (
