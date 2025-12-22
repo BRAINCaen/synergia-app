@@ -3476,6 +3476,12 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                               <span className="text-green-400 ml-2">✓ Détecté</span>
                             )}
                           </label>
+                          {/* Afficher le détail N-1 + N si disponible */}
+                          {scanResult.extractedData.cpN1 !== null && scanResult.extractedData.cpSolde !== null && (
+                            <div className="text-xs text-blue-300 mb-1 bg-blue-500/10 rounded px-2 py-1">
+                              📊 N-1: {scanResult.extractedData.cpN1}j + N: {(scanResult.extractedData.cpSolde - scanResult.extractedData.cpN1).toFixed(2)}j = <strong>{scanResult.extractedData.cpSolde}j total</strong>
+                            </div>
+                          )}
                           <input
                             type="number"
                             step="0.5"
