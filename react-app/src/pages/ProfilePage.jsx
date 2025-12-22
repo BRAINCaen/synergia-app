@@ -63,6 +63,10 @@ import { calculateLevel, getLevelProgress, getRankForLevel } from '../core/servi
 // 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
 
+// 📥 EXPORT REPORTS
+import ExportReportsPanel from '../components/exports/ExportReportsPanel.jsx';
+import useExportData from '../hooks/useExportData.js';
+
 // 📊 FIREBASE IMPORTS
 import { 
   doc, 
@@ -188,6 +192,9 @@ const BadgeCard = ({ badge }) => {
 const ProfilePage = () => {
   // 👤 AUTHENTIFICATION
   const { user, updateProfile } = useAuthStore();
+
+  // 📥 DONNÉES EXPORT
+  const { planningData, teamData, pointagesData, questsData } = useExportData();
   
   // 📊 ÉTATS PROFILE PAGE
   const [loading, setLoading] = useState(false);
@@ -1300,30 +1307,21 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET DONNÉES ========== */}
             {activeTab === 'data' && (
-              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
-                  <Database className="w-6 h-6 text-gray-400 mr-3" />
-                  Gestion des Données
-                </h3>
-                
-                <div className="space-y-4">
-                  <div className="p-4 bg-blue-900/20 border border-blue-500/50 rounded-xl">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Download className="w-5 h-5 text-blue-400" />
-                      <h4 className="text-white font-medium">Exporter mes données</h4>
-                    </div>
-                    <p className="text-gray-300 text-sm mb-4">
-                      Téléchargez toutes vos données personnelles au format JSON
-                    </p>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      Télécharger mes données
-                    </motion.button>
-                  </div>
+              <div className="space-y-6">
+                {/* 📥 Panneau Export Complet */}
+                <ExportReportsPanel
+                  planningData={planningData}
+                  teamData={teamData}
+                  pointagesData={pointagesData}
+                  questsData={questsData}
+                />
+
+                {/* Zone Danger */}
+                <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-white/10">
+                  <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+                    <Database className="w-5 h-5 text-gray-400 mr-3" />
+                    Gestion du Compte
+                  </h3>
 
                   <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-xl">
                     <div className="flex items-center gap-3 mb-3">
