@@ -314,12 +314,12 @@ const PersonalStatsPage = () => {
 
               <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-3xl sm:text-4xl font-bold text-white">
-                  {stats?.currentStreak || gamificationData?.loginStreak || 0}
+                  {Math.max(stats?.currentStreak || 0, gamificationData?.loginStreak || 0)}
                 </span>
                 <span className="text-lg sm:text-xl text-gray-500">
-                  jour{(stats?.currentStreak || 0) > 1 ? 's' : ''}
+                  jour{Math.max(stats?.currentStreak || 0, gamificationData?.loginStreak || 0) > 1 ? 's' : ''}
                 </span>
-                {(stats?.currentStreak || 0) >= 7 && (
+                {Math.max(stats?.currentStreak || 0, gamificationData?.loginStreak || 0) >= 7 && (
                   <motion.span
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}

@@ -105,7 +105,12 @@ const Dashboard = () => {
 
   const userRank = getUserRank();
   const topUsers = leaderboard.slice(0, 5);
-  const currentStreak = xpStats?.currentStreak || gamification.loginStreak || 0;
+  // Utiliser la valeur max entre xpStats (calculée) et gamification.loginStreak (trackée)
+  // pour éviter d'afficher 0 si une des sources manque de données
+  const currentStreak = Math.max(
+    xpStats?.currentStreak || 0,
+    gamification?.loginStreak || 0
+  );
 
   return (
     <Layout>
