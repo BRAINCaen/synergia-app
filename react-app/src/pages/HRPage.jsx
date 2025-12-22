@@ -69,7 +69,10 @@ import {
   Folder,
   FolderOpen,
   File,
-  FilePlus
+  FilePlus,
+  ScanLine,
+  FileSearch,
+  Loader2
 } from 'lucide-react';
 
 // 🎯 IMPORTS
@@ -94,6 +97,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import hrDocumentService, { DOCUMENT_TYPES } from '../core/services/hrDocumentService.js';
+import payslipReaderService from '../core/services/payslipReaderService.js';
 
 // 🎨 COMPOSANT CARTE GLASSMORPHISM
 const GlassCard = ({ children, className = "" }) => (
@@ -2424,6 +2428,15 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
   });
   const [uploading, setUploading] = useState(false);
 
+  // 📄 États pour le scan de bulletin de paie
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanFile, setScanFile] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState({ step: '', progress: 0, message: '' });
+  const [scanResult, setScanResult] = useState(null);
+  const [manualValues, setManualValues] = useState({ cpSolde: '', rtt: '' });
+  const [updatingBalance, setUpdatingBalance] = useState(false);
+
   // Charger les documents
   useEffect(() => {
     if (!currentUser?.uid) return;
@@ -2505,6 +2518,89 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
       console.error('Erreur upload:', error);
     } finally {
       setUploading(false);
+    }
+  };
+
+  // 📄 Ouvrir le modal de scan
+  const openScanModal = (employee) => {
+    setSelectedEmployee(employee);
+    setScanFile(null);
+    setScanResult(null);
+    setScanProgress({ step: '', progress: 0, message: '' });
+    setManualValues({ cpSolde: '', rtt: '' });
+    setShowScanModal(true);
+  };
+
+  // 📄 Gérer la sélection de fichier pour scan
+  const handleScanFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setScanFile(file);
+      setScanResult(null);
+    }
+  };
+
+  // 📄 Lancer le scan OCR
+  const handleScanPayslip = async () => {
+    if (!scanFile || !selectedEmployee) return;
+
+    setScanning(true);
+    setScanResult(null);
+
+    try {
+      const result = await payslipReaderService.processAndUpdateBalance(
+        scanFile,
+        selectedEmployee.id,
+        (progress) => setScanProgress(progress)
+      );
+
+      setScanResult(result);
+
+      // Pré-remplir les valeurs manuelles avec les valeurs détectées
+      if (result.extractedData) {
+        setManualValues({
+          cpSolde: result.extractedData.cpSolde?.toString() || '',
+          rtt: result.extractedData.rtt?.toString() || ''
+        });
+      }
+    } catch (error) {
+      console.error('Erreur scan:', error);
+      setScanResult({ success: false, error: error.message });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // 📄 Mettre à jour le solde de congés
+  const handleUpdateBalance = async () => {
+    if (!selectedEmployee) return;
+
+    setUpdatingBalance(true);
+
+    try {
+      const dataToUpdate = {
+        cpSolde: manualValues.cpSolde ? parseFloat(manualValues.cpSolde) : null,
+        rtt: manualValues.rtt ? parseFloat(manualValues.rtt) : null,
+        periode: scanResult?.extractedData?.periode || null
+      };
+
+      const result = await payslipReaderService.updateLeaveBalance(
+        selectedEmployee.id,
+        dataToUpdate,
+        { overwrite: true, source: 'payslip_scan' }
+      );
+
+      if (result.success) {
+        alert(`✅ Compteurs mis à jour pour ${selectedEmployee.name} !\n\nCP: ${dataToUpdate.cpSolde || 'non modifié'} jours\nRTT: ${dataToUpdate.rtt || 'non modifié'} jours`);
+        setShowScanModal(false);
+      } else {
+        alert('❌ Erreur: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Erreur mise à jour:', error);
+      alert('❌ Erreur lors de la mise à jour');
+    } finally {
+      setUpdatingBalance(false);
     }
   };
 
@@ -2687,14 +2783,23 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                     className="border-t border-white/10 overflow-hidden"
                   >
                     <div className="p-4 space-y-2">
-                      {/* Bouton ajouter document */}
-                      <button
-                        onClick={() => openUploadModal(employee)}
-                        className="w-full flex items-center gap-2 p-3 border-2 border-dashed border-white/20 hover:border-green-500/50 hover:bg-green-500/10 rounded-lg transition-all text-gray-400 hover:text-green-400"
-                      >
-                        <FilePlus className="w-4 h-4" />
-                        <span className="text-sm">Ajouter un document</span>
-                      </button>
+                      {/* Boutons d'action */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openUploadModal(employee)}
+                          className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-white/20 hover:border-green-500/50 hover:bg-green-500/10 rounded-lg transition-all text-gray-400 hover:text-green-400"
+                        >
+                          <FilePlus className="w-4 h-4" />
+                          <span className="text-sm">Ajouter</span>
+                        </button>
+                        <button
+                          onClick={() => openScanModal(employee)}
+                          className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-white/20 hover:border-blue-500/50 hover:bg-blue-500/10 rounded-lg transition-all text-gray-400 hover:text-blue-400"
+                        >
+                          <ScanLine className="w-4 h-4" />
+                          <span className="text-sm">Scanner bulletin</span>
+                        </button>
+                      </div>
 
                       {/* Sous-dossiers par type */}
                       {Object.keys(groupedDocs).length > 0 ? (
@@ -2968,6 +3073,272 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                   )}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Scan Bulletin de Paie */}
+      <AnimatePresence>
+        {showScanModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => !scanning && setShowScanModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <ScanLine className="w-5 h-5 text-blue-400" />
+                  Scanner un bulletin de paie
+                </h3>
+                <button
+                  onClick={() => !scanning && setShowScanModal(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  disabled={scanning}
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {selectedEmployee && (
+                <div className="bg-white/5 rounded-lg p-3 mb-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                    {selectedEmployee.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{selectedEmployee.name}</p>
+                    <p className="text-gray-500 text-sm">{selectedEmployee.position || 'Employé'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Info box */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <FileSearch className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="text-blue-300 font-medium mb-1">Extraction automatique</p>
+                    <p className="text-gray-400">
+                      L'OCR va analyser le bulletin pour extraire automatiquement le solde de congés payés (CP) et RTT.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Zone de sélection fichier */}
+              <div className="mb-4">
+                <label className="block text-gray-400 text-sm mb-2">Image du bulletin de paie</label>
+                <label className="block border-2 border-dashed border-white/20 hover:border-blue-500/50 rounded-xl p-6 text-center transition-colors cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScanFileSelect}
+                    className="hidden"
+                    disabled={scanning}
+                  />
+                  {scanFile ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <File className="w-8 h-8 text-blue-400" />
+                      <div className="text-left">
+                        <p className="text-white font-medium">{scanFile.name}</p>
+                        <p className="text-gray-500 text-xs">{(scanFile.size / 1024).toFixed(1)} Ko</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-400 text-sm">
+                        Cliquez pour sélectionner une image
+                      </p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        JPG, PNG, WEBP (photo ou scan)
+                      </p>
+                    </>
+                  )}
+                </label>
+              </div>
+
+              {/* Bouton scan */}
+              {!scanResult && (
+                <button
+                  onClick={handleScanPayslip}
+                  disabled={!scanFile || scanning}
+                  className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-4"
+                >
+                  {scanning ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {scanProgress.message || 'Analyse en cours...'}
+                    </>
+                  ) : (
+                    <>
+                      <ScanLine className="w-5 h-5" />
+                      Lancer le scan OCR
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Barre de progression */}
+              {scanning && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-400">{scanProgress.message}</span>
+                    <span className="text-blue-400">{scanProgress.progress}%</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-2">
+                    <motion.div
+                      className="bg-blue-500 h-2 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${scanProgress.progress}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Résultats du scan */}
+              {scanResult && (
+                <div className="space-y-4">
+                  {scanResult.success ? (
+                    <>
+                      {/* Score de confiance */}
+                      <div className={`p-3 rounded-xl ${
+                        scanResult.extractedData.confidence >= 60
+                          ? 'bg-green-500/10 border border-green-500/30'
+                          : scanResult.extractedData.confidence >= 30
+                            ? 'bg-yellow-500/10 border border-yellow-500/30'
+                            : 'bg-red-500/10 border border-red-500/30'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-300 text-sm">Confiance OCR</span>
+                          <span className={`font-bold ${
+                            scanResult.extractedData.confidence >= 60
+                              ? 'text-green-400'
+                              : scanResult.extractedData.confidence >= 30
+                                ? 'text-yellow-400'
+                                : 'text-red-400'
+                          }`}>
+                            {scanResult.extractedData.confidence}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Données extraites / Saisie manuelle */}
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">
+                            Congés payés disponibles (jours)
+                            {scanResult.extractedData.cpSolde !== null && (
+                              <span className="text-green-400 ml-2">✓ Détecté</span>
+                            )}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={manualValues.cpSolde}
+                            onChange={(e) => setManualValues({ ...manualValues, cpSolde: e.target.value })}
+                            placeholder="Ex: 25"
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">
+                            RTT disponibles (jours)
+                            {scanResult.extractedData.rtt !== null && (
+                              <span className="text-green-400 ml-2">✓ Détecté</span>
+                            )}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={manualValues.rtt}
+                            onChange={(e) => setManualValues({ ...manualValues, rtt: e.target.value })}
+                            placeholder="Ex: 10"
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                          />
+                        </div>
+
+                        {scanResult.extractedData.periode && (
+                          <div className="text-sm text-gray-400">
+                            Période détectée: <span className="text-white">{scanResult.extractedData.periode}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Recommandations */}
+                      {scanResult.recommendations?.length > 0 && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
+                          <p className="text-yellow-300 text-sm font-medium mb-1">Recommandations</p>
+                          {scanResult.recommendations.map((rec, idx) => (
+                            <p key={idx} className="text-gray-400 text-xs">{rec}</p>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Boutons d'action */}
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            setScanResult(null);
+                            setScanFile(null);
+                          }}
+                          className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+                        >
+                          Nouveau scan
+                        </button>
+                        <button
+                          onClick={handleUpdateBalance}
+                          disabled={(!manualValues.cpSolde && !manualValues.rtt) || updatingBalance}
+                          className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {updatingBalance ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                          Mettre à jour
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
+                      <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                      <p className="text-red-300 font-medium">Erreur lors du scan</p>
+                      <p className="text-gray-400 text-sm">{scanResult.error}</p>
+                      <button
+                        onClick={() => {
+                          setScanResult(null);
+                          setScanFile(null);
+                        }}
+                        className="mt-3 px-4 py-2 bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors"
+                      >
+                        Réessayer
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bouton fermer */}
+              {!scanning && !scanResult && (
+                <button
+                  onClick={() => setShowScanModal(false)}
+                  className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+                >
+                  Annuler
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}
