@@ -3370,11 +3370,11 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
 
               {/* Zone de sélection fichier */}
               <div className="mb-4">
-                <label className="block text-gray-400 text-sm mb-2">Image du bulletin de paie</label>
+                <label className="block text-gray-400 text-sm mb-2">Fichier du bulletin de paie</label>
                 <label className="block border-2 border-dashed border-white/20 hover:border-blue-500/50 rounded-xl p-6 text-center transition-colors cursor-pointer">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf,application/pdf"
                     onChange={handleScanFileSelect}
                     className="hidden"
                     disabled={scanning}
@@ -3391,10 +3391,10 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                     <>
                       <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                       <p className="text-gray-400 text-sm">
-                        Cliquez pour sélectionner une image
+                        Cliquez pour sélectionner un fichier
                       </p>
                       <p className="text-gray-500 text-xs mt-1">
-                        JPG, PNG, WEBP (photo ou scan)
+                        PDF, JPG, PNG, WEBP (scan ou photo)
                       </p>
                     </>
                   )}

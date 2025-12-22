@@ -5,8 +5,12 @@
 // ==========================================
 
 import Tesseract from 'tesseract.js';
+import * as pdfjsLib from 'pdfjs-dist';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
+
+// Configurer le worker PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 /**
  * 📊 PATTERNS DE RECHERCHE POUR BULLETINS DE PAIE FRANÇAIS
@@ -156,6 +160,111 @@ class PayslipReaderService {
     });
   }
 
+  /**
+   * Convertir un fichier en ArrayBuffer
+   */
+  fileToArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  // ==========================================
+  // 📄 CONVERSION PDF EN IMAGES
+  // ==========================================
+
+  /**
+   * Vérifier si le fichier est un PDF
+   */
+  isPDF(file) {
+    return file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+  }
+
+  /**
+   * Convertir un PDF en images (une par page)
+   * @param {File} file - Fichier PDF
+   * @param {number} scale - Échelle de rendu (2 = 2x résolution)
+   * @returns {Promise<string[]>} Array de data URLs des pages
+   */
+  async convertPDFToImages(file, scale = 2) {
+    try {
+      console.log('📄 Conversion PDF en images...');
+
+      // Charger le PDF
+      const arrayBuffer = await this.fileToArrayBuffer(file);
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      console.log(`📄 PDF chargé: ${pdf.numPages} page(s)`);
+
+      const images = [];
+
+      // Convertir chaque page en image
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        console.log(`📄 Rendu page ${pageNum}/${pdf.numPages}...`);
+
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+
+        // Créer un canvas pour le rendu
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        // Rendre la page sur le canvas
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+
+        // Convertir le canvas en image data URL
+        const imageDataUrl = canvas.toDataURL('image/png');
+        images.push(imageDataUrl);
+
+        // Nettoyer
+        page.cleanup();
+      }
+
+      console.log(`✅ PDF converti: ${images.length} image(s)`);
+      return images;
+
+    } catch (error) {
+      console.error('❌ Erreur conversion PDF:', error);
+      throw new Error(`Impossible de lire le PDF: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extraire le texte d'un PDF (toutes les pages)
+   * @param {File} file - Fichier PDF
+   * @returns {Promise<string>} Texte extrait de toutes les pages
+   */
+  async extractTextFromPDF(file) {
+    try {
+      console.log('📄 Extraction texte du PDF via OCR...');
+
+      // Convertir le PDF en images
+      const images = await this.convertPDFToImages(file);
+
+      // Extraire le texte de chaque image
+      let fullText = '';
+      for (let i = 0; i < images.length; i++) {
+        console.log(`📖 OCR page ${i + 1}/${images.length}...`);
+        const pageText = await this.extractTextFromImage(images[i]);
+        fullText += pageText + '\n\n--- Page suivante ---\n\n';
+      }
+
+      return fullText.trim();
+
+    } catch (error) {
+      console.error('❌ Erreur extraction texte PDF:', error);
+      throw error;
+    }
+  }
+
   // ==========================================
   // 🔍 PARSING DES DONNÉES
   // ==========================================
@@ -293,22 +402,56 @@ class PayslipReaderService {
 
       // Vérifier le type de fichier
       const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/tiff', 'application/pdf'];
-      if (!validTypes.includes(file.type)) {
+      if (!validTypes.includes(file.type) && !this.isPDF(file)) {
         throw new Error(`Type de fichier non supporté: ${file.type}. Utilisez JPG, PNG ou PDF.`);
       }
 
-      progressCallback({ step: 'ocr', progress: 10, message: 'Préparation OCR...' });
+      let text = '';
 
-      // Convertir en data URL si nécessaire
-      let imageData = file;
-      if (file instanceof File) {
-        imageData = await this.fileToDataURL(file);
+      // Traitement différent selon le type de fichier
+      if (this.isPDF(file)) {
+        // ==========================================
+        // 📄 TRAITEMENT PDF
+        // ==========================================
+        progressCallback({ step: 'pdf', progress: 10, message: 'Lecture du PDF...' });
+
+        // Convertir le PDF en images
+        const images = await this.convertPDFToImages(file, 2.5); // Scale 2.5 pour bonne qualité
+
+        progressCallback({ step: 'ocr', progress: 30, message: `OCR de ${images.length} page(s)...` });
+
+        // Extraire le texte de chaque page
+        for (let i = 0; i < images.length; i++) {
+          const pageProgress = 30 + (40 * (i + 1) / images.length);
+          progressCallback({
+            step: 'ocr',
+            progress: Math.round(pageProgress),
+            message: `OCR page ${i + 1}/${images.length}...`
+          });
+
+          const pageText = await this.extractTextFromImage(images[i]);
+          text += pageText + '\n\n';
+        }
+
+        console.log(`✅ PDF traité: ${images.length} page(s), ${text.length} caractères extraits`);
+
+      } else {
+        // ==========================================
+        // 🖼️ TRAITEMENT IMAGE
+        // ==========================================
+        progressCallback({ step: 'ocr', progress: 10, message: 'Préparation OCR...' });
+
+        // Convertir en data URL si nécessaire
+        let imageData = file;
+        if (file instanceof File) {
+          imageData = await this.fileToDataURL(file);
+        }
+
+        progressCallback({ step: 'ocr', progress: 20, message: 'Extraction du texte (OCR)...' });
+
+        // Extraire le texte
+        text = await this.extractTextFromImage(imageData);
       }
-
-      progressCallback({ step: 'ocr', progress: 20, message: 'Extraction du texte (OCR)...' });
-
-      // Extraire le texte
-      const text = await this.extractTextFromImage(imageData);
 
       progressCallback({ step: 'parsing', progress: 70, message: 'Analyse des données...' });
 
