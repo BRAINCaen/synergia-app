@@ -20,6 +20,7 @@ import { useTeamPool } from '../shared/hooks/useTeamPool.js';
 import { useTeamChallenges } from '../shared/hooks/useTeamChallenges.js';
 import { calculateLevel, getXPProgress, getRankForLevel } from '../core/services/levelService.js';
 import xpHistoryService from '../core/services/xpHistoryService.js';
+import { WhatsNewModal, WhatsNewButton } from '../components/updates';
 
 const Dashboard = () => {
   const { user } = useAuthStore();
@@ -36,6 +37,9 @@ const Dashboard = () => {
   // États pour les stats personnelles (Module 7)
   const [xpStats, setXpStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // État pour le modal "Quoi de neuf"
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
 
   // Hook pour la cagnotte d'équipe (Module 8)
   const { stats: poolStats, loading: poolLoading } = useTeamPool({
@@ -650,6 +654,16 @@ const Dashboard = () => {
             )}
           </motion.div>
 
+          {/* 🆕 WIDGET QUOI DE NEUF */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.58 }}
+            className="mb-4 sm:mb-6"
+          >
+            <WhatsNewButton onClick={() => setShowWhatsNew(true)} />
+          </motion.div>
+
           {/* BADGES */}
           {gamification.badges.length > 0 && (
             <motion.div
@@ -697,6 +711,12 @@ const Dashboard = () => {
 
         </div>
       </div>
+
+      {/* Modal Quoi de neuf */}
+      <WhatsNewModal
+        isOpen={showWhatsNew}
+        onClose={() => setShowWhatsNew(false)}
+      />
     </Layout>
   );
 };
