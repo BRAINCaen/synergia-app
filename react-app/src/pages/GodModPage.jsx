@@ -53,6 +53,7 @@ import {
   limit as firestoreLimit
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import { exportService } from '../core/services/exportService.js';
 
 /**
  * 🛡️ PAGE GODMOD - CONTRÔLE TOTAL
@@ -682,28 +683,27 @@ const GodModPage = () => {
   };
 
   /**
-   * 📥 EXPORTER L'HISTORIQUE
+   * 📥 EXPORTER L'HISTORIQUE EN PDF
    */
-  const exportHistory = () => {
-    const dataToExport = historyEvents.map(event => ({
-      date: event.timestamp?.toDate?.()?.toLocaleString() || new Date(event.timestamp).toLocaleString(),
-      category: event.category,
-      action: event.action,
-      user: event.user,
-      details: event.details,
-      status: event.status
-    }));
+  const exportHistory = async () => {
+    try {
+      const dataToExport = historyEvents.map(event => ({
+        timestamp: event.timestamp,
+        date: event.timestamp,
+        type: event.category || event.action || 'action',
+        userName: event.user || 'Système',
+        description: event.details || event.action || '-',
+        status: event.status
+      }));
 
-    const dataStr = JSON.stringify(dataToExport, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `synergia-historique-complet-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    
-    URL.revokeObjectURL(url);
+      await exportService.exportHistoryToPDF(dataToExport, {
+        title: 'Historique Complet GodMod',
+        userName: 'Admin'
+      });
+    } catch (error) {
+      console.error('❌ Erreur export PDF:', error);
+      alert('Erreur lors de l\'export PDF');
+    }
   };
 
   // 🚫 ACCÈS REFUSÉ

@@ -398,10 +398,10 @@ const TaskCard = ({
         {/* Actions secondaires si proprietaire */}
         {(isTaskOwner || isMyTask) && (onEdit || onDelete || onAbandon) && !isHistoryMode && (
           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
-            {onEdit && !canSubmit && !(canVolunteer && onVolunteer) && (
+            {onEdit && (isTaskOwner || (!canSubmit && !(canVolunteer && onVolunteer))) && (
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-gray-700/50 text-gray-300 rounded-lg text-xs hover:bg-gray-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-yellow-600/80 text-white rounded-lg text-xs hover:bg-yellow-600 transition-colors"
               >
                 <Edit className="w-3.5 h-3.5" />
                 <span>Modifier</span>

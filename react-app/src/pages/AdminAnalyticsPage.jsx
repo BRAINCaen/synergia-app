@@ -30,6 +30,9 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 // Service de niveau pour calculer le level depuis l'XP
 import { calculateLevel } from '../core/services/levelService.js';
 
+// Service d'export PDF
+import { exportService } from '../core/services/exportService.js';
+
 // Notifications
 const showNotification = (message, type = 'info') => {
   const notification = document.createElement('div');
@@ -506,76 +509,22 @@ const AdminAnalyticsPage = () => {
   };
 
   /**
-   * 📊 EXPORTER LES DONNÉES COMPLÈTES
+   * 📊 EXPORTER LES DONNÉES COMPLÈTES EN PDF
    */
-  const exportCompleteData = () => {
-    const dataToExport = {
-      generated: new Date().toISOString(),
-      timeframe,
-      analytics: {
-        users: {
-          summary: {
-            total: analytics.users.total,
-            active: analytics.users.active,
-            inactive: analytics.users.inactive,
-            newToday: analytics.users.newToday,
-            newThisWeek: analytics.users.newThisWeek,
-            newThisMonth: analytics.users.newThisMonth,
-            retention: analytics.users.retention
-          },
-          byRole: analytics.users.byRole,
-          topUsers: analytics.users.list.slice(0, 20)
-        },
-        tasks: {
-          summary: {
-            total: analytics.tasks.total,
-            completed: analytics.tasks.completed,
-            inProgress: analytics.tasks.inProgress,
-            pending: analytics.tasks.pending,
-            completionRate: analytics.tasks.completionRate,
-            averageXp: analytics.tasks.averageXp,
-            totalXpAwarded: analytics.tasks.totalXpAwarded
-          },
-          byUser: analytics.tasks.byUser.slice(0, 20),
-          byProject: analytics.tasks.byProject,
-          byPriority: analytics.tasks.byPriority,
-          byStatus: analytics.tasks.byStatus
-        },
-        badges: {
-          total: analytics.badges.total,
-          awarded: analytics.badges.awarded,
-          byRarity: analytics.badges.byRarity,
-          topBadges: analytics.badges.popular
-        },
-        projects: {
-          summary: {
-            total: analytics.projects.total,
-            active: analytics.projects.active,
-            completed: analytics.projects.completed,
-            completionRate: analytics.projects.completionRate
-          },
-          list: analytics.projects.list
-        },
-        gamification: {
-          totalXpSystem: analytics.gamification.totalXpSystem,
-          averageLevel: analytics.gamification.averageLevel,
-          topPerformers: analytics.gamification.topPerformers.slice(0, 10),
-          levelDistribution: analytics.gamification.levelDistribution
-        }
-      }
-    };
+  const exportCompleteData = async () => {
+    try {
+      showNotification('Génération du PDF en cours...', 'info');
 
-    const dataStr = JSON.stringify(dataToExport, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
+      await exportService.exportAnalyticsToPDF(analytics, {
+        title: 'Rapport Analytics Complet',
+        timeframe
+      });
 
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `synergia-analytics-complete-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-
-    URL.revokeObjectURL(url);
-    showNotification('Données complètes exportées avec succès', 'success');
+      showNotification('📄 PDF exporté avec succès !', 'success');
+    } catch (error) {
+      console.error('Erreur export PDF:', error);
+      showNotification('Erreur lors de l\'export PDF', 'error');
+    }
   };
 
   // Charger les données au montage
@@ -645,7 +594,7 @@ const AdminAnalyticsPage = () => {
                   className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-xl transition-all duration-200 shadow-lg"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Exporter Tout</span>
+                  <span>Export PDF</span>
                 </button>
               </div>
             </div>
