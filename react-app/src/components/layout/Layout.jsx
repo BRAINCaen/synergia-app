@@ -30,12 +30,11 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/dashboard', label: 'Mon Aventure', icon: '🚀' },
       { path: '/infos', label: 'Le Crieur', icon: '📢' },
       { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
-      { path: '/projects', label: 'Campagnes', icon: '🎯' }
+      { path: '/projects', label: 'Conquêtes', icon: '👑' }
     ]},
     { section: 'GAMIFICATION', items: [
       { path: '/badges', label: 'Badges', icon: '🏆' },
       { path: '/skills', label: 'Competences', icon: '🌳' },
-      { path: '/challenges', label: 'Defis Equipe', icon: '🎯' },
       { path: '/rewards', label: 'Recompenses', icon: '🎁' },
       { path: '/customization', label: 'Personnalisation', icon: '🎨' }
     ]},
