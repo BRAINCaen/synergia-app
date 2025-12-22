@@ -759,15 +759,15 @@ const AdminSettingsPage = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-6"
+        className="space-y-4 sm:space-y-6"
       >
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <div className="flex items-center space-x-3 mb-6">
-            <SectionIcon className="w-6 h-6 text-blue-400" />
-            <h3 className="text-xl font-semibold text-white">{config.title}</h3>
+        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+          <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+            <SectionIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+            <h3 className="text-lg sm:text-xl font-semibold text-white">{config.title}</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {config.fields.map((field, index) => {
               const value = sectionData[field.key];
 
@@ -861,50 +861,52 @@ const AdminSettingsPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
 
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-4">
-                <Settings className="w-10 h-10 text-blue-400" />
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <Settings className="w-7 h-7 sm:w-10 sm:h-10 text-blue-400" />
                 <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                    Paramètres Système
+                  <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    <span className="hidden sm:inline">Paramètres Système</span>
+                    <span className="sm:hidden">Paramètres</span>
                   </h1>
-                  <p className="text-gray-400 mt-2">
-                    Configuration et administration du système • v{settings.app.version}
+                  <p className="text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base">
+                    <span className="hidden sm:inline">Configuration et administration du système • v{settings.app.version}</span>
+                    <span className="sm:hidden">v{settings.app.version}</span>
                   </p>
                 </div>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-2 sm:space-x-3">
                 <button
                   onClick={loadSettings}
                   disabled={loading}
-                  className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  <span>Actualiser</span>
+                  <span className="hidden sm:inline">Actualiser</span>
                 </button>
 
                 <button
                   onClick={exportConfig}
-                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Exporter</span>
+                  <span className="hidden sm:inline">Exporter</span>
                 </button>
 
                 {pendingChanges && (
                   <button
                     onClick={() => saveSettings()}
                     disabled={saving}
-                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                   >
                     <Save className={`w-4 h-4 ${saving ? 'animate-pulse' : ''}`} />
-                    <span>{saving ? 'Sauvegarde...' : 'Sauvegarder'}</span>
+                    <span className="hidden sm:inline">{saving ? 'Sauvegarde...' : 'Sauvegarder'}</span>
                   </button>
                 )}
               </div>
@@ -927,22 +929,22 @@ const AdminSettingsPage = () => {
           </div>
 
           {/* Onglets en grille */}
-          <div className="mb-8">
-            <div className="grid grid-cols-4 md:grid-cols-8 gap-2 bg-gray-800 p-2 rounded-lg">
+          <div className="mb-6 sm:mb-8">
+            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-1 sm:gap-2 bg-gray-800 p-1.5 sm:p-2 rounded-lg overflow-x-auto">
               {tabs.map(tab => {
                 const TabIcon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex flex-col items-center justify-center py-3 px-2 rounded-md transition-colors ${
+                    className={`flex flex-col items-center justify-center py-2 sm:py-3 px-1 sm:px-2 rounded-md transition-colors ${
                       activeTab === tab.id
                         ? 'bg-blue-600 text-white'
                         : 'text-gray-400 hover:text-white hover:bg-gray-700'
                     }`}
                   >
-                    <TabIcon className="w-5 h-5 mb-1" />
-                    <span className="text-xs">{tab.label}</span>
+                    <TabIcon className="w-4 h-4 sm:w-5 sm:h-5 mb-0.5 sm:mb-1" />
+                    <span className="text-[10px] sm:text-xs truncate max-w-full">{tab.label}</span>
                   </button>
                 );
               })}
@@ -956,41 +958,41 @@ const AdminSettingsPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gray-800 rounded-lg p-6 border border-gray-700 mt-6"
+            className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700 mt-4 sm:mt-6"
           >
-            <h3 className="text-xl font-semibold text-white mb-6">Actions système</h3>
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Actions système</h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <button
                 onClick={resetPermissions}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-colors"
+                className="flex items-center space-x-2 sm:space-x-3 bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-lg transition-colors"
               >
-                <Key className="w-5 h-5" />
+                <Key className="w-5 h-5 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="font-medium">Réinitialiser permissions</div>
-                  <div className="text-xs opacity-75">Restaurer les permissions par défaut</div>
+                  <div className="font-medium text-sm sm:text-base">Réinitialiser permissions</div>
+                  <div className="text-xs opacity-75 hidden sm:block">Restaurer les permissions par défaut</div>
                 </div>
               </button>
 
               <button
                 onClick={cleanupDatabase}
-                className="flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 text-white p-4 rounded-lg transition-colors"
+                className="flex items-center space-x-2 sm:space-x-3 bg-orange-600 hover:bg-orange-700 text-white p-3 sm:p-4 rounded-lg transition-colors"
               >
-                <Database className="w-5 h-5" />
+                <Database className="w-5 h-5 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="font-medium">Nettoyer BDD</div>
-                  <div className="text-xs opacity-75">Supprimer données obsolètes</div>
+                  <div className="font-medium text-sm sm:text-base">Nettoyer BDD</div>
+                  <div className="text-xs opacity-75 hidden sm:block">Supprimer données obsolètes</div>
                 </div>
               </button>
 
               <button
                 onClick={() => setShowConfirmModal(true)}
-                className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white p-4 rounded-lg transition-colors"
+                className="flex items-center space-x-2 sm:space-x-3 bg-red-600 hover:bg-red-700 text-white p-3 sm:p-4 rounded-lg transition-colors sm:col-span-2 lg:col-span-1"
               >
-                <AlertTriangle className="w-5 h-5" />
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                 <div className="text-left">
-                  <div className="font-medium">Reset système</div>
-                  <div className="text-xs opacity-75">Réinitialisation complète</div>
+                  <div className="font-medium text-sm sm:text-base">Reset système</div>
+                  <div className="text-xs opacity-75 hidden sm:block">Réinitialisation complète</div>
                 </div>
               </button>
             </div>
@@ -1000,70 +1002,70 @@ const AdminSettingsPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gray-800 rounded-lg p-6 border border-gray-700 mt-6"
+            className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700 mt-4 sm:mt-6"
           >
-            <h3 className="text-xl font-semibold text-white mb-6">Informations système</h3>
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Informations système</h3>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Server className="w-5 h-5 text-blue-400" />
-                  <span className="text-gray-300 text-sm">Version</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+              <div className="bg-gray-700 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Server className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                  <span className="text-gray-300 text-xs sm:text-sm">Version</span>
                 </div>
-                <div className="text-white font-bold">{settings.app.version}</div>
+                <div className="text-white font-bold text-sm sm:text-base">{settings.app.version}</div>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Users className="w-5 h-5 text-green-400" />
-                  <span className="text-gray-300 text-sm">Limite users</span>
+              <div className="bg-gray-700 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                  <span className="text-gray-300 text-xs sm:text-sm">Limite</span>
                 </div>
-                <div className="text-white font-bold">{settings.app.maxUsers}</div>
+                <div className="text-white font-bold text-sm sm:text-base">{settings.app.maxUsers}</div>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Clock className="w-5 h-5 text-yellow-400" />
-                  <span className="text-gray-300 text-sm">Session</span>
+              <div className="bg-gray-700 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                  <span className="text-gray-300 text-xs sm:text-sm">Session</span>
                 </div>
-                <div className="text-white font-bold">{Math.floor(settings.app.sessionTimeout / 60)}min</div>
+                <div className="text-white font-bold text-sm sm:text-base">{Math.floor(settings.app.sessionTimeout / 60)}min</div>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                  <span className="text-gray-300 text-sm">Modules</span>
+              <div className="bg-gray-700 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                  <span className="text-gray-300 text-xs sm:text-sm">Modules</span>
                 </div>
-                <div className="text-white font-bold">{Object.keys(settings).length}</div>
+                <div className="text-white font-bold text-sm sm:text-base">{Object.keys(settings).length}</div>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Star className="w-5 h-5 text-orange-400" />
-                  <span className="text-gray-300 text-sm">XP Multi</span>
+              <div className="bg-gray-700 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Star className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
+                  <span className="text-gray-300 text-xs sm:text-sm">XP Multi</span>
                 </div>
-                <div className="text-white font-bold">x{settings.gamification.xpMultiplier}</div>
+                <div className="text-white font-bold text-sm sm:text-base">x{settings.gamification.xpMultiplier}</div>
               </div>
 
-              <div className="bg-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Shield className="w-5 h-5 text-red-400" />
-                  <span className="text-gray-300 text-sm">Sécurité</span>
+              <div className="bg-gray-700 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                  <span className="text-gray-300 text-xs sm:text-sm">Sécurité</span>
                 </div>
-                <div className="text-white font-bold">
+                <div className="text-white font-bold text-sm sm:text-base">
                   {settings.security.sessionSecure ? 'Active' : 'Off'}
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 p-4 bg-green-600/20 border border-green-600/50 rounded-lg">
-              <div className="flex items-start space-x-3">
-                <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-green-600/20 border border-green-600/50 rounded-lg">
+              <div className="flex items-start space-x-2 sm:space-x-3">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-green-300 font-medium">Système opérationnel</h4>
-                  <p className="text-green-200 text-sm">
-                    Synergia v{settings.app.version} • {Object.keys(settings).length} modules configurés •
-                    Dernière vérification: {new Date().toLocaleString('fr-FR')}
+                  <h4 className="text-green-300 font-medium text-sm sm:text-base">Système opérationnel</h4>
+                  <p className="text-green-200 text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Synergia v{settings.app.version} • {Object.keys(settings).length} modules configurés • Dernière vérification: {new Date().toLocaleString('fr-FR')}</span>
+                    <span className="sm:hidden">v{settings.app.version} • {Object.keys(settings).length} modules</span>
                   </p>
                 </div>
               </div>
@@ -1078,45 +1080,45 @@ const AdminSettingsPage = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700"
+                className="bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md border border-gray-700"
               >
-                <div className="flex items-center space-x-3 mb-4">
-                  <AlertTriangle className="w-8 h-8 text-red-400" />
-                  <h3 className="text-xl font-semibold text-white">
+                <div className="flex items-center space-x-2 sm:space-x-3 mb-4">
+                  <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-400" />
+                  <h3 className="text-lg sm:text-xl font-semibold text-white">
                     Réinitialisation système
                   </h3>
                 </div>
 
-                <div className="mb-6">
-                  <p className="text-gray-300 mb-4">
+                <div className="mb-4 sm:mb-6">
+                  <p className="text-gray-300 mb-3 sm:mb-4 text-sm sm:text-base">
                     Cette action va réinitialiser tous les paramètres à leurs valeurs par défaut.
                   </p>
-                  <p className="text-red-400 text-sm font-medium">
+                  <p className="text-red-400 text-xs sm:text-sm font-medium">
                     Cette action est irréversible !
                   </p>
                 </div>
 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:space-x-3">
                   <button
                     onClick={() => {
                       loadSettings();
                       setShowConfirmModal(false);
                       showNotification('Système réinitialisé avec succès', 'success');
                     }}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors font-medium"
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors font-medium text-sm sm:text-base"
                   >
                     Confirmer
                   </button>
 
                   <button
                     onClick={() => setShowConfirmModal(false)}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-colors font-medium"
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-colors font-medium text-sm sm:text-base"
                   >
                     Annuler
                   </button>
@@ -1131,27 +1133,27 @@ const AdminSettingsPage = () => {
           <motion.div
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
-            className="fixed bottom-4 right-4 z-40"
+            className="fixed bottom-16 sm:bottom-4 right-2 sm:right-4 z-40"
           >
-            <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+            <div className="bg-yellow-600 text-white px-3 sm:px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
               <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm">Modifications non sauvegardées</span>
+              <span className="text-xs sm:text-sm hidden sm:inline">Modifications non sauvegardées</span>
               <button
                 onClick={() => saveSettings()}
                 disabled={saving}
-                className="ml-2 bg-yellow-700 hover:bg-yellow-800 px-2 py-1 rounded text-xs transition-colors disabled:opacity-50"
+                className="ml-1 sm:ml-2 bg-yellow-700 hover:bg-yellow-800 px-2 py-1 rounded text-xs transition-colors disabled:opacity-50"
               >
-                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                {saving ? '...' : 'Sauver'}
               </button>
             </div>
           </motion.div>
         )}
 
-        {/* Indicateur de statut système */}
+        {/* Indicateur de statut système - Caché sur mobile */}
         <motion.div
           initial={{ opacity: 0, y: 100 }}
           animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 left-4 z-40"
+          className="fixed bottom-4 left-4 z-40 hidden sm:block"
         >
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-lg">
             <div className="flex items-center space-x-2">
