@@ -895,59 +895,6 @@ const BadgeuseSection = ({ user }) => {
         </motion.div>
       )}
 
-      {/* Historique recent */}
-      {pointages.filter(p => p.status !== 'deleted').length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10"
-        >
-          <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4">
-            <Calendar className="w-4 h-4 text-purple-400" />
-            Historique
-          </h3>
-
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {pointages
-              .filter(p => p.status !== 'deleted')
-              .slice(0, 10)
-              .map((pointage) => (
-                <div
-                  key={pointage.id}
-                  className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${pointage.type === 'arrival' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                      {pointage.type === 'arrival' ? (
-                        <LogIn className="w-4 h-4 text-green-400" />
-                      ) : (
-                        <LogOut className="w-4 h-4 text-red-400" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">
-                        {pointage.type === 'arrival' ? 'Arrivee' : 'Depart'}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {pointage.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-white">{formatHour(pointage.timestamp)}</span>
-                    <button
-                      onClick={() => deletePointage(pointage.id)}
-                      className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
-                    >
-                      <X className="w-4 h-4 text-red-400" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 };
@@ -1118,7 +1065,7 @@ const PulsePage = () => {
                   <Clock className="w-4 h-4" />
                   Badgeuse
                 </h4>
-                <ul className="space-y-1.5 text-xs text-blue-200/70">
+                <ul className="space-y-1.5 text-xs text-blue-200/70 mb-3">
                   <li className="flex items-start gap-2">
                     <Check className="w-3 h-3 text-blue-400 mt-0.5 flex-shrink-0" />
                     <span>Pointez vos arrivees et departs</span>
@@ -1132,6 +1079,13 @@ const PulsePage = () => {
                     <span>Synchronise en temps reel avec Firebase</span>
                   </li>
                 </ul>
+                <a
+                  href="/hr"
+                  className="flex items-center justify-center gap-2 w-full py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg text-blue-300 text-xs font-medium transition-colors"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  Voir historique complet (RH)
+                </a>
               </div>
             </div>
           </div>
