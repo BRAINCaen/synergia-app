@@ -50,6 +50,9 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/hr', label: 'RH', icon: '🏢' },
       { path: '/planning', label: 'Planning', icon: '📅' }
     ]},
+    { section: 'AIDE', items: [
+      { path: '/tutorial', label: 'Guide & Tutoriel', icon: '📚' }
+    ]},
     { section: 'ADMIN', items: [
       { path: '/admin/analytics', label: 'Analytics', icon: '📊' },
       { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
