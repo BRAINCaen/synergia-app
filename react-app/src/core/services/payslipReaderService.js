@@ -404,13 +404,22 @@ class PayslipReaderService {
    */
   parsePayslipData(text) {
     console.log('🔍 Analyse du bulletin de paie...');
+    console.log('📄 Texte brut (800 premiers caractères):', text.substring(0, 800));
 
-    // Nettoyer le texte
+    // Nettoyer le texte - version avec espaces
     const cleanText = text
       .replace(/\n+/g, ' ')
       .replace(/\s+/g, ' ')
       .replace(/[|]/g, ' ')
       .trim();
+
+    // Version avec sauts de ligne préservés (pour tableaux)
+    const textWithLines = text
+      .replace(/[|]/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .trim();
+
+    console.log('📄 Texte nettoyé (500 car.):', cleanText.substring(0, 500));
 
     const result = {
       cpAcquis: null,      // Congés acquis (période en cours)
@@ -423,8 +432,125 @@ class PayslipReaderService {
       confidence: 0        // Score de confiance
     };
 
-    // Rechercher chaque type de donnée
+    // ==========================================
+    // 🔍 DÉTECTION SPÉCIALE : FORMAT TABLEAU CONGES PAYES
+    // Format: "CONGES PAYES N-1 N Acquis X Y Pris X Y Solde X Y"
+    // ==========================================
+
+    // Chercher d'abord si on a une section "CONGES PAYES" avec tableau N-1/N
+    const hasCongesTable = /CONG[EÉ]S\s*PAY[EÉ]S/i.test(cleanText) && /N-1/i.test(cleanText);
+    console.log('📊 Section CONGES PAYES avec N-1 détectée:', hasCongesTable);
+
+    // Patterns pour détecter le tableau avec colonnes N-1 et N
+    const tablePatterns = [
+      // Format: Solde suivi de deux nombres (N-1 et N) - espaces ou tabs
+      /Solde\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
+      // Format avec virgule comme séparateur décimal et différents espaces
+      /Solde[\s\n]+(\d+[.,]\d+)[\s\n]+(\d+[.,]\d+)/i,
+      // Format: deux nombres après "Solde" avec texte entre
+      /Solde[^\d]*(\d+[.,]\d+)[^\d]+(\d+[.,]\d+)/i,
+    ];
+
+    // Chercher le pattern de tableau dans les deux versions du texte
+    const textsToSearch = [cleanText, textWithLines];
+
+    for (const searchText of textsToSearch) {
+      if (result.cpSolde !== null) break; // Déjà trouvé
+
+      for (const pattern of tablePatterns) {
+        const match = searchText.match(pattern);
+        if (match && match[1] && match[2]) {
+          const val1 = parseFloat(match[1].replace(',', '.'));
+          const val2 = parseFloat(match[2].replace(',', '.'));
+
+          // Si on a trouvé deux valeurs valides
+          if (!isNaN(val1) && !isNaN(val2) && val1 >= 0 && val2 >= 0) {
+            // Déterminer quel est N-1 et quel est N
+            // Dans le format standard, N-1 vient avant N
+            const soldeN1 = val1;
+            const soldeN = val2;
+
+            result.cpN1 = soldeN1;
+            result.cpSolde = soldeN1 + soldeN; // TOTAL = N-1 + N
+            result.rawMatches.push({
+              type: 'tableau_cp',
+              pattern: pattern.toString(),
+              match: match[0],
+              soldeN1: soldeN1,
+              soldeN: soldeN,
+              total: result.cpSolde
+            });
+            console.log(`✅ Tableau CP détecté: N-1=${soldeN1}, N=${soldeN}, Total=${result.cpSolde}`);
+            break;
+          }
+        }
+      }
+    }
+
+    // Si pas trouvé avec les patterns génériques, chercher spécifiquement
+    // Format: extraire tous les nombres après "Solde" dans la section CP
+    if (result.cpSolde === null && hasCongesTable) {
+      // Chercher la ligne Solde et extraire les deux derniers nombres
+      const soldeLineMatch = cleanText.match(/Solde[^A-Za-z]*?([\d.,]+)[^A-Za-z]*([\d.,]+)/i);
+      if (soldeLineMatch) {
+        const val1 = parseFloat(soldeLineMatch[1].replace(',', '.'));
+        const val2 = parseFloat(soldeLineMatch[2].replace(',', '.'));
+
+        if (!isNaN(val1) && !isNaN(val2)) {
+          result.cpN1 = val1;
+          result.cpSolde = val1 + val2;
+          result.rawMatches.push({
+            type: 'tableau_cp_fallback',
+            match: soldeLineMatch[0],
+            soldeN1: val1,
+            soldeN: val2,
+            total: result.cpSolde
+          });
+          console.log(`✅ Tableau CP (fallback): N-1=${val1}, N=${val2}, Total=${result.cpSolde}`);
+        }
+      }
+    }
+
+    // Pattern pour Acquis dans tableau
+    const acquisTablePatterns = [
+      /Acquis\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
+      /Acquis[^\d]*(\d+[.,]\d+)[^\d]+(\d+[.,]\d+)/i
+    ];
+    for (const pattern of acquisTablePatterns) {
+      const acquisMatch = cleanText.match(pattern);
+      if (acquisMatch) {
+        result.cpAcquis = parseFloat(acquisMatch[2].replace(',', '.')); // Colonne N
+        result.rawMatches.push({
+          type: 'acquis_tableau',
+          n1: parseFloat(acquisMatch[1].replace(',', '.')),
+          n: result.cpAcquis
+        });
+        break;
+      }
+    }
+
+    // Pattern pour Pris dans tableau
+    const prisTablePatterns = [
+      /Pris\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
+      /Pris[^\d]*(\d+[.,]\d+)/i
+    ];
+    for (const pattern of prisTablePatterns) {
+      const prisMatch = cleanText.match(pattern);
+      if (prisMatch) {
+        result.cpPris = parseFloat(prisMatch[1].replace(',', '.'));
+        break;
+      }
+    }
+
+    // ==========================================
+    // 🔍 DÉTECTION STANDARD (si pas trouvé dans tableau)
+    // ==========================================
+
+    // Rechercher chaque type de donnée avec les patterns standards
     for (const [key, patterns] of Object.entries(PAYSLIP_PATTERNS)) {
+      // Ne pas écraser si déjà trouvé via le tableau
+      if (result[key] !== null && key !== 'periode') continue;
+
       for (const pattern of patterns) {
         const match = cleanText.match(pattern);
         if (match && match[1]) {
@@ -452,14 +578,14 @@ class PayslipReaderService {
 
     // Calculer le score de confiance
     let foundFields = 0;
-    if (result.cpSolde !== null) foundFields += 2; // Champ principal
+    if (result.cpSolde !== null) foundFields += 3; // Champ principal (plus important)
     if (result.cpAcquis !== null) foundFields += 1;
-    if (result.cpN1 !== null) foundFields += 1;
+    if (result.cpN1 !== null) foundFields += 2; // Important pour le calcul total
     if (result.cpPris !== null) foundFields += 1;
     if (result.rtt !== null) foundFields += 1;
     if (result.periode !== null) foundFields += 1;
 
-    result.confidence = Math.min(100, Math.round((foundFields / 7) * 100));
+    result.confidence = Math.min(100, Math.round((foundFields / 9) * 100));
 
     // Si on n'a pas de solde mais on a acquis et pris, calculer
     if (result.cpSolde === null && result.cpAcquis !== null) {
