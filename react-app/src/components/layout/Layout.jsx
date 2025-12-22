@@ -407,126 +407,125 @@ const Layout = memo(({ children }) => {
         transition: 'background 0.3s ease'
       }}>
       
-      {/* 🔒 BOUTON HAMBURGER PREMIUM */}
+      {/* 🔒 BOUTON HAMBURGER PREMIUM - Responsive */}
       <button
         onClick={openMenu}
+        className="layout-menu-btn"
         style={{
           position: 'fixed',
-          top: '24px',
-          left: '24px',
+          top: '12px',
+          left: '12px',
           zIndex: 999998,
-          width: '64px',
-          height: '64px',
+          width: '48px',
+          height: '48px',
           background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
           border: 'none',
-          borderRadius: '20px',
+          borderRadius: '14px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          boxShadow: '0 20px 40px -10px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 10px 25px -8px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           backdropFilter: 'blur(10px)'
         }}
         onMouseEnter={(e) => {
           e.target.style.transform = 'scale(1.05) translateY(-2px)';
           e.target.style.background = 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)';
-          e.target.style.boxShadow = '0 25px 50px -10px rgba(59, 130, 246, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2)';
         }}
         onMouseLeave={(e) => {
           e.target.style.transform = 'scale(1) translateY(0)';
           e.target.style.background = 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)';
-          e.target.style.boxShadow = '0 20px 40px -10px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)';
         }}
       >
-        <Menu style={{ width: '28px', height: '28px', color: 'white' }} />
+        <Menu style={{ width: '22px', height: '22px', color: 'white' }} />
       </button>
 
-      {/* 🎨 MODULE 16: BOUTON THEME */}
+      {/* 🎨 MODULE 16: BOUTON THEME - Responsive */}
       <button
         onClick={toggleTheme}
+        className="layout-theme-btn"
         style={{
           position: 'fixed',
-          top: '24px',
-          right: '92px',
+          top: '12px',
+          right: '68px',
           zIndex: 999998,
-          width: '56px',
-          height: '56px',
+          width: '44px',
+          height: '44px',
           background: isDark
             ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
             : 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
           border: 'none',
-          borderRadius: '16px',
+          borderRadius: '12px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           boxShadow: isDark
-            ? '0 15px 30px -8px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)'
-            : '0 15px 30px -8px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            ? '0 10px 20px -6px rgba(99, 102, 241, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+            : '0 10px 20px -6px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           backdropFilter: 'blur(10px)'
         }}
         title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
       >
         {isDark ? (
-          <Moon style={{ width: '24px', height: '24px', color: '#fcd34d' }} />
+          <Moon style={{ width: '20px', height: '20px', color: '#fcd34d' }} />
         ) : (
-          <Sun style={{ width: '24px', height: '24px', color: 'white' }} />
+          <Sun style={{ width: '20px', height: '20px', color: 'white' }} />
         )}
       </button>
 
-      {/* 🔔 BOUTON NOTIFICATIONS */}
+      {/* 🔔 BOUTON NOTIFICATIONS - Responsive */}
       <button
         onClick={() => setNotifOpen(true)}
+        className="layout-notif-btn"
         style={{
           position: 'fixed',
-          top: '24px',
-          right: '24px',
+          top: '12px',
+          right: '12px',
           zIndex: 999998,
-          width: '56px',
-          height: '56px',
+          width: '44px',
+          height: '44px',
           background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
           border: 'none',
-          borderRadius: '16px',
+          borderRadius: '12px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          boxShadow: '0 15px 30px -8px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 10px 20px -6px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           backdropFilter: 'blur(10px)'
         }}
         onMouseEnter={(e) => {
           e.target.style.transform = 'scale(1.05) translateY(-2px)';
-          e.target.style.boxShadow = '0 20px 40px -8px rgba(245, 158, 11, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2)';
         }}
         onMouseLeave={(e) => {
           e.target.style.transform = 'scale(1) translateY(0)';
-          e.target.style.boxShadow = '0 15px 30px -8px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)';
         }}
       >
-        <Bell style={{ width: '24px', height: '24px', color: 'white' }} />
-        
+        <Bell style={{ width: '20px', height: '20px', color: 'white' }} />
+
         {/* Badge compteur */}
         {unreadCount > 0 && (
           <div
             style={{
               position: 'absolute',
-              top: '-6px',
-              right: '-6px',
-              minWidth: '22px',
-              height: '22px',
+              top: '-4px',
+              right: '-4px',
+              minWidth: '18px',
+              height: '18px',
               background: '#ef4444',
-              borderRadius: '11px',
+              borderRadius: '9px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '12px',
+              fontSize: '10px',
               fontWeight: '700',
               color: 'white',
               border: '2px solid white',
-              padding: '0 6px',
+              padding: '0 4px',
               boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
             }}
           >
@@ -562,7 +561,7 @@ const Layout = memo(({ children }) => {
       />
 
       {/* CONTENU */}
-      <main style={{ minHeight: '100vh', paddingTop: '20px' }}>
+      <main style={{ minHeight: '100vh', paddingTop: '70px' }}>
         {children}
       </main>
     </div>
