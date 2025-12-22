@@ -29,7 +29,8 @@ import {
   Eye,
   EyeOff,
   MapPin,
-  Loader
+  Loader,
+  Tag
 } from 'lucide-react';
 import { useAuthStore } from '../../shared/stores/authStore.js';
 import { createTaskSafely } from '../../core/services/taskCreationFix.js';
