@@ -9,8 +9,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
-// Configurer le worker PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configurer le worker PDF.js avec unpkg CDN (meilleur CORS)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 /**
  * 📊 PATTERNS DE RECHERCHE POUR BULLETINS DE PAIE FRANÇAIS
