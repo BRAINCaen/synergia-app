@@ -1,12 +1,12 @@
 // ==========================================
 // 📁 react-app/src/pages/CampaignsPage.jsx
-// PAGE CAMPAGNES SYNERGIA - TERMINOLOGIE GAMING
+// PAGE CONQUÊTES SYNERGIA - CAMPAGNES + DÉFIS ÉQUIPE
 // ==========================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Flag,
   Plus,
   Search,
@@ -35,7 +35,10 @@ import {
   RefreshCw,
   Sword,
   Trophy,
-  Shield
+  Shield,
+  Zap,
+  Award,
+  Coins
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT SYNERGIA AUTHENTIQUE
@@ -43,6 +46,13 @@ import Layout from '../components/layout/Layout.jsx';
 
 // 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { useTeamChallenges } from '../shared/hooks/useTeamChallenges.js';
+import { useTeamPool } from '../shared/hooks/useTeamPool.js';
+import { isAdmin } from '../core/services/adminService.js';
+
+// 🎯 COMPOSANTS DÉFIS ÉQUIPE
+import TeamChallengeCard from '../components/challenges/TeamChallengeCard.jsx';
+import TeamChallengeModal from '../components/challenges/TeamChallengeModal.jsx';
 
 // 📊 FIREBASE IMPORTS
 import { 
@@ -184,10 +194,14 @@ const extractProjectId = (projectId) => {
 const CampaignsPage = () => {
   // 🧭 NAVIGATION
   const navigate = useNavigate();
-  
+
   // 👤 AUTHENTIFICATION
   const { user } = useAuthStore();
-  
+  const userIsAdmin = isAdmin(user);
+
+  // 🎯 ONGLET ACTIF (campagnes ou défis)
+  const [activeTab, setActiveTab] = useState('campagnes');
+
   // 📊 ÉTATS CAMPAGNES
   const [campaigns, setCampaigns] = useState([]);
   const [quests, setQuests] = useState([]);
@@ -201,6 +215,40 @@ const CampaignsPage = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [showCampaignForm, setShowCampaignForm] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
+
+  // 🎯 HOOK DÉFIS D'ÉQUIPE
+  const {
+    challenges,
+    activeChallenges,
+    pendingChallenges,
+    stats: challengeStats,
+    loading: challengesLoading,
+    creating: challengeCreating,
+    contributing: challengeContributing,
+    createChallenge,
+    contributeToChallenge,
+    updateValue: updateChallengeValue,
+    approveChallenge,
+    rejectChallenge,
+    deleteChallenge,
+    refresh: refreshChallenges,
+    TEAM_CHALLENGE_TYPES
+  } = useTeamChallenges({
+    autoInit: true,
+    realTimeUpdates: true,
+    isAdmin: userIsAdmin
+  });
+
+  // 🎯 HOOK CAGNOTTE ÉQUIPE
+  const { stats: poolStats } = useTeamPool({
+    autoInit: true,
+    realTimeUpdates: true
+  });
+
+  // 🎯 ÉTATS DÉFIS
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [challengeFilter, setChallengeFilter] = useState('all');
+  const [challengeSearchTerm, setChallengeSearchTerm] = useState('');
 
   // 📊 CHARGEMENT DES CAMPAGNES DEPUIS FIREBASE
   useEffect(() => {
@@ -482,17 +530,87 @@ const CampaignsPage = () => {
   const handleStatusChange = async (campaignId, newStatus) => {
     try {
       console.log('🔄 [STATUS] Changement statut campagne:', campaignId, '→', newStatus);
-      
+
       await updateDoc(doc(db, 'projects', campaignId), {
         status: newStatus,
         updatedAt: serverTimestamp()
       });
-      
+
       console.log('✅ [STATUS] Statut mis à jour avec succès');
-      
+
     } catch (error) {
       console.error('❌ [STATUS] Erreur changement statut:', error);
       alert('Erreur lors du changement de statut');
+    }
+  };
+
+  // 🎯 FILTRAGE DES DÉFIS
+  const filteredChallenges = useMemo(() => {
+    let result = challenges;
+
+    if (challengeFilter !== 'all') {
+      result = result.filter(c => c.status === challengeFilter);
+    }
+
+    if (challengeSearchTerm) {
+      result = result.filter(c =>
+        c.title?.toLowerCase().includes(challengeSearchTerm.toLowerCase()) ||
+        c.description?.toLowerCase().includes(challengeSearchTerm.toLowerCase())
+      );
+    }
+
+    return result;
+  }, [challenges, challengeFilter, challengeSearchTerm]);
+
+  // 🎯 HANDLERS DÉFIS
+  const handleCreateChallenge = async (data) => {
+    const result = await createChallenge(data);
+    if (result.success) {
+      setShowChallengeModal(false);
+    }
+    return result;
+  };
+
+  const handleContribute = async (challengeId, amount, description) => {
+    const result = await contributeToChallenge(challengeId, amount, description);
+    if (result.success) {
+      if (result.completed) {
+        alert(`Félicitations ! Le défi est accompli ! Les XP ont été versés dans la cagnotte d'équipe.`);
+      }
+    } else {
+      alert(`Erreur: ${result.error}`);
+    }
+  };
+
+  const handleUpdateChallengeValue = async (challengeId, newValue) => {
+    const result = await updateChallengeValue(challengeId, newValue);
+    if (!result.success) {
+      alert(`Erreur: ${result.error}`);
+    } else if (result.completed) {
+      alert(`Défi accompli ! XP versés dans la cagnotte.`);
+    }
+  };
+
+  const handleApproveChallenge = async (challengeId) => {
+    const result = await approveChallenge(challengeId);
+    if (!result.success) {
+      alert(`Erreur: ${result.error}`);
+    }
+  };
+
+  const handleRejectChallenge = async (challengeId, reason) => {
+    const result = await rejectChallenge(challengeId, reason);
+    if (!result.success) {
+      alert(`Erreur: ${result.error}`);
+    }
+  };
+
+  const handleDeleteChallenge = async (challengeId) => {
+    if (confirm('Supprimer ce défi ?')) {
+      const result = await deleteChallenge(challengeId);
+      if (!result.success) {
+        alert(`Erreur: ${result.error}`);
+      }
     }
   };
 
@@ -558,61 +676,111 @@ const CampaignsPage = () => {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6"
               >
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl sm:text-2xl">👑</span>
                   </div>
                   <div>
-                    <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                      Campagnes
+                    <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
+                      Conquêtes
                     </h1>
                     <p className="text-gray-400 text-xs sm:text-lg mt-0.5 sm:mt-1">
-                      Organisez vos quêtes épiques
+                      Campagnes et défis d'équipe
                     </p>
                   </div>
                 </div>
 
                 {/* Actions du header */}
                 <div className="flex items-center gap-2 sm:gap-4">
-                  <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-lg transition-all duration-200 ${
-                        viewMode === 'grid'
-                          ? 'bg-purple-600 text-white shadow-lg'
-                          : 'text-gray-400 hover:text-white hover:bg-white/10'
-                      }`}
-                    >
-                      <Grid className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-lg transition-all duration-200 ${
-                        viewMode === 'list'
-                          ? 'bg-purple-600 text-white shadow-lg'
-                          : 'text-gray-400 hover:text-white hover:bg-white/10'
-                      }`}
-                    >
-                      <List className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {activeTab === 'campagnes' && (
+                    <>
+                      <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 border border-white/10">
+                        <button
+                          onClick={() => setViewMode('grid')}
+                          className={`p-2 rounded-lg transition-all duration-200 ${
+                            viewMode === 'grid'
+                              ? 'bg-purple-600 text-white shadow-lg'
+                              : 'text-gray-400 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          <Grid className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setViewMode('list')}
+                          className={`p-2 rounded-lg transition-all duration-200 ${
+                            viewMode === 'list'
+                              ? 'bg-purple-600 text-white shadow-lg'
+                              : 'text-gray-400 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          <List className="h-4 w-4" />
+                        </button>
+                      </div>
 
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowCampaignForm(true)}
-                    className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 text-sm sm:text-base"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="hidden sm:inline">Nouvelle Campagne</span>
-                    <span className="sm:hidden">Nouveau</span>
-                  </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowCampaignForm(true)}
+                        className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 text-sm sm:text-base"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span className="hidden sm:inline">Nouvelle Campagne</span>
+                        <span className="sm:hidden">Nouveau</span>
+                      </motion.button>
+                    </>
+                  )}
+
+                  {activeTab === 'defis' && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowChallengeModal(true)}
+                      className="px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 text-sm sm:text-base"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline">Nouveau Défi</span>
+                      <span className="sm:hidden">Nouveau</span>
+                    </motion.button>
+                  )}
                 </div>
               </motion.div>
 
-              {/* Statistiques rapides */}
+              {/* Onglets Campagnes / Défis */}
+              <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <motion.button
+                  onClick={() => setActiveTab('campagnes')}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium transition-all text-sm sm:text-base flex items-center gap-2 ${
+                    activeTab === 'campagnes'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/20'
+                      : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Flag className="h-4 w-4" />
+                  <span>Campagnes</span>
+                  <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">{stats.total}</span>
+                </motion.button>
+                <motion.button
+                  onClick={() => setActiveTab('defis')}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium transition-all text-sm sm:text-base flex items-center gap-2 ${
+                    activeTab === 'defis'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-pink-500/20'
+                      : 'bg-white/5 backdrop-blur-xl border border-white/10 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>Défis Équipe</span>
+                  <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">{challenges?.length || 0}</span>
+                </motion.button>
+              </div>
+
+              {/* Statistiques rapides - CAMPAGNES */}
+              {activeTab === 'campagnes' && (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -684,9 +852,51 @@ const CampaignsPage = () => {
                 </div>
               </motion.div>
             </div>
+              )}
+
+              {/* Statistiques rapides - DÉFIS */}
+              {activeTab === 'defis' && (
+                <div className="bg-gradient-to-r from-purple-600/80 via-blue-600/80 to-cyan-500/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 relative overflow-hidden border border-white/20">
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl" />
+                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-300 rounded-full blur-3xl" />
+                  </div>
+                  <div className="relative z-10">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                      <div>
+                        <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                          <Coins className="w-5 h-5 sm:w-6 sm:h-6" />
+                          Cagnotte d'Équipe
+                        </h2>
+                        <p className="text-white/70 text-xs sm:text-sm mt-1">XP collectifs à débloquer</p>
+                      </div>
+                      <div className="text-2xl sm:text-4xl font-bold text-white">
+                        {poolStats?.currentXP?.toLocaleString() || 0} XP
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-white">{challengeStats?.active || 0}</div>
+                        <div className="text-white/70 text-xs sm:text-sm">En cours</div>
+                      </div>
+                      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-green-300">{challengeStats?.completed || 0}</div>
+                        <div className="text-white/70 text-xs sm:text-sm">Accomplis</div>
+                      </div>
+                      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                        <div className="text-xl sm:text-2xl font-bold text-yellow-300">{challengeStats?.pending || 0}</div>
+                        <div className="text-white/70 text-xs sm:text-sm">En attente</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
           </div>
         </div>
 
+        {/* 🔍 FILTRES ET RECHERCHE - CAMPAGNES */}
+        {activeTab === 'campagnes' && (
+        <>
         {/* 🔍 FILTRES ET RECHERCHE */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
           <motion.div
@@ -821,6 +1031,80 @@ const CampaignsPage = () => {
           )}
         </div>
         </div>
+        </>
+        )}
+
+        {/* 🎯 CONTENU DÉFIS D'ÉQUIPE */}
+        {activeTab === 'defis' && (
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+            {/* Filtres défis */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un défi..."
+                  value={challengeSearchTerm}
+                  onChange={(e) => setChallengeSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                />
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {[
+                  { id: 'all', label: 'Tous', color: 'gray' },
+                  { id: 'active', label: 'En cours', color: 'blue' },
+                  { id: 'pending_approval', label: 'En attente', color: 'yellow' },
+                  { id: 'completed', label: 'Accomplis', color: 'green' }
+                ].map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setChallengeFilter(filter.id)}
+                    className={`px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                      challengeFilter === filter.id
+                        ? `bg-${filter.color}-500/20 text-${filter.color}-400 border border-${filter.color}-500/30`
+                        : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Liste des défis */}
+            {challengesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-purple-400" />
+              </div>
+            ) : filteredChallenges.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 text-lg mb-2">Aucun défi trouvé</p>
+                <p className="text-gray-500 text-sm">
+                  {challenges.length === 0
+                    ? "Créez votre premier défi d'équipe !"
+                    : "Essayez un autre filtre"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredChallenges.map((challenge) => (
+                  <TeamChallengeCard
+                    key={challenge.id}
+                    challenge={challenge}
+                    onContribute={handleContribute}
+                    onUpdateValue={handleUpdateChallengeValue}
+                    onApprove={handleApproveChallenge}
+                    onReject={handleRejectChallenge}
+                    onDelete={handleDeleteChallenge}
+                    isAdmin={userIsAdmin}
+                    contributing={challengeContributing}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 📝 MODAL FORMULAIRE CAMPAGNE */}
         <AnimatePresence>
@@ -832,6 +1116,18 @@ const CampaignsPage = () => {
                 setEditingCampaign(null);
               }}
               onSubmit={editingCampaign ? handleEditCampaign : handleCreateCampaign}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* 📝 MODAL CRÉATION DÉFI */}
+        <AnimatePresence>
+          {showChallengeModal && (
+            <TeamChallengeModal
+              onClose={() => setShowChallengeModal(false)}
+              onSubmit={handleCreateChallenge}
+              types={TEAM_CHALLENGE_TYPES}
+              creating={challengeCreating}
             />
           )}
         </AnimatePresence>
