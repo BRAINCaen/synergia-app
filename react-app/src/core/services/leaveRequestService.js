@@ -25,47 +25,94 @@ import notificationService from './notificationService.js';
  * 🏖️ TYPES DE CONGÉS
  */
 export const LEAVE_TYPES = {
+  // === CONGÉS COMPTABILISÉS (jours complets uniquement) ===
   paid_leave: {
     id: 'paid_leave',
     label: 'Congés payés',
     emoji: '🏖️',
     color: '#F59E0B',
-    deductsFrom: 'paidLeaveDays' // Déduit du compteur CP
+    deductsFrom: 'paidLeaveDays',
+    category: 'counted',
+    fullDayOnly: true
   },
   bonus_day: {
     id: 'bonus_day',
     label: 'Jour bonus (XP)',
     emoji: '🎁',
     color: '#8B5CF6',
-    deductsFrom: 'bonusOffDays' // Déduit du compteur jours bonus
+    deductsFrom: 'bonusOffDays',
+    category: 'counted',
+    fullDayOnly: true
   },
   rtt: {
     id: 'rtt',
     label: 'RTT',
     emoji: '⏰',
     color: '#10B981',
-    deductsFrom: 'rttDays'
+    deductsFrom: 'rttDays',
+    category: 'counted',
+    fullDayOnly: true
   },
-  unpaid: {
-    id: 'unpaid',
-    label: 'Sans solde',
-    emoji: '📅',
-    color: '#6B7280',
-    deductsFrom: null // Ne déduit rien
-  },
+
+  // === ABSENCES JUSTIFIÉES (sans compteur) ===
   sick: {
     id: 'sick',
     label: 'Maladie',
     emoji: '🏥',
     color: '#EF4444',
-    deductsFrom: null
+    deductsFrom: null,
+    category: 'justified',
+    fullDayOnly: false
   },
   family: {
     id: 'family',
     label: 'Événement familial',
     emoji: '👨‍👩‍👧',
     color: '#EC4899',
-    deductsFrom: null
+    deductsFrom: null,
+    category: 'justified',
+    fullDayOnly: false
+  },
+  unpaid: {
+    id: 'unpaid',
+    label: 'Sans solde',
+    emoji: '📅',
+    color: '#6B7280',
+    deductsFrom: null,
+    category: 'justified',
+    fullDayOnly: false
+  },
+
+  // === DEMANDES SPÉCIFIQUES (illimité, demi-journée/soirée possible) ===
+  specific_request: {
+    id: 'specific_request',
+    label: 'Demande spécifique',
+    emoji: '📋',
+    color: '#3B82F6',
+    deductsFrom: null,
+    category: 'specific',
+    fullDayOnly: false,
+    description: 'Demi-journée, soirée ou repos ponctuel'
+  },
+  half_day_off: {
+    id: 'half_day_off',
+    label: 'Demi-journée repos',
+    emoji: '🌅',
+    color: '#06B6D4',
+    deductsFrom: null,
+    category: 'specific',
+    fullDayOnly: false,
+    isHalfDay: true
+  },
+  evening_off: {
+    id: 'evening_off',
+    label: 'Soirée libre',
+    emoji: '🌙',
+    color: '#6366F1',
+    deductsFrom: null,
+    category: 'specific',
+    fullDayOnly: false,
+    isEvening: true
   }
 };
 
@@ -202,9 +249,18 @@ class LeaveRequestService {
         startDate,
         endDate,
         reason,
-        halfDay = false,
-        halfDayPeriod = null // 'morning' ou 'afternoon'
+        halfDayPeriod = null // 'morning', 'afternoon', 'evening'
       } = requestData;
+
+      const leaveTypeConfig = LEAVE_TYPES[leaveType];
+      if (!leaveTypeConfig) {
+        return { success: false, error: 'Type de congé invalide' };
+      }
+
+      // Déterminer si c'est une demande spécifique (illimité)
+      const isSpecificRequest = leaveTypeConfig.category === 'specific';
+      const isCountedLeave = leaveTypeConfig.category === 'counted';
+      const isHalfDayType = leaveTypeConfig.isHalfDay || leaveTypeConfig.isEvening;
 
       // Calculer le nombre de jours
       const start = new Date(startDate);
@@ -212,17 +268,17 @@ class LeaveRequestService {
       const diffTime = Math.abs(end - start);
       let numberOfDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-      if (halfDay) {
+      // Pour les types demi-journée/soirée, c'est toujours 0.5
+      if (isHalfDayType) {
         numberOfDays = 0.5;
       }
 
-      // Vérifier le solde disponible
-      const balance = await this.getLeaveBalance(userId);
-      const leaveTypeConfig = LEAVE_TYPES[leaveType];
-
-      if (leaveTypeConfig.deductsFrom) {
+      // Vérifier le solde UNIQUEMENT pour les congés comptabilisés
+      if (isCountedLeave && leaveTypeConfig.deductsFrom) {
+        const balance = await this.getLeaveBalance(userId);
         const available = balance[leaveTypeConfig.deductsFrom] || 0;
-        const used = balance[`used${leaveTypeConfig.deductsFrom.charAt(0).toUpperCase() + leaveTypeConfig.deductsFrom.slice(1)}`] || 0;
+        const usedKey = `used${leaveTypeConfig.deductsFrom.charAt(0).toUpperCase() + leaveTypeConfig.deductsFrom.slice(1).replace('Days', '')}Days`;
+        const used = balance[usedKey] || 0;
         const remaining = available - used;
 
         if (numberOfDays > remaining) {
@@ -242,11 +298,13 @@ class LeaveRequestService {
         leaveTypeLabel: leaveTypeConfig.label,
         leaveTypeEmoji: leaveTypeConfig.emoji,
         leaveTypeColor: leaveTypeConfig.color,
+        category: leaveTypeConfig.category,
         startDate,
         endDate,
         numberOfDays,
-        halfDay,
-        halfDayPeriod,
+        isSpecificRequest,
+        isHalfDay: isHalfDayType,
+        halfDayPeriod: halfDayPeriod || (leaveTypeConfig.isEvening ? 'evening' : null),
         reason: reason || '',
         status: 'pending',
         createdAt: serverTimestamp(),

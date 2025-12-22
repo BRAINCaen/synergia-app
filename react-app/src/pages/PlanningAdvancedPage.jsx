@@ -158,7 +158,6 @@ const PlanningAdvancedPage = () => {
     startDate: '',
     endDate: '',
     reason: '',
-    halfDay: false,
     halfDayPeriod: 'morning'
   });
   const [submittingLeave, setSubmittingLeave] = useState(false);
@@ -876,7 +875,13 @@ const PlanningAdvancedPage = () => {
   // ==========================================
 
   const handleSubmitLeaveRequest = async () => {
-    if (!leaveRequestForm.startDate || !leaveRequestForm.endDate) {
+    const leaveTypeConfig = LEAVE_TYPES[leaveRequestForm.leaveType];
+    const isHalfDayType = leaveTypeConfig?.isHalfDay || leaveTypeConfig?.isEvening;
+
+    // Pour les demi-journées, endDate = startDate
+    const endDate = isHalfDayType ? leaveRequestForm.startDate : leaveRequestForm.endDate;
+
+    if (!leaveRequestForm.startDate || (!isHalfDayType && !leaveRequestForm.endDate)) {
       showNotification('⚠️ Veuillez sélectionner les dates', 'warning');
       return;
     }
@@ -887,7 +892,11 @@ const PlanningAdvancedPage = () => {
         userId: user.uid,
         userName: user.displayName || user.email,
         userAvatar: user.customization?.avatar || '👤',
-        ...leaveRequestForm
+        leaveType: leaveRequestForm.leaveType,
+        startDate: leaveRequestForm.startDate,
+        endDate: endDate,
+        reason: leaveRequestForm.reason,
+        halfDayPeriod: leaveRequestForm.halfDayPeriod
       });
 
       if (result.success) {
@@ -898,7 +907,6 @@ const PlanningAdvancedPage = () => {
           startDate: '',
           endDate: '',
           reason: '',
-          halfDay: false,
           halfDayPeriod: 'morning'
         });
       } else {
@@ -1345,7 +1353,7 @@ const PlanningAdvancedPage = () => {
 
                   {/* Solde actuel */}
                   <div className="mb-5 p-3 bg-gray-700/30 rounded-xl border border-gray-600/50">
-                    <p className="text-gray-400 text-xs mb-2">Mon solde disponible</p>
+                    <p className="text-gray-400 text-xs mb-2">Mon solde disponible (jours complets)</p>
                     <div className="flex flex-wrap gap-2">
                       <span className="text-amber-400 text-sm">🏖️ CP: {getAvailableBalance('paid_leave')}j</span>
                       <span className="text-purple-400 text-sm">🎁 Bonus: {getAvailableBalance('bonus_day')}j</span>
@@ -1355,74 +1363,111 @@ const PlanningAdvancedPage = () => {
 
                   {/* Formulaire */}
                   <div className="space-y-4">
-                    {/* Type de congé */}
+                    {/* Type de demande */}
                     <div>
-                      <label className="block text-gray-400 text-sm mb-2">Type de congé</label>
+                      <label className="block text-gray-400 text-sm mb-2">Type de demande</label>
                       <select
                         value={leaveRequestForm.leaveType}
                         onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, leaveType: e.target.value })}
                         className="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none"
                       >
-                        {Object.entries(LEAVE_TYPES).map(([id, type]) => (
-                          <option key={id} value={id}>
-                            {type.emoji} {type.label}
-                            {type.deductsFrom && ` (${getAvailableBalance(id)}j dispo)`}
-                          </option>
-                        ))}
+                        <optgroup label="📊 Congés comptabilisés (jours complets)">
+                          {Object.entries(LEAVE_TYPES)
+                            .filter(([_, type]) => type.category === 'counted')
+                            .map(([id, type]) => (
+                              <option key={id} value={id}>
+                                {type.emoji} {type.label} ({getAvailableBalance(id)}j dispo)
+                              </option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="📋 Demandes spécifiques (illimité)">
+                          {Object.entries(LEAVE_TYPES)
+                            .filter(([_, type]) => type.category === 'specific')
+                            .map(([id, type]) => (
+                              <option key={id} value={id}>
+                                {type.emoji} {type.label}
+                              </option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="📝 Absences justifiées">
+                          {Object.entries(LEAVE_TYPES)
+                            .filter(([_, type]) => type.category === 'justified')
+                            .map(([id, type]) => (
+                              <option key={id} value={id}>
+                                {type.emoji} {type.label}
+                              </option>
+                            ))}
+                        </optgroup>
                       </select>
                     </div>
+
+                    {/* Info demande spécifique */}
+                    {LEAVE_TYPES[leaveRequestForm.leaveType]?.category === 'specific' && (
+                      <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                        <p className="text-blue-300 text-sm">
+                          💡 Les demandes spécifiques sont <strong>illimitées</strong> et ne déduisent pas de vos compteurs.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Dates */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-gray-400 text-sm mb-2">Date début</label>
+                        <label className="block text-gray-400 text-sm mb-2">
+                          {LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay || LEAVE_TYPES[leaveRequestForm.leaveType]?.isEvening
+                            ? 'Date'
+                            : 'Date début'}
+                        </label>
                         <input
                           type="date"
                           value={leaveRequestForm.startDate}
-                          onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, startDate: e.target.value })}
+                          onChange={(e) => setLeaveRequestForm({
+                            ...leaveRequestForm,
+                            startDate: e.target.value,
+                            endDate: LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay || LEAVE_TYPES[leaveRequestForm.leaveType]?.isEvening
+                              ? e.target.value
+                              : leaveRequestForm.endDate
+                          })}
                           className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
                         />
                       </div>
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Date fin</label>
-                        <input
-                          type="date"
-                          value={leaveRequestForm.endDate}
-                          onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, endDate: e.target.value })}
-                          className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Demi-journée */}
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="halfDay"
-                        checked={leaveRequestForm.halfDay}
-                        onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, halfDay: e.target.checked })}
-                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-amber-500 focus:ring-amber-500"
-                      />
-                      <label htmlFor="halfDay" className="text-gray-300 text-sm">Demi-journée</label>
-                      {leaveRequestForm.halfDay && (
-                        <select
-                          value={leaveRequestForm.halfDayPeriod}
-                          onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, halfDayPeriod: e.target.value })}
-                          className="bg-gray-700 text-white px-3 py-1.5 rounded-lg border border-gray-600 text-sm"
-                        >
-                          <option value="morning">Matin</option>
-                          <option value="afternoon">Après-midi</option>
-                        </select>
+                      {!(LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay || LEAVE_TYPES[leaveRequestForm.leaveType]?.isEvening) && (
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2">Date fin</label>
+                          <input
+                            type="date"
+                            value={leaveRequestForm.endDate}
+                            onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, endDate: e.target.value })}
+                            className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
+                          />
+                        </div>
+                      )}
+                      {LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay && (
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-2">Période</label>
+                          <select
+                            value={leaveRequestForm.halfDayPeriod || 'morning'}
+                            onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, halfDayPeriod: e.target.value })}
+                            className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
+                          >
+                            <option value="morning">🌅 Matin</option>
+                            <option value="afternoon">☀️ Après-midi</option>
+                          </select>
+                        </div>
                       )}
                     </div>
 
                     {/* Motif */}
                     <div>
-                      <label className="block text-gray-400 text-sm mb-2">Motif (optionnel)</label>
+                      <label className="block text-gray-400 text-sm mb-2">
+                        Motif {LEAVE_TYPES[leaveRequestForm.leaveType]?.category === 'specific' ? '(recommandé)' : '(optionnel)'}
+                      </label>
                       <textarea
                         value={leaveRequestForm.reason}
                         onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, reason: e.target.value })}
-                        placeholder="Ex: Vacances familiales..."
+                        placeholder={LEAVE_TYPES[leaveRequestForm.leaveType]?.category === 'specific'
+                          ? "Ex: RDV médical, obligation personnelle..."
+                          : "Ex: Vacances familiales..."}
                         rows={2}
                         className="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none resize-none text-sm"
                       />
