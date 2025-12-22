@@ -734,9 +734,9 @@ class SponsorshipService {
 
           return {
             id: doc.id,
-            displayName: data.displayName || data.email || 'Utilisateur',
+            displayName: data.displayName || data.prenom || data.nom || (data.email ? data.email.split('@')[0] : null) || 'Utilisateur',
             email: data.email || '',
-            avatar: data.customization?.avatar || '👤',
+            avatar: data.customization?.avatar || data.avatar || '👤',
             level: gamification.level || 1,
             totalXp: gamification.totalXp || 0,
             menteesCount: gamification.menteesCount || 0,
@@ -776,9 +776,9 @@ class SponsorshipService {
 
           return {
             id: doc.id,
-            displayName: data.displayName || data.email || 'Utilisateur',
+            displayName: data.displayName || data.prenom || data.nom || (data.email ? data.email.split('@')[0] : null) || 'Utilisateur',
             email: data.email || '',
-            avatar: data.customization?.avatar || '👤',
+            avatar: data.customization?.avatar || data.avatar || '👤',
             level: gamification.level || 1,
             totalXp: gamification.totalXp || 0,
             createdAt: data.createdAt
