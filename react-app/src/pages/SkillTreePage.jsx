@@ -559,6 +559,7 @@ const TalentSuccessModal = ({ talent, onClose }) => {
 // ==========================================
 
 const RankProgressCard = ({ totalXP }) => {
+  const [showRankDetails, setShowRankDetails] = useState(false);
   const progressInfo = useMemo(() => getFullProgressInfo(totalXP), [totalXP]);
   const ranks = useMemo(() => getRanks(), []);
   const ranksArray = useMemo(() =>
@@ -646,9 +647,22 @@ const RankProgressCard = ({ totalXP }) => {
         </div>
       )}
 
-      {/* Mini timeline des rangs */}
+      {/* Mini timeline des rangs avec dropdown */}
       <div className="border-t border-white/10 pt-4 mt-4">
-        <div className="text-xs text-gray-500 uppercase mb-3 font-medium">Progression des Rangs</div>
+        <button
+          onClick={() => setShowRankDetails(!showRankDetails)}
+          className="w-full flex items-center justify-between text-xs text-gray-500 uppercase mb-3 font-medium hover:text-gray-300 transition-colors"
+        >
+          <span>Progression des Rangs</span>
+          <motion.div
+            animate={{ rotate: showRankDetails ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronRight className="w-4 h-4 rotate-90" />
+          </motion.div>
+        </button>
+
+        {/* Timeline des rangs */}
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
           {ranksArray.map((rank, idx) => {
             const isPast = currentLevel >= rank.maxLevel;
@@ -665,7 +679,7 @@ const RankProgressCard = ({ totalXP }) => {
                   animate={{ scale: 1 }}
                   transition={{ delay: idx * 0.05 }}
                   className={`
-                    w-8 h-8 rounded-lg flex items-center justify-center text-sm
+                    w-8 h-8 rounded-lg flex items-center justify-center text-sm cursor-pointer
                     ${isCurrent
                       ? `bg-gradient-to-br ${rank.color} ring-2 ring-white/50 shadow-lg`
                       : isPast
@@ -674,6 +688,7 @@ const RankProgressCard = ({ totalXP }) => {
                     }
                   `}
                   title={`${rank.name} (Niv. ${rank.minLevel}-${rank.maxLevel})`}
+                  onClick={() => setShowRankDetails(!showRankDetails)}
                 >
                   <span className={isFuture ? 'grayscale' : ''}>{rank.icon}</span>
                 </motion.div>
@@ -686,6 +701,119 @@ const RankProgressCard = ({ totalXP }) => {
             );
           })}
         </div>
+
+        {/* Détails des rangs (déroulant) */}
+        <AnimatePresence>
+          {showRankDetails && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-4 space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                {ranksArray.map((rank, idx) => {
+                  const isPast = currentLevel >= rank.maxLevel;
+                  const isCurrent = currentLevel >= rank.minLevel && currentLevel <= rank.maxLevel;
+                  const isFuture = currentLevel < rank.minLevel;
+                  const xpRequired = (rank.minLevel - 1) * 500; // Formule XP
+
+                  return (
+                    <motion.div
+                      key={rank.id}
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className={`
+                        p-3 rounded-xl border transition-all
+                        ${isCurrent
+                          ? `bg-gradient-to-r ${rank.color.replace('from-', 'from-').replace('to-', 'to-')}/20 border-white/30`
+                          : isPast
+                            ? 'bg-white/5 border-white/10'
+                            : 'bg-white/[0.02] border-white/5 opacity-60'
+                        }
+                      `}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Icône du rang */}
+                        <div
+                          className={`
+                            w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+                            ${isCurrent
+                              ? `bg-gradient-to-br ${rank.color}`
+                              : isPast
+                                ? 'bg-white/20'
+                                : 'bg-white/5'
+                            }
+                          `}
+                        >
+                          <span className={`text-xl ${isFuture ? 'grayscale' : ''}`}>{rank.icon}</span>
+                        </div>
+
+                        {/* Infos du rang */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className={`font-bold ${rank.textColor || 'text-gray-300'}`}>
+                              {rank.name}
+                            </h4>
+                            {isCurrent && (
+                              <span className="px-1.5 py-0.5 bg-white/20 text-white text-[10px] rounded font-medium">
+                                ACTUEL
+                              </span>
+                            )}
+                            {isPast && !isCurrent && (
+                              <Check className="w-4 h-4 text-emerald-400" />
+                            )}
+                            {isFuture && (
+                              <Lock className="w-3 h-3 text-gray-500" />
+                            )}
+                          </div>
+
+                          <p className="text-xs text-gray-400 mt-0.5">{rank.description}</p>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[10px]">
+                            <span className="text-gray-500">
+                              Niv. {rank.minLevel}-{rank.maxLevel}
+                            </span>
+                            <span className="text-gray-500">
+                              {xpRequired.toLocaleString()} XP requis
+                            </span>
+                            {rank.boost > 1 && (
+                              <span className="text-emerald-400 font-medium">
+                                +{Math.round((rank.boost - 1) * 100)}% XP
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Avantages */}
+                          {rank.perks && rank.perks.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {rank.perks.map((perk, perkIdx) => (
+                                <span
+                                  key={perkIdx}
+                                  className={`
+                                    px-1.5 py-0.5 rounded text-[10px]
+                                    ${isFuture
+                                      ? 'bg-white/5 text-gray-500'
+                                      : 'bg-white/10 text-gray-300'
+                                    }
+                                  `}
+                                >
+                                  {perk}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
