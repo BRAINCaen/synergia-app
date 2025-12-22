@@ -342,14 +342,14 @@ const CreateSponsorshipModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-slate-800 rounded-2xl border border-white/10 w-full max-w-lg max-h-[90vh] flex flex-col"
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-slate-800 rounded-t-2xl sm:rounded-2xl border-t sm:border border-white/10 w-full sm:max-w-lg max-h-[95vh] sm:max-h-[85vh] flex flex-col"
       >
-        <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+          <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <Heart className="w-5 h-5 text-pink-400" />
             Nouveau Parrainage
           </h2>
@@ -361,8 +361,8 @@ const CreateSponsorshipModal = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
           {/* Sélection du filleul */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -475,31 +475,30 @@ const CreateSponsorshipModal = ({
           </div>
 
           {/* Info XP */}
-          <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Gift className="w-5 h-5 text-purple-400" />
-              <span className="text-purple-300 font-medium">Bonus XP</span>
+          <div className="p-3 sm:p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+            <div className="flex items-center gap-2 mb-1">
+              <Gift className="w-4 h-4 text-purple-400" />
+              <span className="text-purple-300 font-medium text-sm">Bonus XP</span>
             </div>
-            <p className="text-sm text-gray-400">
-              En tant que parrain, vous gagnerez des XP à chaque jalon atteint par votre filleul.
-              Jusqu'à <span className="text-purple-400 font-bold">+630 XP</span> si le parrainage est mené à terme !
+            <p className="text-xs sm:text-sm text-gray-400">
+              Vous gagnerez des XP à chaque jalon. Jusqu'à <span className="text-purple-400 font-bold">+630 XP</span> si mené à terme !
             </p>
           </div>
           </div>
 
-          {/* Boutons - Sticky en bas */}
-          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-white/10 bg-slate-800 flex-shrink-0">
+          {/* Boutons - Toujours visible en bas */}
+          <div className="flex gap-3 p-4 border-t border-white/10 bg-slate-800 flex-shrink-0 sticky bottom-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+              className="flex-1 sm:flex-initial px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors text-sm font-medium"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={creating || !form.menteeId}
-              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="flex-1 sm:flex-initial px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 text-sm"
             >
               {creating ? 'Création...' : 'Devenir parrain'}
             </button>
