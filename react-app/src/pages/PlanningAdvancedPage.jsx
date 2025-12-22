@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -30,7 +30,12 @@ import {
   Upload,
   AlertTriangle,
   Eye,
-  Database
+  Database,
+  Palmtree,
+  CalendarDays,
+  CheckCircle,
+  XCircle,
+  Send
 } from 'lucide-react';
 
 // Layout
@@ -41,6 +46,7 @@ import planningEnrichedService from '../core/services/planningEnrichedService.js
 import planningExportService from '../core/services/planningExportService.js';
 import frenchCalendarService from '../core/services/frenchCalendarService.js';
 import { pointageAnomalyService, ANOMALY_CONFIG, ANOMALY_TYPES } from '../core/services/pointageAnomalyService.js';
+import leaveRequestService, { LEAVE_TYPES, REQUEST_STATUS } from '../core/services/leaveRequestService.js';
 
 // Auth
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -140,6 +146,23 @@ const PlanningAdvancedPage = () => {
   const [showAnomalies, setShowAnomalies] = useState(true);
   const [loadingAnomalies, setLoadingAnomalies] = useState(false);
 
+  // 🏖️ GESTION DES CONGÉS
+  const [showLeaveRequestModal, setShowLeaveRequestModal] = useState(false);
+  const [showLeaveAdminPanel, setShowLeaveAdminPanel] = useState(false);
+  const [leaveBalance, setLeaveBalance] = useState(null);
+  const [pendingLeaveRequests, setPendingLeaveRequests] = useState([]);
+  const [myLeaveRequests, setMyLeaveRequests] = useState([]);
+  const [approvedLeaves, setApprovedLeaves] = useState([]);
+  const [leaveRequestForm, setLeaveRequestForm] = useState({
+    leaveType: 'paid_leave',
+    startDate: '',
+    endDate: '',
+    reason: '',
+    halfDay: false,
+    halfDayPeriod: 'morning'
+  });
+  const [submittingLeave, setSubmittingLeave] = useState(false);
+
   // ==========================================
   // CHARGEMENT INITIAL
   // ==========================================
@@ -153,6 +176,47 @@ const PlanningAdvancedPage = () => {
       loadPlanningData();
     }
   }, [currentWeek, hrSettings.loaded]);
+
+  // 🏖️ Charger les données de congés
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // Écouter le solde de congés en temps réel
+    const unsubBalance = leaveRequestService.subscribeToLeaveBalance(user.uid, (balance) => {
+      setLeaveBalance(balance);
+    });
+
+    // Écouter mes demandes
+    const unsubMyRequests = leaveRequestService.subscribeToRequests((requests) => {
+      setMyLeaveRequests(requests);
+    }, { userId: user.uid });
+
+    // Écouter les demandes en attente (admin)
+    const unsubPending = leaveRequestService.subscribeToRequests((requests) => {
+      setPendingLeaveRequests(requests);
+    }, { status: 'pending' });
+
+    return () => {
+      unsubBalance();
+      unsubMyRequests();
+      unsubPending();
+    };
+  }, [user?.uid]);
+
+  // Charger les congés approuvés pour la semaine en cours
+  useEffect(() => {
+    const loadApprovedLeaves = async () => {
+      if (weekDates.length === 0) return;
+
+      const startDate = weekDates[0];
+      const endDate = weekDates[weekDates.length - 1];
+
+      const leaves = await leaveRequestService.getApprovedLeavesForPeriod(startDate, endDate);
+      setApprovedLeaves(leaves);
+    };
+
+    loadApprovedLeaves();
+  }, [weekDates]);
 
   const loadHRSettings = async () => {
     try {
@@ -800,11 +864,123 @@ const PlanningAdvancedPage = () => {
     notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-pulse`;
     notification.textContent = message;
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
       notification.classList.add('opacity-0', 'transition-opacity');
       setTimeout(() => notification.remove(), 300);
     }, 3000);
+  };
+
+  // ==========================================
+  // 🏖️ GESTION DES CONGÉS
+  // ==========================================
+
+  const handleSubmitLeaveRequest = async () => {
+    if (!leaveRequestForm.startDate || !leaveRequestForm.endDate) {
+      showNotification('⚠️ Veuillez sélectionner les dates', 'warning');
+      return;
+    }
+
+    setSubmittingLeave(true);
+    try {
+      const result = await leaveRequestService.createLeaveRequest({
+        userId: user.uid,
+        userName: user.displayName || user.email,
+        userAvatar: user.customization?.avatar || '👤',
+        ...leaveRequestForm
+      });
+
+      if (result.success) {
+        showNotification('✅ Demande envoyée !', 'success');
+        setShowLeaveRequestModal(false);
+        setLeaveRequestForm({
+          leaveType: 'paid_leave',
+          startDate: '',
+          endDate: '',
+          reason: '',
+          halfDay: false,
+          halfDayPeriod: 'morning'
+        });
+      } else {
+        showNotification(`❌ ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Erreur envoi demande:', error);
+      showNotification('❌ Erreur lors de l\'envoi', 'error');
+    } finally {
+      setSubmittingLeave(false);
+    }
+  };
+
+  const handleApproveLeave = async (requestId) => {
+    try {
+      const result = await leaveRequestService.approveRequest(
+        requestId,
+        user.uid,
+        user.displayName || user.email
+      );
+
+      if (result.success) {
+        showNotification('✅ Congés approuvés !', 'success');
+      } else {
+        showNotification(`❌ ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Erreur approbation:', error);
+      showNotification('❌ Erreur', 'error');
+    }
+  };
+
+  const handleRejectLeave = async (requestId) => {
+    const reason = prompt('Motif du refus (optionnel):');
+    if (reason === null) return; // Annulé
+
+    try {
+      const result = await leaveRequestService.rejectRequest(
+        requestId,
+        user.uid,
+        user.displayName || user.email,
+        reason
+      );
+
+      if (result.success) {
+        showNotification('❌ Demande refusée', 'info');
+      } else {
+        showNotification(`❌ ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Erreur refus:', error);
+      showNotification('❌ Erreur', 'error');
+    }
+  };
+
+  // Vérifier si un employé a un congé approuvé pour une date
+  const getApprovedLeaveForCell = (employeeId, date) => {
+    return approvedLeaves.find(leave => {
+      const leaveStart = new Date(leave.startDate);
+      const leaveEnd = new Date(leave.endDate);
+      const cellDate = new Date(date);
+
+      return leave.userId === employeeId &&
+        cellDate >= leaveStart &&
+        cellDate <= leaveEnd;
+    });
+  };
+
+  // Calculer le solde disponible
+  const getAvailableBalance = (type) => {
+    if (!leaveBalance) return 0;
+
+    switch (type) {
+      case 'paid_leave':
+        return (leaveBalance.paidLeaveDays || 25) - (leaveBalance.usedPaidLeaveDays || 0);
+      case 'bonus_day':
+        return (leaveBalance.bonusOffDays || 0) - (leaveBalance.usedBonusDays || 0);
+      case 'rtt':
+        return (leaveBalance.rttDays || 0) - (leaveBalance.usedRttDays || 0);
+      default:
+        return null; // Pas de limite
+    }
   };
 
   // ==========================================
@@ -979,9 +1155,67 @@ const PlanningAdvancedPage = () => {
                   <Copy className="w-4 h-4" />
                   <span className="hidden sm:inline">Dupliquer</span>
                 </button>
+
+                {/* 🏖️ Bouton Demander congés */}
+                <button
+                  onClick={() => setShowLeaveRequestModal(true)}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
+                >
+                  <Palmtree className="w-4 h-4" />
+                  <span className="hidden sm:inline">Congés</span>
+                </button>
+
+                {/* 📋 Bouton Admin congés (si demandes en attente) */}
+                {pendingLeaveRequests.length > 0 && (
+                  <button
+                    onClick={() => setShowLeaveAdminPanel(true)}
+                    className="bg-pink-600 hover:bg-pink-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm relative"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    <span className="hidden sm:inline">Demandes</span>
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {pendingLeaveRequests.length}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
+
+          {/* 🏖️ WIDGET SOLDE CONGÉS */}
+          {leaveBalance && (
+            <div className="mb-4 sm:mb-6">
+              <GlassCard className="!p-3 sm:!p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Palmtree className="w-5 h-5 text-amber-400" />
+                    <span className="text-white font-medium text-sm">Mon solde congés :</span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <div className="bg-amber-500/20 border border-amber-500/30 rounded-lg px-3 py-1.5">
+                      <span className="text-amber-300 text-sm">
+                        🏖️ CP: <span className="font-bold">{getAvailableBalance('paid_leave')}</span> jours
+                      </span>
+                    </div>
+                    {(leaveBalance.bonusOffDays || 0) > 0 && (
+                      <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-1.5">
+                        <span className="text-purple-300 text-sm">
+                          🎁 Bonus: <span className="font-bold">{getAvailableBalance('bonus_day')}</span> jours
+                        </span>
+                      </div>
+                    )}
+                    {(leaveBalance.rttDays || 0) > 0 && (
+                      <div className="bg-green-500/20 border border-green-500/30 rounded-lg px-3 py-1.5">
+                        <span className="text-green-300 text-sm">
+                          ⏰ RTT: <span className="font-bold">{getAvailableBalance('rtt')}</span> jours
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </GlassCard>
+            </div>
+          )}
 
           {/* MODAL DIAGNOSTIC */}
           <AnimatePresence>
@@ -1072,6 +1306,303 @@ const PlanningAdvancedPage = () => {
                       💡 Cliquez sur un shift pour naviguer vers sa semaine
                     </p>
                   </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 🏖️ MODAL DEMANDE DE CONGÉS */}
+          <AnimatePresence>
+            {showLeaveRequestModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+                onClick={() => setShowLeaveRequestModal(false)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto border-t sm:border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-500/20 rounded-xl">
+                        <Palmtree className="w-6 h-6 text-amber-400" />
+                      </div>
+                      <h2 className="text-xl font-bold text-white">Demande de congés</h2>
+                    </div>
+                    <button
+                      onClick={() => setShowLeaveRequestModal(false)}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {/* Solde actuel */}
+                  <div className="mb-5 p-3 bg-gray-700/30 rounded-xl border border-gray-600/50">
+                    <p className="text-gray-400 text-xs mb-2">Mon solde disponible</p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-amber-400 text-sm">🏖️ CP: {getAvailableBalance('paid_leave')}j</span>
+                      <span className="text-purple-400 text-sm">🎁 Bonus: {getAvailableBalance('bonus_day')}j</span>
+                      <span className="text-green-400 text-sm">⏰ RTT: {getAvailableBalance('rtt')}j</span>
+                    </div>
+                  </div>
+
+                  {/* Formulaire */}
+                  <div className="space-y-4">
+                    {/* Type de congé */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Type de congé</label>
+                      <select
+                        value={leaveRequestForm.leaveType}
+                        onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, leaveType: e.target.value })}
+                        className="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none"
+                      >
+                        {Object.entries(LEAVE_TYPES).map(([id, type]) => (
+                          <option key={id} value={id}>
+                            {type.emoji} {type.label}
+                            {type.deductsFrom && ` (${getAvailableBalance(id)}j dispo)`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Date début</label>
+                        <input
+                          type="date"
+                          value={leaveRequestForm.startDate}
+                          onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, startDate: e.target.value })}
+                          className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Date fin</label>
+                        <input
+                          type="date"
+                          value={leaveRequestForm.endDate}
+                          onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, endDate: e.target.value })}
+                          className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Demi-journée */}
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="halfDay"
+                        checked={leaveRequestForm.halfDay}
+                        onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, halfDay: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-amber-500 focus:ring-amber-500"
+                      />
+                      <label htmlFor="halfDay" className="text-gray-300 text-sm">Demi-journée</label>
+                      {leaveRequestForm.halfDay && (
+                        <select
+                          value={leaveRequestForm.halfDayPeriod}
+                          onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, halfDayPeriod: e.target.value })}
+                          className="bg-gray-700 text-white px-3 py-1.5 rounded-lg border border-gray-600 text-sm"
+                        >
+                          <option value="morning">Matin</option>
+                          <option value="afternoon">Après-midi</option>
+                        </select>
+                      )}
+                    </div>
+
+                    {/* Motif */}
+                    <div>
+                      <label className="block text-gray-400 text-sm mb-2">Motif (optionnel)</label>
+                      <textarea
+                        value={leaveRequestForm.reason}
+                        onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, reason: e.target.value })}
+                        placeholder="Ex: Vacances familiales..."
+                        rows={2}
+                        className="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none resize-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Boutons */}
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => setShowLeaveRequestModal(false)}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-xl transition-colors font-medium"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleSubmitLeaveRequest}
+                      disabled={submittingLeave || !leaveRequestForm.startDate || !leaveRequestForm.endDate}
+                      className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-3 rounded-xl transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {submittingLeave ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          Envoyer
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Mes demandes récentes */}
+                  {myLeaveRequests.length > 0 && (
+                    <div className="mt-6 pt-5 border-t border-gray-700">
+                      <p className="text-gray-400 text-sm mb-3">Mes demandes récentes</p>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {myLeaveRequests.slice(0, 3).map((req) => {
+                          const status = REQUEST_STATUS[req.status];
+                          return (
+                            <div
+                              key={req.id}
+                              className={`p-2 rounded-lg ${status.bgColor} border ${status.borderColor} text-sm`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className={status.color}>
+                                  {status.emoji} {LEAVE_TYPES[req.leaveType]?.label}
+                                </span>
+                                <span className="text-gray-400 text-xs">
+                                  {new Date(req.startDate).toLocaleDateString('fr-FR')}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 📋 MODAL ADMIN - VALIDATION DES DEMANDES */}
+          <AnimatePresence>
+            {showLeaveAdminPanel && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+                onClick={() => setShowLeaveAdminPanel(false)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto border-t sm:border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-pink-500/20 rounded-xl">
+                        <CalendarDays className="w-6 h-6 text-pink-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Demandes de congés</h2>
+                        <p className="text-gray-400 text-sm">{pendingLeaveRequests.length} en attente</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowLeaveAdminPanel(false)}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {pendingLeaveRequests.length === 0 ? (
+                    <div className="text-center py-8">
+                      <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                      <p className="text-white font-medium">Aucune demande en attente</p>
+                      <p className="text-gray-400 text-sm">Toutes les demandes ont été traitées</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingLeaveRequests.map((request) => {
+                        const leaveType = LEAVE_TYPES[request.leaveType];
+                        return (
+                          <div
+                            key={request.id}
+                            className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50"
+                          >
+                            {/* Header demande */}
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xl">
+                                  {request.userAvatar || '👤'}
+                                </div>
+                                <div>
+                                  <p className="text-white font-medium">{request.userName}</p>
+                                  <p className="text-gray-400 text-xs">
+                                    {request.createdAt?.toLocaleDateString?.() || 'Date inconnue'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div
+                                className="px-2 py-1 rounded-lg text-xs font-medium"
+                                style={{ backgroundColor: `${leaveType?.color}20`, color: leaveType?.color }}
+                              >
+                                {leaveType?.emoji} {leaveType?.label}
+                              </div>
+                            </div>
+
+                            {/* Détails */}
+                            <div className="bg-gray-800/50 rounded-lg p-3 mb-3">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-400">Période:</span>
+                                <span className="text-white font-medium">
+                                  {new Date(request.startDate).toLocaleDateString('fr-FR')}
+                                  {request.startDate !== request.endDate && (
+                                    <> → {new Date(request.endDate).toLocaleDateString('fr-FR')}</>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm mt-1">
+                                <span className="text-gray-400">Durée:</span>
+                                <span className="text-amber-400 font-medium">
+                                  {request.numberOfDays} jour{request.numberOfDays > 1 ? 's' : ''}
+                                  {request.halfDay && ` (${request.halfDayPeriod === 'morning' ? 'matin' : 'après-midi'})`}
+                                </span>
+                              </div>
+                              {request.reason && (
+                                <div className="mt-2 pt-2 border-t border-gray-700">
+                                  <p className="text-gray-400 text-xs">Motif:</p>
+                                  <p className="text-gray-300 text-sm">{request.reason}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleRejectLeave(request.id)}
+                                className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Refuser
+                              </button>
+                              <button
+                                onClick={() => handleApproveLeave(request.id)}
+                                className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                Approuver
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </motion.div>
               </motion.div>
             )}
@@ -1581,6 +2112,7 @@ const PlanningAdvancedPage = () => {
 
                         {weekDates.map(date => {
                           const shift = getShiftForCell(employee.id, date);
+                          const approvedLeave = getApprovedLeaveForCell(employee.id, date);
                           const isOver = dragOverCell?.employeeId === employee.id && dragOverCell?.date === date;
                           const dateAnalysis = getDateAnalysis(date);
                           const hasHighDemand = dateAnalysis && dateAnalysis.isSpecial;
@@ -1704,6 +2236,32 @@ const PlanningAdvancedPage = () => {
                                             </span>
                                           </div>
                                         )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              ) : approvedLeave ? (
+                                /* 🏖️ Affichage congé approuvé */
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  style={{
+                                    backgroundColor: LEAVE_TYPES[approvedLeave.leaveType]?.color || '#F59E0B',
+                                    borderLeft: `4px solid rgba(0,0,0,0.3)`
+                                  }}
+                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] shadow-lg"
+                                >
+                                  <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 rounded-lg pointer-events-none" />
+                                  <div className="relative z-10">
+                                    <div className="text-xl sm:text-2xl text-center mb-1">
+                                      {LEAVE_TYPES[approvedLeave.leaveType]?.emoji || '🏖️'}
+                                    </div>
+                                    <div className="text-white text-[10px] sm:text-xs font-bold text-center drop-shadow-md">
+                                      {LEAVE_TYPES[approvedLeave.leaveType]?.label || 'Congé'}
+                                    </div>
+                                    {approvedLeave.halfDay && (
+                                      <div className="text-white/80 text-[9px] sm:text-[10px] text-center mt-0.5">
+                                        {approvedLeave.halfDayPeriod === 'morning' ? 'Matin' : 'Après-midi'}
                                       </div>
                                     )}
                                   </div>
