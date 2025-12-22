@@ -803,10 +803,10 @@ const MentoringPage = () => {
               </motion.div>
               <div>
                 <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
-                  Sessions de Mentorat
+                  🎓 Académie
                 </h1>
                 <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
-                  Partagez vos connaissances et developpez-vous
+                  Mentorat, formations et partage de connaissances
                 </p>
               </div>
             </div>
