@@ -48,6 +48,35 @@ import { db } from '../core/firebase.js';
 // Auth
 import { useAuthStore } from '../shared/stores/authStore.js';
 
+// ==========================================
+// 🎨 UTILITAIRES COULEURS ET CALCULS
+// ==========================================
+
+/**
+ * Ajuste la luminosité d'une couleur hex
+ */
+const adjustColor = (color, amount) => {
+  const hex = color.replace('#', '');
+  const r = Math.max(0, Math.min(255, parseInt(hex.slice(0, 2), 16) + amount));
+  const g = Math.max(0, Math.min(255, parseInt(hex.slice(2, 4), 16) + amount));
+  const b = Math.max(0, Math.min(255, parseInt(hex.slice(4, 6), 16) + amount));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
+
+/**
+ * Calcule la durée d'un shift en heures
+ */
+const calculateShiftDuration = (startTime, endTime) => {
+  if (!startTime || !endTime) return '0h';
+  const [startH, startM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+  let totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+  if (totalMinutes < 0) totalMinutes += 24 * 60; // Shift de nuit
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes > 0 ? `${hours}h${minutes.toString().padStart(2, '0')}` : `${hours}h`;
+};
+
 /**
  * 📅 PAGE PLANNING AVANCÉE TYPE SKELLO
  */
@@ -750,12 +779,16 @@ const PlanningPage = () => {
                             draggable
                             onDragStart={(e) => handleDragStart(e, shift)}
                             onDragEnd={handleDragEnd}
-                            className="bg-gradient-to-br from-purple-500/30 to-purple-600/20 border border-purple-500/30 rounded-lg sm:rounded-xl p-1.5 sm:p-2 cursor-move hover:border-purple-400/50 transition-all group"
+                            className="rounded-lg sm:rounded-xl p-1.5 sm:p-2 cursor-move transition-all group shadow-md"
+                            style={{
+                              backgroundColor: shift.color || '#8B5CF6',
+                              borderLeft: `4px solid ${shift.color ? adjustColor(shift.color, -30) : '#6D28D9'}`
+                            }}
                           >
                             <div className="flex items-start justify-between mb-0.5 sm:mb-1">
-                              <div className="flex items-center gap-1 text-purple-300 text-[10px] sm:text-xs">
-                                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                                <span className="font-medium">
+                              <div className="flex items-center gap-1 text-[10px] sm:text-xs">
+                                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white drop-shadow-sm" />
+                                <span className="font-bold text-white drop-shadow-sm">
                                   {shift.startTime}-{shift.endTime}
                                 </span>
                               </div>
@@ -766,10 +799,10 @@ const PlanningPage = () => {
                                     e.stopPropagation();
                                     copyShift(shift);
                                   }}
-                                  className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded-lg"
+                                  className="p-1 bg-black/20 hover:bg-black/40 rounded-lg"
                                   title="Copier"
                                 >
-                                  <Copy className="w-3 h-3 text-blue-300" />
+                                  <Copy className="w-3 h-3 text-white" />
                                 </button>
                                 <button
                                   onClick={(e) => {
@@ -777,33 +810,40 @@ const PlanningPage = () => {
                                     setSelectedShift(shift);
                                     setShowEditShiftModal(true);
                                   }}
-                                  className="p-1 bg-green-500/20 hover:bg-green-500/40 rounded-lg"
+                                  className="p-1 bg-black/20 hover:bg-black/40 rounded-lg"
                                   title="Modifier"
                                 >
-                                  <Edit className="w-3 h-3 text-green-300" />
+                                  <Edit className="w-3 h-3 text-white" />
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     deleteShift(shift.id);
                                   }}
-                                  className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded-lg"
+                                  className="p-1 bg-black/20 hover:bg-black/40 rounded-lg"
                                   title="Supprimer"
                                 >
-                                  <Trash2 className="w-3 h-3 text-red-300" />
+                                  <Trash2 className="w-3 h-3 text-white" />
                                 </button>
                               </div>
                             </div>
 
-                            <p className="text-white text-[10px] sm:text-sm font-medium truncate">
+                            <p className="text-white text-[10px] sm:text-sm font-bold truncate drop-shadow-sm">
                               {shift.position}
                             </p>
 
                             {shift.notes && (
-                              <p className="text-gray-300 text-[10px] truncate mt-0.5 sm:mt-1 hidden sm:block">
+                              <p className="text-white/80 text-[10px] truncate mt-0.5 sm:mt-1 hidden sm:block drop-shadow-sm">
                                 {shift.notes}
                               </p>
                             )}
+
+                            {/* Durée du shift */}
+                            <div className="mt-1 pt-1 border-t border-white/20">
+                              <span className="text-white/90 text-[9px] sm:text-xs font-semibold drop-shadow-sm">
+                                {calculateShiftDuration(shift.startTime, shift.endTime)}
+                              </span>
+                            </div>
                           </motion.div>
                         ) : (
                           <button

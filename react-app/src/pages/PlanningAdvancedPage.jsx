@@ -1606,99 +1606,107 @@ const PlanningAdvancedPage = () => {
                                   draggable
                                   onDragStart={(e) => handleDragStart(e, shift)}
                                   onDragEnd={handleDragEnd}
-                                  style={{ backgroundColor: shift.color || '#8B5CF6' }}
-                                  className="rounded-lg p-1.5 sm:p-3 cursor-move hover:opacity-80 transition-all group relative min-h-[60px] sm:min-h-[80px]"
+                                  style={{
+                                    backgroundColor: shift.color || '#8B5CF6',
+                                    borderLeft: `4px solid rgba(0,0,0,0.3)`
+                                  }}
+                                  className="rounded-lg p-1.5 sm:p-3 cursor-move hover:opacity-90 transition-all group relative min-h-[60px] sm:min-h-[80px] shadow-lg"
                                 >
-                                  <div className="flex items-start justify-between mb-1 sm:mb-2">
-                                    <div className="flex items-center gap-1 text-white text-[10px] sm:text-xs font-medium">
-                                      <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 hidden sm:block" />
-                                      <span>{shift.startTime} - {shift.endTime}</span>
-                                    </div>
+                                  {/* Overlay sombre pour améliorer la lisibilité */}
+                                  <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 rounded-lg pointer-events-none" />
 
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openEditShiftModal(shift);
-                                        }}
-                                        className="p-1 bg-blue-500/20 hover:bg-blue-500/40 rounded"
-                                        title="Éditer"
-                                      >
-                                        <Edit className="w-3 h-3 text-white" />
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          copyShift(shift);
-                                        }}
-                                        className="p-1 bg-white/20 hover:bg-white/40 rounded"
-                                        title="Copier"
-                                      >
-                                        <Copy className="w-3 h-3 text-white" />
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteShift(shift.id);
-                                        }}
-                                        className="p-1 bg-red-500/20 hover:bg-red-500/40 rounded"
-                                        title="Supprimer"
-                                      >
-                                        <X className="w-3 h-3 text-white" />
-                                      </button>
-                                    </div>
-                                  </div>
+                                  <div className="relative z-10">
+                                    <div className="flex items-start justify-between mb-1 sm:mb-2">
+                                      <div className="flex items-center gap-1 text-[10px] sm:text-xs">
+                                        <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 hidden sm:block text-white drop-shadow-md" />
+                                        <span className="font-bold text-white drop-shadow-md">{shift.startTime} - {shift.endTime}</span>
+                                      </div>
 
-                                  <div className="text-white text-[10px] sm:text-xs opacity-90 truncate">
-                                    {shift.position}
-                                  </div>
-
-                                  {shift.duration && (
-                                    <div className="text-white text-[10px] sm:text-xs font-semibold mt-0.5 sm:mt-1">
-                                      {shift.duration}h
-                                    </div>
-                                  )}
-
-                                  {/* 🔍 ANOMALIES DE POINTAGE */}
-                                  {showAnomalies && getShiftAnomalies(shift.id) && (
-                                    <div className="mt-2 space-y-1">
-                                      {getShiftAnomalies(shift.id).anomalies?.map((anomaly, idx) => (
-                                        <div
-                                          key={idx}
-                                          className={`
-                                            px-2 py-1 rounded text-[10px] font-bold
-                                            flex items-center gap-1
-                                            ${anomaly.bgColor} ${anomaly.textColor} ${anomaly.borderColor}
-                                            border animate-pulse
-                                          `}
-                                          title={`${anomaly.label}: ${anomaly.message}`}
+                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openEditShiftModal(shift);
+                                          }}
+                                          className="p-1 bg-black/30 hover:bg-black/50 rounded"
+                                          title="Éditer"
                                         >
-                                          <span>{anomaly.icon}</span>
-                                          <span>{anomaly.message}</span>
-                                        </div>
-                                      ))}
-
-                                      {/* Résumé du temps travaillé */}
-                                      {getShiftAnomalies(shift.id).summary && (
-                                        <div className={`
-                                          px-2 py-1 rounded text-[10px]
-                                          ${getShiftAnomalies(shift.id).summary.diffMinutes > 0
-                                            ? 'bg-blue-500/30 text-blue-200 border border-blue-500/40'
-                                            : getShiftAnomalies(shift.id).summary.diffMinutes < 0
-                                              ? 'bg-red-500/30 text-red-200 border border-red-500/40'
-                                              : 'bg-green-500/30 text-green-200 border border-green-500/40'
-                                          }
-                                        `}>
-                                          <span className="font-semibold">
-                                            {getShiftAnomalies(shift.id).summary.diffFormatted}
-                                          </span>
-                                          <span className="opacity-75 ml-1">
-                                            ({Math.floor(getShiftAnomalies(shift.id).summary.workedMinutes / 60)}h{String(getShiftAnomalies(shift.id).summary.workedMinutes % 60).padStart(2, '0')} travaillé)
-                                          </span>
-                                        </div>
-                                      )}
+                                          <Edit className="w-3 h-3 text-white" />
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            copyShift(shift);
+                                          }}
+                                          className="p-1 bg-black/30 hover:bg-black/50 rounded"
+                                          title="Copier"
+                                        >
+                                          <Copy className="w-3 h-3 text-white" />
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteShift(shift.id);
+                                          }}
+                                          className="p-1 bg-black/30 hover:bg-black/50 rounded"
+                                          title="Supprimer"
+                                        >
+                                          <X className="w-3 h-3 text-white" />
+                                        </button>
+                                      </div>
                                     </div>
-                                  )}
+
+                                    <div className="text-white text-[10px] sm:text-sm font-bold truncate drop-shadow-md">
+                                      {shift.position}
+                                    </div>
+
+                                    {shift.duration && (
+                                      <div className="text-white/90 text-[10px] sm:text-xs font-semibold mt-0.5 sm:mt-1 drop-shadow-md">
+                                        {shift.duration}h
+                                      </div>
+                                    )}
+
+                                    {/* 🔍 ANOMALIES DE POINTAGE */}
+                                    {showAnomalies && getShiftAnomalies(shift.id) && (
+                                      <div className="mt-2 space-y-1">
+                                        {getShiftAnomalies(shift.id).anomalies?.map((anomaly, idx) => (
+                                          <div
+                                            key={idx}
+                                            className={`
+                                              px-2 py-1 rounded text-[10px] font-bold
+                                              flex items-center gap-1 shadow-sm
+                                              ${anomaly.bgColor} ${anomaly.textColor} ${anomaly.borderColor}
+                                              border
+                                            `}
+                                            title={`${anomaly.label}: ${anomaly.message}`}
+                                          >
+                                            <span>{anomaly.icon}</span>
+                                            <span className="drop-shadow-sm">{anomaly.message}</span>
+                                          </div>
+                                        ))}
+
+                                        {/* Résumé du temps travaillé */}
+                                        {getShiftAnomalies(shift.id).summary && (
+                                          <div className={`
+                                            px-2 py-1 rounded text-[10px] shadow-sm
+                                            ${getShiftAnomalies(shift.id).summary.diffMinutes > 0
+                                              ? 'bg-blue-600/50 text-white border border-blue-400/50'
+                                              : getShiftAnomalies(shift.id).summary.diffMinutes < 0
+                                                ? 'bg-red-600/50 text-white border border-red-400/50'
+                                                : 'bg-green-600/50 text-white border border-green-400/50'
+                                            }
+                                          `}>
+                                            <span className="font-bold drop-shadow-sm">
+                                              {getShiftAnomalies(shift.id).summary.diffFormatted}
+                                            </span>
+                                            <span className="opacity-90 ml-1 drop-shadow-sm">
+                                              ({Math.floor(getShiftAnomalies(shift.id).summary.workedMinutes / 60)}h{String(getShiftAnomalies(shift.id).summary.workedMinutes % 60).padStart(2, '0')} travaillé)
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 </motion.div>
                               ) : (
                                 <div
