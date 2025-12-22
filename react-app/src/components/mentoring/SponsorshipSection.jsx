@@ -346,9 +346,9 @@ const CreateSponsorshipModal = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-slate-800 rounded-2xl border border-white/10 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-slate-800 rounded-2xl border border-white/10 w-full max-w-lg max-h-[90vh] flex flex-col"
       >
-        <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between flex-shrink-0">
           <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
             <Heart className="w-5 h-5 text-pink-400" />
             Nouveau Parrainage
@@ -361,7 +361,8 @@ const CreateSponsorshipModal = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
           {/* Sélection du filleul */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -484,9 +485,10 @@ const CreateSponsorshipModal = ({
               Jusqu'à <span className="text-purple-400 font-bold">+630 XP</span> si le parrainage est mené à terme !
             </p>
           </div>
+          </div>
 
-          {/* Boutons */}
-          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4">
+          {/* Boutons - Sticky en bas */}
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-white/10 bg-slate-800 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}
