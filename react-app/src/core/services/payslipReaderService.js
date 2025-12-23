@@ -131,23 +131,24 @@ const PAYSLIP_PATTERNS = {
   // 📋 DONNÉES RH COMPLÈTES
   // ==========================================
 
-  // Salaire brut mensuel (chercher des montants > 500€ pour éviter confusion avec taux horaire)
+  // Salaire brut mensuel - ATTENTION: patterns simples seulement, TOTAL BRUT traité en post-processing
   salaireBrut: [
-    /TOTAL\s*BRUT\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
-    /Salaire\s*brut\s*(?:mensuel)?\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
+    // Ces patterns sont simples et sans ambiguïté
     /Brut\s*du\s*mois\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
     /Total\s*des\s*gains\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
-    /Salaire\s*(?:de\s*)?base\s+\d+[.,]\d+\s+\d+[.,]\d+\s+(\d[\d\s]*[.,]\d{2})/i  // Format: "Salaire de base 151.67 12.72 1929.24"
+    /Salaire\s*brut\s*mensuel\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i
+    // Note: TOTAL BRUT et "Salaire de base" sont traités en post-processing
+    // car leur format est "LABEL heures montant" et on veut le montant (dernier nombre)
   ],
 
-  // Salaire net (chercher Net imposable ou Net avant impôt, PAS "Net à payer" qui inclut les acomptes)
+  // Salaire net - MONTANT NET SOCIAL est le vrai net avant acomptes
   salaireNet: [
+    /MONTANT\s*NET\s*SOCIAL\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
     /Net\s*imposable\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
     /Net\s*(?:avant|av\.?)\s*imp[oô]t\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
     /Net\s*fiscal\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
-    /Salaire\s*net\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
     /TOTAL\s*NET\s*(?:IMPOSABLE)?\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i
-    // Note: On évite "Net à payer" car il peut être après déduction des acomptes
+    // Note: On évite "Net à payer" et "Salaire net" car souvent après acomptes
   ],
 
   // Net à payer (le montant final versé, peut être différent du salaire net si acomptes)
@@ -810,47 +811,69 @@ class PayslipReaderService {
     // 💰 POST-TRAITEMENT DES SALAIRES
     // ==========================================
 
-    // Si on n'a pas trouvé le salaire brut, essayer de l'extraire du format tableau
-    if (result.salaireBrut === null) {
-      // Format: "Salaire de base 151.67 12.720 1 929.24" ou similaire
-      const salBaseMatch = cleanText.match(/Salaire\s*(?:de\s*)?base[^0-9]*(\d{2,3}[.,]\d{2})\s+(\d{1,2}[.,]\d{2,4})\s+(\d[\d\s]*[.,]\d{2})/i);
-      if (salBaseMatch) {
-        const heures = parseFloat(salBaseMatch[1].replace(',', '.'));
-        const tauxH = parseFloat(salBaseMatch[2].replace(',', '.'));
-        const montant = parseFloat(salBaseMatch[3].replace(/\s/g, '').replace(',', '.'));
-
+    // PRIORITÉ 1: Chercher TOTAL BRUT - format: "TOTAL BRUT [heures] [montant]"
+    // TOUJOURS exécuter car c'est la source la plus fiable - écrase les valeurs erronées
+    const totalBrutLine = cleanText.match(/TOTAL\s*BRUT[^\n]*/im);
+    if (totalBrutLine) {
+      console.log('🔍 Ligne TOTAL BRUT trouvée:', totalBrutLine[0]);
+      // Extraire TOUS les nombres de la ligne
+      const numbersInLine = totalBrutLine[0].match(/(\d[\d\s]*[.,]\d{2})/g);
+      if (numbersInLine && numbersInLine.length > 0) {
+        // Prendre le DERNIER nombre (c'est le montant, pas les heures)
+        const lastNumber = numbersInLine[numbersInLine.length - 1];
+        const montant = parseFloat(lastNumber.replace(/\s/g, '').replace(',', '.'));
         if (montant > 500) {
+          if (result.salaireBrut !== null && result.salaireBrut !== montant) {
+            console.log(`⚠️ Correction salaire brut: ${result.salaireBrut}€ → ${montant}€`);
+          }
           result.salaireBrut = montant;
-          if (result.tauxHoraire === null && tauxH >= 8 && tauxH <= 100) {
-            result.tauxHoraire = tauxH;
-          }
-          if (result.heuresTravaillees === null && heures >= 50 && heures <= 250) {
-            result.heuresTravaillees = heures;
-          }
-          console.log(`✅ Salaire extrait du format tableau: ${montant}€ (${heures}h × ${tauxH}€)`);
+          console.log(`✅ TOTAL BRUT trouvé: ${montant}€ (dernier nombre de la ligne)`);
         }
       }
     }
 
-    // Chercher TOTAL BRUT spécifiquement (format: TOTAL BRUT [heures] [montant])
+    // PRIORITÉ 2: Si pas de TOTAL BRUT, chercher "Salaire de base" avec format tableau
     if (result.salaireBrut === null) {
-      // Le TOTAL BRUT est suivi de heures puis du montant - on veut le dernier nombre
-      const totalBrutMatch = cleanText.match(/TOTAL\s*BRUT\s+[\d.,]+\s+(\d[\d\s]*[.,]\d{2})/i);
-      if (totalBrutMatch) {
-        const montant = parseFloat(totalBrutMatch[1].replace(/\s/g, '').replace(',', '.'));
-        if (montant > 500) {
-          result.salaireBrut = montant;
-          console.log(`✅ TOTAL BRUT trouvé: ${montant}€`);
-        }
-      } else {
-        // Fallback: chercher juste un nombre après TOTAL BRUT
-        const simpleBrutMatch = cleanText.match(/TOTAL\s*BRUT\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i);
-        if (simpleBrutMatch) {
-          const montant = parseFloat(simpleBrutMatch[1].replace(/\s/g, '').replace(',', '.'));
+      // Format: "Salaire de base 151.67 12.720 1 929.24" - on veut 1929.24 (le dernier)
+      const salBaseMatch = cleanText.match(/Salaire\s*(?:de\s*)?base[^\n]*/i);
+      if (salBaseMatch) {
+        console.log('🔍 Ligne Salaire de base:', salBaseMatch[0]);
+        const numbersInLine = salBaseMatch[0].match(/(\d[\d\s]*[.,]\d{2})/g);
+        if (numbersInLine && numbersInLine.length >= 3) {
+          // Format: heures, taux, montant - on veut le dernier
+          const montant = parseFloat(numbersInLine[numbersInLine.length - 1].replace(/\s/g, '').replace(',', '.'));
           if (montant > 500) {
             result.salaireBrut = montant;
-            console.log(`✅ TOTAL BRUT (simple): ${montant}€`);
+            // Extraire aussi taux horaire et heures
+            const heures = parseFloat(numbersInLine[0].replace(/\s/g, '').replace(',', '.'));
+            const tauxH = parseFloat(numbersInLine[1].replace(/\s/g, '').replace(',', '.'));
+            if (result.tauxHoraire === null && tauxH >= 8 && tauxH <= 100) {
+              result.tauxHoraire = tauxH;
+            }
+            if (result.heuresTravaillees === null && heures >= 50 && heures <= 250) {
+              result.heuresTravaillees = heures;
+            }
+            console.log(`✅ Salaire de base: ${montant}€ (${heures}h × ${tauxH}€/h)`);
           }
+        }
+      }
+    }
+
+    // PRIORITÉ 3: Chercher MONTANT NET SOCIAL pour le vrai salaire net
+    // TOUJOURS exécuter car c'est la source la plus fiable (avant acomptes)
+    const netSocialLine = cleanText.match(/MONTANT\s*NET\s*SOCIAL[^\n]*/i);
+    if (netSocialLine) {
+      console.log('🔍 Ligne MONTANT NET SOCIAL:', netSocialLine[0]);
+      const numbersInLine = netSocialLine[0].match(/(\d[\d\s]*[.,]\d{2})/g);
+      if (numbersInLine && numbersInLine.length > 0) {
+        const lastNumber = numbersInLine[numbersInLine.length - 1];
+        const montant = parseFloat(lastNumber.replace(/\s/g, '').replace(',', '.'));
+        if (montant > 400) {
+          if (result.salaireNet !== null && result.salaireNet !== montant) {
+            console.log(`⚠️ Correction salaire net: ${result.salaireNet}€ → ${montant}€`);
+          }
+          result.salaireNet = montant;
+          console.log(`✅ MONTANT NET SOCIAL trouvé: ${montant}€`);
         }
       }
     }
