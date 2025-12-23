@@ -373,12 +373,6 @@ class MentoringService {
         };
       }
 
-      // Limite de taille: 50MB
-      const maxSize = 50 * 1024 * 1024;
-      if (file.size > maxSize) {
-        return { success: false, error: 'Le fichier ne doit pas depasser 50MB' };
-      }
-
       // Generer le chemin de stockage
       const timestamp = Date.now();
       const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
