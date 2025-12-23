@@ -832,14 +832,25 @@ class PayslipReaderService {
       }
     }
 
-    // Chercher TOTAL BRUT spécifiquement
+    // Chercher TOTAL BRUT spécifiquement (format: TOTAL BRUT [heures] [montant])
     if (result.salaireBrut === null) {
-      const totalBrutMatch = cleanText.match(/TOTAL\s*BRUT\s*(\d[\d\s]*[.,]\d{2})/i);
+      // Le TOTAL BRUT est suivi de heures puis du montant - on veut le dernier nombre
+      const totalBrutMatch = cleanText.match(/TOTAL\s*BRUT\s+[\d.,]+\s+(\d[\d\s]*[.,]\d{2})/i);
       if (totalBrutMatch) {
         const montant = parseFloat(totalBrutMatch[1].replace(/\s/g, '').replace(',', '.'));
         if (montant > 500) {
           result.salaireBrut = montant;
           console.log(`✅ TOTAL BRUT trouvé: ${montant}€`);
+        }
+      } else {
+        // Fallback: chercher juste un nombre après TOTAL BRUT
+        const simpleBrutMatch = cleanText.match(/TOTAL\s*BRUT\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i);
+        if (simpleBrutMatch) {
+          const montant = parseFloat(simpleBrutMatch[1].replace(/\s/g, '').replace(',', '.'));
+          if (montant > 500) {
+            result.salaireBrut = montant;
+            console.log(`✅ TOTAL BRUT (simple): ${montant}€`);
+          }
         }
       }
     }
