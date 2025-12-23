@@ -97,7 +97,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import hrDocumentService, { DOCUMENT_TYPES } from '../core/services/hrDocumentService.js';
-import timesheetExportService, { MONTHS_FR } from '../core/services/timesheetExportService.js';
+import timesheetExportService, { MONTHS_FR, exportPayrollComplete } from '../core/services/timesheetExportService.js';
 
 // 🎨 COMPOSANT CARTE GLASSMORPHISM
 const GlassCard = ({ children, className = "" }) => (
@@ -3328,7 +3328,7 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh }) =
     years.push(y);
   }
 
-  // Exporter en Excel
+  // Exporter en Excel (simple)
   const handleExportExcel = async () => {
     try {
       setExporting(true);
@@ -3353,6 +3353,32 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh }) =
       }
     } catch (error) {
       console.error('Erreur export:', error);
+      alert('Erreur lors de l\'export: ' + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Export Paie Complet (toutes les feuilles)
+  const handleExportPayrollComplete = async () => {
+    try {
+      setExporting(true);
+      setExportSuccess(null);
+
+      const result = await exportPayrollComplete(
+        selectedYear,
+        selectedMonth,
+        { companyName: companyName || 'Synergia' }
+      );
+
+      if (result.success) {
+        setExportSuccess(`Export Paie Complet généré: ${result.fileName}`);
+        setTimeout(() => setExportSuccess(null), 5000);
+      } else {
+        throw new Error(result.error || 'Erreur lors de l\'export');
+      }
+    } catch (error) {
+      console.error('Erreur export paie complet:', error);
       alert('Erreur lors de l\'export: ' + error.message);
     } finally {
       setExporting(false);
@@ -3574,30 +3600,59 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh }) =
           </div>
         )}
 
-        {/* Bouton principal d'export Excel */}
-        <div className="text-center py-8 bg-white/5 rounded-xl">
-          <FileSpreadsheet className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <p className="text-white text-lg mb-2">Export Excel complet</p>
-          <p className="text-gray-400 text-sm mb-6">
-            Génère un fichier Excel avec feuille par employé + récapitulatif
-          </p>
-          <button
-            onClick={handleExportExcel}
-            disabled={exporting}
-            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2"
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Export en cours...
-              </>
-            ) : (
-              <>
-                <Download className="w-5 h-5" />
-                Générer export Excel ({MONTHS_FR[selectedMonth]} {selectedYear})
-              </>
-            )}
-          </button>
+        {/* Boutons d'export */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Export Paie Complet */}
+          <div className="text-center py-6 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 rounded-xl">
+            <FileSpreadsheet className="w-12 h-12 text-indigo-400 mx-auto mb-3" />
+            <p className="text-white text-lg font-semibold mb-1">Export Paie Complet</p>
+            <p className="text-gray-400 text-xs mb-4 px-4">
+              Contrats • Détails employés • Pointages • Absences • Compteurs • Solde congés
+            </p>
+            <button
+              onClick={handleExportPayrollComplete}
+              disabled={exporting}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Export en cours...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Export Paie ({MONTHS_FR[selectedMonth]} {selectedYear})
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Export Excel Simple */}
+          <div className="text-center py-6 bg-white/5 rounded-xl">
+            <FileSpreadsheet className="w-12 h-12 text-green-500 mx-auto mb-3" />
+            <p className="text-white text-lg font-semibold mb-1">Export Pointages</p>
+            <p className="text-gray-400 text-xs mb-4 px-4">
+              Feuille par employé + récapitulatif mensuel
+            </p>
+            <button
+              onClick={handleExportExcel}
+              disabled={exporting}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Export en cours...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Export Pointages
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Statistiques rapides */}
