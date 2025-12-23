@@ -213,6 +213,23 @@ export const useMentoring = (options = {}) => {
   }, []);
 
   /**
+   * Modifier une session (difficulté, titre, etc.)
+   */
+  const updateSession = useCallback(async (sessionId, updates) => {
+    try {
+      const result = await mentoringService.updateSession(sessionId, updates);
+      if (!result.success) {
+        setError(result.error);
+      }
+      return result;
+    } catch (err) {
+      console.error('Erreur modification session:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  /**
    * Mettre a jour les notes
    */
   const updateNotes = useCallback(async (sessionId, notes) => {
@@ -329,6 +346,7 @@ export const useMentoring = (options = {}) => {
     startSession,
     completeSession,
     cancelSession,
+    updateSession,
     updateNotes,
     submitFeedback,
     getSession,

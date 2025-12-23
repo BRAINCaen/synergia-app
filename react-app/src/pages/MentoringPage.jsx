@@ -10,7 +10,8 @@ import {
   Users, Calendar, Clock, Star, Plus, X, Check, Play,
   MessageSquare, Award, TrendingUp, ChevronRight, Filter,
   AlertTriangle, Shield, CheckCircle, FileText, Download,
-  Trash2, Upload, File, FileSpreadsheet, FileImage, Video
+  Trash2, Upload, File, FileSpreadsheet, FileImage, Video,
+  Edit3
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import SponsorshipSection from '../components/mentoring/SponsorshipSection.jsx';
@@ -122,7 +123,7 @@ const formatFileSize = (bytes) => {
 // COMPOSANT SESSION CARD
 // ==========================================
 
-const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAddDocument, onRemoveDocument, currentUserId }) => {
+const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAddDocument, onRemoveDocument, onEdit, currentUserId }) => {
   const { MENTORING_STATUS, SESSION_TYPES, DIFFICULTY_LEVELS } = useMentoring();
   const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -137,6 +138,7 @@ const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAdd
   const canGiveFeedback = session.status === 'completed' && (
     (isOwner && !session.mentorFeedback) || (!isOwner && !session.menteeFeedback)
   );
+  const canEdit = isOwner && (session.status === 'scheduled' || session.status === 'in_progress');
 
   // Calcul XP avec difficulte pour le mentee
   const menteeXP = Math.round((sessionType?.xpMentee || 35) * (difficulty?.xpMultiplier || 1));
@@ -369,6 +371,17 @@ const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAdd
 
               {/* Actions */}
               <div className="flex flex-wrap gap-2 pt-2">
+                {/* Bouton Modifier - visible pour le créateur si session non terminée */}
+                {canEdit && onEdit && (
+                  <button
+                    onClick={() => onEdit(session)}
+                    className="flex items-center gap-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Modifier
+                  </button>
+                )}
+
                 {session.status === 'scheduled' && isOwner && (
                   <>
                     <button
@@ -849,6 +862,215 @@ const FeedbackModal = ({ isOpen, onClose, session, onSubmit, FEEDBACK_RATINGS })
 };
 
 // ==========================================
+// MODAL EDITION SESSION
+// ==========================================
+
+const EditSessionModal = ({ isOpen, onClose, onUpdate, session, SESSION_TYPES, DIFFICULTY_LEVELS }) => {
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    difficulty: 'beginner',
+    type: 'skill_transfer',
+    duration: 45
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Charger les données de la session quand la modal s'ouvre
+  useEffect(() => {
+    if (session && isOpen) {
+      setForm({
+        title: session.title || '',
+        description: session.description || '',
+        difficulty: session.difficulty || 'beginner',
+        type: session.type || 'skill_transfer',
+        duration: session.duration || 45
+      });
+    }
+  }, [session, isOpen]);
+
+  if (!isOpen || !session) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.title) return;
+
+    setSaving(true);
+    const result = await onUpdate(session.id, form);
+    if (result.success) {
+      onClose();
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-slate-800 rounded-2xl border border-white/10 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Edit3 className="w-5 h-5 text-purple-400" />
+            Modifier la session
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Titre */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Titre de la session *
+            </label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Ex: Introduction aux bonnes pratiques..."
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          {/* Niveau de difficulte */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Niveau de difficulte
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {DIFFICULTY_LEVELS && Object.values(DIFFICULTY_LEVELS).map(level => {
+                const isSelected = form.difficulty === level.id;
+                const sessionType = SESSION_TYPES[form.type];
+                const baseXP = sessionType?.xpMentee || 35;
+                const xpWithMultiplier = Math.round(baseXP * level.xpMultiplier);
+
+                return (
+                  <button
+                    key={level.id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, difficulty: level.id }))}
+                    className={`p-3 rounded-xl border transition-all text-left ${
+                      isSelected
+                        ? `${level.bgColor} border-${level.color}-500/50`
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">{level.emoji}</div>
+                    <div className={`text-sm font-medium ${isSelected ? level.textColor : 'text-white'}`}>
+                      {level.label}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      +{xpWithMultiplier} XP mentee
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Les XP du mentee sont multiplies selon la difficulte
+            </p>
+          </div>
+
+          {/* Type de session */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Type de session
+            </label>
+            <select
+              value={form.type}
+              onChange={(e) => {
+                const type = SESSION_TYPES[e.target.value];
+                setForm(f => ({
+                  ...f,
+                  type: e.target.value,
+                  duration: type?.duration || 30
+                }));
+              }}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+            >
+              {Object.values(SESSION_TYPES).map(type => (
+                <option key={type.id} value={type.id} className="bg-slate-800">
+                  {type.emoji} {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Description
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Decrivez le contenu de la session..."
+              rows={3}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none resize-none"
+            />
+          </div>
+
+          {/* Duree */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Duree (minutes)
+            </label>
+            <input
+              type="number"
+              value={form.duration}
+              onChange={(e) => setForm(f => ({ ...f, duration: parseInt(e.target.value) || 30 }))}
+              min={15}
+              max={180}
+              step={15}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          {/* XP Preview */}
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-purple-300">XP apres modification</span>
+              <div className="flex items-center gap-3">
+                <span className="text-purple-400">
+                  Mentor: +{SESSION_TYPES[form.type]?.xpMentor || 40} XP
+                </span>
+                <span className="text-purple-400">
+                  Mentee: +{Math.round((SESSION_TYPES[form.type]?.xpMentee || 35) * (DIFFICULTY_LEVELS[form.difficulty]?.xpMultiplier || 1))} XP
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Boutons */}
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !form.title}
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {saving ? 'Enregistrement...' : 'Sauvegarder'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+// ==========================================
 // PAGE PRINCIPALE
 // ==========================================
 
@@ -866,6 +1088,7 @@ const MentoringPage = () => {
     startSession,
     completeSession,
     cancelSession,
+    updateSession,
     submitFeedback,
     addDocument,
     removeDocument,
@@ -877,6 +1100,7 @@ const MentoringPage = () => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [feedbackSession, setFeedbackSession] = useState(null);
+  const [editSession, setEditSession] = useState(null);
   const [filter, setFilter] = useState('all'); // all, mentor, mentee
 
   // États pour les formations
@@ -1056,6 +1280,7 @@ const MentoringPage = () => {
                     onFeedback={setFeedbackSession}
                     onAddDocument={addDocument}
                     onRemoveDocument={removeDocument}
+                    onEdit={setEditSession}
                   />
                 ))}
               </div>
@@ -1124,6 +1349,7 @@ const MentoringPage = () => {
                   onFeedback={setFeedbackSession}
                   onAddDocument={addDocument}
                   onRemoveDocument={removeDocument}
+                  onEdit={setEditSession}
                 />
               ))
             )}
@@ -1523,6 +1749,16 @@ const MentoringPage = () => {
         session={feedbackSession}
         onSubmit={submitFeedback}
         FEEDBACK_RATINGS={FEEDBACK_RATINGS}
+      />
+
+      {/* Modal Edition Session */}
+      <EditSessionModal
+        isOpen={!!editSession}
+        onClose={() => setEditSession(null)}
+        session={editSession}
+        onUpdate={updateSession}
+        SESSION_TYPES={SESSION_TYPES}
+        DIFFICULTY_LEVELS={DIFFICULTY_LEVELS}
       />
 
       {/* Modal Ajout Formation */}
