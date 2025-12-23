@@ -40,6 +40,7 @@ import TaskCard from '../modules/tasks/TaskCard.jsx';
 import TaskDetailModal from '../components/ui/TaskDetailModal.jsx';
 import NewTaskModal from '../components/tasks/NewTaskModal.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import { isAdmin } from '../core/services/adminService.js';
 
 import {
   collection,
@@ -278,6 +279,7 @@ const FilterBottomSheet = ({
 // Composant principal
 const TasksPage = () => {
   const { user } = useAuthStore();
+  const userIsAdmin = isAdmin(user);
 
   // Etats
   const [tasks, setTasks] = useState([]);
@@ -536,6 +538,30 @@ const TasksPage = () => {
       alert('Erreur lors de l\'abandon');
     }
   }, [user?.uid]);
+
+  // [ADMIN] Désassigner tous les volontaires d'une quête
+  const handleAdminUnassign = useCallback(async (task) => {
+    if (!userIsAdmin) {
+      alert('Vous n\'avez pas les droits pour cette action.');
+      return;
+    }
+    try {
+      const previousAssignees = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+      await updateDoc(doc(db, 'tasks', task.id), {
+        assignedTo: [],
+        previousAssignees, // Garder une trace des anciens assignés
+        unassignedByAdmin: user.uid,
+        unassignedAt: serverTimestamp(),
+        openToVolunteers: true,
+        status: 'todo', // Remettre en "à faire"
+        updatedAt: serverTimestamp()
+      });
+      console.log('✅ [ADMIN] Quête désassignée:', task.title);
+    } catch (error) {
+      console.error('❌ Erreur désassignation admin:', error);
+      alert('Erreur lors de la désassignation');
+    }
+  }, [user?.uid, userIsAdmin]);
 
   const toggleUserSection = useCallback((userId) => {
     setExpandedUsers(prev => ({ ...prev, [userId]: !prev[userId] }));
@@ -937,6 +963,7 @@ const TasksPage = () => {
                         task={task}
                         commentCount={taskComments[task.id]?.length || 0}
                         isHistoryMode={false}
+                        isAdmin={userIsAdmin}
                         onViewDetails={handleViewDetails}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
@@ -944,6 +971,7 @@ const TasksPage = () => {
                         onVolunteer={handleVolunteer}
                         onUnvolunteer={handleUnvolunteer}
                         onAbandon={handleAbandon}
+                        onAdminUnassign={handleAdminUnassign}
                       />
                     ))}
                   </AnimatePresence>
@@ -959,6 +987,7 @@ const TasksPage = () => {
                         key={task.id}
                         task={task}
                         viewMode="list"
+                        isAdmin={userIsAdmin}
                         commentCount={taskComments[task.id]?.length || 0}
                         isHistoryMode={false}
                         onViewDetails={handleViewDetails}
@@ -968,6 +997,7 @@ const TasksPage = () => {
                         onVolunteer={handleVolunteer}
                         onUnvolunteer={handleUnvolunteer}
                         onAbandon={handleAbandon}
+                        onAdminUnassign={handleAdminUnassign}
                       />
                     ))}
                   </AnimatePresence>
@@ -1121,6 +1151,7 @@ const TasksPage = () => {
                                       task={task}
                                       commentCount={taskComments[task.id]?.length || 0}
                                       isHistoryMode={true}
+                                      isAdmin={userIsAdmin}
                                       onViewDetails={handleViewDetails}
                                       onEdit={handleEdit}
                                       onDelete={handleDelete}
@@ -1128,6 +1159,7 @@ const TasksPage = () => {
                                       onVolunteer={handleVolunteer}
                                       onUnvolunteer={handleUnvolunteer}
                                       onAbandon={handleAbandon}
+                                      onAdminUnassign={handleAdminUnassign}
                                     />
                                   ))}
                                 </div>

@@ -46,12 +46,14 @@ const TaskCard = ({
   commentCount = 0,
   viewMode = 'cards',
   isHistoryMode = false,
+  isAdmin = false,
   onViewDetails,
   onEdit,
   onDelete,
   onVolunteer,
   onUnvolunteer,
   onAbandon,
+  onAdminUnassign,
   onStatusChange
 }) => {
   const { user } = useAuthStore();
@@ -160,6 +162,23 @@ const TaskCard = ({
     setVolunteering(true);
     try {
       await onAbandon(task);
+    } finally {
+      setVolunteering(false);
+    }
+  };
+
+  // Handler pour désassigner (admin)
+  const handleAdminUnassign = async (e) => {
+    e.stopPropagation();
+    if (!onAdminUnassign) return;
+    const assigneeNames = assigneeInfo.names.length > 0 ? assigneeInfo.names.join(', ') : 'la personne assignée';
+    const confirmed = window.confirm(
+      `[ADMIN] Désassigner ${assigneeNames} de la quête "${task.title}" ?\n\nLa quête redeviendra disponible pour d'autres volontaires.`
+    );
+    if (!confirmed) return;
+    setVolunteering(true);
+    try {
+      await onAdminUnassign(task);
     } finally {
       setVolunteering(false);
     }
@@ -395,10 +414,10 @@ const TaskCard = ({
           )}
         </div>
 
-        {/* Actions secondaires si proprietaire */}
-        {(isTaskOwner || isMyTask) && (onEdit || onDelete || onAbandon) && !isHistoryMode && (
+        {/* Actions secondaires si proprietaire ou admin */}
+        {(isTaskOwner || isMyTask || isAdmin) && (onEdit || onDelete || onAbandon || onAdminUnassign) && !isHistoryMode && (
           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
-            {onEdit && (isTaskOwner || (!canSubmit && !(canVolunteer && onVolunteer))) && (
+            {onEdit && (isTaskOwner || isAdmin || (!canSubmit && !(canVolunteer && onVolunteer))) && (
               <button
                 onClick={(e) => { e.stopPropagation(); onEdit(task); }}
                 className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-yellow-600/80 text-white rounded-lg text-xs hover:bg-yellow-600 transition-colors"
@@ -421,6 +440,24 @@ const TaskCard = ({
                   <>
                     <UserMinus className="w-3.5 h-3.5" />
                     <span>Abandonner</span>
+                  </>
+                )}
+              </button>
+            )}
+            {/* Bouton Désassigner pour les admins */}
+            {isAdmin && !isTaskOwner && onAdminUnassign && assignedTo.length > 0 && task.status !== 'completed' && task.status !== 'validated' && (
+              <button
+                onClick={handleAdminUnassign}
+                disabled={volunteering}
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-purple-900/30 text-purple-400 rounded-lg text-xs hover:bg-purple-900/50 transition-colors disabled:opacity-50"
+                title="[Admin] Désassigner le volontaire de cette quête"
+              >
+                {volunteering ? (
+                  <div className="w-3.5 h-3.5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <UserMinus className="w-3.5 h-3.5" />
+                    <span>Désassigner</span>
                   </>
                 )}
               </button>
