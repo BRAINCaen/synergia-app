@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Calendar, Clock, Star, Plus, X, Check, Play,
   MessageSquare, Award, TrendingUp, ChevronRight, Filter,
-  AlertTriangle, Shield, CheckCircle
+  AlertTriangle, Shield, CheckCircle, FileText, Download,
+  Trash2, Upload, File, FileSpreadsheet, FileImage, Video
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import SponsorshipSection from '../components/mentoring/SponsorshipSection.jsx';
@@ -99,20 +100,69 @@ const StatsCards = ({ stats }) => {
 };
 
 // ==========================================
+// HELPER - GET FILE ICON
+// ==========================================
+
+const getFileIcon = (fileType) => {
+  if (fileType?.includes('pdf')) return <FileText className="w-5 h-5 text-red-400" />;
+  if (fileType?.includes('sheet') || fileType?.includes('excel')) return <FileSpreadsheet className="w-5 h-5 text-green-400" />;
+  if (fileType?.includes('presentation') || fileType?.includes('powerpoint')) return <FileText className="w-5 h-5 text-orange-400" />;
+  if (fileType?.includes('image')) return <FileImage className="w-5 h-5 text-blue-400" />;
+  if (fileType?.includes('video')) return <Video className="w-5 h-5 text-purple-400" />;
+  return <File className="w-5 h-5 text-gray-400" />;
+};
+
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// ==========================================
 // COMPOSANT SESSION CARD
 // ==========================================
 
-const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, currentUserId }) => {
+const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAddDocument, onRemoveDocument, currentUserId }) => {
   const { MENTORING_STATUS, SESSION_TYPES } = useMentoring();
   const [expanded, setExpanded] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   const status = MENTORING_STATUS[session.status] || MENTORING_STATUS.scheduled;
   const sessionType = SESSION_TYPES[session.type] || SESSION_TYPES.skill_transfer;
   const isOwner = session.mentorId === currentUserId;
+  const isParticipant = session.mentorId === currentUserId || session.menteeId === currentUserId;
   const scheduledDate = session.scheduledDate?.toDate?.();
   const canGiveFeedback = session.status === 'completed' && (
     (isOwner && !session.mentorFeedback) || (!isOwner && !session.menteeFeedback)
   );
+
+  // Handler pour l'upload de fichier
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !onAddDocument) return;
+
+    setUploading(true);
+    setUploadError(null);
+
+    const result = await onAddDocument(session.id, file);
+
+    if (!result.success) {
+      setUploadError(result.error);
+    }
+
+    setUploading(false);
+    // Reset input
+    e.target.value = '';
+  };
+
+  // Handler pour la suppression de document
+  const handleDeleteDocument = async (doc) => {
+    if (!onRemoveDocument) return;
+    if (window.confirm(`Supprimer "${doc.name}" ?`)) {
+      await onRemoveDocument(session.id, doc);
+    }
+  };
 
   return (
     <motion.div
@@ -214,6 +264,91 @@ const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, curre
                     <span className="text-purple-400">Mentee: +{sessionType.xpMentee} XP</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Documents Section */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-cyan-400" />
+                    Documents supports ({session.documents?.length || 0})
+                  </h4>
+                  {isParticipant && (
+                    <label className="flex items-center gap-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors">
+                      {uploading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                          Upload...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Ajouter
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        disabled={uploading}
+                        accept=".pdf,.xlsx,.xls,.ppt,.pptx,.doc,.docx,.mp4,.webm,.mov,.jpg,.jpeg,.png,.gif"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {uploadError && (
+                  <div className="mb-3 p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-xs">
+                    {uploadError}
+                  </div>
+                )}
+
+                {session.documents?.length > 0 ? (
+                  <div className="space-y-2">
+                    {session.documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center gap-3 p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors group"
+                      >
+                        {getFileIcon(doc.type)}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white text-sm truncate">{doc.name}</div>
+                          <div className="text-gray-500 text-xs">
+                            {formatFileSize(doc.size)} • {new Date(doc.uploadedAt).toLocaleDateString('fr-FR')}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-cyan-500/20 rounded-lg text-cyan-400 transition-colors"
+                            title="Telecharger"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                          {(isOwner || doc.uploadedBy === currentUserId) && (
+                            <button
+                              onClick={() => handleDeleteDocument(doc)}
+                              className="p-1.5 hover:bg-red-500/20 rounded-lg text-red-400 transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    Aucun document pour cette formation
+                    <div className="text-xs mt-1 text-gray-600">
+                      PDF, Excel, PowerPoint, Word, Videos, Images
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
@@ -675,6 +810,8 @@ const MentoringPage = () => {
     completeSession,
     cancelSession,
     submitFeedback,
+    addDocument,
+    removeDocument,
     SESSION_TYPES,
     MENTORING_TOPICS,
     FEEDBACK_RATINGS
@@ -859,6 +996,8 @@ const MentoringPage = () => {
                     onComplete={completeSession}
                     onCancel={cancelSession}
                     onFeedback={setFeedbackSession}
+                    onAddDocument={addDocument}
+                    onRemoveDocument={removeDocument}
                   />
                 ))}
               </div>
@@ -925,6 +1064,8 @@ const MentoringPage = () => {
                   onComplete={completeSession}
                   onCancel={cancelSession}
                   onFeedback={setFeedbackSession}
+                  onAddDocument={addDocument}
+                  onRemoveDocument={removeDocument}
                 />
               ))
             )}

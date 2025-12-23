@@ -264,6 +264,42 @@ export const useMentoring = (options = {}) => {
   }, []);
 
   /**
+   * Ajouter un document a une session
+   */
+  const addDocument = useCallback(async (sessionId, file) => {
+    if (!user?.uid) return { success: false, error: 'Non connecte' };
+
+    try {
+      const result = await mentoringService.addDocument(sessionId, file, user.uid);
+      if (!result.success) {
+        setError(result.error);
+      }
+      return result;
+    } catch (err) {
+      console.error('Erreur ajout document:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  }, [user?.uid]);
+
+  /**
+   * Supprimer un document d'une session
+   */
+  const removeDocument = useCallback(async (sessionId, document) => {
+    try {
+      const result = await mentoringService.removeDocument(sessionId, document);
+      if (!result.success) {
+        setError(result.error);
+      }
+      return result;
+    } catch (err) {
+      console.error('Erreur suppression document:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  /**
    * Rafraichir les donnees
    */
   const refresh = useCallback(async () => {
@@ -296,6 +332,10 @@ export const useMentoring = (options = {}) => {
     submitFeedback,
     getSession,
     refresh,
+
+    // Documents
+    addDocument,
+    removeDocument,
 
     // Constantes
     MENTORING_STATUS,
