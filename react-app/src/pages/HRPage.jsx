@@ -72,6 +72,7 @@ import {
   FilePlus,
   ScanLine,
   FileSearch,
+  FileSpreadsheet,
   Loader2
 } from 'lucide-react';
 
@@ -467,6 +468,8 @@ const HRPage = () => {
               <PayrollTab
                 employees={employees}
                 timesheets={timesheets}
+                leaves={leaves}
+                companyName={companySettings?.name}
                 onRefresh={handleRefresh}
               />
             )}
@@ -3590,7 +3593,183 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
 // ==========================================
 // 💰 ONGLET PAIE
 // ==========================================
-const PayrollTab = ({ employees, timesheets, onRefresh }) => {
+const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh }) => {
+  const [exporting, setExporting] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedEmployee, setSelectedEmployee] = useState('all');
+  const [exportSuccess, setExportSuccess] = useState(null);
+
+  // Générer la liste des années disponibles
+  const years = [];
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+    years.push(y);
+  }
+
+  // Exporter en Excel
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      setExportSuccess(null);
+
+      const options = {
+        employeeId: selectedEmployee === 'all' ? null : selectedEmployee,
+        companyName: companyName || 'Entreprise'
+      };
+
+      const result = await timesheetExportService.exportMonthlyTimesheet(
+        selectedYear,
+        selectedMonth,
+        options
+      );
+
+      if (result.success) {
+        setExportSuccess(`Export généré: ${result.fileName}`);
+        setTimeout(() => setExportSuccess(null), 3000);
+      } else {
+        throw new Error(result.error || 'Erreur lors de l\'export');
+      }
+    } catch (error) {
+      console.error('Erreur export:', error);
+      alert('Erreur lors de l\'export: ' + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Exporter en CSV simple
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+
+      // Préparer les données CSV
+      const monthStart = new Date(selectedYear, selectedMonth, 1);
+      const monthEnd = new Date(selectedYear, selectedMonth + 1, 0);
+
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "Employé;Date;Heure Début;Heure Fin;Heures Travaillées;Type\n";
+
+      const employeesToExport = selectedEmployee === 'all'
+        ? employees
+        : employees.filter(e => e.id === selectedEmployee);
+
+      for (const emp of employeesToExport) {
+        const empTimesheets = timesheets.filter(t =>
+          t.userId === emp.id &&
+          new Date(t.date) >= monthStart &&
+          new Date(t.date) <= monthEnd
+        );
+
+        for (const ts of empTimesheets) {
+          const hours = ts.endTime && ts.startTime
+            ? ((new Date(`2000-01-01T${ts.endTime}`) - new Date(`2000-01-01T${ts.startTime}`)) / 3600000).toFixed(2)
+            : '0';
+          csvContent += `${emp.firstName} ${emp.lastName};${ts.date};${ts.startTime || ''};${ts.endTime || ''};${hours};Pointage\n`;
+        }
+
+        // Ajouter les congés
+        const empLeaves = leaves?.filter(l =>
+          l.userId === emp.id &&
+          l.status === 'approved' &&
+          new Date(l.startDate) <= monthEnd &&
+          new Date(l.endDate) >= monthStart
+        ) || [];
+
+        for (const leave of empLeaves) {
+          csvContent += `${emp.firstName} ${emp.lastName};${leave.startDate};-;-;${leave.days || 1};${leave.type}\n`;
+        }
+      }
+
+      // Télécharger le fichier
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `export_paie_${MONTHS_FR[selectedMonth]}_${selectedYear}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setExportSuccess('Export CSV téléchargé !');
+      setTimeout(() => setExportSuccess(null), 3000);
+    } catch (error) {
+      console.error('Erreur export CSV:', error);
+      alert('Erreur: ' + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Imprimer
+  const handlePrint = () => {
+    const monthName = MONTHS_FR[selectedMonth];
+    const printContent = `
+      <html>
+        <head>
+          <title>Export Paie - ${monthName} ${selectedYear}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #4a5568; color: white; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .header { display: flex; justify-content: space-between; align-items: center; }
+            .total { font-weight: bold; background-color: #e2e8f0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Récapitulatif Paie - ${monthName} ${selectedYear}</h1>
+            <p>${companyName || 'Entreprise'}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Employé</th>
+                <th>Jours travaillés</th>
+                <th>Heures totales</th>
+                <th>Congés pris</th>
+                <th>RTT pris</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${employees.map(emp => {
+                const empTimesheets = timesheets.filter(t => t.userId === emp.id);
+                const totalHours = empTimesheets.reduce((sum, t) => {
+                  if (t.startTime && t.endTime) {
+                    const diff = (new Date(`2000-01-01T${t.endTime}`) - new Date(`2000-01-01T${t.startTime}`)) / 3600000;
+                    return sum + diff;
+                  }
+                  return sum;
+                }, 0);
+                const cpLeaves = leaves?.filter(l => l.userId === emp.id && l.type === 'cp' && l.status === 'approved').length || 0;
+                const rttLeaves = leaves?.filter(l => l.userId === emp.id && l.type === 'rtt' && l.status === 'approved').length || 0;
+                return `
+                  <tr>
+                    <td>${emp.firstName} ${emp.lastName}</td>
+                    <td>${empTimesheets.length}</td>
+                    <td>${totalHours.toFixed(1)}h</td>
+                    <td>${cpLeaves}j</td>
+                    <td>${rttLeaves}j</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          <p style="margin-top: 20px; color: #666; font-size: 12px;">
+            Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+          </p>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   return (
     <motion.div
       key="payroll"
@@ -3605,27 +3784,123 @@ const PayrollTab = ({ employees, timesheets, onRefresh }) => {
             <p className="text-gray-400">Génération des fichiers de paie</p>
           </div>
           <div className="flex gap-3">
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+            <button
+              onClick={handleExportCSV}
+              disabled={exporting}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            >
               <Download className="w-4 h-4" />
               Exporter CSV
             </button>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            >
               <Printer className="w-4 h-4" />
               Imprimer
             </button>
           </div>
         </div>
 
-        <div className="text-center py-12">
-          <DollarSign className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 text-lg mb-4">Module d'export paie en développement</p>
-          <p className="text-gray-500 text-sm mb-6">
-            Fonctionnalités : Calculs automatiques, exports personnalisables, intégration logiciels paie
+        {/* Sélecteurs de période */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Mois</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500 outline-none"
+            >
+              {MONTHS_FR.map((month, idx) => (
+                <option key={idx} value={idx} className="bg-gray-800">{month}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Année</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500 outline-none"
+            >
+              {years.map(year => (
+                <option key={year} value={year} className="bg-gray-800">{year}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Employé</label>
+            <select
+              value={selectedEmployee}
+              onChange={(e) => setSelectedEmployee(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500 outline-none"
+            >
+              <option value="all" className="bg-gray-800">Tous les employés</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.id} className="bg-gray-800">
+                  {emp.firstName} {emp.lastName}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Message de succès */}
+        {exportSuccess && (
+          <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-3 mb-4 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-400" />
+            <span className="text-green-300">{exportSuccess}</span>
+          </div>
+        )}
+
+        {/* Bouton principal d'export Excel */}
+        <div className="text-center py-8 bg-white/5 rounded-xl">
+          <FileSpreadsheet className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <p className="text-white text-lg mb-2">Export Excel complet</p>
+          <p className="text-gray-400 text-sm mb-6">
+            Génère un fichier Excel avec feuille par employé + récapitulatif
           </p>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2">
-            <Download className="w-5 h-5" />
-            Générer export manuel
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2"
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Export en cours...
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                Générer export Excel ({MONTHS_FR[selectedMonth]} {selectedYear})
+              </>
+            )}
           </button>
+        </div>
+
+        {/* Statistiques rapides */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-white/5 rounded-xl p-4 text-center">
+            <Users className="w-6 h-6 text-blue-400 mx-auto mb-2" />
+            <p className="text-2xl font-bold text-white">{employees.length}</p>
+            <p className="text-gray-400 text-sm">Employés</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4 text-center">
+            <Clock className="w-6 h-6 text-green-400 mx-auto mb-2" />
+            <p className="text-2xl font-bold text-white">{timesheets.length}</p>
+            <p className="text-gray-400 text-sm">Pointages</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4 text-center">
+            <Calendar className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+            <p className="text-2xl font-bold text-white">{leaves?.filter(l => l.status === 'approved').length || 0}</p>
+            <p className="text-gray-400 text-sm">Congés validés</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-4 text-center">
+            <FileText className="w-6 h-6 text-orange-400 mx-auto mb-2" />
+            <p className="text-2xl font-bold text-white">{MONTHS_FR[selectedMonth]}</p>
+            <p className="text-gray-400 text-sm">{selectedYear}</p>
+          </div>
         </div>
       </GlassCard>
     </motion.div>
