@@ -311,6 +311,56 @@ class MentoringService {
   }
 
   /**
+   * Modifier une session (difficulté, titre, description, etc.)
+   * Seul le créateur (mentor) peut modifier la session avant qu'elle soit terminée
+   */
+  async updateSession(sessionId, updates) {
+    try {
+      const sessionRef = doc(db, this.collectionName, sessionId);
+      const sessionDoc = await getDoc(sessionRef);
+
+      if (!sessionDoc.exists()) {
+        return { success: false, error: 'Session non trouvée' };
+      }
+
+      const session = sessionDoc.data();
+
+      // Empêcher la modification d'une session terminée ou annulée
+      if (session.status === 'completed' || session.status === 'cancelled') {
+        return { success: false, error: 'Impossible de modifier une session terminée ou annulée' };
+      }
+
+      // Champs autorisés à la modification
+      const allowedFields = ['title', 'description', 'difficulty', 'type', 'topic', 'objectives', 'duration', 'scheduledDate'];
+      const filteredUpdates = {};
+
+      for (const field of allowedFields) {
+        if (updates[field] !== undefined) {
+          if (field === 'scheduledDate' && updates[field]) {
+            filteredUpdates[field] = Timestamp.fromDate(new Date(updates[field]));
+          } else {
+            filteredUpdates[field] = updates[field];
+          }
+        }
+      }
+
+      if (Object.keys(filteredUpdates).length === 0) {
+        return { success: false, error: 'Aucune modification à appliquer' };
+      }
+
+      filteredUpdates.updatedAt = serverTimestamp();
+
+      await updateDoc(sessionRef, filteredUpdates);
+
+      console.log('✅ Session mise à jour:', sessionId, filteredUpdates);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur mise à jour session:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Ajouter des notes a une session
    */
   async updateSessionNotes(sessionId, notes) {
