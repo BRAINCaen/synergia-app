@@ -103,6 +103,7 @@ import {
 import { db } from '../core/firebase.js';
 import hrDocumentService, { DOCUMENT_TYPES } from '../core/services/hrDocumentService.js';
 import timesheetExportService, { MONTHS_FR, exportPayrollComplete } from '../core/services/timesheetExportService.js';
+import notificationService from '../core/services/notificationService.js';
 
 // 🎨 COMPOSANT CARTE GLASSMORPHISM
 const GlassCard = ({ children, className = "" }) => (
@@ -3585,21 +3586,38 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh, cur
 
   // 📣 Demander validation aux employés (Gestionnaire)
   const handleRequestValidation = async () => {
-    if (!confirm('Envoyer une demande de validation à tous les employés pour ' + MONTHS_FR[selectedMonth] + ' ' + selectedYear + ' ?')) return;
+    // Vérifier si c'est un rappel (validation déjà en cours)
+    const isReminder = validationPeriods.length > 0 && validationPeriods[0].status === 'pending_validation';
+    const actionLabel = isReminder ? 'Relancer les non-signés' : 'Demander validation';
+
+    if (!confirm(`${actionLabel} pour ${MONTHS_FR[selectedMonth]} ${selectedYear} ?`)) return;
 
     try {
       setNotifying(true);
       const periodId = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
 
-      // Initialiser les signatures pour chaque employé
+      // Pour un rappel, ne cibler que les non-signés
+      let targetEmployees = employees;
+      if (isReminder && validationPeriods[0]?.employeeSignatures) {
+        targetEmployees = employees.filter(emp =>
+          validationPeriods[0].employeeSignatures[emp.id]?.status !== 'signed'
+        );
+      }
+
+      // Initialiser/mettre à jour les signatures pour chaque employé
       const employeeSignatures = {};
       employees.forEach(emp => {
-        employeeSignatures[emp.id] = {
-          status: 'pending',
-          requestedAt: new Date().toISOString(),
-          signature: null,
-          signedAt: null
-        };
+        // Garder les signatures existantes pour les rappels
+        if (isReminder && validationPeriods[0]?.employeeSignatures?.[emp.id]?.status === 'signed') {
+          employeeSignatures[emp.id] = validationPeriods[0].employeeSignatures[emp.id];
+        } else {
+          employeeSignatures[emp.id] = {
+            status: 'pending',
+            requestedAt: new Date().toISOString(),
+            signature: null,
+            signedAt: null
+          };
+        }
       });
 
       // Créer/Mettre à jour la période de validation
@@ -3611,23 +3629,24 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh, cur
         requestedBy: currentUser?.uid,
         requestedAt: serverTimestamp(),
         createdAt: serverTimestamp()
+      }, { merge: true });
+
+      // 🚨 Utiliser le service de notification amélioré (notifications urgentes)
+      const requesterName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Le gestionnaire';
+      await notificationService.notifyTimesheetValidationRequired({
+        periodId,
+        month: selectedMonth,
+        year: selectedYear,
+        monthLabel: MONTHS_FR[selectedMonth],
+        employees: targetEmployees,
+        requestedByName: requesterName,
+        isReminder
       });
 
-      // Créer des notifications pour chaque employé
-      for (const emp of employees) {
-        await addDoc(collection(db, 'notifications'), {
-          userId: emp.id,
-          type: 'timesheet_validation',
-          title: '✍️ Validation des pointages requise',
-          message: `Vos pointages de ${MONTHS_FR[selectedMonth]} ${selectedYear} doivent être validés par signature électronique.`,
-          read: false,
-          createdAt: serverTimestamp(),
-          actionUrl: '/hr?tab=payroll',
-          periodId
-        });
-      }
-
-      setExportSuccess('✅ Demande de validation envoyée à tous les employés !');
+      const successMsg = isReminder
+        ? `🚨 RAPPEL envoyé à ${targetEmployees.length} employé(s) !`
+        : `✅ Demande de validation envoyée à ${targetEmployees.length} employé(s) !`;
+      setExportSuccess(successMsg);
       setTimeout(() => setExportSuccess(null), 5000);
 
       // Recharger les validations
@@ -3688,15 +3707,29 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh, cur
         status: newStatus
       }]);
 
-      // Notifier le gestionnaire si tout le monde a signé
+      // 🔔 Notifier le gestionnaire
+      const managerId = selectedValidation.requestedBy;
+      const employeeName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Un employé';
+      const totalEmployees = Object.keys(updatedSignatures).length;
+
       if (allSigned) {
-        await addDoc(collection(db, 'notifications'), {
-          type: 'all_timesheets_signed',
-          title: '✅ Tous les pointages signés',
-          message: `Tous les employés ont signé leurs pointages pour ${MONTHS_FR[selectedMonth]} ${selectedYear}. Prêt pour envoi à la paie !`,
-          read: false,
-          createdAt: serverTimestamp(),
-          forAdmins: true
+        // Tous ont signé - notification spéciale
+        await notificationService.notifyAllTimesheetsSigned({
+          month: selectedMonth,
+          year: selectedYear,
+          monthLabel: MONTHS_FR[selectedMonth],
+          managerId,
+          totalEmployees
+        });
+      } else if (managerId) {
+        // Notifier le gestionnaire de cette signature individuelle
+        await notificationService.notifyTimesheetSigned({
+          employeeId: currentUser.uid,
+          employeeName,
+          month: selectedMonth,
+          year: selectedYear,
+          monthLabel: MONTHS_FR[selectedMonth],
+          managerId
         });
       }
     } catch (error) {
@@ -4206,6 +4239,52 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh, cur
                           );
                         })}
                       </div>
+                    </div>
+                  )}
+
+                  {/* 🔑 SIGNATURE PERSONNELLE DE L'ADMIN (s'il est aussi employé) */}
+                  {currentUserStatus && currentValidation?.status === 'pending_validation' && (
+                    <div className="mt-6 border-t border-white/10 pt-6">
+                      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                        <Pen className="w-5 h-5 text-purple-400" />
+                        Ma signature personnelle
+                      </h3>
+                      {currentUserStatus?.status === 'pending' ? (
+                        <div className="bg-orange-500/20 border border-orange-500/30 rounded-xl p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <AlertOctagon className="w-8 h-8 text-orange-400" />
+                              <div>
+                                <p className="text-white font-medium">Vous devez aussi signer vos pointages</p>
+                                <p className="text-gray-400 text-sm">Cliquez pour valider vos propres pointages de {MONTHS_FR[selectedMonth]} {selectedYear}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedValidation(currentValidation);
+                                setShowSignatureModal(true);
+                              }}
+                              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-xl transition-all flex items-center gap-2 font-medium"
+                            >
+                              <Pen className="w-4 h-4" />
+                              Signer mes pointages
+                            </button>
+                          </div>
+                        </div>
+                      ) : currentUserStatus?.status === 'signed' ? (
+                        <div className="bg-green-500/20 border border-green-500/30 rounded-xl p-4">
+                          <div className="flex items-center gap-3">
+                            <CheckCircle className="w-8 h-8 text-green-400" />
+                            <div>
+                              <p className="text-white font-medium">Vos pointages sont validés</p>
+                              <p className="text-gray-400 text-sm">Signé le {new Date(currentUserStatus.signedAt).toLocaleDateString('fr-FR')} à {new Date(currentUserStatus.signedAt).toLocaleTimeString('fr-FR')}</p>
+                            </div>
+                            {currentUserStatus.signature && (
+                              <img src={currentUserStatus.signature} alt="Ma signature" className="h-10 ml-auto rounded border border-white/10" />
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
