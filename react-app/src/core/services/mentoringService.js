@@ -140,6 +140,50 @@ export const FEEDBACK_RATINGS = {
   poor: { id: 'poor', label: 'Insuffisant', emoji: '😕', value: 1 }
 };
 
+// Niveaux de difficulte - affecte uniquement les XP du mentee
+export const DIFFICULTY_LEVELS = {
+  beginner: {
+    id: 'beginner',
+    label: 'Debutant',
+    emoji: '🌱',
+    description: 'Notions de base, aucune prerequis',
+    color: 'green',
+    bgColor: 'bg-green-500/20',
+    textColor: 'text-green-400',
+    xpMultiplier: 1.0  // XP de base
+  },
+  intermediate: {
+    id: 'intermediate',
+    label: 'Intermediaire',
+    emoji: '📈',
+    description: 'Necessite des connaissances prealables',
+    color: 'yellow',
+    bgColor: 'bg-yellow-500/20',
+    textColor: 'text-yellow-400',
+    xpMultiplier: 1.5  // +50% XP pour le mentee
+  },
+  advanced: {
+    id: 'advanced',
+    label: 'Avance',
+    emoji: '🚀',
+    description: 'Sujet complexe, expertise requise',
+    color: 'orange',
+    bgColor: 'bg-orange-500/20',
+    textColor: 'text-orange-400',
+    xpMultiplier: 2.0  // +100% XP pour le mentee
+  },
+  expert: {
+    id: 'expert',
+    label: 'Expert',
+    emoji: '💎',
+    description: 'Niveau expert, maitrise complete',
+    color: 'purple',
+    bgColor: 'bg-purple-500/20',
+    textColor: 'text-purple-400',
+    xpMultiplier: 2.5  // +150% XP pour le mentee
+  }
+};
+
 // ==========================================
 // SERVICE MENTORING
 // ==========================================
@@ -166,6 +210,7 @@ class MentoringService {
         menteeName: sessionData.menteeName || 'Mentee',
         type: sessionData.type || 'skill_transfer',
         topic: sessionData.topic || 'technical',
+        difficulty: sessionData.difficulty || 'beginner', // Niveau de difficulte
         title: sessionData.title || 'Session de mentorat',
         description: sessionData.description || '',
         objectives: sessionData.objectives || [],
@@ -471,8 +516,9 @@ class MentoringService {
       if (session.xpAwarded) return;
 
       const sessionType = SESSION_TYPES[session.type] || SESSION_TYPES.skill_transfer;
+      const difficulty = DIFFICULTY_LEVELS[session.difficulty] || DIFFICULTY_LEVELS.beginner;
 
-      // XP pour le mentor
+      // XP pour le mentor (fixe, pas affecte par la difficulte)
       const mentorRef = doc(db, 'users', session.mentorId);
       const mentorDoc = await getDoc(mentorRef);
       if (mentorDoc.exists()) {
@@ -483,19 +529,23 @@ class MentoringService {
           'gamification.mentoringXp': (mentorData.gamification?.mentoringXp || 0) + sessionType.xpMentor,
           'gamification.sessionsAsMentor': (mentorData.gamification?.sessionsAsMentor || 0) + 1
         });
+        console.log(`✅ XP Mentor: +${sessionType.xpMentor} XP`);
       }
 
-      // XP pour le mentee
+      // XP pour le mentee (multiplie par la difficulte)
       const menteeRef = doc(db, 'users', session.menteeId);
       const menteeDoc = await getDoc(menteeRef);
       if (menteeDoc.exists()) {
         const menteeData = menteeDoc.data();
         const currentXP = menteeData.gamification?.totalXp || 0;
+        // Appliquer le multiplicateur de difficulte uniquement pour le mentee
+        const menteeXP = Math.round(sessionType.xpMentee * difficulty.xpMultiplier);
         await updateDoc(menteeRef, {
-          'gamification.totalXp': currentXP + sessionType.xpMentee,
-          'gamification.mentoringXp': (menteeData.gamification?.mentoringXp || 0) + sessionType.xpMentee,
+          'gamification.totalXp': currentXP + menteeXP,
+          'gamification.mentoringXp': (menteeData.gamification?.mentoringXp || 0) + menteeXP,
           'gamification.sessionsAsMentee': (menteeData.gamification?.sessionsAsMentee || 0) + 1
         });
+        console.log(`✅ XP Mentee: +${menteeXP} XP (base ${sessionType.xpMentee} × ${difficulty.xpMultiplier} difficulte ${difficulty.label})`);
       }
 
       // Marquer XP comme attribue

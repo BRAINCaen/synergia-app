@@ -123,19 +123,23 @@ const formatFileSize = (bytes) => {
 // ==========================================
 
 const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAddDocument, onRemoveDocument, currentUserId }) => {
-  const { MENTORING_STATUS, SESSION_TYPES } = useMentoring();
+  const { MENTORING_STATUS, SESSION_TYPES, DIFFICULTY_LEVELS } = useMentoring();
   const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
   const status = MENTORING_STATUS[session.status] || MENTORING_STATUS.scheduled;
   const sessionType = SESSION_TYPES[session.type] || SESSION_TYPES.skill_transfer;
+  const difficulty = DIFFICULTY_LEVELS?.[session.difficulty] || DIFFICULTY_LEVELS?.beginner;
   const isOwner = session.mentorId === currentUserId;
   const isParticipant = session.mentorId === currentUserId || session.menteeId === currentUserId;
   const scheduledDate = session.scheduledDate?.toDate?.();
   const canGiveFeedback = session.status === 'completed' && (
     (isOwner && !session.mentorFeedback) || (!isOwner && !session.menteeFeedback)
   );
+
+  // Calcul XP avec difficulte pour le mentee
+  const menteeXP = Math.round((sessionType?.xpMentee || 35) * (difficulty?.xpMultiplier || 1));
 
   // Handler pour l'upload de fichier
   const handleFileUpload = async (e) => {
@@ -201,6 +205,11 @@ const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAdd
           </div>
 
           <div className="flex items-center gap-2">
+            {difficulty && (
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${difficulty.bgColor} ${difficulty.textColor}`}>
+                {difficulty.emoji} {difficulty.label}
+              </span>
+            )}
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.bgColor} ${status.textColor}`}>
               {session.duration} min
             </span>
@@ -261,7 +270,14 @@ const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAdd
                   <div className="flex items-center gap-2">
                     <span className="text-purple-400">Mentor: +{sessionType.xpMentor} XP</span>
                     <span className="text-gray-500">|</span>
-                    <span className="text-purple-400">Mentee: +{sessionType.xpMentee} XP</span>
+                    <span className="text-purple-400">
+                      Mentee: +{menteeXP} XP
+                      {difficulty?.xpMultiplier > 1 && (
+                        <span className="text-xs text-gray-500 ml-1">
+                          (×{difficulty.xpMultiplier})
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -404,12 +420,13 @@ const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAdd
 // MODAL CREATION SESSION
 // ==========================================
 
-const CreateSessionModal = ({ isOpen, onClose, onCreate, availableUsers, currentUser, SESSION_TYPES, MENTORING_TOPICS }) => {
+const CreateSessionModal = ({ isOpen, onClose, onCreate, availableUsers, currentUser, SESSION_TYPES, MENTORING_TOPICS, DIFFICULTY_LEVELS }) => {
   const [form, setForm] = useState({
     menteeId: '',
     menteeName: '',
     type: 'skill_transfer',
     topic: 'technical',
+    difficulty: 'beginner',
     title: '',
     description: '',
     objectives: [''],
@@ -454,6 +471,7 @@ const CreateSessionModal = ({ isOpen, onClose, onCreate, availableUsers, current
         menteeName: '',
         type: 'skill_transfer',
         topic: 'technical',
+        difficulty: 'beginner',
         title: '',
         description: '',
         objectives: [''],
@@ -554,6 +572,45 @@ const CreateSessionModal = ({ isOpen, onClose, onCreate, availableUsers, current
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Niveau de difficulte */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Niveau de difficulte
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {DIFFICULTY_LEVELS && Object.values(DIFFICULTY_LEVELS).map(level => {
+                const isSelected = form.difficulty === level.id;
+                const sessionType = SESSION_TYPES[form.type];
+                const baseXP = sessionType?.xpMentee || 35;
+                const xpWithMultiplier = Math.round(baseXP * level.xpMultiplier);
+
+                return (
+                  <button
+                    key={level.id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, difficulty: level.id }))}
+                    className={`p-3 rounded-xl border transition-all text-left ${
+                      isSelected
+                        ? `${level.bgColor} border-${level.color}-500/50`
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">{level.emoji}</div>
+                    <div className={`text-sm font-medium ${isSelected ? level.textColor : 'text-white'}`}>
+                      {level.label}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      +{xpWithMultiplier} XP
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Les XP du mentee sont multiplies selon la difficulte
+            </p>
           </div>
 
           {/* Titre */}
@@ -814,7 +871,8 @@ const MentoringPage = () => {
     removeDocument,
     SESSION_TYPES,
     MENTORING_TOPICS,
-    FEEDBACK_RATINGS
+    FEEDBACK_RATINGS,
+    DIFFICULTY_LEVELS
   } = useMentoring();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1455,6 +1513,7 @@ const MentoringPage = () => {
         currentUser={user}
         SESSION_TYPES={SESSION_TYPES}
         MENTORING_TOPICS={MENTORING_TOPICS}
+        DIFFICULTY_LEVELS={DIFFICULTY_LEVELS}
       />
 
       {/* Modal Feedback */}
