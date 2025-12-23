@@ -1794,6 +1794,54 @@ const MentoringPage = () => {
     }
   };
 
+  // Fonction pour supprimer une formation (admin uniquement)
+  const handleDeleteTraining = async (trainingId) => {
+    if (!user?.isAdmin && user?.role !== 'admin') {
+      alert('❌ Vous n\'avez pas les droits pour supprimer une formation');
+      return;
+    }
+
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette formation ?')) {
+      return;
+    }
+
+    try {
+      const { deleteDoc, doc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'hr_trainings', trainingId));
+      setTrainings(prev => prev.filter(t => t.id !== trainingId));
+      alert('✅ Formation supprimée avec succès');
+    } catch (error) {
+      console.error('Erreur suppression formation:', error);
+      alert('❌ Erreur lors de la suppression');
+    }
+  };
+
+  // Fonction pour modifier le statut d'une formation (admin uniquement)
+  const handleUpdateTrainingStatus = async (trainingId, newStatus) => {
+    if (!user?.isAdmin && user?.role !== 'admin') {
+      alert('❌ Vous n\'avez pas les droits pour modifier une formation');
+      return;
+    }
+
+    try {
+      const { updateDoc, doc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'hr_trainings', trainingId), {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      setTrainings(prev => prev.map(t =>
+        t.id === trainingId ? { ...t, status: newStatus } : t
+      ));
+      alert('✅ Formation mise à jour');
+    } catch (error) {
+      console.error('Erreur mise à jour formation:', error);
+      alert('❌ Erreur lors de la mise à jour');
+    }
+  };
+
+  // Vérifier si l'utilisateur est admin
+  const isUserAdmin = user?.isAdmin || user?.role === 'admin';
+
   // Stats formations
   const trainingStats = {
     totalTrainings: trainings.length,
@@ -2130,29 +2178,35 @@ const MentoringPage = () => {
                       ? 'Aucune formation enregistrée'
                       : `Aucune formation de type "${trainingTypes.find(t => t.id === selectedTrainingType)?.label}"`}
                   </p>
-                  <p className="text-gray-500 text-sm mb-4">Commencez à planifier les formations</p>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setShowAddTrainingModal(true)}
-                    className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Ajouter une formation
-                  </motion.button>
+                  <p className="text-gray-500 text-sm mb-4">
+                    {isUserAdmin ? 'Commencez à planifier les formations' : 'Les formations seront affichées ici'}
+                  </p>
+                  {isUserAdmin && (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowAddTrainingModal(true)}
+                      className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-xl inline-flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Ajouter une formation
+                    </motion.button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Bouton ajouter en haut de la liste */}
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => setShowAddTrainingModal(true)}
-                    className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-dashed border-white/20 text-gray-400 flex items-center justify-center gap-2 transition-colors"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Ajouter une formation
-                  </motion.button>
+                  {/* Bouton ajouter (admin uniquement) */}
+                  {isUserAdmin && (
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => setShowAddTrainingModal(true)}
+                      className="w-full p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-dashed border-white/20 text-gray-400 flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Ajouter une formation
+                    </motion.button>
+                  )}
                   {filteredTrainings.map((training) => {
                     const type = trainingTypes.find(t => t.id === training.type) || trainingTypes[0];
                     const date = training.date?.toDate?.() || new Date(training.date);
@@ -2162,7 +2216,7 @@ const MentoringPage = () => {
                         key={training.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="p-4 bg-white/5 rounded-xl border border-white/10"
+                        className="p-4 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -2173,18 +2227,49 @@ const MentoringPage = () => {
                               <div className="font-medium text-white">{training.title}</div>
                               <div className="text-sm text-gray-400">
                                 {type.label} • {date.toLocaleDateString('fr-FR')}
+                                {training.location && ` • ${training.location}`}
                               </div>
+                              {training.description && (
+                                <div className="text-xs text-gray-500 mt-1 line-clamp-1">{training.description}</div>
+                              )}
                             </div>
                           </div>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            training.status === 'completed'
-                              ? 'bg-green-500/20 text-green-400'
-                              : training.status === 'scheduled'
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {training.status === 'completed' ? 'Complétée' : training.status === 'scheduled' ? 'Planifiée' : 'Annulée'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {/* Statut */}
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              training.status === 'completed'
+                                ? 'bg-green-500/20 text-green-400'
+                                : training.status === 'scheduled'
+                                ? 'bg-blue-500/20 text-blue-400'
+                                : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {training.status === 'completed' ? 'Complétée' : training.status === 'scheduled' ? 'Planifiée' : 'Annulée'}
+                            </span>
+
+                            {/* Boutons admin */}
+                            {isUserAdmin && (
+                              <div className="flex items-center gap-1 ml-2">
+                                {/* Menu de changement de statut */}
+                                <select
+                                  value={training.status}
+                                  onChange={(e) => handleUpdateTrainingStatus(training.id, e.target.value)}
+                                  className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-amber-500"
+                                >
+                                  <option value="scheduled" className="bg-slate-800">Planifiée</option>
+                                  <option value="completed" className="bg-slate-800">Complétée</option>
+                                  <option value="cancelled" className="bg-slate-800">Annulée</option>
+                                </select>
+                                {/* Bouton supprimer */}
+                                <button
+                                  onClick={() => handleDeleteTraining(training.id)}
+                                  className="p-1.5 hover:bg-red-500/20 rounded text-gray-400 hover:text-red-400 transition-colors"
+                                  title="Supprimer la formation"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </motion.div>
                     );
