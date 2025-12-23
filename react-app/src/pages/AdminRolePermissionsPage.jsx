@@ -69,7 +69,15 @@ import {
   ToggleLeft,
   ToggleRight,
   Info,
-  Trash2
+  Trash2,
+  Sword,
+  Beer,
+  TreeDeciduous,
+  Brain,
+  Swords,
+  UserCheck,
+  UserX,
+  Users2
 } from 'lucide-react';
 
 // Firebase
@@ -438,6 +446,105 @@ const PERMISSION_MODULES = {
       { id: 'projects_create', name: 'Créer des projets', icon: Layers, level: 'edit', description: 'Lancer de nouveaux projets' },
       { id: 'projects_manage', name: 'Gérer les projets', icon: Settings, level: 'admin', description: 'Modifier tous les projets' },
       { id: 'projects_admin', name: 'Administration projets', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== GESTION DE L'ÉQUIPE =====
+  team: {
+    id: 'team',
+    name: 'Gestion de l\'Équipe',
+    icon: Users2,
+    color: 'from-blue-500 to-indigo-600',
+    bgColor: 'bg-blue-500/20',
+    description: 'Membres, hiérarchie et statistiques d\'équipe',
+    category: 'team',
+    permissions: [
+      { id: 'team_view_members', name: 'Voir les membres', icon: Eye, level: 'view', description: 'Consulter la liste des membres' },
+      { id: 'team_view_stats', name: 'Voir les stats équipe', icon: BarChart3, level: 'view', description: 'Statistiques collectives' },
+      { id: 'team_view_hierarchy', name: 'Voir la hiérarchie', icon: Users, level: 'view', description: 'Organigramme de l\'équipe' },
+      { id: 'team_invite_members', name: 'Inviter des membres', icon: UserPlus, level: 'edit', description: 'Ajouter de nouveaux membres' },
+      { id: 'team_edit_members', name: 'Modifier les membres', icon: Edit, level: 'admin', description: 'Modifier les infos membres' },
+      { id: 'team_remove_members', name: 'Retirer des membres', icon: UserX, level: 'admin', description: 'Exclure des membres de l\'équipe' },
+      { id: 'team_manage_roles', name: 'Gérer les rôles équipe', icon: Key, level: 'admin', description: 'Attribuer des rôles aux membres' },
+      { id: 'team_admin', name: 'Administration équipe', icon: Crown, level: 'admin', description: 'Gestion complète de l\'équipe' }
+    ]
+  },
+
+  // ===== DÉFIS & CHALLENGES =====
+  challenges: {
+    id: 'challenges',
+    name: 'Défis & Challenges',
+    icon: Swords,
+    color: 'from-red-500 to-orange-600',
+    bgColor: 'bg-red-500/20',
+    description: 'Défis personnels et défis d\'équipe',
+    category: 'gamification',
+    permissions: [
+      { id: 'challenges_view', name: 'Voir les défis', icon: Eye, level: 'view', description: 'Consulter les défis disponibles' },
+      { id: 'challenges_participate', name: 'Participer aux défis', icon: Sword, level: 'view', description: 'Rejoindre des défis' },
+      { id: 'challenges_create_personal', name: 'Créer défi personnel', icon: Target, level: 'edit', description: 'Créer ses propres défis' },
+      { id: 'challenges_create_team', name: 'Créer défi équipe', icon: Swords, level: 'edit', description: 'Lancer des défis d\'équipe' },
+      { id: 'challenges_validate', name: 'Valider les défis', icon: CheckCircle, level: 'admin', description: 'Approuver les défis terminés' },
+      { id: 'challenges_manage_xp', name: 'Gérer l\'XP des défis', icon: Zap, level: 'admin', description: 'Modifier les récompenses' },
+      { id: 'challenges_admin', name: 'Administration défis', icon: Crown, level: 'admin', description: 'Gestion complète des défis' }
+    ]
+  },
+
+  // ===== ARBRE DE COMPÉTENCES =====
+  skills: {
+    id: 'skills',
+    name: 'Arbre de Compétences',
+    icon: TreeDeciduous,
+    color: 'from-green-500 to-teal-600',
+    bgColor: 'bg-green-500/20',
+    description: 'Progression RPG et talents',
+    category: 'gamification',
+    permissions: [
+      { id: 'skills_view_own', name: 'Voir ses compétences', icon: Eye, level: 'view', description: 'Consulter son arbre de talents' },
+      { id: 'skills_view_team', name: 'Voir talents équipe', icon: Users, level: 'view', description: 'Voir les compétences des autres' },
+      { id: 'skills_unlock', name: 'Débloquer des talents', icon: Unlock, level: 'view', description: 'Utiliser ses points de compétence' },
+      { id: 'skills_reset', name: 'Réinitialiser talents', icon: RefreshCw, level: 'edit', description: 'Remettre à zéro ses choix' },
+      { id: 'skills_edit_tree', name: 'Modifier l\'arbre', icon: Edit, level: 'admin', description: 'Configurer les branches et talents' },
+      { id: 'skills_grant_points', name: 'Attribuer des points', icon: Zap, level: 'admin', description: 'Donner des points de compétence' },
+      { id: 'skills_admin', name: 'Administration talents', icon: Crown, level: 'admin', description: 'Gestion complète du skill tree' }
+    ]
+  },
+
+  // ===== TAVERNE =====
+  taverne: {
+    id: 'taverne',
+    name: 'Taverne',
+    icon: Beer,
+    color: 'from-amber-500 to-yellow-600',
+    bgColor: 'bg-amber-500/20',
+    description: 'Espace social et micro-feedback',
+    category: 'team',
+    permissions: [
+      { id: 'taverne_view', name: 'Accéder à la taverne', icon: Eye, level: 'view', description: 'Consulter l\'espace social' },
+      { id: 'taverne_send_boost', name: 'Envoyer des boosts', icon: Zap, level: 'view', description: 'Encourager ses collègues' },
+      { id: 'taverne_receive_boost', name: 'Recevoir des boosts', icon: Heart, level: 'view', description: 'Être encouragé par l\'équipe' },
+      { id: 'taverne_view_history', name: 'Voir l\'historique', icon: History, level: 'view', description: 'Historique des interactions' },
+      { id: 'taverne_moderate', name: 'Modérer les échanges', icon: Shield, level: 'admin', description: 'Modérer les messages' },
+      { id: 'taverne_admin', name: 'Administration taverne', icon: Crown, level: 'admin', description: 'Gestion complète de la taverne' }
+    ]
+  },
+
+  // ===== PROFIL UTILISATEUR =====
+  profile: {
+    id: 'profile',
+    name: 'Profil Utilisateur',
+    icon: UserCog,
+    color: 'from-slate-500 to-gray-600',
+    bgColor: 'bg-slate-500/20',
+    description: 'Gestion du profil et paramètres',
+    category: 'user',
+    permissions: [
+      { id: 'profile_view_own', name: 'Voir son profil', icon: Eye, level: 'view', description: 'Consulter ses informations' },
+      { id: 'profile_view_others', name: 'Voir autres profils', icon: Users, level: 'view', description: 'Consulter les profils publics' },
+      { id: 'profile_edit_own', name: 'Modifier son profil', icon: Edit, level: 'view', description: 'Changer ses informations' },
+      { id: 'profile_edit_others', name: 'Modifier autres profils', icon: UserCog, level: 'admin', description: 'Éditer les profils d\'autres utilisateurs' },
+      { id: 'profile_view_sensitive', name: 'Voir infos sensibles', icon: ShieldAlert, level: 'admin', description: 'Données confidentielles' },
+      { id: 'profile_admin', name: 'Administration profils', icon: Crown, level: 'admin', description: 'Gestion complète des profils' }
     ]
   },
 
