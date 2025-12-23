@@ -15,10 +15,35 @@ import {
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
-import { auth } from '../../core/firebase.js';
+import { auth, db } from '../../core/firebase.js';
+import { doc, getDoc } from 'firebase/firestore';
 
 // 🔑 IMPORT AUTHSERVICE POUR CRÉATION PROFIL FIRESTORE
 import AuthService from '../../core/services/authService.js';
+
+/**
+ * 🔍 Récupérer les données utilisateur depuis Firestore (role, isAdmin, etc.)
+ */
+const fetchUserFirestoreData = async (uid) => {
+  try {
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      return {
+        role: data.role || 'user',
+        isAdmin: data.isAdmin === true,
+        modulePermissions: data.modulePermissions || {}
+      };
+    }
+
+    return { role: 'user', isAdmin: false, modulePermissions: {} };
+  } catch (error) {
+    console.error('❌ [AUTH] Erreur récupération données Firestore:', error);
+    return { role: 'user', isAdmin: false, modulePermissions: {} };
+  }
+};
 
 // 🎯 IMPORT SERVICE DE TRACKING D'ACTIVITÉ
 import activityTrackingService from '../../core/services/activityTrackingService.js';
@@ -93,26 +118,34 @@ export const useAuthStore = create(
             user.email
           );
           console.log('📊 [TRACKING] Connexion Google trackée');
-          
+
+          // 🔑 RÉCUPÉRER LES DONNÉES ADMIN DEPUIS FIRESTORE
+          const firestoreData = await fetchUserFirestoreData(user.uid);
+          console.log('🔑 [AUTH] Données Firestore chargées:', firestoreData);
+
           // Calculer expiration de session (24h)
           const now = Date.now();
           const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 heures
-          
-          set({ 
+
+          set({
             user: {
               uid: user.uid,
               email: user.email,
               displayName: user.displayName,
               photoURL: user.photoURL,
-              emailVerified: user.emailVerified
-            }, 
-            loading: false, 
+              emailVerified: user.emailVerified,
+              // 🔑 INCLURE LES DONNÉES ADMIN
+              role: firestoreData.role,
+              isAdmin: firestoreData.isAdmin,
+              modulePermissions: firestoreData.modulePermissions
+            },
+            loading: false,
             error: null,
             isAuthenticated: true,
             lastLoginTime: now,
             sessionExpiry: sessionExpiry
           });
-          
+
           return user;
           
         } catch (error) {
@@ -157,28 +190,36 @@ export const useAuthStore = create(
             user.email
           );
           console.log('📊 [TRACKING] Connexion email trackée');
-          
+
+          // 🔑 RÉCUPÉRER LES DONNÉES ADMIN DEPUIS FIRESTORE
+          const firestoreData = await fetchUserFirestoreData(user.uid);
+          console.log('🔑 [AUTH] Données Firestore chargées:', firestoreData);
+
           // Calculer expiration de session (24h)
           const now = Date.now();
           const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 heures
-          
-          set({ 
+
+          set({
             user: {
               uid: user.uid,
               email: user.email,
               displayName: user.displayName,
               photoURL: user.photoURL,
-              emailVerified: user.emailVerified
-            }, 
-            loading: false, 
+              emailVerified: user.emailVerified,
+              // 🔑 INCLURE LES DONNÉES ADMIN
+              role: firestoreData.role,
+              isAdmin: firestoreData.isAdmin,
+              modulePermissions: firestoreData.modulePermissions
+            },
+            loading: false,
             error: null,
             isAuthenticated: true,
             lastLoginTime: now,
             sessionExpiry: sessionExpiry
           });
-          
+
           return user;
-          
+
         } catch (error) {
           console.error('❌ Erreur connexion email:', error);
           set({ 
@@ -226,28 +267,35 @@ export const useAuthStore = create(
             status: 'success'
           });
           console.log('📊 [TRACKING] Inscription trackée');
-          
+
+          // 🔑 RÉCUPÉRER LES DONNÉES ADMIN DEPUIS FIRESTORE (nouveau user = pas admin)
+          const firestoreData = await fetchUserFirestoreData(user.uid);
+
           // Calculer expiration de session (24h)
           const now = Date.now();
           const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 heures
-          
-          set({ 
+
+          set({
             user: {
               uid: user.uid,
               email: user.email,
               displayName: displayName || user.displayName,
               photoURL: user.photoURL,
-              emailVerified: user.emailVerified
-            }, 
-            loading: false, 
+              emailVerified: user.emailVerified,
+              // 🔑 INCLURE LES DONNÉES ADMIN
+              role: firestoreData.role,
+              isAdmin: firestoreData.isAdmin,
+              modulePermissions: firestoreData.modulePermissions
+            },
+            loading: false,
             error: null,
             isAuthenticated: true,
             lastLoginTime: now,
             sessionExpiry: sessionExpiry
           });
-          
+
           return user;
-          
+
         } catch (error) {
           console.error('❌ Erreur inscription:', error);
           set({ 
@@ -348,7 +396,7 @@ export const useAuthStore = create(
         // Observer les changements d'état UNE SEULE FOIS
         unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
           console.log('🔔 Auth state changed:', user ? user.email : 'déconnecté');
-          
+
           if (user) {
             // 🎯 VÉRIFIER/CRÉER PROFIL FIRESTORE SI NÉCESSAIRE
             console.log('🔄 Vérification profil Firestore au changement auth...');
@@ -362,17 +410,25 @@ export const useAuthStore = create(
             } catch (error) {
               console.error('❌ Erreur sync profil:', error);
             }
-            
+
+            // 🔑 RÉCUPÉRER LES DONNÉES ADMIN DEPUIS FIRESTORE
+            const firestoreData = await fetchUserFirestoreData(user.uid);
+            console.log('🔑 [AUTH] Données Firestore chargées au refresh:', firestoreData);
+
             const now = Date.now();
             const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 heures
-            
+
             set({
               user: {
                 uid: user.uid,
                 email: user.email,
                 displayName: user.displayName,
                 photoURL: user.photoURL,
-                emailVerified: user.emailVerified
+                emailVerified: user.emailVerified,
+                // 🔑 INCLURE LES DONNÉES ADMIN
+                role: firestoreData.role,
+                isAdmin: firestoreData.isAdmin,
+                modulePermissions: firestoreData.modulePermissions
               },
               isAuthenticated: true,
               loading: false,

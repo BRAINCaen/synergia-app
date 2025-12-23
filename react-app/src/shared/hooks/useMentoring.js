@@ -11,7 +11,8 @@ import {
   MENTORING_STATUS,
   SESSION_TYPES,
   MENTORING_TOPICS,
-  FEEDBACK_RATINGS
+  FEEDBACK_RATINGS,
+  DIFFICULTY_LEVELS
 } from '../../core/services/mentoringService.js';
 
 /**
@@ -341,7 +342,8 @@ export const useMentoring = (options = {}) => {
     MENTORING_STATUS,
     SESSION_TYPES,
     MENTORING_TOPICS,
-    FEEDBACK_RATINGS
+    FEEDBACK_RATINGS,
+    DIFFICULTY_LEVELS
   };
 };
 
