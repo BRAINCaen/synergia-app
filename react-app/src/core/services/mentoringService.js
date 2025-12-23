@@ -18,9 +18,12 @@ import {
   onSnapshot,
   Timestamp,
   serverTimestamp,
-  deleteDoc
+  deleteDoc,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { uploadFile, deleteFile } from './storageService.js';
 
 // ==========================================
 // CONSTANTES MENTORAT
@@ -173,6 +176,7 @@ class MentoringService {
         mentorFeedback: null,
         menteeFeedback: null,
         xpAwarded: false,
+        documents: [], // Documents supports de formation
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
@@ -322,6 +326,136 @@ class MentoringService {
     } catch (error) {
       console.error('Erreur soumission feedback:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  // ==========================================
+  // GESTION DES DOCUMENTS
+  // ==========================================
+
+  /**
+   * Ajouter un document a une session
+   * @param {string} sessionId - ID de la session
+   * @param {File} file - Fichier a uploader
+   * @param {string} uploadedBy - ID de l'utilisateur qui upload
+   * @returns {Promise<{success: boolean, document?: object, error?: string}>}
+   */
+  async addDocument(sessionId, file, uploadedBy) {
+    try {
+      console.log('📁 [MENTORING] Upload document pour session:', sessionId);
+
+      // Validation du fichier
+      if (!file) {
+        return { success: false, error: 'Aucun fichier fourni' };
+      }
+
+      // Types de fichiers autorises
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+        'image/jpeg',
+        'image/png',
+        'image/gif'
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        return {
+          success: false,
+          error: 'Type de fichier non autorise. Formats acceptes: PDF, Excel, PowerPoint, Word, Videos, Images'
+        };
+      }
+
+      // Limite de taille: 50MB
+      const maxSize = 50 * 1024 * 1024;
+      if (file.size > maxSize) {
+        return { success: false, error: 'Le fichier ne doit pas depasser 50MB' };
+      }
+
+      // Generer le chemin de stockage
+      const timestamp = Date.now();
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const storagePath = `mentoring/${sessionId}/documents/${timestamp}_${safeFileName}`;
+
+      // Upload du fichier
+      const downloadURL = await uploadFile(storagePath, file);
+
+      // Creer l'objet document
+      const document = {
+        id: `doc_${timestamp}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        url: downloadURL,
+        storagePath: storagePath,
+        uploadedBy: uploadedBy,
+        uploadedAt: new Date().toISOString()
+      };
+
+      // Mettre a jour la session avec le nouveau document
+      const sessionRef = doc(db, this.collectionName, sessionId);
+      await updateDoc(sessionRef, {
+        documents: arrayUnion(document),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [MENTORING] Document ajoute:', document.name);
+      return { success: true, document };
+    } catch (error) {
+      console.error('❌ [MENTORING] Erreur ajout document:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Supprimer un document d'une session
+   * @param {string} sessionId - ID de la session
+   * @param {object} document - Document a supprimer
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async removeDocument(sessionId, document) {
+    try {
+      console.log('🗑️ [MENTORING] Suppression document:', document.name);
+
+      // Supprimer le fichier du storage
+      if (document.url) {
+        await deleteFile(document.url);
+      }
+
+      // Retirer le document de la session
+      const sessionRef = doc(db, this.collectionName, sessionId);
+      await updateDoc(sessionRef, {
+        documents: arrayRemove(document),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ [MENTORING] Document supprime');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [MENTORING] Erreur suppression document:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Obtenir les documents d'une session
+   * @param {string} sessionId - ID de la session
+   * @returns {Promise<object[]>} Liste des documents
+   */
+  async getSessionDocuments(sessionId) {
+    try {
+      const session = await this.getSession(sessionId);
+      return session?.documents || [];
+    } catch (error) {
+      console.error('❌ [MENTORING] Erreur recuperation documents:', error);
+      return [];
     }
   }
 
