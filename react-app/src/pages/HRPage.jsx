@@ -2814,6 +2814,101 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
     }
   };
 
+  // 📋 Mettre à jour le dossier RH complet avec les données scannées
+  const handleUpdateHRFile = async (extractedData) => {
+    if (!selectedEmployee) return;
+
+    setUpdatingBalance(true);
+
+    try {
+      // Préparer les mises à jour pour l'utilisateur
+      const updates = {};
+
+      // Données de congés
+      if (extractedData.cpSolde !== null) {
+        updates['leaveBalance.paidLeaveDays'] = extractedData.cpSolde;
+      }
+      if (extractedData.cpN1 !== null) {
+        updates['leaveBalance.paidLeaveN1'] = extractedData.cpN1;
+      }
+      if (extractedData.rtt !== null) {
+        updates['leaveBalance.rttDays'] = extractedData.rtt;
+      }
+
+      // Données salariales
+      if (extractedData.salaireBrut !== null) {
+        updates['salary.grossMonthly'] = extractedData.salaireBrut;
+      }
+      if (extractedData.salaireNet !== null) {
+        updates['salary.netMonthly'] = extractedData.salaireNet;
+      }
+      if (extractedData.tauxHoraire !== null) {
+        updates['salary.hourlyRate'] = extractedData.tauxHoraire;
+      }
+
+      // Données contractuelles
+      if (extractedData.matricule) {
+        updates['contract.matricule'] = extractedData.matricule;
+      }
+      if (extractedData.typeContrat) {
+        updates['contract.type'] = extractedData.typeContrat;
+      }
+      if (extractedData.emploi) {
+        updates['contract.jobTitle'] = extractedData.emploi;
+      }
+      if (extractedData.dateEntree) {
+        updates['contract.startDate'] = extractedData.dateEntree;
+      }
+      if (extractedData.codePCS) {
+        updates['contract.pcsCode'] = extractedData.codePCS;
+      }
+      if (extractedData.coefficient) {
+        updates['contract.coefficient'] = extractedData.coefficient;
+      }
+      if (extractedData.tempsTravail) {
+        updates['contract.workTime'] = extractedData.tempsTravail;
+      }
+      if (extractedData.heuresTravaillees) {
+        updates['contract.monthlyHours'] = extractedData.heuresTravaillees;
+      }
+      if (extractedData.convention) {
+        updates['contract.collectiveAgreement'] = extractedData.convention;
+      }
+
+      // Métadonnées
+      updates['leaveBalance.lastScanDate'] = new Date().toISOString();
+      updates['leaveBalance.lastScanPeriod'] = extractedData.periode || null;
+
+      // Appliquer les mises à jour
+      const userRef = doc(db, 'users', selectedEmployee.id);
+      await updateDoc(userRef, updates);
+
+      // Construire le message de confirmation
+      const updatedFields = [];
+      if (extractedData.cpSolde !== null) updatedFields.push(`CP: ${extractedData.cpSolde}j`);
+      if (extractedData.rtt !== null) updatedFields.push(`RTT: ${extractedData.rtt}j`);
+      if (extractedData.salaireBrut !== null) updatedFields.push(`Salaire brut: ${extractedData.salaireBrut.toFixed(2)}€`);
+      if (extractedData.tauxHoraire !== null) updatedFields.push(`Taux horaire: ${extractedData.tauxHoraire.toFixed(2)}€/h`);
+      if (extractedData.matricule) updatedFields.push(`Matricule: ${extractedData.matricule}`);
+      if (extractedData.typeContrat) updatedFields.push(`Contrat: ${extractedData.typeContrat}`);
+      if (extractedData.emploi) updatedFields.push(`Emploi: ${extractedData.emploi}`);
+      if (extractedData.codePCS) updatedFields.push(`Code PCS: ${extractedData.codePCS}`);
+
+      alert(`✅ Dossier RH mis à jour pour ${selectedEmployee.name} !\n\n${updatedFields.join('\n')}`);
+      setShowScanModal(false);
+      // Rafraîchir les données
+      if (typeof handleRefresh === 'function') {
+        handleRefresh();
+      }
+
+    } catch (error) {
+      console.error('Erreur mise à jour dossier RH:', error);
+      alert('❌ Erreur lors de la mise à jour du dossier RH: ' + error.message);
+    } finally {
+      setUpdatingBalance(false);
+    }
+  };
+
   // Supprimer un document
   const handleDeleteDocument = async (docId) => {
     if (!confirm('Supprimer ce document ?')) return;
@@ -3468,55 +3563,164 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                             {scanResult.extractedData.confidence}%
                           </span>
                         </div>
-                      </div>
-
-                      {/* Données extraites / Saisie manuelle */}
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-1">
-                            Congés payés disponibles (jours)
-                            {scanResult.extractedData.cpSolde !== null && (
-                              <span className="text-green-400 ml-2">✓ Détecté</span>
-                            )}
-                          </label>
-                          {/* Afficher le détail N-1 + N si disponible */}
-                          {scanResult.extractedData.cpN1 !== null && scanResult.extractedData.cpSolde !== null && (
-                            <div className="text-xs text-blue-300 mb-1 bg-blue-500/10 rounded px-2 py-1">
-                              📊 N-1: {scanResult.extractedData.cpN1}j + N: {(scanResult.extractedData.cpSolde - scanResult.extractedData.cpN1).toFixed(2)}j = <strong>{scanResult.extractedData.cpSolde}j total</strong>
-                            </div>
-                          )}
-                          <input
-                            type="number"
-                            step="0.5"
-                            value={manualValues.cpSolde}
-                            onChange={(e) => setManualValues({ ...manualValues, cpSolde: e.target.value })}
-                            placeholder="Ex: 25"
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-1">
-                            RTT disponibles (jours)
-                            {scanResult.extractedData.rtt !== null && (
-                              <span className="text-green-400 ml-2">✓ Détecté</span>
-                            )}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.5"
-                            value={manualValues.rtt}
-                            onChange={(e) => setManualValues({ ...manualValues, rtt: e.target.value })}
-                            placeholder="Ex: 10"
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                          />
-                        </div>
-
-                        {scanResult.extractedData.periode && (
-                          <div className="text-sm text-gray-400">
-                            Période détectée: <span className="text-white">{scanResult.extractedData.periode}</span>
+                        {scanResult.extractedData.hrFieldsFound > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {scanResult.extractedData.hrFieldsFound}/{scanResult.extractedData.hrFieldsTotal} champs RH détectés
                           </div>
                         )}
+                      </div>
+
+                      {/* Données Congés */}
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <h4 className="text-white font-medium mb-2 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-purple-400" />
+                          Congés
+                        </h4>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-400">CP Solde:</span>
+                            <span className={`ml-2 ${scanResult.extractedData.cpSolde !== null ? 'text-green-400' : 'text-gray-500'}`}>
+                              {scanResult.extractedData.cpSolde !== null ? `${scanResult.extractedData.cpSolde}j` : '-'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">CP N-1:</span>
+                            <span className={`ml-2 ${scanResult.extractedData.cpN1 !== null ? 'text-green-400' : 'text-gray-500'}`}>
+                              {scanResult.extractedData.cpN1 !== null ? `${scanResult.extractedData.cpN1}j` : '-'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">RTT:</span>
+                            <span className={`ml-2 ${scanResult.extractedData.rtt !== null ? 'text-green-400' : 'text-gray-500'}`}>
+                              {scanResult.extractedData.rtt !== null ? `${scanResult.extractedData.rtt}j` : '-'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Période:</span>
+                            <span className={`ml-2 ${scanResult.extractedData.periode ? 'text-white' : 'text-gray-500'}`}>
+                              {scanResult.extractedData.periode || '-'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Données Salariales */}
+                      {(scanResult.extractedData.salaireBrut || scanResult.extractedData.salaireNet || scanResult.extractedData.tauxHoraire) && (
+                        <div className="bg-white/5 rounded-xl p-3">
+                          <h4 className="text-white font-medium mb-2 flex items-center gap-2">
+                            <DollarSign className="w-4 h-4 text-green-400" />
+                            Données salariales
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            {scanResult.extractedData.salaireBrut && (
+                              <div>
+                                <span className="text-gray-400">Salaire brut:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.salaireBrut.toFixed(2)} €</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.salaireNet && (
+                              <div>
+                                <span className="text-gray-400">Salaire net:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.salaireNet.toFixed(2)} €</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.tauxHoraire && (
+                              <div>
+                                <span className="text-gray-400">Taux horaire:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.tauxHoraire.toFixed(2)} €/h</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.heuresTravaillees && (
+                              <div>
+                                <span className="text-gray-400">Heures:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.heuresTravaillees}h</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Données Contractuelles */}
+                      {(scanResult.extractedData.matricule || scanResult.extractedData.typeContrat || scanResult.extractedData.emploi || scanResult.extractedData.dateEntree || scanResult.extractedData.codePCS) && (
+                        <div className="bg-white/5 rounded-xl p-3">
+                          <h4 className="text-white font-medium mb-2 flex items-center gap-2">
+                            <Briefcase className="w-4 h-4 text-blue-400" />
+                            Données contractuelles
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            {scanResult.extractedData.matricule && (
+                              <div>
+                                <span className="text-gray-400">Matricule:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.matricule}</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.typeContrat && (
+                              <div>
+                                <span className="text-gray-400">Contrat:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.typeContrat}</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.emploi && (
+                              <div className="col-span-2">
+                                <span className="text-gray-400">Emploi:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.emploi}</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.dateEntree && (
+                              <div>
+                                <span className="text-gray-400">Date entrée:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.dateEntree}</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.codePCS && (
+                              <div>
+                                <span className="text-gray-400">Code PCS:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.codePCS}</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.coefficient && (
+                              <div>
+                                <span className="text-gray-400">Coefficient:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.coefficient}</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.tempsTravail && (
+                              <div>
+                                <span className="text-gray-400">Temps travail:</span>
+                                <span className="ml-2 text-green-400">{scanResult.extractedData.tempsTravail}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Saisie manuelle des congés */}
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <h4 className="text-white font-medium mb-2">Correction / Saisie manuelle</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-gray-400 text-xs mb-1">CP (jours)</label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={manualValues.cpSolde}
+                              onChange={(e) => setManualValues({ ...manualValues, cpSolde: e.target.value })}
+                              placeholder="Ex: 25"
+                              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 outline-none text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 text-xs mb-1">RTT (jours)</label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={manualValues.rtt}
+                              onChange={(e) => setManualValues({ ...manualValues, rtt: e.target.value })}
+                              placeholder="Ex: 10"
+                              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 outline-none text-sm"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Recommandations */}
@@ -3530,28 +3734,41 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                       )}
 
                       {/* Boutons d'action */}
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => {
-                            setScanResult(null);
-                            setScanFile(null);
-                          }}
-                          className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
-                        >
-                          Nouveau scan
-                        </button>
-                        <button
-                          onClick={handleUpdateBalance}
-                          disabled={(!manualValues.cpSolde && !manualValues.rtt) || updatingBalance}
-                          className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                          {updatingBalance ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4" />
-                          )}
-                          Mettre à jour
-                        </button>
+                      <div className="flex flex-col gap-2">
+                        {/* Bouton mise à jour complète du dossier RH */}
+                        {scanResult.extractedData.hrFieldsFound > 0 && (
+                          <button
+                            onClick={() => handleUpdateHRFile(scanResult.extractedData)}
+                            disabled={updatingBalance}
+                            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            <FileText className="w-4 h-4" />
+                            Mettre à jour le dossier RH complet
+                          </button>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setScanResult(null);
+                              setScanFile(null);
+                            }}
+                            className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+                          >
+                            Nouveau scan
+                          </button>
+                          <button
+                            onClick={handleUpdateBalance}
+                            disabled={(!manualValues.cpSolde && !manualValues.rtt) || updatingBalance}
+                            className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            {updatingBalance ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                            Maj Congés
+                          </button>
+                        </div>
                       </div>
                     </>
                   ) : (

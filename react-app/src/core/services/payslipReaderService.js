@@ -125,6 +125,183 @@ const PAYSLIP_PATTERNS = {
     /(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)\s*\d{4}/i,
     /(\d{2})\/(\d{4})/,
     /Paie\s*(?:du\s*)?(\d{2}\/\d{4})/i
+  ],
+
+  // ==========================================
+  // 📋 DONNÉES RH COMPLÈTES
+  // ==========================================
+
+  // Salaire brut mensuel
+  salaireBrut: [
+    /Salaire\s*(?:de\s*)?base\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
+    /Salaire\s*brut\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
+    /Brut\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
+    /TOTAL\s*BRUT\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
+    /Montant\s*brut\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
+    /Base\s*mensuelle?\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i
+  ],
+
+  // Salaire net
+  salaireNet: [
+    /Net\s*[àa]\s*payer\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
+    /NET\s*A\s*PAYER\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
+    /Salaire\s*net\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
+    /Net\s*imposable\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
+    /TOTAL\s*NET\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i
+  ],
+
+  // Matricule employé
+  matricule: [
+    /Matricule\s*[:\s]*([A-Z0-9]+)/i,
+    /N[°o]?\s*(?:de\s*)?matricule\s*[:\s]*([A-Z0-9]+)/i,
+    /ID\s*(?:employ[eé]|salari[eé])?\s*[:\s]*([A-Z0-9]+)/i,
+    /Code\s*employ[eé]\s*[:\s]*([A-Z0-9]+)/i,
+    /R[eé]f[eé]rence\s*[:\s]*([A-Z0-9]+)/i
+  ],
+
+  // Heures travaillées
+  heuresTravaillees: [
+    /Heures?\s*travaill[eé]es?\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Nb\s*heures?\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Volume\s*horaire\s*[:\s]*(\d+[.,]?\d*)/i,
+    /(\d+[.,]?\d*)\s*h(?:eures?)?\s*travaill[eé]es?/i,
+    /Heures?\s*mensuelles?\s*[:\s]*(\d+[.,]?\d*)/i,
+    /151[.,]67|169/
+  ],
+
+  // Taux horaire
+  tauxHoraire: [
+    /Taux\s*horaire\s*[:\s]*(\d+[.,]?\d*)\s*€?/i,
+    /Salaire\s*horaire\s*[:\s]*(\d+[.,]?\d*)/i,
+    /€\s*\/\s*h\s*[:\s]*(\d+[.,]?\d*)/i,
+    /(\d+[.,]\d+)\s*€?\s*\/\s*h/i
+  ],
+
+  // Convention collective
+  convention: [
+    /Convention\s*collective\s*[:\s]*(.+?)(?:\n|$)/i,
+    /CCN\s*[:\s]*(.+?)(?:\n|$)/i,
+    /IDCC\s*[:\s]*(\d+)/i,
+    /Convention\s*[:\s]*(.+?)(?:\n|$)/i
+  ],
+
+  // Code PCS (Profession et catégorie socioprofessionnelle)
+  codePCS: [
+    /Code\s*PCS(?:-ESE)?\s*[:\s]*(\d+[a-z]?)/i,
+    /PCS(?:-ESE)?\s*[:\s]*(\d+[a-z]?)/i,
+    /Cat[eé]gorie\s*socio\s*[:\s]*(\d+[a-z]?)/i,
+    /(\d{2})\s*(?:Employ[eé]s?|Ouvriers?|Cadres?|Techniciens?)/i
+  ],
+
+  // Qualification / Emploi
+  emploi: [
+    /Emploi\s*[:\s]*(.+?)(?:\n|$)/i,
+    /Qualification\s*[:\s]*(.+?)(?:\n|$)/i,
+    /Fonction\s*[:\s]*(.+?)(?:\n|$)/i,
+    /Poste\s*[:\s]*(.+?)(?:\n|$)/i,
+    /Intitul[eé]\s*(?:du\s*)?poste\s*[:\s]*(.+?)(?:\n|$)/i
+  ],
+
+  // Coefficient / Niveau
+  coefficient: [
+    /Coefficient\s*[:\s]*(\d+)/i,
+    /Coef(?:f)?\.?\s*[:\s]*(\d+)/i,
+    /Niveau\s*[:\s]*(\d+)/i,
+    /[Éé]chelon\s*[:\s]*(\d+)/i,
+    /Indice\s*[:\s]*(\d+)/i
+  ],
+
+  // Date d'entrée / Ancienneté
+  dateEntree: [
+    /Date\s*(?:d[''])?entr[eé]e\s*[:\s]*(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i,
+    /Anciennet[eé]\s*depuis\s*(?:le\s*)?(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i,
+    /Embauch[eé]\s*(?:le\s*)?(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i,
+    /Date\s*(?:d[''])?embauche\s*[:\s]*(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i,
+    /Depuis\s*(?:le\s*)?(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i
+  ],
+
+  // Type de contrat
+  typeContrat: [
+    /(?:Type\s*(?:de\s*)?)?Contrat\s*[:\s]*(CDI|CDD|Int[eé]rim|Apprentissage|Stage)/i,
+    /Nature\s*(?:du\s*)?contrat\s*[:\s]*(CDI|CDD)/i,
+    /(CDI|CDD)\s*(?:temps\s*(?:plein|partiel))?/i
+  ],
+
+  // Temps de travail
+  tempsTravail: [
+    /Temps\s*(?:de\s*)?travail\s*[:\s]*(plein|partiel|\d+%)/i,
+    /(\d+)\s*h(?:eures?)?\s*(?:\/|par)\s*semaine/i,
+    /Base\s*hebdomadaire\s*[:\s]*(\d+)/i,
+    /Horaire\s*hebdomadaire\s*[:\s]*(\d+)/i,
+    /(35|39)\s*h/i
+  ],
+
+  // Numéro de sécurité sociale
+  numeroSS: [
+    /N[°o]?\s*(?:de\s*)?S[eé]curit[eé]\s*Sociale\s*[:\s]*([12]\s*\d{2}\s*\d{2}\s*\d{2}\s*\d{3}\s*\d{3}\s*\d{2})/i,
+    /NIR\s*[:\s]*([12]\d{14})/i,
+    /S[eé]cu\s*[:\s]*([12]\s*\d{2}\s*\d{2})/i
+  ],
+
+  // Entreprise / Employeur
+  employeur: [
+    /Employeur\s*[:\s]*(.+?)(?:\n|$)/i,
+    /Raison\s*sociale\s*[:\s]*(.+?)(?:\n|$)/i,
+    /Soci[eé]t[eé]\s*[:\s]*(.+?)(?:\n|$)/i,
+    /Entreprise\s*[:\s]*(.+?)(?:\n|$)/i
+  ],
+
+  // SIRET
+  siret: [
+    /SIRET\s*[:\s]*(\d{14})/i,
+    /N[°o]?\s*SIRET\s*[:\s]*(\d{3}\s*\d{3}\s*\d{3}\s*\d{5})/i
+  ],
+
+  // Ancienneté en années
+  anciennete: [
+    /Anciennet[eé]\s*[:\s]*(\d+)\s*(?:ans?|ann[eé]es?)/i,
+    /(\d+)\s*(?:ans?|ann[eé]es?)\s*(?:d[''])?anciennet[eé]/i
+  ]
+};
+
+/**
+ * 📊 PATTERNS ADDITIONNELS POUR DONNÉES SPÉCIFIQUES
+ */
+const EXTENDED_PATTERNS = {
+  // Heures supplémentaires
+  heuresSup: [
+    /Heures?\s*suppl[eé]mentaires?\s*[:\s]*(\d+[.,]?\d*)/i,
+    /HS\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Majorations?\s*[:\s]*(\d+[.,]?\d*)/i
+  ],
+
+  // Primes
+  primes: [
+    /Prime[s]?\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
+    /Bonus\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
+    /Gratification\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i
+  ],
+
+  // Avantages en nature
+  avantagesNature: [
+    /Avantages?\s*(?:en\s*)?nature\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Ticket[s]?\s*restaurant\s*[:\s]*(\d+[.,]?\d*)/i,
+    /V[eé]hicule\s*[:\s]*(\d+[.,]?\d*)/i
+  ],
+
+  // Transport
+  transport: [
+    /(?:Remboursement\s*)?Transport\s*[:\s]*(\d+[.,]?\d*)\s*€?/i,
+    /Navigo\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Frais\s*(?:de\s*)?transport\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Indemnit[eé]\s*transport\s*[:\s]*(\d+[.,]?\d*)/i
+  ],
+
+  // Mutuelle
+  mutuelle: [
+    /Mutuelle\s*[:\s]*(\d+[.,]?\d*)\s*€?/i,
+    /Compl[eé]mentaire\s*sant[eé]\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Pr[eé]voyance\s*[:\s]*(\d+[.,]?\d*)/i
   ]
 };
 
@@ -422,12 +599,39 @@ class PayslipReaderService {
     console.log('📄 Texte nettoyé (500 car.):', cleanText.substring(0, 500));
 
     const result = {
+      // Congés
       cpAcquis: null,      // Congés acquis (période en cours)
       cpSolde: null,       // Solde total de CP disponibles
       cpN1: null,          // CP de l'année N-1
       cpPris: null,        // CP déjà pris
       rtt: null,           // Solde RTT
       periode: null,       // Période du bulletin
+
+      // Données salariales
+      salaireBrut: null,   // Salaire brut mensuel
+      salaireNet: null,    // Salaire net
+      tauxHoraire: null,   // Taux horaire
+      heuresTravaillees: null, // Heures travaillées
+
+      // Données contractuelles
+      matricule: null,     // Matricule employé
+      typeContrat: null,   // CDI, CDD, etc.
+      tempsTravail: null,  // Temps plein/partiel, heures/semaine
+      dateEntree: null,    // Date d'entrée
+      emploi: null,        // Intitulé du poste
+      coefficient: null,   // Coefficient/niveau
+      codePCS: null,       // Code PCS-ESE
+      convention: null,    // Convention collective
+
+      // Données entreprise
+      employeur: null,     // Nom de l'entreprise
+      siret: null,         // SIRET
+
+      // Données personnelles
+      numeroSS: null,      // Numéro de sécurité sociale
+      anciennete: null,    // Ancienneté en années
+
+      // Métadonnées
       rawMatches: [],      // Tous les matches trouvés (pour debug)
       confidence: 0        // Score de confiance
     };
@@ -566,26 +770,62 @@ class PayslipReaderService {
 
           // Ne garder que la première valeur trouvée pour chaque type
           if (result[key] === null) {
-            if (key === 'periode') {
-              result[key] = value;
+            // Champs textuels (ne pas convertir en nombre)
+            const textFields = ['periode', 'emploi', 'convention', 'typeContrat', 'tempsTravail', 'matricule', 'codePCS', 'dateEntree', 'numeroSS', 'employeur', 'siret'];
+            if (textFields.includes(key)) {
+              result[key] = match[1].trim();
             } else {
-              result[key] = numValue;
+              // Champs numériques - nettoyer les espaces avant de parser
+              const cleanValue = value.replace(/\s/g, '');
+              result[key] = parseFloat(cleanValue) || null;
             }
           }
         }
       }
     }
 
-    // Calculer le score de confiance
+    // ==========================================
+    // 📊 CALCUL DU SCORE DE CONFIANCE
+    // ==========================================
     let foundFields = 0;
-    if (result.cpSolde !== null) foundFields += 3; // Champ principal (plus important)
-    if (result.cpAcquis !== null) foundFields += 1;
-    if (result.cpN1 !== null) foundFields += 2; // Important pour le calcul total
-    if (result.cpPris !== null) foundFields += 1;
-    if (result.rtt !== null) foundFields += 1;
-    if (result.periode !== null) foundFields += 1;
+    let totalWeight = 0;
 
-    result.confidence = Math.min(100, Math.round((foundFields / 9) * 100));
+    // Pondération des champs (plus important = plus de poids)
+    const fieldWeights = {
+      // Congés (critiques)
+      cpSolde: 3,
+      cpN1: 2,
+      cpAcquis: 1,
+      cpPris: 1,
+      rtt: 1,
+      // Salaire (très importants)
+      salaireBrut: 3,
+      salaireNet: 2,
+      tauxHoraire: 2,
+      // Contrat (importants)
+      matricule: 2,
+      typeContrat: 2,
+      dateEntree: 2,
+      emploi: 1,
+      codePCS: 1,
+      // Autres
+      heuresTravaillees: 1,
+      tempsTravail: 1,
+      coefficient: 1,
+      convention: 1,
+      periode: 1,
+      employeur: 1,
+      anciennete: 1
+    };
+
+    for (const [field, weight] of Object.entries(fieldWeights)) {
+      totalWeight += weight;
+      if (result[field] !== null) {
+        foundFields += weight;
+      }
+    }
+
+    result.confidence = Math.min(100, Math.round((foundFields / totalWeight) * 100));
 
     // Si on n'a pas de solde mais on a acquis et pris, calculer
     if (result.cpSolde === null && result.cpAcquis !== null) {
@@ -595,14 +835,28 @@ class PayslipReaderService {
       result.calculated = true;
     }
 
+    // Compter les champs RH trouvés
+    const hrFields = ['salaireBrut', 'salaireNet', 'tauxHoraire', 'matricule', 'typeContrat', 'dateEntree', 'emploi', 'codePCS', 'heuresTravaillees', 'tempsTravail', 'coefficient', 'convention'];
+    result.hrFieldsFound = hrFields.filter(f => result[f] !== null).length;
+    result.hrFieldsTotal = hrFields.length;
+
     console.log('📊 Données extraites:', {
+      // Congés
       cpSolde: result.cpSolde,
-      cpAcquis: result.cpAcquis,
       cpN1: result.cpN1,
-      cpPris: result.cpPris,
       rtt: result.rtt,
-      periode: result.periode,
-      confidence: result.confidence + '%'
+      // Salaire
+      salaireBrut: result.salaireBrut,
+      salaireNet: result.salaireNet,
+      tauxHoraire: result.tauxHoraire,
+      // Contrat
+      matricule: result.matricule,
+      typeContrat: result.typeContrat,
+      emploi: result.emploi,
+      dateEntree: result.dateEntree,
+      // Stats
+      confidence: result.confidence + '%',
+      hrFieldsFound: `${result.hrFieldsFound}/${result.hrFieldsTotal}`
     });
 
     return result;
