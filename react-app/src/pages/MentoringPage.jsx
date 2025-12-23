@@ -11,7 +11,8 @@ import {
   MessageSquare, Award, TrendingUp, ChevronRight, Filter,
   AlertTriangle, Shield, CheckCircle, FileText, Download,
   Trash2, Upload, File, FileSpreadsheet, FileImage, Video,
-  Edit3
+  Edit3, GraduationCap, BookOpen, Target, Zap, Trophy,
+  School, PenTool, ClipboardCheck, Medal, Sparkles
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import SponsorshipSection from '../components/mentoring/SponsorshipSection.jsx';
@@ -97,6 +98,456 @@ const StatsCards = ({ stats }) => {
         </motion.div>
       ))}
     </div>
+  );
+};
+
+// ==========================================
+// 🎓 COMPOSANT SECTION ALTERNANCE
+// Objectifs scolaires pour les alternants
+// ==========================================
+
+const SCHOOL_OBJECTIVES = [
+  {
+    id: 'attendance',
+    category: 'presence',
+    title: 'Assiduité exemplaire',
+    description: 'Aucune absence injustifiée ce mois-ci',
+    icon: ClipboardCheck,
+    xpReward: 50,
+    color: 'emerald',
+    frequency: 'monthly'
+  },
+  {
+    id: 'homework',
+    category: 'work',
+    title: 'Devoirs rendus à temps',
+    description: 'Tous les travaux rendus avant la deadline',
+    icon: BookOpen,
+    xpReward: 40,
+    color: 'blue',
+    frequency: 'weekly'
+  },
+  {
+    id: 'good_grade',
+    category: 'grades',
+    title: 'Bonne note obtenue',
+    description: 'Note supérieure à 14/20 sur un examen',
+    icon: Star,
+    xpReward: 75,
+    color: 'amber',
+    frequency: 'per_event'
+  },
+  {
+    id: 'excellent_grade',
+    category: 'grades',
+    title: 'Excellence académique',
+    description: 'Note supérieure à 16/20 sur un examen',
+    icon: Trophy,
+    xpReward: 150,
+    color: 'yellow',
+    frequency: 'per_event'
+  },
+  {
+    id: 'project_completed',
+    category: 'projects',
+    title: 'Projet scolaire terminé',
+    description: 'Projet rendu et validé par l\'école',
+    icon: Target,
+    xpReward: 100,
+    color: 'purple',
+    frequency: 'per_event'
+  },
+  {
+    id: 'presentation',
+    category: 'skills',
+    title: 'Présentation orale',
+    description: 'Soutenance ou présentation réussie',
+    icon: MessageSquare,
+    xpReward: 80,
+    color: 'pink',
+    frequency: 'per_event'
+  },
+  {
+    id: 'semester_pass',
+    category: 'milestones',
+    title: 'Semestre validé',
+    description: 'Validation de tous les modules du semestre',
+    icon: Medal,
+    xpReward: 300,
+    color: 'indigo',
+    frequency: 'semester'
+  },
+  {
+    id: 'year_pass',
+    category: 'milestones',
+    title: 'Année validée',
+    description: 'Passage en année supérieure confirmé',
+    icon: GraduationCap,
+    xpReward: 500,
+    color: 'cyan',
+    frequency: 'yearly'
+  },
+  {
+    id: 'diploma',
+    category: 'milestones',
+    title: 'Diplôme obtenu !',
+    description: 'Félicitations ! Diplôme en poche !',
+    icon: Sparkles,
+    xpReward: 1000,
+    color: 'rose',
+    frequency: 'once'
+  }
+];
+
+const OBJECTIVE_CATEGORIES = {
+  presence: { label: 'Présence', icon: ClipboardCheck, color: 'emerald' },
+  work: { label: 'Travaux', icon: PenTool, color: 'blue' },
+  grades: { label: 'Notes', icon: Star, color: 'amber' },
+  projects: { label: 'Projets', icon: Target, color: 'purple' },
+  skills: { label: 'Compétences', icon: Zap, color: 'pink' },
+  milestones: { label: 'Étapes clés', icon: Trophy, color: 'indigo' }
+};
+
+const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin }) => {
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showValidateModal, setShowValidateModal] = useState(false);
+  const [selectedObjective, setSelectedObjective] = useState(null);
+  const [validationNote, setValidationNote] = useState('');
+
+  // Données de l'alternant (récupérées ou par défaut)
+  const alternantInfo = alternanceData || {
+    schoolName: 'École non renseignée',
+    diploma: 'Diplôme en cours',
+    startDate: null,
+    expectedEndDate: null,
+    currentYear: 1,
+    totalYears: 2,
+    completedObjectives: [],
+    totalXpEarned: 0
+  };
+
+  // Calcul de la progression vers le diplôme
+  const progressPercent = Math.min(
+    ((alternantInfo.currentYear - 1) / alternantInfo.totalYears) * 100 +
+    (alternantInfo.completedObjectives?.length || 0) * 2,
+    100
+  );
+
+  // Filtrer les objectifs par catégorie
+  const filteredObjectives = selectedCategory === 'all'
+    ? SCHOOL_OBJECTIVES
+    : SCHOOL_OBJECTIVES.filter(obj => obj.category === selectedCategory);
+
+  // Vérifier si un objectif a été validé
+  const isObjectiveCompleted = (objectiveId) => {
+    return alternantInfo.completedObjectives?.some(c => c.objectiveId === objectiveId);
+  };
+
+  // Obtenir le nombre de validations d'un objectif
+  const getObjectiveCount = (objectiveId) => {
+    return alternantInfo.completedObjectives?.filter(c => c.objectiveId === objectiveId).length || 0;
+  };
+
+  // Handler pour ouvrir le modal de validation
+  const handleValidateClick = (objective) => {
+    setSelectedObjective(objective);
+    setValidationNote('');
+    setShowValidateModal(true);
+  };
+
+  // Handler pour confirmer la validation
+  const handleConfirmValidation = async () => {
+    if (!selectedObjective || !onValidateObjective) return;
+
+    const success = await onValidateObjective({
+      objectiveId: selectedObjective.id,
+      xpReward: selectedObjective.xpReward,
+      note: validationNote,
+      validatedAt: new Date().toISOString()
+    });
+
+    if (success) {
+      setShowValidateModal(false);
+      setSelectedObjective(null);
+    }
+  };
+
+  const colorClasses = {
+    emerald: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30', gradient: 'from-emerald-500 to-teal-500' },
+    blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30', gradient: 'from-blue-500 to-cyan-500' },
+    amber: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30', gradient: 'from-amber-500 to-yellow-500' },
+    yellow: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30', gradient: 'from-yellow-400 to-amber-400' },
+    purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30', gradient: 'from-purple-500 to-pink-500' },
+    pink: { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30', gradient: 'from-pink-500 to-rose-500' },
+    indigo: { bg: 'bg-indigo-500/20', text: 'text-indigo-400', border: 'border-indigo-500/30', gradient: 'from-indigo-500 to-purple-500' },
+    cyan: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30', gradient: 'from-cyan-500 to-blue-500' },
+    rose: { bg: 'bg-rose-500/20', text: 'text-rose-400', border: 'border-rose-500/30', gradient: 'from-rose-500 to-pink-500' }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="mt-8 sm:mt-10 bg-gradient-to-br from-indigo-900/30 via-purple-900/20 to-pink-900/20 backdrop-blur-xl border border-indigo-500/20 rounded-2xl p-4 sm:p-6 overflow-hidden relative"
+    >
+      {/* Effet décoratif */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-br from-pink-500/10 to-rose-500/10 rounded-full blur-3xl" />
+
+      {/* Header */}
+      <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-gradient-to-br from-indigo-500/30 to-purple-500/30 backdrop-blur-xl border border-white/10 rounded-xl">
+            <GraduationCap className="w-7 h-7 text-indigo-300" />
+          </div>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              Parcours Alternance
+              <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">
+                🎓 Spécial Alternants
+              </span>
+            </h2>
+            <p className="text-gray-400 text-sm">Gagne de l'XP avec ton parcours scolaire !</p>
+          </div>
+        </div>
+
+        {/* Stats rapides */}
+        <div className="flex gap-3">
+          <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+            <div className="text-xs text-gray-400">XP Scolaire</div>
+            <div className="text-lg font-bold text-indigo-400 flex items-center gap-1">
+              <Zap className="w-4 h-4" />
+              {alternantInfo.totalXpEarned || 0}
+            </div>
+          </div>
+          <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+            <div className="text-xs text-gray-400">Objectifs</div>
+            <div className="text-lg font-bold text-emerald-400">
+              {alternantInfo.completedObjectives?.length || 0}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Infos école et progression */}
+      <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Carte info école */}
+        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+          <div className="flex items-center gap-3 mb-3">
+            <School className="w-5 h-5 text-indigo-400" />
+            <span className="text-white font-medium">Mon parcours</span>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">École</span>
+              <span className="text-white">{alternantInfo.schoolName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Diplôme visé</span>
+              <span className="text-white">{alternantInfo.diploma}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Année</span>
+              <span className="text-white">{alternantInfo.currentYear}/{alternantInfo.totalYears}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progression vers le diplôme */}
+        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-400" />
+              <span className="text-white font-medium">Vers le diplôme</span>
+            </div>
+            <span className="text-amber-400 font-bold">{Math.round(progressPercent)}%</span>
+          </div>
+          <div className="relative h-4 bg-white/10 rounded-full overflow-hidden mb-3">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 1, ease: 'easeOut' }}
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+          </div>
+          <p className="text-gray-400 text-xs text-center">
+            Continue comme ça ! Chaque objectif te rapproche du diplôme 🎓
+          </p>
+        </div>
+      </div>
+
+      {/* Filtres par catégorie */}
+      <div className="relative flex flex-wrap gap-2 mb-4">
+        <button
+          onClick={() => setSelectedCategory('all')}
+          className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+            selectedCategory === 'all'
+              ? 'bg-indigo-600 text-white'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10'
+          }`}
+        >
+          Tous
+        </button>
+        {Object.entries(OBJECTIVE_CATEGORIES).map(([catId, cat]) => {
+          const CatIcon = cat.icon;
+          return (
+            <button
+              key={catId}
+              onClick={() => setSelectedCategory(catId)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all ${
+                selectedCategory === catId
+                  ? `bg-${cat.color}-600 text-white`
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10'
+              }`}
+            >
+              <CatIcon className="w-3.5 h-3.5" />
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Liste des objectifs */}
+      <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {filteredObjectives.map((objective) => {
+          const ObjIcon = objective.icon;
+          const colors = colorClasses[objective.color];
+          const completed = isObjectiveCompleted(objective.id);
+          const count = getObjectiveCount(objective.id);
+
+          return (
+            <motion.div
+              key={objective.id}
+              whileHover={{ scale: 1.02, y: -2 }}
+              className={`relative p-4 rounded-xl border transition-all ${
+                completed
+                  ? `${colors.bg} ${colors.border} ring-1 ring-${objective.color}-500/30`
+                  : 'bg-white/5 border-white/10 hover:border-white/20'
+              }`}
+            >
+              {/* Badge XP */}
+              <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-bold ${colors.bg} ${colors.text} border ${colors.border}`}>
+                +{objective.xpReward} XP
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg ${colors.bg}`}>
+                  <ObjIcon className={`w-5 h-5 ${colors.text}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-white font-medium text-sm mb-0.5 flex items-center gap-2">
+                    {objective.title}
+                    {completed && <CheckCircle className="w-4 h-4 text-emerald-400" />}
+                  </h4>
+                  <p className="text-gray-400 text-xs line-clamp-2">{objective.description}</p>
+
+                  {/* Compteur si répétable */}
+                  {count > 0 && objective.frequency !== 'once' && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      Validé {count} fois
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bouton valider (admin only) */}
+              {isAdmin && (
+                <button
+                  onClick={() => handleValidateClick(objective)}
+                  className={`mt-3 w-full py-2 rounded-lg text-xs font-medium transition-all ${
+                    completed && objective.frequency === 'once'
+                      ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                      : `bg-gradient-to-r ${colors.gradient} text-white hover:opacity-90`
+                  }`}
+                  disabled={completed && objective.frequency === 'once'}
+                >
+                  {completed && objective.frequency === 'once' ? '✓ Déjà validé' : 'Valider cet objectif'}
+                </button>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Message motivation */}
+      <div className="relative mt-6 p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 rounded-xl border border-indigo-500/20 text-center">
+        <p className="text-gray-300 text-sm">
+          💡 <span className="text-indigo-300 font-medium">Astuce :</span> Ton tuteur ou manager peut valider tes objectifs scolaires.
+          N'hésite pas à partager tes réussites avec ton équipe !
+        </p>
+      </div>
+
+      {/* Modal de validation */}
+      <AnimatePresence>
+        {showValidateModal && selectedObjective && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowValidateModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-800 rounded-2xl border border-white/10 w-full max-w-md p-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-3 rounded-xl ${colorClasses[selectedObjective.color].bg}`}>
+                  <selectedObjective.icon className={`w-6 h-6 ${colorClasses[selectedObjective.color].text}`} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Valider l'objectif</h3>
+                  <p className="text-gray-400 text-sm">{selectedObjective.title}</p>
+                </div>
+              </div>
+
+              <div className="mb-4 p-3 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-emerald-300 text-sm">Récompense XP</span>
+                  <span className="text-emerald-400 font-bold text-lg flex items-center gap-1">
+                    <Zap className="w-4 h-4" />
+                    +{selectedObjective.xpReward}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Note / Commentaire (optionnel)
+                </label>
+                <textarea
+                  value={validationNote}
+                  onChange={(e) => setValidationNote(e.target.value)}
+                  placeholder="Ex: Excellent travail sur le projet de fin de semestre..."
+                  rows={3}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowValidateModal(false)}
+                  className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmValidation}
+                  className={`flex-1 px-4 py-3 bg-gradient-to-r ${colorClasses[selectedObjective.color].gradient} text-white font-medium rounded-xl hover:opacity-90 transition-opacity`}
+                >
+                  Valider +{selectedObjective.xpReward} XP
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -1111,6 +1562,10 @@ const MentoringPage = () => {
   const [selectedTrainingType, setSelectedTrainingType] = useState('all'); // Filtre par type
   const [showAddTrainingModal, setShowAddTrainingModal] = useState(false);
 
+  // États pour les alternants
+  const [alternanceData, setAlternanceData] = useState(null);
+  const [isAlternant, setIsAlternant] = useState(false);
+
   // Types de formations
   const trainingTypes = [
     { id: 'internal', label: 'Formation interne', color: 'blue', icon: '🏠' },
@@ -1159,6 +1614,120 @@ const MentoringPage = () => {
 
     loadTrainingData();
   }, []);
+
+  // Charger les données d'alternance de l'utilisateur
+  useEffect(() => {
+    const loadAlternanceData = async () => {
+      if (!user?.uid) return;
+
+      try {
+        // Vérifier si l'utilisateur est un alternant (via son profil ou un champ spécifique)
+        const userDoc = await getDocs(query(
+          collection(db, 'users'),
+          where('__name__', '==', user.uid)
+        ));
+
+        if (!userDoc.empty) {
+          const userData = userDoc.docs[0].data();
+          // Vérifier si l'utilisateur a le statut alternant
+          const isAlt = userData.contractType === 'alternance' ||
+                        userData.contractType === 'apprentissage' ||
+                        userData.isAlternant === true ||
+                        userData.profile?.contractType === 'alternance';
+
+          setIsAlternant(isAlt);
+
+          if (isAlt || userData.isAdmin) {
+            // Charger les données d'alternance depuis la collection dédiée
+            const altRef = collection(db, 'alternance_tracking');
+            const altQuery = query(altRef, where('userId', '==', user.uid));
+            const altSnapshot = await getDocs(altQuery);
+
+            if (!altSnapshot.empty) {
+              const altData = altSnapshot.docs[0].data();
+              setAlternanceData({
+                id: altSnapshot.docs[0].id,
+                ...altData,
+                completedObjectives: altData.completedObjectives || []
+              });
+            } else {
+              // Données par défaut pour un nouvel alternant
+              setAlternanceData({
+                schoolName: userData.schoolName || 'École non renseignée',
+                diploma: userData.diploma || 'Diplôme en cours',
+                currentYear: userData.currentYear || 1,
+                totalYears: userData.totalYears || 2,
+                completedObjectives: [],
+                totalXpEarned: 0
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Erreur chargement données alternance:', error);
+      }
+    };
+
+    loadAlternanceData();
+  }, [user?.uid]);
+
+  // Fonction pour valider un objectif scolaire
+  const handleValidateSchoolObjective = async (objectiveData) => {
+    if (!user?.uid || !alternanceData) return false;
+
+    try {
+      const newObjective = {
+        ...objectiveData,
+        validatedBy: user.uid,
+        validatedByName: user.displayName || user.email,
+        validatedAt: new Date().toISOString()
+      };
+
+      const updatedObjectives = [...(alternanceData.completedObjectives || []), newObjective];
+      const newTotalXp = (alternanceData.totalXpEarned || 0) + objectiveData.xpReward;
+
+      // Mettre à jour dans Firestore
+      if (alternanceData.id) {
+        const altRef = collection(db, 'alternance_tracking');
+        const docRef = await getDocs(query(altRef, where('userId', '==', user.uid)));
+        if (!docRef.empty) {
+          const { updateDoc, doc } = await import('firebase/firestore');
+          await updateDoc(doc(db, 'alternance_tracking', docRef.docs[0].id), {
+            completedObjectives: updatedObjectives,
+            totalXpEarned: newTotalXp,
+            updatedAt: serverTimestamp()
+          });
+        }
+      } else {
+        // Créer le document s'il n'existe pas
+        await addDoc(collection(db, 'alternance_tracking'), {
+          userId: user.uid,
+          userName: user.displayName || user.email,
+          completedObjectives: updatedObjectives,
+          totalXpEarned: newTotalXp,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      // Mettre à jour l'état local
+      setAlternanceData(prev => ({
+        ...prev,
+        completedObjectives: updatedObjectives,
+        totalXpEarned: newTotalXp
+      }));
+
+      // Ajouter l'XP au profil de l'utilisateur (si le hook existe)
+      // await addXP(objectiveData.xpReward, 'school_objective', objectiveData.objectiveId);
+
+      alert(`✅ Objectif validé ! +${objectiveData.xpReward} XP`);
+      return true;
+    } catch (error) {
+      console.error('Erreur validation objectif:', error);
+      alert('❌ Erreur lors de la validation');
+      return false;
+    }
+  };
 
   // Stats formations
   const trainingStats = {
@@ -1726,6 +2295,18 @@ const MentoringPage = () => {
               </div>
             )}
           </motion.div>
+
+          {/* ==========================================
+              🎓 SECTION ALTERNANCE - PARCOURS SCOLAIRE
+              ========================================== */}
+          {(isAlternant || user?.isAdmin) && (
+            <AlternanceSection
+              user={user}
+              alternanceData={alternanceData}
+              onValidateObjective={handleValidateSchoolObjective}
+              isAdmin={user?.isAdmin || user?.role === 'admin'}
+            />
+          )}
 
         </div>
       </div>
