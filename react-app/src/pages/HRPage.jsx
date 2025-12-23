@@ -3605,7 +3605,7 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                       </div>
 
                       {/* Données Salariales */}
-                      {(scanResult.extractedData.salaireBrut || scanResult.extractedData.salaireNet || scanResult.extractedData.tauxHoraire) && (
+                      {(scanResult.extractedData.salaireBrut || scanResult.extractedData.salaireNet || scanResult.extractedData.tauxHoraire || scanResult.extractedData.netAPayer) && (
                         <div className="bg-white/5 rounded-xl p-3">
                           <h4 className="text-white font-medium mb-2 flex items-center gap-2">
                             <DollarSign className="w-4 h-4 text-green-400" />
@@ -3614,14 +3614,26 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             {scanResult.extractedData.salaireBrut && (
                               <div>
-                                <span className="text-gray-400">Salaire brut:</span>
+                                <span className="text-gray-400">Brut mensuel:</span>
                                 <span className="ml-2 text-green-400">{scanResult.extractedData.salaireBrut.toFixed(2)} €</span>
                               </div>
                             )}
                             {scanResult.extractedData.salaireNet && (
                               <div>
-                                <span className="text-gray-400">Salaire net:</span>
+                                <span className="text-gray-400">Net imposable:</span>
                                 <span className="ml-2 text-green-400">{scanResult.extractedData.salaireNet.toFixed(2)} €</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.netAPayer && (
+                              <div>
+                                <span className="text-gray-400">Net à payer:</span>
+                                <span className="ml-2 text-yellow-400">{scanResult.extractedData.netAPayer.toFixed(2)} €</span>
+                              </div>
+                            )}
+                            {scanResult.extractedData.acomptes && (
+                              <div>
+                                <span className="text-gray-400">Acomptes:</span>
+                                <span className="ml-2 text-orange-400">-{scanResult.extractedData.acomptes.toFixed(2)} €</span>
                               </div>
                             )}
                             {scanResult.extractedData.tauxHoraire && (

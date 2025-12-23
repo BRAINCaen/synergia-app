@@ -131,50 +131,59 @@ const PAYSLIP_PATTERNS = {
   // 📋 DONNÉES RH COMPLÈTES
   // ==========================================
 
-  // Salaire brut mensuel
+  // Salaire brut mensuel (chercher des montants > 500€ pour éviter confusion avec taux horaire)
   salaireBrut: [
-    /Salaire\s*(?:de\s*)?base\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
-    /Salaire\s*brut\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
-    /Brut\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
-    /TOTAL\s*BRUT\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
-    /Montant\s*brut\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
-    /Base\s*mensuelle?\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i
+    /TOTAL\s*BRUT\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
+    /Salaire\s*brut\s*(?:mensuel)?\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
+    /Brut\s*du\s*mois\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
+    /Total\s*des\s*gains\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
+    /Salaire\s*(?:de\s*)?base\s+\d+[.,]\d+\s+\d+[.,]\d+\s+(\d[\d\s]*[.,]\d{2})/i  // Format: "Salaire de base 151.67 12.72 1929.24"
   ],
 
-  // Salaire net
+  // Salaire net (chercher Net imposable ou Net avant impôt, PAS "Net à payer" qui inclut les acomptes)
   salaireNet: [
-    /Net\s*[àa]\s*payer\s*[:\s]*(\d[\d\s]*[.,]?\d*)\s*€?/i,
-    /NET\s*A\s*PAYER\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
-    /Salaire\s*net\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
-    /Net\s*imposable\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i,
-    /TOTAL\s*NET\s*[:\s]*(\d[\d\s]*[.,]?\d*)/i
+    /Net\s*imposable\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
+    /Net\s*(?:avant|av\.?)\s*imp[oô]t\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
+    /Net\s*fiscal\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
+    /Salaire\s*net\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
+    /TOTAL\s*NET\s*(?:IMPOSABLE)?\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i
+    // Note: On évite "Net à payer" car il peut être après déduction des acomptes
+  ],
+
+  // Net à payer (le montant final versé, peut être différent du salaire net si acomptes)
+  netAPayer: [
+    /Net\s*[àa]\s*payer\s*(?:avant\s*imp[oô]t)?\s*[:\s]*(\d[\d\s]*[.,]\d{2})\s*€?/i,
+    /NET\s*A\s*PAYER\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i,
+    /Montant\s*vers[eé]\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i
+  ],
+
+  // Acomptes versés
+  acomptes: [
+    /Acompte[s]?\s*[:\s]*-?\s*(\d[\d\s]*[.,]\d{2})\s*€?/i,
+    /Acompte[s]?\s*vers[eé]s?\s*[:\s]*-?\s*(\d[\d\s]*[.,]\d{2})/i,
+    /Avance[s]?\s*(?:sur\s*salaire)?\s*[:\s]*-?\s*(\d[\d\s]*[.,]\d{2})/i
   ],
 
   // Matricule employé
   matricule: [
-    /Matricule\s*[:\s]*([A-Z0-9]+)/i,
+    /Matricule\s*[:\s]*([A-Z]{2,4}\d{4,6})/i,
     /N[°o]?\s*(?:de\s*)?matricule\s*[:\s]*([A-Z0-9]+)/i,
-    /ID\s*(?:employ[eé]|salari[eé])?\s*[:\s]*([A-Z0-9]+)/i,
-    /Code\s*employ[eé]\s*[:\s]*([A-Z0-9]+)/i,
-    /R[eé]f[eé]rence\s*[:\s]*([A-Z0-9]+)/i
+    /Code\s*employ[eé]\s*[:\s]*([A-Z0-9]+)/i
   ],
 
-  // Heures travaillées
+  // Heures travaillées (151.67 est le standard pour 35h/semaine)
   heuresTravaillees: [
-    /Heures?\s*travaill[eé]es?\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Nb\s*heures?\s*[:\s]*(\d+[.,]?\d*)/i,
-    /Volume\s*horaire\s*[:\s]*(\d+[.,]?\d*)/i,
-    /(\d+[.,]?\d*)\s*h(?:eures?)?\s*travaill[eé]es?/i,
-    /Heures?\s*mensuelles?\s*[:\s]*(\d+[.,]?\d*)/i,
-    /151[.,]67|169/
+    /(\d{2,3}[.,]\d{2})\s*(?:h|heures?)\s*(?:travaill[eé]es?|mensuelles?)/i,
+    /Heures?\s*(?:travaill[eé]es?|mensuelles?)\s*[:\s]*(\d{2,3}[.,]\d{2})/i,
+    /Nb\s*heures?\s*[:\s]*(\d{2,3}[.,]\d{2})/i,
+    /Base\s*(\d{2,3}[.,]\d{2})\s*h/i
   ],
 
-  // Taux horaire
+  // Taux horaire (généralement entre 10€ et 50€)
   tauxHoraire: [
-    /Taux\s*horaire\s*[:\s]*(\d+[.,]?\d*)\s*€?/i,
-    /Salaire\s*horaire\s*[:\s]*(\d+[.,]?\d*)/i,
-    /€\s*\/\s*h\s*[:\s]*(\d+[.,]?\d*)/i,
-    /(\d+[.,]\d+)\s*€?\s*\/\s*h/i
+    /Taux\s*horaire\s*(?:brut)?\s*[:\s]*(\d{1,2}[.,]\d{2,4})\s*€?/i,
+    /(\d{1,2}[.,]\d{2,4})\s*€?\s*\/\s*h(?:eure)?/i,
+    /Salaire\s*(?:de\s*)?base\s+\d+[.,]\d+\s+(\d{1,2}[.,]\d{2,4})\s+\d/i  // Format: "Salaire de base 151.67 12.72 1929.24"
   ],
 
   // Convention collective
@@ -608,8 +617,10 @@ class PayslipReaderService {
       periode: null,       // Période du bulletin
 
       // Données salariales
-      salaireBrut: null,   // Salaire brut mensuel
-      salaireNet: null,    // Salaire net
+      salaireBrut: null,   // Salaire brut mensuel (TOTAL BRUT)
+      salaireNet: null,    // Salaire net (net imposable, AVANT acomptes)
+      netAPayer: null,     // Net à payer (montant final, APRÈS acomptes)
+      acomptes: null,      // Acomptes versés
       tauxHoraire: null,   // Taux horaire
       heuresTravaillees: null, // Heures travaillées
 
@@ -762,8 +773,83 @@ class PayslipReaderService {
             } else {
               // Champs numériques - nettoyer les espaces avant de parser
               const cleanValue = value.replace(/\s/g, '');
-              result[key] = parseFloat(cleanValue) || null;
+              const parsedValue = parseFloat(cleanValue) || null;
+
+              // Validation spécifique selon le type de champ
+              if (parsedValue !== null) {
+                // Salaire brut doit être > 500€ (pour éviter confusion avec taux horaire)
+                if (key === 'salaireBrut' && parsedValue < 500) {
+                  console.log(`⚠️ Salaire brut ignoré (trop bas): ${parsedValue}€`);
+                  continue;
+                }
+                // Salaire net doit être > 400€
+                if (key === 'salaireNet' && parsedValue < 400) {
+                  console.log(`⚠️ Salaire net ignoré (trop bas): ${parsedValue}€`);
+                  continue;
+                }
+                // Taux horaire doit être entre 8€ et 100€
+                if (key === 'tauxHoraire' && (parsedValue < 8 || parsedValue > 100)) {
+                  console.log(`⚠️ Taux horaire ignoré (hors limites): ${parsedValue}€`);
+                  continue;
+                }
+                // Heures travaillées entre 50 et 250
+                if (key === 'heuresTravaillees' && (parsedValue < 50 || parsedValue > 250)) {
+                  console.log(`⚠️ Heures ignorées (hors limites): ${parsedValue}h`);
+                  continue;
+                }
+
+                result[key] = parsedValue;
+              }
             }
+          }
+        }
+      }
+    }
+
+    // ==========================================
+    // 💰 POST-TRAITEMENT DES SALAIRES
+    // ==========================================
+
+    // Si on n'a pas trouvé le salaire brut, essayer de l'extraire du format tableau
+    if (result.salaireBrut === null) {
+      // Format: "Salaire de base 151.67 12.720 1 929.24" ou similaire
+      const salBaseMatch = cleanText.match(/Salaire\s*(?:de\s*)?base[^0-9]*(\d{2,3}[.,]\d{2})\s+(\d{1,2}[.,]\d{2,4})\s+(\d[\d\s]*[.,]\d{2})/i);
+      if (salBaseMatch) {
+        const heures = parseFloat(salBaseMatch[1].replace(',', '.'));
+        const tauxH = parseFloat(salBaseMatch[2].replace(',', '.'));
+        const montant = parseFloat(salBaseMatch[3].replace(/\s/g, '').replace(',', '.'));
+
+        if (montant > 500) {
+          result.salaireBrut = montant;
+          if (result.tauxHoraire === null && tauxH >= 8 && tauxH <= 100) {
+            result.tauxHoraire = tauxH;
+          }
+          if (result.heuresTravaillees === null && heures >= 50 && heures <= 250) {
+            result.heuresTravaillees = heures;
+          }
+          console.log(`✅ Salaire extrait du format tableau: ${montant}€ (${heures}h × ${tauxH}€)`);
+        }
+      }
+    }
+
+    // Chercher TOTAL BRUT spécifiquement (format: TOTAL BRUT [heures] [montant])
+    if (result.salaireBrut === null) {
+      // Le TOTAL BRUT est suivi de heures puis du montant - on veut le dernier nombre
+      const totalBrutMatch = cleanText.match(/TOTAL\s*BRUT\s+[\d.,]+\s+(\d[\d\s]*[.,]\d{2})/i);
+      if (totalBrutMatch) {
+        const montant = parseFloat(totalBrutMatch[1].replace(/\s/g, '').replace(',', '.'));
+        if (montant > 500) {
+          result.salaireBrut = montant;
+          console.log(`✅ TOTAL BRUT trouvé: ${montant}€`);
+        }
+      } else {
+        // Fallback: chercher juste un nombre après TOTAL BRUT
+        const simpleBrutMatch = cleanText.match(/TOTAL\s*BRUT\s*[:\s]*(\d[\d\s]*[.,]\d{2})/i);
+        if (simpleBrutMatch) {
+          const montant = parseFloat(simpleBrutMatch[1].replace(/\s/g, '').replace(',', '.'));
+          if (montant > 500) {
+            result.salaireBrut = montant;
+            console.log(`✅ TOTAL BRUT (simple): ${montant}€`);
           }
         }
       }
@@ -786,6 +872,8 @@ class PayslipReaderService {
       // Salaire (très importants)
       salaireBrut: 3,
       salaireNet: 2,
+      netAPayer: 1,
+      acomptes: 1,
       tauxHoraire: 2,
       // Contrat (importants)
       matricule: 2,
@@ -821,7 +909,7 @@ class PayslipReaderService {
     }
 
     // Compter les champs RH trouvés
-    const hrFields = ['salaireBrut', 'salaireNet', 'tauxHoraire', 'matricule', 'typeContrat', 'dateEntree', 'emploi', 'codePCS', 'heuresTravaillees', 'tempsTravail', 'coefficient', 'convention'];
+    const hrFields = ['salaireBrut', 'salaireNet', 'netAPayer', 'acomptes', 'tauxHoraire', 'matricule', 'typeContrat', 'dateEntree', 'emploi', 'codePCS', 'heuresTravaillees', 'tempsTravail', 'coefficient', 'convention'];
     result.hrFieldsFound = hrFields.filter(f => result[f] !== null).length;
     result.hrFieldsTotal = hrFields.length;
 
