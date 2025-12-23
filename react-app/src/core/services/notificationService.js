@@ -65,6 +65,11 @@ const NOTIFICATION_TYPES = {
   LEAVE_APPROVED: 'leave_approved',
   LEAVE_REJECTED: 'leave_rejected',
 
+  // Pointages / Paie
+  TIMESHEET_VALIDATION_REQUIRED: 'timesheet_validation_required',
+  TIMESHEET_VALIDATION_REMINDER: 'timesheet_validation_reminder',
+  TIMESHEET_VALIDATED: 'timesheet_validated',
+
   // Messages privés
   MESSAGE_RECEIVED: 'message_received',
 
@@ -1073,6 +1078,112 @@ class NotificationService {
       return { success: true };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification congé refusé:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ==========================================
+  // ⏰ NOTIFICATIONS POINTAGES / PAIE
+  // ==========================================
+
+  /**
+   * ⏰ NOTIFIER LES EMPLOYÉS QUE LES POINTAGES DOIVENT ÊTRE VALIDÉS (URGENT)
+   */
+  async notifyTimesheetValidationRequired(data) {
+    try {
+      const { periodId, month, year, monthLabel, employees, requestedByName, isReminder = false } = data;
+
+      console.log(`⏰ [NOTIF] Envoi notifications pointages ${isReminder ? '(RAPPEL)' : ''} pour ${monthLabel} ${year}`);
+
+      const notificationPromises = employees.map(employee =>
+        this.createNotification({
+          userId: employee.id,
+          type: isReminder ? NOTIFICATION_TYPES.TIMESHEET_VALIDATION_REMINDER : NOTIFICATION_TYPES.TIMESHEET_VALIDATION_REQUIRED,
+          title: isReminder ? '🚨 RAPPEL URGENT: Pointages à signer !' : '⏰ Pointages à valider',
+          message: isReminder
+            ? `${requestedByName} vous rappelle de signer vos pointages de ${monthLabel} ${year} ! C'est urgent pour la paie.`
+            : `${requestedByName} vous demande de valider vos pointages de ${monthLabel} ${year} par signature électronique.`,
+          icon: isReminder ? '🚨' : '⏰',
+          link: '/hr?tab=payroll',
+          data: {
+            periodId,
+            month,
+            year,
+            requestedByName,
+            isReminder
+          },
+          priority: 'high' // Toujours haute priorité pour les pointages
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`⏰ [NOTIF] ${employees.length} employés notifiés pour validation pointages`);
+
+      return { success: true, count: employees.length };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification pointages:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ✅ NOTIFIER LE GESTIONNAIRE QU'UN EMPLOYÉ A SIGNÉ SES POINTAGES
+   */
+  async notifyTimesheetSigned(data) {
+    try {
+      const { employeeId, employeeName, month, year, monthLabel, managerId } = data;
+
+      await this.createNotification({
+        userId: managerId,
+        type: NOTIFICATION_TYPES.TIMESHEET_VALIDATED,
+        title: '✅ Pointage signé',
+        message: `${employeeName} a signé ses pointages de ${monthLabel} ${year}`,
+        icon: '✅',
+        link: '/hr?tab=payroll',
+        data: {
+          employeeId,
+          employeeName,
+          month,
+          year
+        },
+        priority: 'medium'
+      });
+
+      console.log(`✅ [NOTIF] Gestionnaire ${managerId} notifié - signature de ${employeeName}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification signature pointages:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🎉 NOTIFIER LE GESTIONNAIRE QUE TOUS LES POINTAGES SONT SIGNÉS
+   */
+  async notifyAllTimesheetsSigned(data) {
+    try {
+      const { month, year, monthLabel, managerId, totalEmployees } = data;
+
+      await this.createNotification({
+        userId: managerId,
+        type: NOTIFICATION_TYPES.TIMESHEET_VALIDATED,
+        title: '🎉 Tous les pointages sont signés !',
+        message: `${totalEmployees} employés ont signé leurs pointages de ${monthLabel} ${year}. Prêt à envoyer à la paie !`,
+        icon: '🎉',
+        link: '/hr?tab=payroll',
+        data: {
+          month,
+          year,
+          totalEmployees,
+          allSigned: true
+        },
+        priority: 'high'
+      });
+
+      console.log(`🎉 [NOTIF] Gestionnaire ${managerId} notifié - tous pointages signés`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur notification tous signés:', error);
       return { success: false, error: error.message };
     }
   }
