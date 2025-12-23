@@ -645,83 +645,76 @@ class PayslipReaderService {
     const hasCongesTable = /CONG[EÉ]S\s*PAY[EÉ]S/i.test(cleanText) && /N-1/i.test(cleanText);
     console.log('📊 Section CONGES PAYES avec N-1 détectée:', hasCongesTable);
 
-    // Patterns pour détecter le tableau avec colonnes N-1 et N
-    const tablePatterns = [
-      // Format: Solde suivi de deux nombres (N-1 et N) - espaces ou tabs
-      /Solde\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
-      // Format avec virgule comme séparateur décimal et différents espaces
-      /Solde[\s\n]+(\d+[.,]\d+)[\s\n]+(\d+[.,]\d+)/i,
-      // Format: deux nombres après "Solde" avec texte entre
-      /Solde[^\d]*(\d+[.,]\d+)[^\d]+(\d+[.,]\d+)/i,
-    ];
+    // *** NOUVELLE APPROCHE: Extraire la section CONGES PAYES uniquement ***
+    let cpSection = '';
 
-    // Chercher le pattern de tableau dans les deux versions du texte
-    const textsToSearch = [cleanText, textWithLines];
+    // Chercher la section qui contient "CONGES PAYES" et les valeurs
+    const cpSectionMatch = cleanText.match(/CONG[EÉ]S\s*PAY[EÉ]S[^]*?(?=(?:RTT|REPOS|RECUP|HEURES|COTISATIONS|TOTAL|$))/i);
+    if (cpSectionMatch) {
+      cpSection = cpSectionMatch[0];
+      console.log('📊 Section CP extraite:', cpSection.substring(0, 200));
+    }
 
-    for (const searchText of textsToSearch) {
-      if (result.cpSolde !== null) break; // Déjà trouvé
+    // Si on a trouvé une section CP, chercher Solde dedans
+    if (cpSection && hasCongesTable) {
+      // Pattern spécifique pour le tableau CP: Solde suivi de deux nombres
+      const soldeCPMatch = cpSection.match(/Solde\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i);
+      if (soldeCPMatch) {
+        const soldeN1 = parseFloat(soldeCPMatch[1].replace(',', '.'));
+        const soldeN = parseFloat(soldeCPMatch[2].replace(',', '.'));
 
+        if (!isNaN(soldeN1) && !isNaN(soldeN)) {
+          result.cpN1 = soldeN1;
+          result.cpSolde = soldeN1 + soldeN; // TOTAL = N-1 + N
+          result.rawMatches.push({
+            type: 'tableau_cp_section',
+            match: soldeCPMatch[0],
+            soldeN1: soldeN1,
+            soldeN: soldeN,
+            total: result.cpSolde
+          });
+          console.log(`✅ Tableau CP (section): N-1=${soldeN1}, N=${soldeN}, Total=${result.cpSolde}`);
+        }
+      }
+    }
+
+    // Fallback: Patterns pour détecter le tableau avec colonnes N-1 et N
+    if (result.cpSolde === null) {
+      const tablePatterns = [
+        // Format: CONGES PAYES ... Solde ... deux nombres
+        /CONG[EÉ]S\s*PAY[EÉ]S[^]*?Solde\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
+        // Format: Solde CP suivi de deux nombres
+        /Solde\s*(?:CP|cong[eé]s)[^]*?(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
+      ];
+
+      // Chercher le pattern de tableau
       for (const pattern of tablePatterns) {
-        const match = searchText.match(pattern);
+        const match = cleanText.match(pattern);
         if (match && match[1] && match[2]) {
           const val1 = parseFloat(match[1].replace(',', '.'));
           const val2 = parseFloat(match[2].replace(',', '.'));
 
-          // Si on a trouvé deux valeurs valides
           if (!isNaN(val1) && !isNaN(val2) && val1 >= 0 && val2 >= 0) {
-            // Déterminer quel est N-1 et quel est N
-            // Dans le format standard, N-1 vient avant N
-            const soldeN1 = val1;
-            const soldeN = val2;
-
-            result.cpN1 = soldeN1;
-            result.cpSolde = soldeN1 + soldeN; // TOTAL = N-1 + N
+            result.cpN1 = val1;
+            result.cpSolde = val1 + val2;
             result.rawMatches.push({
-              type: 'tableau_cp',
+              type: 'tableau_cp_pattern',
               pattern: pattern.toString(),
-              match: match[0],
-              soldeN1: soldeN1,
-              soldeN: soldeN,
+              match: match[0].substring(0, 100),
+              soldeN1: val1,
+              soldeN: val2,
               total: result.cpSolde
             });
-            console.log(`✅ Tableau CP détecté: N-1=${soldeN1}, N=${soldeN}, Total=${result.cpSolde}`);
+            console.log(`✅ Tableau CP (pattern): N-1=${val1}, N=${val2}, Total=${result.cpSolde}`);
             break;
           }
         }
       }
     }
 
-    // Si pas trouvé avec les patterns génériques, chercher spécifiquement
-    // Format: extraire tous les nombres après "Solde" dans la section CP
-    if (result.cpSolde === null && hasCongesTable) {
-      // Chercher la ligne Solde et extraire les deux derniers nombres
-      const soldeLineMatch = cleanText.match(/Solde[^A-Za-z]*?([\d.,]+)[^A-Za-z]*([\d.,]+)/i);
-      if (soldeLineMatch) {
-        const val1 = parseFloat(soldeLineMatch[1].replace(',', '.'));
-        const val2 = parseFloat(soldeLineMatch[2].replace(',', '.'));
-
-        if (!isNaN(val1) && !isNaN(val2)) {
-          result.cpN1 = val1;
-          result.cpSolde = val1 + val2;
-          result.rawMatches.push({
-            type: 'tableau_cp_fallback',
-            match: soldeLineMatch[0],
-            soldeN1: val1,
-            soldeN: val2,
-            total: result.cpSolde
-          });
-          console.log(`✅ Tableau CP (fallback): N-1=${val1}, N=${val2}, Total=${result.cpSolde}`);
-        }
-      }
-    }
-
-    // Pattern pour Acquis dans tableau
-    const acquisTablePatterns = [
-      /Acquis\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
-      /Acquis[^\d]*(\d+[.,]\d+)[^\d]+(\d+[.,]\d+)/i
-    ];
-    for (const pattern of acquisTablePatterns) {
-      const acquisMatch = cleanText.match(pattern);
+    // Pattern pour Acquis dans section CP
+    if (cpSection) {
+      const acquisMatch = cpSection.match(/Acquis\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i);
       if (acquisMatch) {
         result.cpAcquis = parseFloat(acquisMatch[2].replace(',', '.')); // Colonne N
         result.rawMatches.push({
@@ -729,20 +722,12 @@ class PayslipReaderService {
           n1: parseFloat(acquisMatch[1].replace(',', '.')),
           n: result.cpAcquis
         });
-        break;
       }
-    }
 
-    // Pattern pour Pris dans tableau
-    const prisTablePatterns = [
-      /Pris\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i,
-      /Pris[^\d]*(\d+[.,]\d+)/i
-    ];
-    for (const pattern of prisTablePatterns) {
-      const prisMatch = cleanText.match(pattern);
+      // Pattern pour Pris dans section CP
+      const prisMatch = cpSection.match(/Pris\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i);
       if (prisMatch) {
         result.cpPris = parseFloat(prisMatch[1].replace(',', '.'));
-        break;
       }
     }
 
