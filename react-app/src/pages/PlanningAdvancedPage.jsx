@@ -52,7 +52,7 @@ import leaveRequestService, { LEAVE_TYPES, REQUEST_STATUS } from '../core/servic
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 // Firebase
-import { doc, getDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, orderBy, where, Timestamp } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 // Composants UI
@@ -145,6 +145,9 @@ const PlanningAdvancedPage = () => {
   const [shiftAnomalies, setShiftAnomalies] = useState({});
   const [showAnomalies, setShowAnomalies] = useState(true);
   const [loadingAnomalies, setLoadingAnomalies] = useState(false);
+
+  // ⏱️ HEURES POINTÉES PAR EMPLOYÉ
+  const [weeklyClockkedHours, setWeeklyClockkedHours] = useState({});
 
   // 🏖️ GESTION DES CONGÉS
   const [showLeaveRequestModal, setShowLeaveRequestModal] = useState(false);
@@ -336,6 +339,9 @@ const PlanningAdvancedPage = () => {
       // 🔍 Charger les anomalies de pointage
       await loadPointageAnomalies(shiftsList, weekStart, weekEnd);
 
+      // ⏱️ Charger les heures pointées de la semaine
+      await loadWeeklyClockkedHours(weekStart, weekEnd);
+
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
     } finally {
@@ -372,6 +378,93 @@ const PlanningAdvancedPage = () => {
   // Fonction pour récupérer les anomalies d'un shift
   const getShiftAnomalies = (shiftId) => {
     return shiftAnomalies[shiftId] || null;
+  };
+
+  // ==========================================
+  // ⏱️ CHARGEMENT HEURES POINTÉES
+  // ==========================================
+
+  const loadWeeklyClockkedHours = async (weekStart, weekEnd) => {
+    try {
+      console.log('⏱️ Chargement heures pointées semaine...');
+
+      const pointagesQuery = query(
+        collection(db, 'timeEntries'),
+        where('date', '>=', Timestamp.fromDate(weekStart)),
+        where('date', '<=', Timestamp.fromDate(weekEnd)),
+        orderBy('date', 'asc')
+      );
+
+      const snapshot = await getDocs(pointagesQuery);
+      const pointages = [];
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.status !== 'deleted') {
+          pointages.push({
+            id: doc.id,
+            ...data,
+            date: data.date?.toDate(),
+            timestamp: data.timestamp?.toDate()
+          });
+        }
+      });
+
+      // Calculer les heures par employé
+      const hoursByEmployee = {};
+
+      // Grouper par utilisateur et par jour
+      const byUserDay = {};
+      pointages.forEach(p => {
+        const userId = p.userId;
+        const dayKey = p.date?.toDateString();
+        if (!userId || !dayKey) return;
+
+        if (!byUserDay[userId]) byUserDay[userId] = {};
+        if (!byUserDay[userId][dayKey]) byUserDay[userId][dayKey] = [];
+        byUserDay[userId][dayKey].push(p);
+      });
+
+      // Calculer les heures pour chaque utilisateur
+      Object.keys(byUserDay).forEach(userId => {
+        let totalMinutes = 0;
+
+        Object.keys(byUserDay[userId]).forEach(dayKey => {
+          const dayPointages = byUserDay[userId][dayKey].sort((a, b) =>
+            a.timestamp - b.timestamp
+          );
+
+          // Trouver les paires arrivée/départ
+          for (let i = 0; i < dayPointages.length - 1; i++) {
+            const current = dayPointages[i];
+            const next = dayPointages[i + 1];
+
+            if (current.type === 'arrival' && next.type === 'departure') {
+              const diff = (next.timestamp - current.timestamp) / 1000 / 60; // en minutes
+              if (diff > 0 && diff < 24 * 60) { // max 24h
+                totalMinutes += diff;
+              }
+              i++; // Sauter le départ car il a été traité
+            }
+          }
+        });
+
+        const totalHours = Math.round(totalMinutes / 60 * 10) / 10; // Arrondir à 0.1h
+        hoursByEmployee[userId] = totalHours;
+      });
+
+      console.log('✅ Heures pointées calculées:', hoursByEmployee);
+      setWeeklyClockkedHours(hoursByEmployee);
+
+    } catch (error) {
+      console.error('❌ Erreur calcul heures pointées:', error);
+      setWeeklyClockkedHours({});
+    }
+  };
+
+  // Fonction pour récupérer les heures pointées d'un employé
+  const getClockkedHoursForEmployee = (employeeId) => {
+    return weeklyClockkedHours[employeeId] || 0;
   };
 
   // ==========================================
@@ -2163,15 +2256,16 @@ const PlanningAdvancedPage = () => {
                         </th>
                       );
                     })}
-                    <th className="text-center p-1 sm:p-4 text-gray-400 font-semibold min-w-[60px] sm:min-w-[120px]">
-                      <span className="hidden sm:inline">Total/Contrat</span>
-                      <span className="sm:hidden text-[10px]">Total</span>
+                    <th className="text-center p-1 sm:p-4 text-gray-400 font-semibold min-w-[80px] sm:min-w-[140px]">
+                      <span className="hidden sm:inline">Pointé/Planifié/Contrat</span>
+                      <span className="sm:hidden text-[10px]">Heures</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {employees.map(employee => {
                     const hoursComparison = getHoursComparisonForEmployee(employee.id);
+                    const clockedHours = getClockkedHoursForEmployee(employee.id);
 
                     return (
                       <tr key={employee.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors">
@@ -2421,11 +2515,21 @@ const PlanningAdvancedPage = () => {
 
                         <td className="p-1 sm:p-4 text-center">
                           <div className="space-y-0.5 sm:space-y-1">
-                            <div className="text-white font-semibold text-[10px] sm:text-base">
-                              <span className="hidden sm:inline">{hoursComparison.plannedHours}h / {hoursComparison.contractHours}h</span>
-                              <span className="sm:hidden">{hoursComparison.plannedHours}h</span>
+                            {/* Heures Pointées / Planifiées / Contrat */}
+                            <div className="text-white font-semibold text-[10px] sm:text-sm">
+                              <span className="hidden sm:inline">
+                                <span className={`${clockedHours > 0 ? 'text-cyan-400' : 'text-gray-500'}`}>{clockedHours}h</span>
+                                <span className="text-gray-500"> / </span>
+                                <span className="text-white">{hoursComparison.plannedHours}h</span>
+                                <span className="text-gray-500"> / </span>
+                                <span className="text-gray-400">{hoursComparison.contractHours}h</span>
+                              </span>
+                              <span className="sm:hidden">
+                                <span className={`${clockedHours > 0 ? 'text-cyan-400' : 'text-gray-500'}`}>{clockedHours}h</span>
+                              </span>
                             </div>
-                            <div className={`text-[10px] sm:text-sm font-semibold flex items-center justify-center gap-0.5 sm:gap-1 ${
+                            {/* Différence Planifié vs Contrat */}
+                            <div className={`text-[10px] sm:text-xs font-semibold flex items-center justify-center gap-0.5 sm:gap-1 ${
                               hoursComparison.difference > 0 ? 'text-green-400' :
                               hoursComparison.difference < 0 ? 'text-orange-400' : 'text-gray-400'
                             }`}>
@@ -2437,6 +2541,7 @@ const PlanningAdvancedPage = () => {
                                 {hoursComparison.difference}h
                               </span>
                             </div>
+                            {/* Pourcentage */}
                             <div className="text-[9px] sm:text-xs text-gray-500 hidden sm:block">
                               {hoursComparison.percentage}%
                             </div>
