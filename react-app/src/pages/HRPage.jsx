@@ -56,7 +56,6 @@ import {
   Info,
   ChevronRight,
   ChevronDown,
-  Toggle,
   ToggleLeft,
   ToggleRight,
   Building,
