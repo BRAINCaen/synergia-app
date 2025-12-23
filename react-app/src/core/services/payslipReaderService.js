@@ -94,7 +94,10 @@ const PAYSLIP_PATTERNS = {
     /Report\s*(?:N-1|ann[eé]e\s*pr[eé]c[eé]dente)\s*[:\s]*(\d+[.,]?\d*)/i,
     /Ancien\s*solde\s*[:\s]*(\d+[.,]?\d*)/i,
     /N-1\s*[:\s]*(\d+[.,]?\d*)\s*j/i,
-    /Reliquat\s*[:\s]*(\d+[.,]?\d*)/i
+    /Reliquat\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Solde\s*N-1\s*[:\s]*(\d+[.,]?\d*)/i,
+    /Reste\s*N-1\s*[:\s]*(\d+[.,]?\d*)/i,
+    /N-1\s*restant\s*[:\s]*(\d+[.,]?\d*)/i
   ],
 
   // CP pris
@@ -657,26 +660,64 @@ class PayslipReaderService {
     const hasCongesTable = /CONG[EÉ]S\s*PAY[EÉ]S/i.test(cleanText) && /N-1/i.test(cleanText);
     console.log('📊 Section CONGES PAYES avec N-1 détectée:', hasCongesTable);
 
-    if (hasCongesTable) {
-      // MÉTHODE 1: Chercher "Solde" suivi de deux nombres (format tableau)
-      // Le premier nombre est N-1, le second est N
-      const soldeTableMatch = cleanText.match(/Solde\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i);
-      if (soldeTableMatch) {
-        const soldeN1 = parseFloat(soldeTableMatch[1].replace(',', '.'));
-        const soldeN = parseFloat(soldeTableMatch[2].replace(',', '.'));
-        console.log(`🔍 Solde tableau trouvé: N-1=${soldeN1}, N=${soldeN}`);
+    // Chercher aussi le pattern spécifique avec version du texte préservant les lignes
+    const hasN1InLines = /N-1/i.test(textWithLines);
+    console.log('📊 N-1 détecté dans texte avec lignes:', hasN1InLines);
 
-        if (!isNaN(soldeN1) && !isNaN(soldeN) && soldeN1 >= 0 && soldeN >= 0) {
-          result.cpN1 = soldeN1;
-          result.cpSolde = soldeN; // Juste le solde N (année en cours)
-          console.log(`✅ CP détectés: N-1=${soldeN1}j, N=${soldeN}j`);
+    if (hasCongesTable || hasN1InLines) {
+      // MÉTHODE 1: Chercher "Solde" suivi de deux nombres (format tableau) - très flexible
+      // Patterns: "Solde 6.00 14.78" ou "Solde : 6,00 14,78" ou "Solde 6.00 j 14.78 j"
+      const soldePatterns = [
+        /Solde\s*[:\s]*(\d+[.,]\d+)\s*j?\s+(\d+[.,]\d+)/i,
+        /Solde[^0-9]{0,5}(\d+[.,]\d+)[^0-9]{0,5}(\d+[.,]\d+)/i,
+        /SOLDE\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i
+      ];
+
+      for (const pattern of soldePatterns) {
+        if (result.cpN1 !== null) break;
+        const soldeTableMatch = cleanText.match(pattern);
+        if (soldeTableMatch) {
+          const soldeN1 = parseFloat(soldeTableMatch[1].replace(',', '.'));
+          const soldeN = parseFloat(soldeTableMatch[2].replace(',', '.'));
+          console.log(`🔍 Solde tableau (pattern ${pattern}): N-1=${soldeN1}, N=${soldeN}`);
+
+          if (!isNaN(soldeN1) && !isNaN(soldeN) && soldeN1 >= 0 && soldeN >= 0) {
+            result.cpN1 = soldeN1;
+            result.cpSolde = soldeN;
+            console.log(`✅ CP détectés: N-1=${soldeN1}j, N=${soldeN}j`);
+          }
         }
       }
 
-      // MÉTHODE 2: Si pas trouvé, chercher dans la ligne "Solde" uniquement
+      // MÉTHODE 2: Chercher la ligne qui contient "Solde" et extraire les 2 derniers nombres
       if (result.cpN1 === null) {
-        // Format possible: "Pris 24.00 Solde 6.00 14.78"
-        const altMatch = cleanText.match(/Pris\s+[\d.,]+\s*Solde\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i);
+        // Extraire la ligne contenant "Solde" du texte avec sauts de ligne
+        const lines = textWithLines.split('\n');
+        for (const line of lines) {
+          if (/solde/i.test(line) && !/solde\s*cp/i.test(line)) {
+            console.log('🔍 Ligne Solde trouvée:', line);
+            // Extraire tous les nombres de cette ligne
+            const numbersInLine = line.match(/\d+[.,]\d+/g);
+            if (numbersInLine && numbersInLine.length >= 2) {
+              // Les 2 derniers nombres sont probablement N-1 et N
+              const n1 = parseFloat(numbersInLine[numbersInLine.length - 2].replace(',', '.'));
+              const n = parseFloat(numbersInLine[numbersInLine.length - 1].replace(',', '.'));
+              console.log(`🔍 Nombres dans ligne Solde: ${numbersInLine.join(', ')} -> N-1=${n1}, N=${n}`);
+
+              if (!isNaN(n1) && !isNaN(n) && n1 >= 0 && n <= 50 && n >= 0) {
+                result.cpN1 = n1;
+                result.cpSolde = n;
+                console.log(`✅ CP (ligne Solde): N-1=${n1}j, N=${n}j`);
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // MÉTHODE 3: Format "Pris XX Solde YY ZZ"
+      if (result.cpN1 === null) {
+        const altMatch = cleanText.match(/Pris\s+[\d.,]+\s*[j\s]*Solde\s*[:\s]*(\d+[.,]\d+)\s*j?\s+(\d+[.,]\d+)/i);
         if (altMatch) {
           const soldeN1 = parseFloat(altMatch[1].replace(',', '.'));
           const soldeN = parseFloat(altMatch[2].replace(',', '.'));
@@ -690,15 +731,15 @@ class PayslipReaderService {
         }
       }
 
-      // MÉTHODE 3: Chercher tous les nombres après "Solde" dans la section CP
+      // MÉTHODE 4: Chercher la section CP et les nombres après "Solde"
       if (result.cpN1 === null) {
-        const cpSectionMatch = cleanText.match(/CONG[EÉ]S\s*PAY[EÉ]S[^]*?(?=CHARGES|Net\s*[àa]|TOTAL|$)/i);
+        const cpSectionMatch = cleanText.match(/CONG[EÉ]S\s*PAY[EÉ]S[^]*?(?=CHARGES|Net\s*[àa]|TOTAL\s*NET|HEURES|$)/i);
         if (cpSectionMatch) {
           const cpSection = cpSectionMatch[0];
-          console.log('🔍 Section CP:', cpSection.substring(0, 300));
+          console.log('🔍 Section CP extraite:', cpSection.substring(0, 400));
 
           // Dans la section, chercher "Solde" et les nombres qui suivent
-          const soldeInSection = cpSection.match(/Solde[^0-9]*(\d+[.,]\d+)[^0-9]+(\d+[.,]\d+)/i);
+          const soldeInSection = cpSection.match(/Solde[^0-9]*(\d+[.,]\d+)[^0-9]*(\d+[.,]\d+)/i);
           if (soldeInSection) {
             const soldeN1 = parseFloat(soldeInSection[1].replace(',', '.'));
             const soldeN = parseFloat(soldeInSection[2].replace(',', '.'));
@@ -713,15 +754,27 @@ class PayslipReaderService {
         }
       }
 
+      // MÉTHODE 5: Chercher directement "N-1" suivi d'un nombre sur la même ligne
+      if (result.cpN1 === null) {
+        const n1DirectMatch = cleanText.match(/N-1[^0-9]*(\d+[.,]\d+)/i);
+        if (n1DirectMatch) {
+          const n1Value = parseFloat(n1DirectMatch[1].replace(',', '.'));
+          if (!isNaN(n1Value) && n1Value >= 0 && n1Value <= 50) {
+            result.cpN1 = n1Value;
+            console.log(`✅ CP N-1 direct: ${n1Value}j`);
+          }
+        }
+      }
+
       // Pattern pour Acquis dans tableau
-      const acquisMatch = cleanText.match(/Acquis\s+(\d+[.,]\d+)\s+(\d+[.,]\d+)/i);
+      const acquisMatch = cleanText.match(/Acquis\s*[:\s]*(\d+[.,]\d+)\s*j?\s+(\d+[.,]\d+)/i);
       if (acquisMatch) {
         result.cpAcquis = parseFloat(acquisMatch[2].replace(',', '.')); // Colonne N
         console.log(`✅ Acquis: N-1=${acquisMatch[1]}, N=${result.cpAcquis}`);
       }
 
       // Pattern pour Pris dans tableau
-      const prisMatch = cleanText.match(/Pris\s+(\d+[.,]\d+)/i);
+      const prisMatch = cleanText.match(/Pris\s*[:\s]*(\d+[.,]\d+)/i);
       if (prisMatch) {
         result.cpPris = parseFloat(prisMatch[1].replace(',', '.'));
         console.log(`✅ Pris: ${result.cpPris}j`);
