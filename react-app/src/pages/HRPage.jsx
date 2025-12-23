@@ -474,7 +474,7 @@ const HRPage = () => {
                 employees={employees}
                 timesheets={timesheets}
                 leaves={leaves}
-                companyName={companySettings?.name}
+                companyName="Synergia"
                 onRefresh={handleRefresh}
               />
             )}
