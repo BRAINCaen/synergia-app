@@ -771,3 +771,994 @@ class TimesheetExportService {
 const timesheetExportService = new TimesheetExportService();
 export default timesheetExportService;
 export { timesheetExportService, MONTHS_FR };
+
+// ==========================================
+// 💰 SERVICE EXPORT PAIE COMPLET
+// ==========================================
+
+/**
+ * Export paie complet avec toutes les feuilles demandées
+ */
+export async function exportPayrollComplete(year, month, options = {}) {
+  const {
+    companyName = 'Synergia',
+    includeContractSheet = true,
+    includePointagesSheet = true,
+    includeAbsencesSheet = true,
+    includeRecapSheet = true,
+    includeLeaveBalanceSheet = true
+  } = options;
+
+  console.log(`💰 Export Paie Complet ${MONTHS_FR[month]} ${year}...`);
+
+  // Récupérer les données
+  const [employees, pointages, leaves, leaveBalances] = await Promise.all([
+    getEmployeesWithContracts(),
+    getMonthlyPointagesDetailed(year, month),
+    getAllLeavesForMonth(year, month),
+    getLeaveBalances()
+  ]);
+
+  if (employees.length === 0) {
+    throw new Error('Aucun employé trouvé');
+  }
+
+  // Créer le workbook
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Synergia';
+  workbook.created = new Date();
+  workbook.modified = new Date();
+
+  // Calculer les semaines du mois
+  const weeksInMonth = getWeeksInMonth(year, month);
+
+  // 1. CONTRATS STANDARDS - Feuille principale
+  if (includeContractSheet) {
+    await createContractsStandardSheet(workbook, employees, pointages, leaves, weeksInMonth, year, month, companyName);
+  }
+
+  // 2. Feuilles détaillées par employé
+  for (const employee of employees) {
+    const employeePointages = pointages.filter(p => p.userId === employee.id);
+    const employeeLeaves = leaves.filter(l => l.userId === employee.id);
+    await createEmployeeDetailSheet(workbook, employee, employeePointages, employeeLeaves, weeksInMonth, year, month);
+  }
+
+  // 3. POINTAGES - Tous les pointages détaillés
+  if (includePointagesSheet) {
+    await createPointagesSheet(workbook, employees, pointages, year, month);
+  }
+
+  // 4. ABSENCES - Toutes les absences
+  if (includeAbsencesSheet) {
+    await createAbsencesSheet(workbook, employees, leaves, year, month);
+  }
+
+  // 5. RECAP COMPTEURS
+  if (includeRecapSheet) {
+    await createRecapCompteurSheet(workbook, employees, pointages, leaves, weeksInMonth, year, month);
+  }
+
+  // 6. SOLDE CONGES
+  if (includeLeaveBalanceSheet) {
+    await createLeaveBalanceSheet(workbook, employees, leaveBalances, leaves, year, month);
+  }
+
+  // Générer le fichier
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+
+  // Télécharger
+  const fileName = `Export-Paie-${MONTHS_FR[month]}-${year}.xlsx`;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  console.log(`✅ Export Paie terminé: ${fileName}`);
+  return { success: true, fileName };
+}
+
+// ==========================================
+// FONCTIONS HELPER POUR L'EXPORT PAIE
+// ==========================================
+
+/**
+ * Récupérer les employés avec données contractuelles
+ */
+async function getEmployeesWithContracts() {
+  try {
+    const snapshot = await getDocs(collection(db, 'users'));
+    const employees = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const firstName = data.displayName?.split(' ')[0] || data.profile?.firstName || data.firstName || '';
+      const lastName = data.displayName?.split(' ').slice(1).join(' ') || data.profile?.lastName || data.lastName || '';
+
+      employees.push({
+        id: doc.id,
+        nom: lastName || 'Nom',
+        prenom: firstName || 'Prénom',
+        displayName: data.displayName || `${firstName} ${lastName}`.trim() || data.email,
+        email: data.email || '',
+        matricule: data.matricule || data.contractData?.matricule || '',
+        // Données contractuelles
+        typeContrat: data.contractData?.type || 'CDI',
+        poste: data.profile?.role || data.position || data.poste || 'Employé',
+        dateDebut: data.contractData?.startDate || data.createdAt?.toDate?.()?.toISOString?.()?.split('T')[0] || '',
+        dateFin: data.contractData?.endDate || '',
+        // Données salariales
+        volumeHoraireHebdo: data.contractData?.weeklyHours || data.salaryData?.weeklyHours || 35,
+        tauxHoraireBrut: data.salaryData?.hourlyRate || 0,
+        etablissement: data.contractData?.establishment || data.profile?.department || 'Principal',
+        statut: data.isActive !== false ? 'Actif' : 'Inactif',
+        // Compteurs
+        compteurHeures: data.compteurHeures || 0,
+        // Congés
+        congesAcquis: data.leaveBalance?.acquired || 25,
+        congesPris: data.leaveBalance?.taken || 0,
+        congesRestants: data.leaveBalance?.remaining || 25,
+        congesN1: data.leaveBalance?.n1 || 0
+      });
+    });
+
+    return employees.sort((a, b) => a.nom.localeCompare(b.nom));
+  } catch (error) {
+    console.error('❌ Erreur récupération employés:', error);
+    return [];
+  }
+}
+
+/**
+ * Récupérer tous les pointages détaillés du mois
+ */
+async function getMonthlyPointagesDetailed(year, month) {
+  try {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
+
+    const q = query(
+      collection(db, 'pointages'),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'asc')
+    );
+
+    const snapshot = await getDocs(q);
+    const pointages = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      pointages.push({
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp)
+      });
+    });
+
+    return pointages;
+  } catch (error) {
+    console.error('❌ Erreur récupération pointages:', error);
+    return [];
+  }
+}
+
+/**
+ * Récupérer toutes les absences du mois
+ */
+async function getAllLeavesForMonth(year, month) {
+  try {
+    const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
+
+    // Récupérer les congés approuvés
+    const leavesQuery = query(
+      collection(db, 'leave_requests'),
+      where('status', '==', 'approved')
+    );
+    const leavesSnapshot = await getDocs(leavesQuery);
+
+    // Récupérer aussi depuis leaveRequests pour compatibilité
+    const leaveRequestsQuery = query(
+      collection(db, 'leaveRequests'),
+      where('status', '==', 'approved')
+    );
+    const leaveRequestsSnapshot = await getDocs(leaveRequestsQuery);
+
+    const leaves = [];
+
+    const processLeave = (doc) => {
+      const data = doc.data();
+      const leaveStart = data.startDate?.split('T')[0] || data.startDate;
+      const leaveEnd = data.endDate?.split('T')[0] || data.endDate;
+
+      // Vérifier si le congé intersecte avec le mois
+      if (leaveStart <= endDate && leaveEnd >= startDate) {
+        leaves.push({
+          id: doc.id,
+          ...data,
+          startDate: leaveStart,
+          endDate: leaveEnd,
+          type: data.leaveType || data.type || 'conge',
+          typeLabel: data.leaveTypeLabel || getLeaveTypeLabel(data.leaveType || data.type),
+          nbJours: calculateDaysBetween(leaveStart, leaveEnd),
+          nbHeures: (calculateDaysBetween(leaveStart, leaveEnd) * 7) // Approximation
+        });
+      }
+    };
+
+    leavesSnapshot.forEach(processLeave);
+    leaveRequestsSnapshot.forEach(processLeave);
+
+    return leaves;
+  } catch (error) {
+    console.error('❌ Erreur récupération congés:', error);
+    return [];
+  }
+}
+
+/**
+ * Récupérer les soldes de congés
+ */
+async function getLeaveBalances() {
+  try {
+    const snapshot = await getDocs(collection(db, 'leave_balances'));
+    const balances = {};
+
+    snapshot.forEach(doc => {
+      balances[doc.id] = doc.data();
+    });
+
+    return balances;
+  } catch (error) {
+    console.error('❌ Erreur récupération soldes congés:', error);
+    return {};
+  }
+}
+
+/**
+ * Calculer les semaines du mois
+ */
+function getWeeksInMonth(year, month) {
+  const weeks = [];
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  let currentDate = new Date(firstDay);
+  // Aller au lundi de la première semaine
+  const dayOfWeek = currentDate.getDay();
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  currentDate.setDate(currentDate.getDate() + diff);
+
+  while (currentDate <= lastDay || weeks.length < 5) {
+    const weekStart = new Date(currentDate);
+    const weekEnd = new Date(currentDate);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    const weekNum = getWeekNumber(weekStart);
+    weeks.push({
+      weekNum,
+      start: weekStart.toISOString().split('T')[0],
+      end: weekEnd.toISOString().split('T')[0],
+      label: `S${weekNum}`
+    });
+
+    currentDate.setDate(currentDate.getDate() + 7);
+    if (weeks.length >= 6) break;
+  }
+
+  return weeks;
+}
+
+/**
+ * Obtenir le numéro de semaine
+ */
+function getWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+/**
+ * Calculer le nombre de jours entre deux dates
+ */
+function calculateDaysBetween(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end - start);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+}
+
+/**
+ * Obtenir le label du type d'absence
+ */
+function getLeaveTypeLabel(type) {
+  const labels = {
+    'cp': 'Congé payé',
+    'conge': 'Congé payé',
+    'conge_paye': 'Congé payé',
+    'rtt': 'RTT',
+    'maladie': 'Arrêt maladie',
+    'arret_maladie': 'Arrêt maladie',
+    'formation': 'Formation',
+    'ecole': 'École - CFA',
+    'cfa': 'École - CFA',
+    'sans_solde': 'Sans solde',
+    'retard': 'Retard',
+    'autre': 'Autre'
+  };
+  return labels[type?.toLowerCase()] || type || 'Absence';
+}
+
+/**
+ * Calculer les heures travaillées pour un employé sur une période
+ */
+function calculateEmployeeHours(employeeId, pointages, startDate, endDate) {
+  const employeePointages = pointages.filter(p =>
+    p.userId === employeeId &&
+    p.date >= startDate &&
+    p.date <= endDate
+  );
+
+  let totalHours = 0;
+  const dailyHours = {};
+
+  // Grouper par date
+  employeePointages.forEach(p => {
+    if (!dailyHours[p.date]) {
+      dailyHours[p.date] = { arrivals: [], departures: [] };
+    }
+    if (p.type === 'arrival') {
+      dailyHours[p.date].arrivals.push(p);
+    } else {
+      dailyHours[p.date].departures.push(p);
+    }
+  });
+
+  // Calculer par jour
+  Object.keys(dailyHours).forEach(date => {
+    const day = dailyHours[date];
+    if (day.arrivals.length > 0 && day.departures.length > 0) {
+      const firstArrival = day.arrivals.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
+      const lastDeparture = day.departures.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+      const hours = (new Date(lastDeparture.timestamp) - new Date(firstArrival.timestamp)) / (1000 * 60 * 60);
+      // Déduire pause si > 6h
+      const netHours = hours > 6 ? hours - 0.5 : hours;
+      totalHours += Math.max(0, netHours);
+    }
+  });
+
+  return totalHours;
+}
+
+// ==========================================
+// CRÉATION DES FEUILLES EXCEL
+// ==========================================
+
+/**
+ * 1. CONTRATS STANDARDS - Feuille principale récapitulative
+ */
+async function createContractsStandardSheet(workbook, employees, pointages, leaves, weeks, year, month, companyName) {
+  const sheet = workbook.addWorksheet('CONTRATS STANDARDS', {
+    properties: { tabColor: { argb: '1E3A5F' } }
+  });
+
+  let row = 1;
+
+  // Titre
+  sheet.mergeCells(`A${row}:AQ${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `CONTRATS STANDARDS - ${MONTHS_FR[month].toUpperCase()} ${year}`;
+  titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A5F' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getRow(row).height = 30;
+  row++;
+
+  // En-têtes groupés (ligne 1)
+  const headerGroups = [
+    { label: '', cols: 3 }, // Nom, Prénom, Volume
+    { label: 'Données Contractuelles', cols: 6, color: '3B82F6' },
+    { label: 'Données Salariales', cols: 4, color: '8B5CF6' },
+    { label: 'Heures Planning Période', cols: weeks.length + 2, color: 'F59E0B' },
+    { label: 'Détail Heures Sup/Comp Majorées Période', cols: 4, color: 'EF4444' },
+    { label: 'Heures Majorées', cols: 2, color: '14B8A6' },
+    { label: 'Éléments de Rémunération', cols: 6, color: '22C55E' }
+  ];
+
+  let col = 1;
+  headerGroups.forEach(group => {
+    if (group.label) {
+      const startCol = col;
+      const endCol = col + group.cols - 1;
+      sheet.mergeCells(row, startCol, row, endCol);
+      const cell = sheet.getCell(row, startCol);
+      cell.value = group.label;
+      cell.font = { bold: true, color: { argb: 'FFFFFF' }, size: 10 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.color || '6B7280' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+    }
+    col += group.cols;
+  });
+  row++;
+
+  // En-têtes détaillés (ligne 2)
+  const headers = [
+    'Nom', 'Prénom', 'Vol. Horaire Hebdo (h)',
+    'Période Contrat', 'Type Contrat', 'Intitulé Poste', 'Date début', 'Date fin', 'Note',
+    'Vol. Horaire Mensuel (h)', 'Taux Horaire Brut (€)', 'Jours Travaillés (j)', 'Compteur Début',
+    ...weeks.map(w => w.label),
+    'Compteur Fin', 'Heures Sup totales',
+    'HS 25%', 'HS 50%', 'Heures Nuit', 'Heures Dimanche',
+    'Primes (€)', 'Avances (€)', 'Desc. Primes', 'Desc. Avances', 'Coût Transport', 'Commentaires'
+  ];
+
+  headers.forEach((header, index) => {
+    const cell = sheet.getCell(row, index + 1);
+    cell.value = header;
+    cell.font = { bold: true, size: 9 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+  });
+  sheet.getRow(row).height = 40;
+  row++;
+
+  // Données des employés
+  for (const emp of employees) {
+    const empPointages = pointages.filter(p => p.userId === emp.id);
+    const empLeaves = leaves.filter(l => l.userId === emp.id);
+
+    // Calculer les heures par semaine
+    const weeklyHours = weeks.map(week => {
+      return calculateEmployeeHours(emp.id, pointages, week.start, week.end);
+    });
+
+    const totalPlanningHours = weeklyHours.reduce((sum, h) => sum + h, 0);
+    const volumeMensuel = emp.volumeHoraireHebdo * 4.33; // Approximation mensuelle
+    const compteurFin = emp.compteurHeures + totalPlanningHours - volumeMensuel;
+
+    // Calculer les heures sup (> 35h/semaine ou > 7h/jour)
+    const heuresSup = Math.max(0, totalPlanningHours - volumeMensuel);
+    const heuresSup25 = Math.min(heuresSup, 8 * 4); // 8 premières heures sup par semaine
+    const heuresSup50 = Math.max(0, heuresSup - heuresSup25);
+
+    const rowData = [
+      emp.nom,
+      emp.prenom,
+      emp.volumeHoraireHebdo,
+      `${MONTHS_FR[month]} ${year}`,
+      emp.typeContrat,
+      emp.poste,
+      emp.dateDebut ? new Date(emp.dateDebut).toLocaleDateString('fr-FR') : '-',
+      emp.dateFin ? new Date(emp.dateFin).toLocaleDateString('fr-FR') : '-',
+      '', // Note
+      Math.round(volumeMensuel * 100) / 100,
+      emp.tauxHoraireBrut || '-',
+      Math.round(totalPlanningHours / 7 * 10) / 10, // Jours travaillés approximatifs
+      emp.compteurHeures || 0,
+      ...weeklyHours.map(h => Math.round(h * 100) / 100),
+      Math.round(compteurFin * 100) / 100,
+      Math.round(heuresSup * 100) / 100,
+      Math.round(heuresSup25 * 100) / 100,
+      Math.round(heuresSup50 * 100) / 100,
+      0, // Heures nuit (à calculer si données dispo)
+      0, // Heures dimanche (à calculer si données dispo)
+      '', // Primes
+      '', // Avances
+      '', // Desc primes
+      '', // Desc avances
+      '', // Transport
+      '' // Commentaires
+    ];
+
+    rowData.forEach((value, index) => {
+      const cell = sheet.getCell(row, index + 1);
+      cell.value = value;
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+      // Coloriser les compteurs
+      if (headers[index] === 'Compteur Fin' || headers[index] === 'Heures Sup totales') {
+        if (typeof value === 'number') {
+          cell.font = { color: { argb: value >= 0 ? '22C55E' : 'EF4444' } };
+        }
+      }
+    });
+
+    row++;
+  }
+
+  // Ajuster largeurs
+  sheet.getColumn(1).width = 15;
+  sheet.getColumn(2).width = 12;
+  sheet.getColumn(3).width = 8;
+  for (let i = 4; i <= headers.length; i++) {
+    sheet.getColumn(i).width = 12;
+  }
+}
+
+/**
+ * 2. Feuille détaillée par employé
+ */
+async function createEmployeeDetailSheet(workbook, employee, pointages, leaves, weeks, year, month) {
+  const sheetName = `${employee.nom.substring(0, 10)} ${employee.prenom.substring(0, 10)}`.trim().substring(0, 31);
+  const sheet = workbook.addWorksheet(sheetName, {
+    properties: { tabColor: { argb: '6366F1' } }
+  });
+
+  let row = 1;
+
+  // Titre
+  sheet.mergeCells(`A${row}:P${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `${employee.nom.toUpperCase()} ${employee.prenom}`;
+  titleCell.font = { size: 12, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A5F' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  row++;
+
+  // Infos employé
+  const infos = [
+    ['Poste:', employee.poste, 'Type contrat:', employee.typeContrat],
+    ['Vol. Hebdo:', `${employee.volumeHoraireHebdo}h`, 'Établissement:', employee.etablissement],
+    ['Statut:', employee.statut, 'Matricule:', employee.matricule || '-']
+  ];
+
+  infos.forEach(infoRow => {
+    for (let i = 0; i < infoRow.length; i += 2) {
+      sheet.getCell(row, i + 1).value = infoRow[i];
+      sheet.getCell(row, i + 1).font = { bold: true };
+      sheet.getCell(row, i + 2).value = infoRow[i + 1];
+    }
+    row++;
+  });
+
+  row++;
+
+  // Tableau détaillé par semaine
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (const week of weeks) {
+    // En-tête semaine
+    sheet.mergeCells(`A${row}:P${row}`);
+    const weekHeader = sheet.getCell(`A${row}`);
+    weekHeader.value = `Semaine ${week.weekNum} (${new Date(week.start).toLocaleDateString('fr-FR')} - ${new Date(week.end).toLocaleDateString('fr-FR')})`;
+    weekHeader.font = { bold: true, color: { argb: 'FFFFFF' } };
+    weekHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3B82F6' } };
+    row++;
+
+    // En-têtes jours
+    const dayHeaders = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim', 'Total'];
+    dayHeaders.forEach((day, idx) => {
+      const cell = sheet.getCell(row, idx + 1);
+      cell.value = day;
+      cell.font = { bold: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+    row++;
+
+    // Calculer les heures par jour de la semaine
+    const weekStart = new Date(week.start);
+    let weekTotal = 0;
+    const dailyHours = [];
+
+    for (let d = 0; d < 7; d++) {
+      const currentDate = new Date(weekStart);
+      currentDate.setDate(currentDate.getDate() + d);
+      const dateStr = currentDate.toISOString().split('T')[0];
+
+      // Vérifier si dans le mois
+      if (currentDate.getMonth() !== month) {
+        dailyHours.push('-');
+        continue;
+      }
+
+      // Calculer les heures
+      const dayPointages = pointages.filter(p => p.date === dateStr);
+      const arrivals = dayPointages.filter(p => p.type === 'arrival').sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      const departures = dayPointages.filter(p => p.type === 'departure').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      // Vérifier congé
+      const leave = leaves.find(l => dateStr >= l.startDate && dateStr <= l.endDate);
+
+      if (leave) {
+        dailyHours.push(leave.typeLabel?.substring(0, 8) || 'Congé');
+      } else if (arrivals.length > 0 && departures.length > 0) {
+        let hours = (new Date(departures[0].timestamp) - new Date(arrivals[0].timestamp)) / (1000 * 60 * 60);
+        if (hours > 6) hours -= 0.5;
+        hours = Math.round(hours * 100) / 100;
+        dailyHours.push(hours);
+        weekTotal += hours;
+      } else {
+        dailyHours.push('-');
+      }
+    }
+
+    // Ligne des heures
+    sheet.getCell(row, 1).value = 'Heures';
+    dailyHours.forEach((hours, idx) => {
+      const cell = sheet.getCell(row, idx + 2);
+      cell.value = hours;
+      cell.alignment = { horizontal: 'center' };
+      if (typeof hours === 'string' && hours !== '-') {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF3C7' } };
+      }
+    });
+    sheet.getCell(row, 9).value = Math.round(weekTotal * 100) / 100;
+    sheet.getCell(row, 9).font = { bold: true };
+    row++;
+
+    row++; // Espace entre semaines
+  }
+
+  // Ajuster largeurs
+  sheet.getColumn(1).width = 15;
+  for (let i = 2; i <= 9; i++) {
+    sheet.getColumn(i).width = 10;
+  }
+}
+
+/**
+ * 3. POINTAGES - Tous les pointages détaillés
+ */
+async function createPointagesSheet(workbook, employees, pointages, year, month) {
+  const sheet = workbook.addWorksheet('POINTAGES', {
+    properties: { tabColor: { argb: '8B5CF6' } }
+  });
+
+  let row = 1;
+
+  // Titre
+  sheet.mergeCells(`A${row}:N${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `POINTAGES - ${MONTHS_FR[month].toUpperCase()} ${year}`;
+  titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '8B5CF6' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  row++;
+
+  // En-têtes
+  const headers = ['Prénom', 'Nom', 'Matric.', 'Type contrat', 'Temps contractuel', 'Heures réelles', 'N° compteur', 'Date', 'Type', 'Heure début', 'Heure fin', 'Place', 'Note'];
+
+  headers.forEach((header, idx) => {
+    const cell = sheet.getCell(row, idx + 1);
+    cell.value = header;
+    cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '3B82F6' } };
+    cell.alignment = { horizontal: 'center' };
+    cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+  });
+  row++;
+
+  // Grouper pointages par employé et date
+  const empMap = {};
+  employees.forEach(e => empMap[e.id] = e);
+
+  // Trier pointages
+  const sortedPointages = [...pointages].sort((a, b) => {
+    if (a.userId !== b.userId) return a.userId.localeCompare(b.userId);
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return new Date(a.timestamp) - new Date(b.timestamp);
+  });
+
+  // Grouper par employé+date pour avoir arrivée/départ sur même ligne
+  const grouped = {};
+  sortedPointages.forEach(p => {
+    const key = `${p.userId}_${p.date}`;
+    if (!grouped[key]) {
+      grouped[key] = { userId: p.userId, date: p.date, arrival: null, departure: null };
+    }
+    if (p.type === 'arrival' && !grouped[key].arrival) {
+      grouped[key].arrival = p;
+    } else if (p.type === 'departure') {
+      grouped[key].departure = p;
+    }
+  });
+
+  Object.values(grouped).forEach(record => {
+    const emp = empMap[record.userId];
+    if (!emp) return;
+
+    let hoursWorked = 0;
+    if (record.arrival && record.departure) {
+      hoursWorked = (new Date(record.departure.timestamp) - new Date(record.arrival.timestamp)) / (1000 * 60 * 60);
+      if (hoursWorked > 6) hoursWorked -= 0.5;
+    }
+
+    const rowData = [
+      emp.prenom,
+      emp.nom,
+      emp.matricule || '-',
+      emp.typeContrat,
+      emp.volumeHoraireHebdo,
+      Math.round(hoursWorked * 100) / 100,
+      '', // N° compteur
+      new Date(record.date).toLocaleDateString('fr-FR'),
+      record.arrival ? 'Travail' : 'Absence',
+      record.arrival ? new Date(record.arrival.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
+      record.departure ? new Date(record.departure.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
+      record.arrival?.location || '-',
+      ''
+    ];
+
+    rowData.forEach((value, idx) => {
+      const cell = sheet.getCell(row, idx + 1);
+      cell.value = value;
+      cell.alignment = { horizontal: 'center' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+    });
+
+    row++;
+  });
+
+  // Ajuster largeurs
+  const widths = [12, 15, 10, 12, 8, 8, 10, 12, 10, 10, 10, 15, 20];
+  widths.forEach((w, i) => sheet.getColumn(i + 1).width = w);
+}
+
+/**
+ * 4. ABSENCES - Toutes les absences
+ */
+async function createAbsencesSheet(workbook, employees, leaves, year, month) {
+  const sheet = workbook.addWorksheet('ABSENCES', {
+    properties: { tabColor: { argb: 'EF4444' } }
+  });
+
+  let row = 1;
+
+  // Titre
+  sheet.mergeCells(`A${row}:H${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `ABSENCES - ${MONTHS_FR[month].toUpperCase()} ${year}`;
+  titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'EF4444' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  row++;
+
+  // En-têtes
+  const headers = ['Nom', 'Prénom', 'Matricule de paie', 'Type absence', 'Date de début', 'Date de fin', 'Nb heures', 'Nb jours'];
+
+  headers.forEach((header, idx) => {
+    const cell = sheet.getCell(row, idx + 1);
+    cell.value = header;
+    cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6B7280' } };
+    cell.alignment = { horizontal: 'center' };
+    cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+  });
+  row++;
+
+  // Mapper employés
+  const empMap = {};
+  employees.forEach(e => empMap[e.id] = e);
+
+  // Trier par nom puis date
+  const sortedLeaves = [...leaves].sort((a, b) => {
+    const empA = empMap[a.userId];
+    const empB = empMap[b.userId];
+    if (!empA || !empB) return 0;
+    if (empA.nom !== empB.nom) return empA.nom.localeCompare(empB.nom);
+    return a.startDate.localeCompare(b.startDate);
+  });
+
+  sortedLeaves.forEach(leave => {
+    const emp = empMap[leave.userId];
+    if (!emp) return;
+
+    // Couleur selon type
+    let rowColor = 'FFFFFF';
+    const type = (leave.type || '').toLowerCase();
+    if (type.includes('maladie')) rowColor = 'FECACA';
+    else if (type.includes('conge') || type.includes('cp')) rowColor = 'BBF7D0';
+    else if (type.includes('ecole') || type.includes('cfa')) rowColor = 'BFDBFE';
+    else if (type.includes('retard')) rowColor = 'FEF3C7';
+
+    const rowData = [
+      emp.nom,
+      emp.prenom,
+      emp.matricule || '-',
+      leave.typeLabel || leave.type,
+      new Date(leave.startDate).toLocaleDateString('fr-FR'),
+      new Date(leave.endDate).toLocaleDateString('fr-FR'),
+      leave.nbHeures || '-',
+      leave.nbJours || calculateDaysBetween(leave.startDate, leave.endDate)
+    ];
+
+    rowData.forEach((value, idx) => {
+      const cell = sheet.getCell(row, idx + 1);
+      cell.value = value;
+      cell.alignment = { horizontal: 'center' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowColor } };
+    });
+
+    row++;
+  });
+
+  // Ajuster largeurs
+  const widths = [15, 12, 15, 20, 12, 12, 10, 10];
+  widths.forEach((w, i) => sheet.getColumn(i + 1).width = w);
+}
+
+/**
+ * 5. RECAP COMPTEURS
+ */
+async function createRecapCompteurSheet(workbook, employees, pointages, leaves, weeks, year, month) {
+  const sheet = workbook.addWorksheet('RECAP COMPTEURS', {
+    properties: { tabColor: { argb: '14B8A6' } }
+  });
+
+  let row = 1;
+
+  // Titre
+  sheet.mergeCells(`A${row}:J${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `RÉCAPITULATIF COMPTEURS - ${MONTHS_FR[month].toUpperCase()} ${year}`;
+  titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '14B8A6' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  row++;
+  row++;
+
+  // En-têtes
+  const headers = [
+    'Nom', 'Prénom', 'Matricule de paie',
+    'Compteur Début de Période', 'Total Heures Planning',
+    'Absences non incluses', 'Volume Horaire Hebdo * Nbre Semaines',
+    'Compteur Fin de Période avant Modif', 'Heures Sorties du Compteur',
+    'Compteur fin de Période après Modif'
+  ];
+
+  headers.forEach((header, idx) => {
+    const cell = sheet.getCell(row, idx + 1);
+    cell.value = header;
+    cell.font = { bold: true, color: { argb: 'FFFFFF' }, size: 9 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6B7280' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+  });
+  sheet.getRow(row).height = 40;
+  row++;
+
+  // Données
+  const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
+
+  employees.forEach(emp => {
+    const totalHours = calculateEmployeeHours(emp.id, pointages, monthStart, monthEnd);
+    const volumeAttendu = emp.volumeHoraireHebdo * 4.33;
+    const compteurDebut = emp.compteurHeures || 0;
+    const compteurFin = compteurDebut + totalHours - volumeAttendu;
+
+    const rowData = [
+      emp.nom,
+      emp.prenom,
+      emp.matricule || '-',
+      compteurDebut,
+      Math.round(totalHours * 100) / 100,
+      0, // Absences non incluses
+      Math.round(volumeAttendu * 100) / 100,
+      Math.round(compteurFin * 100) / 100,
+      0, // Heures sorties
+      Math.round(compteurFin * 100) / 100
+    ];
+
+    rowData.forEach((value, idx) => {
+      const cell = sheet.getCell(row, idx + 1);
+      cell.value = value;
+      cell.alignment = { horizontal: 'center' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+      // Coloriser compteurs positifs/négatifs
+      if (idx >= 3 && typeof value === 'number') {
+        if (value > 0) cell.font = { color: { argb: '22C55E' } };
+        else if (value < 0) cell.font = { color: { argb: 'EF4444' } };
+      }
+    });
+
+    row++;
+  });
+
+  // Ajuster largeurs
+  const widths = [15, 12, 12, 12, 12, 12, 15, 15, 12, 15];
+  widths.forEach((w, i) => sheet.getColumn(i + 1).width = w);
+}
+
+/**
+ * 6. SOLDE CONGÉS
+ */
+async function createLeaveBalanceSheet(workbook, employees, leaveBalances, leaves, year, month) {
+  const sheet = workbook.addWorksheet('SOLDE CONGES', {
+    properties: { tabColor: { argb: '22C55E' } }
+  });
+
+  let row = 1;
+
+  // Titre
+  sheet.mergeCells(`A${row}:I${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `SOLDE CONGÉS - ${MONTHS_FR[month].toUpperCase()} ${year}`;
+  titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '22C55E' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  row++;
+  row++;
+
+  // En-têtes
+  const headers = [
+    'Nom', 'Prénom', 'Matricule',
+    'CP Acquis', 'CP Pris', 'CP Restants',
+    'CP N-1', 'RTT Acquis', 'RTT Restants'
+  ];
+
+  headers.forEach((header, idx) => {
+    const cell = sheet.getCell(row, idx + 1);
+    cell.value = header;
+    cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6B7280' } };
+    cell.alignment = { horizontal: 'center' };
+    cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+  });
+  row++;
+
+  // Calculer les congés pris ce mois
+  employees.forEach(emp => {
+    const empLeaves = leaves.filter(l => l.userId === emp.id);
+    const cpPrisCeMois = empLeaves
+      .filter(l => l.type?.toLowerCase().includes('cp') || l.type?.toLowerCase().includes('conge'))
+      .reduce((sum, l) => sum + (l.nbJours || 0), 0);
+
+    const balance = leaveBalances[emp.id] || {};
+
+    const rowData = [
+      emp.nom,
+      emp.prenom,
+      emp.matricule || '-',
+      balance.acquired || emp.congesAcquis || 25,
+      (balance.taken || emp.congesPris || 0) + cpPrisCeMois,
+      (balance.remaining || emp.congesRestants || 25) - cpPrisCeMois,
+      balance.n1 || emp.congesN1 || 0,
+      balance.rttAcquired || 0,
+      balance.rttRemaining || 0
+    ];
+
+    rowData.forEach((value, idx) => {
+      const cell = sheet.getCell(row, idx + 1);
+      cell.value = value;
+      cell.alignment = { horizontal: 'center' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+      // Coloriser le solde restant
+      if (idx === 5 && typeof value === 'number') {
+        if (value <= 0) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FECACA' } };
+          cell.font = { color: { argb: 'EF4444' }, bold: true };
+        } else if (value <= 5) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF3C7' } };
+        } else {
+          cell.font = { color: { argb: '22C55E' } };
+        }
+      }
+    });
+
+    row++;
+  });
+
+  // Ajuster largeurs
+  const widths = [15, 12, 12, 10, 10, 12, 10, 10, 12];
+  widths.forEach((w, i) => sheet.getColumn(i + 1).width = w);
+}

@@ -97,7 +97,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import hrDocumentService, { DOCUMENT_TYPES } from '../core/services/hrDocumentService.js';
-import timesheetExportService, { MONTHS_FR } from '../core/services/timesheetExportService.js';
+import timesheetExportService, { MONTHS_FR, exportPayrollComplete } from '../core/services/timesheetExportService.js';
 
 // 🎨 COMPOSANT CARTE GLASSMORPHISM
 const GlassCard = ({ children, className = "" }) => (
@@ -2733,6 +2733,62 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
     await hrDocumentService.deleteDocument(docId, isAdmin);
   };
 
+  // Télécharger un document
+  const handleDownloadDocument = async (doc) => {
+    // Marquer comme vu
+    await hrDocumentService.markAsViewed(
+      doc.id,
+      currentUser.uid,
+      currentUser.displayName || currentUser.email
+    );
+
+    if (doc.fileUrl) {
+      // Si on a une URL de fichier, télécharger
+      const link = document.createElement('a');
+      link.href = doc.fileUrl;
+      link.download = doc.fileName || 'document';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Pas encore d'URL (stockage non implémenté)
+      alert('Le fichier n\'est pas encore disponible au téléchargement. Le stockage des fichiers sera bientôt disponible.');
+    }
+  };
+
+  // Visualiser un document
+  const handleViewDocument = async (doc) => {
+    // Marquer comme vu
+    await hrDocumentService.markAsViewed(
+      doc.id,
+      currentUser.uid,
+      currentUser.displayName || currentUser.email
+    );
+
+    if (doc.fileUrl) {
+      // Ouvrir dans un nouvel onglet
+      window.open(doc.fileUrl, '_blank');
+    } else {
+      // Pas encore d'URL (stockage non implémenté)
+      alert('Le fichier n\'est pas encore disponible à la visualisation. Le stockage des fichiers sera bientôt disponible.');
+    }
+  };
+
+  // Vérifier si l'employé a vu le document
+  const hasEmployeeViewed = (doc) => {
+    if (!doc.viewedBy || !Array.isArray(doc.viewedBy)) return false;
+    return doc.viewedBy.some(v => v.userId === doc.employeeId);
+  };
+
+  // Obtenir les infos de consultation
+  const getViewInfo = (doc) => {
+    if (!doc.viewedBy || !Array.isArray(doc.viewedBy)) return null;
+    const employeeView = doc.viewedBy.find(v => v.userId === doc.employeeId);
+    if (!employeeView) return null;
+    return employeeView;
+  };
+
   // Grouper les documents par type
   const groupDocumentsByType = (docs) => {
     const grouped = {};
@@ -2756,50 +2812,81 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
   };
 
   // Rendu d'un document
-  const renderDocument = (doc) => (
-    <motion.div
-      key={doc.id}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all group"
-    >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="p-2 rounded-lg" style={{ backgroundColor: `${DOCUMENT_TYPES[doc.type]?.color}20` }}>
-          <File className="w-4 h-4" style={{ color: DOCUMENT_TYPES[doc.type]?.color }} />
+  const renderDocument = (doc) => {
+    const viewed = hasEmployeeViewed(doc);
+    const viewInfo = getViewInfo(doc);
+
+    return (
+      <motion.div
+        key={doc.id}
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-lg transition-all group"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="p-2 rounded-lg" style={{ backgroundColor: `${DOCUMENT_TYPES[doc.type]?.color}20` }}>
+            <File className="w-4 h-4" style={{ color: DOCUMENT_TYPES[doc.type]?.color }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-medium truncate">{doc.title}</p>
+            <p className="text-gray-500 text-xs">
+              {doc.period && <span className="mr-2">{doc.period}</span>}
+              <span>{formatDate(doc.createdAt)}</span>
+            </p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-white text-sm font-medium truncate">{doc.title}</p>
-          <p className="text-gray-500 text-xs">
-            {doc.period && <span className="mr-2">{doc.period}</span>}
-            <span>{formatDate(doc.createdAt)}</span>
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          className="p-1.5 hover:bg-blue-500/20 rounded-lg transition-colors"
-          title="Télécharger"
-        >
-          <Download className="w-4 h-4 text-blue-400" />
-        </button>
-        <button
-          className="p-1.5 hover:bg-green-500/20 rounded-lg transition-colors"
-          title="Voir"
-        >
-          <Eye className="w-4 h-4 text-green-400" />
-        </button>
+
+        {/* Indicateur d'accusé de réception (visible pour admin) */}
         {isAdmin && (
-          <button
-            onClick={() => handleDeleteDocument(doc.id)}
-            className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
-            title="Supprimer"
-          >
-            <Trash2 className="w-4 h-4 text-red-400" />
-          </button>
+          <div className="flex items-center mr-3">
+            {viewed ? (
+              <div
+                className="flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded-full cursor-help"
+                title={`Vu le ${viewInfo?.lastViewedAt ? new Date(viewInfo.lastViewedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}`}
+              >
+                <CheckCircle className="w-3 h-3 text-green-400" />
+                <span className="text-green-400 text-xs">Vu</span>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-1 px-2 py-1 bg-orange-500/20 rounded-full"
+                title="L'employé n'a pas encore consulté ce document"
+              >
+                <AlertTriangle className="w-3 h-3 text-orange-400" />
+                <span className="text-orange-400 text-xs">Non vu</span>
+              </div>
+            )}
+          </div>
         )}
-      </div>
-    </motion.div>
-  );
+
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => handleDownloadDocument(doc)}
+            className="p-1.5 hover:bg-blue-500/20 rounded-lg transition-colors"
+            title="Télécharger"
+          >
+            <Download className="w-4 h-4 text-blue-400" />
+          </button>
+          <button
+            onClick={() => handleViewDocument(doc)}
+            className="p-1.5 hover:bg-green-500/20 rounded-lg transition-colors"
+            title="Voir"
+          >
+            <Eye className="w-4 h-4 text-green-400" />
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => handleDeleteDocument(doc.id)}
+              className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
+              title="Supprimer"
+            >
+              <Trash2 className="w-4 h-4 text-red-400" />
+            </button>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
   // Rendu d'un sous-dossier (type de document)
   const renderSubFolder = (employeeId, type, docs) => {
@@ -3241,7 +3328,7 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh }) =
     years.push(y);
   }
 
-  // Exporter en Excel
+  // Exporter en Excel (simple)
   const handleExportExcel = async () => {
     try {
       setExporting(true);
@@ -3266,6 +3353,32 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh }) =
       }
     } catch (error) {
       console.error('Erreur export:', error);
+      alert('Erreur lors de l\'export: ' + error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Export Paie Complet (toutes les feuilles)
+  const handleExportPayrollComplete = async () => {
+    try {
+      setExporting(true);
+      setExportSuccess(null);
+
+      const result = await exportPayrollComplete(
+        selectedYear,
+        selectedMonth,
+        { companyName: companyName || 'Synergia' }
+      );
+
+      if (result.success) {
+        setExportSuccess(`Export Paie Complet généré: ${result.fileName}`);
+        setTimeout(() => setExportSuccess(null), 5000);
+      } else {
+        throw new Error(result.error || 'Erreur lors de l\'export');
+      }
+    } catch (error) {
+      console.error('Erreur export paie complet:', error);
       alert('Erreur lors de l\'export: ' + error.message);
     } finally {
       setExporting(false);
@@ -3487,30 +3600,59 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh }) =
           </div>
         )}
 
-        {/* Bouton principal d'export Excel */}
-        <div className="text-center py-8 bg-white/5 rounded-xl">
-          <FileSpreadsheet className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <p className="text-white text-lg mb-2">Export Excel complet</p>
-          <p className="text-gray-400 text-sm mb-6">
-            Génère un fichier Excel avec feuille par employé + récapitulatif
-          </p>
-          <button
-            onClick={handleExportExcel}
-            disabled={exporting}
-            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition-colors inline-flex items-center gap-2"
-          >
-            {exporting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Export en cours...
-              </>
-            ) : (
-              <>
-                <Download className="w-5 h-5" />
-                Générer export Excel ({MONTHS_FR[selectedMonth]} {selectedYear})
-              </>
-            )}
-          </button>
+        {/* Boutons d'export */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Export Paie Complet */}
+          <div className="text-center py-6 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 rounded-xl">
+            <FileSpreadsheet className="w-12 h-12 text-indigo-400 mx-auto mb-3" />
+            <p className="text-white text-lg font-semibold mb-1">Export Paie Complet</p>
+            <p className="text-gray-400 text-xs mb-4 px-4">
+              Contrats • Détails employés • Pointages • Absences • Compteurs • Solde congés
+            </p>
+            <button
+              onClick={handleExportPayrollComplete}
+              disabled={exporting}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Export en cours...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Export Paie ({MONTHS_FR[selectedMonth]} {selectedYear})
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Export Excel Simple */}
+          <div className="text-center py-6 bg-white/5 rounded-xl">
+            <FileSpreadsheet className="w-12 h-12 text-green-500 mx-auto mb-3" />
+            <p className="text-white text-lg font-semibold mb-1">Export Pointages</p>
+            <p className="text-gray-400 text-xs mb-4 px-4">
+              Feuille par employé + récapitulatif mensuel
+            </p>
+            <button
+              onClick={handleExportExcel}
+              disabled={exporting}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Export en cours...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Export Pointages
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Statistiques rapides */}

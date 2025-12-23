@@ -409,6 +409,103 @@ class HRDocumentService {
   }
 
   // ==========================================
+  // 👁️ ACCUSÉ DE RÉCEPTION / CONSULTATION
+  // ==========================================
+
+  /**
+   * Marquer un document comme vu par l'utilisateur
+   * @param {string} documentId - ID du document
+   * @param {string} userId - ID de l'utilisateur qui voit le document
+   * @param {string} userName - Nom de l'utilisateur
+   */
+  async markAsViewed(documentId, userId, userName) {
+    try {
+      const docRef = doc(db, this.COLLECTION_NAME, documentId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        return { success: false, error: 'Document non trouvé' };
+      }
+
+      const data = docSnap.data();
+      const viewedBy = data.viewedBy || [];
+
+      // Vérifier si l'utilisateur a déjà vu ce document
+      const existingView = viewedBy.find(v => v.userId === userId);
+
+      if (existingView) {
+        // Mettre à jour la dernière consultation
+        const updatedViewedBy = viewedBy.map(v =>
+          v.userId === userId
+            ? { ...v, lastViewedAt: new Date().toISOString(), viewCount: (v.viewCount || 1) + 1 }
+            : v
+        );
+        await updateDoc(docRef, { viewedBy: updatedViewedBy });
+      } else {
+        // Ajouter la première consultation
+        viewedBy.push({
+          userId,
+          userName,
+          firstViewedAt: new Date().toISOString(),
+          lastViewedAt: new Date().toISOString(),
+          viewCount: 1
+        });
+        await updateDoc(docRef, { viewedBy });
+      }
+
+      console.log('👁️ Document marqué comme vu:', documentId, 'par', userName);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur marquage document vu:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Vérifier si un document a été vu par son propriétaire
+   * @param {string} documentId - ID du document
+   */
+  async hasOwnerViewed(documentId) {
+    try {
+      const docRef = doc(db, this.COLLECTION_NAME, documentId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) return false;
+
+      const data = docSnap.data();
+      const viewedBy = data.viewedBy || [];
+
+      // Vérifier si le propriétaire (employeeId) a vu le document
+      return viewedBy.some(v => v.userId === data.employeeId);
+    } catch (error) {
+      console.error('❌ Erreur vérification consultation:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Obtenir les détails de consultation d'un document
+   * @param {string} documentId - ID du document
+   */
+  async getViewDetails(documentId) {
+    try {
+      const docRef = doc(db, this.COLLECTION_NAME, documentId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) return null;
+
+      const data = docSnap.data();
+      return {
+        viewedBy: data.viewedBy || [],
+        ownerViewed: (data.viewedBy || []).some(v => v.userId === data.employeeId)
+      };
+    } catch (error) {
+      console.error('❌ Erreur récupération détails consultation:', error);
+      return null;
+    }
+  }
+
+  // ==========================================
   // 📊 STATISTIQUES
   // ==========================================
 
