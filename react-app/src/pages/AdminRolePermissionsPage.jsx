@@ -68,7 +68,8 @@ import {
   ShieldAlert,
   ToggleLeft,
   ToggleRight,
-  Info
+  Info,
+  Trash2
 } from 'lucide-react';
 
 // Firebase
@@ -454,6 +455,30 @@ const PERMISSION_MODULES = {
       { id: 'notif_send_team', name: 'Envoyer à l\'équipe', icon: Mail, level: 'edit', description: 'Notifier l\'équipe' },
       { id: 'notif_send_all', name: 'Envoyer à tous', icon: Megaphone, level: 'admin', description: 'Notifications globales' },
       { id: 'notif_admin', name: 'Administration notifs', icon: Crown, level: 'admin', description: 'Gestion complète' }
+    ]
+  },
+
+  // ===== ALTERNANCE & PARCOURS SCOLAIRE =====
+  alternance: {
+    id: 'alternance',
+    name: 'Alternance & Parcours Scolaire',
+    icon: GraduationCap,
+    color: 'from-indigo-500 to-violet-600',
+    bgColor: 'bg-indigo-500/20',
+    description: 'Suivi des alternants et objectifs scolaires',
+    category: 'team',
+    permissions: [
+      { id: 'alternance_is_alternant', name: 'Statut Alternant', icon: GraduationCap, level: 'view', description: 'Accès au module alternance personnel' },
+      { id: 'alternance_view_own', name: 'Voir son parcours', icon: Eye, level: 'view', description: 'Consulter ses objectifs scolaires' },
+      { id: 'alternance_is_tutor', name: 'Statut Tuteur', icon: UserPlus, level: 'edit', description: 'Tuteur/Parrain d\'alternants' },
+      { id: 'alternance_view_tutored', name: 'Voir ses alternants', icon: Users, level: 'edit', description: 'Consulter le parcours de ses alternants' },
+      { id: 'alternance_validate', name: 'Valider les objectifs', icon: CheckCircle, level: 'edit', description: 'Valider les réussites scolaires' },
+      { id: 'alternance_create', name: 'Créer des objectifs', icon: Target, level: 'edit', description: 'Ajouter des objectifs personnalisés' },
+      { id: 'alternance_edit', name: 'Modifier les objectifs', icon: Edit, level: 'edit', description: 'Modifier les objectifs existants' },
+      { id: 'alternance_delete', name: 'Supprimer des objectifs', icon: Trash2, level: 'admin', description: 'Supprimer des objectifs' },
+      { id: 'alternance_manage_xp', name: 'Gérer l\'XP scolaire', icon: Zap, level: 'admin', description: 'Modifier les récompenses XP' },
+      { id: 'alternance_view_all', name: 'Voir tous les alternants', icon: Users, level: 'admin', description: 'Accès à tous les parcours' },
+      { id: 'alternance_admin', name: 'Administration alternance', icon: Crown, level: 'admin', description: 'Gestion complète du module' }
     ]
   }
 };

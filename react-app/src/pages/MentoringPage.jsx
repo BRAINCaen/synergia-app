@@ -208,14 +208,23 @@ const OBJECTIVE_CATEGORIES = {
   milestones: { label: 'Étapes clés', icon: Trophy, color: 'indigo' }
 };
 
-const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin }) => {
+const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin, isTutor, isAlternant, tutoredAlternants = [] }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showValidateModal, setShowValidateModal] = useState(false);
   const [selectedObjective, setSelectedObjective] = useState(null);
   const [validationNote, setValidationNote] = useState('');
+  const [selectedAlternantId, setSelectedAlternantId] = useState(null);
+
+  // Pour les tuteurs/admins, permettre de sélectionner un alternant
+  const currentAlternantData = selectedAlternantId
+    ? tutoredAlternants.find(a => a.id === selectedAlternantId) || alternanceData
+    : alternanceData;
+
+  // Déterminer si l'utilisateur peut valider (tuteur ou admin)
+  const canValidate = isTutor || isAdmin;
 
   // Données de l'alternant (récupérées ou par défaut)
-  const alternantInfo = alternanceData || {
+  const alternantInfo = currentAlternantData || {
     schoolName: 'École non renseignée',
     diploma: 'Diplôme en cours',
     startDate: null,
@@ -305,15 +314,36 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin 
             <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
               Parcours Alternance
               <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">
-                🎓 Spécial Alternants
+                {isAlternant ? '🎓 Mon parcours' : isTutor ? '👨‍🏫 Tuteur' : '👑 Admin'}
               </span>
             </h2>
-            <p className="text-gray-400 text-sm">Gagne de l'XP avec ton parcours scolaire !</p>
+            <p className="text-gray-400 text-sm">
+              {isAlternant ? 'Gagne de l\'XP avec ton parcours scolaire !' : 'Suivez et validez les objectifs de vos alternants'}
+            </p>
           </div>
         </div>
 
-        {/* Stats rapides */}
-        <div className="flex gap-3">
+        {/* Sélecteur d'alternant pour tuteurs/admins */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {canValidate && tutoredAlternants.length > 0 && (
+            <select
+              value={selectedAlternantId || ''}
+              onChange={(e) => setSelectedAlternantId(e.target.value || null)}
+              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="" className="bg-slate-800">
+                {isAlternant ? 'Mon parcours' : 'Sélectionner un alternant'}
+              </option>
+              {tutoredAlternants.map(alt => (
+                <option key={alt.id} value={alt.id} className="bg-slate-800">
+                  {alt.userName || alt.userId}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Stats rapides */}
+          <div className="flex gap-3">
           <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10">
             <div className="text-xs text-gray-400">XP Scolaire</div>
             <div className="text-lg font-bold text-indigo-400 flex items-center gap-1">
@@ -326,6 +356,7 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin 
             <div className="text-lg font-bold text-emerald-400">
               {alternantInfo.completedObjectives?.length || 0}
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -452,8 +483,8 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin 
                 </div>
               </div>
 
-              {/* Bouton valider (admin only) */}
-              {isAdmin && (
+              {/* Bouton valider (tuteur ou admin) */}
+              {canValidate && (
                 <button
                   onClick={() => handleValidateClick(objective)}
                   className={`mt-3 w-full py-2 rounded-lg text-xs font-medium transition-all ${
@@ -1565,6 +1596,8 @@ const MentoringPage = () => {
   // États pour les alternants
   const [alternanceData, setAlternanceData] = useState(null);
   const [isAlternant, setIsAlternant] = useState(false);
+  const [isTutor, setIsTutor] = useState(false);
+  const [tutoredAlternants, setTutoredAlternants] = useState([]);
 
   // Types de formations
   const trainingTypes = [
@@ -1621,46 +1654,78 @@ const MentoringPage = () => {
       if (!user?.uid) return;
 
       try {
-        // Vérifier si l'utilisateur est un alternant (via son profil ou un champ spécifique)
-        const userDoc = await getDocs(query(
-          collection(db, 'users'),
-          where('__name__', '==', user.uid)
-        ));
+        // Vérifier les permissions de l'utilisateur via modulePermissions
+        const userPermissions = user.modulePermissions?.alternance || {};
+        const isUserAdmin = user.isAdmin || user.role === 'admin';
 
-        if (!userDoc.empty) {
-          const userData = userDoc.docs[0].data();
-          // Vérifier si l'utilisateur a le statut alternant
-          const isAlt = userData.contractType === 'alternance' ||
-                        userData.contractType === 'apprentissage' ||
-                        userData.isAlternant === true ||
-                        userData.profile?.contractType === 'alternance';
+        // Vérifier le statut alternant via les permissions
+        const hasAlternantPermission = userPermissions.alternance_is_alternant === true;
+        // Vérifier le statut tuteur via les permissions
+        const hasTutorPermission = userPermissions.alternance_is_tutor === true ||
+                                   userPermissions.alternance_validate === true;
 
-          setIsAlternant(isAlt);
+        // Fallback: vérifier aussi le type de contrat pour rétrocompatibilité
+        const isAltByContract = user.contractType === 'alternance' ||
+                                user.contractType === 'apprentissage' ||
+                                user.isAlternant === true;
 
-          if (isAlt || userData.isAdmin) {
-            // Charger les données d'alternance depuis la collection dédiée
-            const altRef = collection(db, 'alternance_tracking');
-            const altQuery = query(altRef, where('userId', '==', user.uid));
-            const altSnapshot = await getDocs(altQuery);
+        const isAlt = hasAlternantPermission || isAltByContract;
+        const isTut = hasTutorPermission || isUserAdmin;
 
-            if (!altSnapshot.empty) {
-              const altData = altSnapshot.docs[0].data();
-              setAlternanceData({
-                id: altSnapshot.docs[0].id,
-                ...altData,
-                completedObjectives: altData.completedObjectives || []
-              });
-            } else {
-              // Données par défaut pour un nouvel alternant
-              setAlternanceData({
-                schoolName: userData.schoolName || 'École non renseignée',
-                diploma: userData.diploma || 'Diplôme en cours',
-                currentYear: userData.currentYear || 1,
-                totalYears: userData.totalYears || 2,
-                completedObjectives: [],
-                totalXpEarned: 0
-              });
-            }
+        setIsAlternant(isAlt);
+        setIsTutor(isTut);
+
+        // Si alternant, charger ses propres données
+        if (isAlt) {
+          const altRef = collection(db, 'alternance_tracking');
+          const altQuery = query(altRef, where('userId', '==', user.uid));
+          const altSnapshot = await getDocs(altQuery);
+
+          if (!altSnapshot.empty) {
+            const altData = altSnapshot.docs[0].data();
+            setAlternanceData({
+              id: altSnapshot.docs[0].id,
+              ...altData,
+              completedObjectives: altData.completedObjectives || []
+            });
+          } else {
+            // Données par défaut pour un nouvel alternant
+            setAlternanceData({
+              schoolName: user.schoolName || 'École non renseignée',
+              diploma: user.diploma || 'Diplôme en cours',
+              currentYear: user.currentYear || 1,
+              totalYears: user.totalYears || 2,
+              completedObjectives: [],
+              totalXpEarned: 0
+            });
+          }
+        }
+
+        // Si tuteur ou admin, charger la liste des alternants qu'il supervise
+        if (isTut || isUserAdmin) {
+          const altRef = collection(db, 'alternance_tracking');
+          let altQuery;
+
+          if (isUserAdmin) {
+            // Admin voit tous les alternants
+            altQuery = query(altRef);
+          } else {
+            // Tuteur voit seulement ses alternants
+            altQuery = query(altRef, where('tutorId', '==', user.uid));
+          }
+
+          const altSnapshot = await getDocs(altQuery);
+          const alternants = altSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            completedObjectives: doc.data().completedObjectives || []
+          }));
+
+          setTutoredAlternants(alternants);
+
+          // Si pas alternant mais tuteur/admin, utiliser les données du premier alternant pour l'affichage
+          if (!isAlt && alternants.length > 0) {
+            setAlternanceData(alternants[0]);
           }
         }
       } catch (error) {
@@ -1669,7 +1734,7 @@ const MentoringPage = () => {
     };
 
     loadAlternanceData();
-  }, [user?.uid]);
+  }, [user?.uid, user?.modulePermissions, user?.isAdmin]);
 
   // Fonction pour valider un objectif scolaire
   const handleValidateSchoolObjective = async (objectiveData) => {
@@ -2299,12 +2364,15 @@ const MentoringPage = () => {
           {/* ==========================================
               🎓 SECTION ALTERNANCE - PARCOURS SCOLAIRE
               ========================================== */}
-          {(isAlternant || user?.isAdmin) && (
+          {(isAlternant || isTutor || user?.isAdmin) && (
             <AlternanceSection
               user={user}
               alternanceData={alternanceData}
               onValidateObjective={handleValidateSchoolObjective}
               isAdmin={user?.isAdmin || user?.role === 'admin'}
+              isTutor={isTutor}
+              isAlternant={isAlternant}
+              tutoredAlternants={tutoredAlternants}
             />
           )}
 
