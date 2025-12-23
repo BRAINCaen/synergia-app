@@ -64,6 +64,9 @@ import { calculateLevel } from '../core/services/levelService.js';
 // ✅ IMPORT DU SERVICE TEAM POOL POUR CONTRIBUTION AUTOMATIQUE
 import teamPoolService from '../core/services/teamPoolService.js';
 
+// 🌳 IMPORT DU SERVICE SKILLS POUR DISTRIBUTION XP COMPÉTENCES
+import skillService from '../core/services/skillService.js';
+
 /**
  * 🎨 COMPOSANT CARTE GLASSMORPHISM
  */
@@ -451,8 +454,31 @@ const AdminTaskValidationPage = () => {
       } catch (poolError) {
         console.warn('⚠️ Erreur contribution pool (non bloquante):', poolError);
       }
-      
-      // 6. Fermer le modal et recharger
+
+      // ✅ 6. DISTRIBUTION XP AUX COMPÉTENCES (SKILLS)
+      try {
+        const requiredSkills = selectedQuest.requiredSkills || selectedQuest.skills || [];
+
+        if (requiredSkills.length > 0 && odot) {
+          console.log('🌳 Distribution XP aux compétences...');
+          console.log('🌳 Skills de la quête:', requiredSkills);
+
+          // Distribuer 1 point de skill par compétence de la quête
+          const skillResults = await skillService.distributeQuestSkillXP(
+            odot,
+            xpToAdd,
+            requiredSkills
+          );
+
+          console.log('✅ XP compétences distribués:', skillResults);
+        } else {
+          console.log('ℹ️ Pas de compétences requises pour cette quête');
+        }
+      } catch (skillError) {
+        console.warn('⚠️ Erreur distribution XP skills (non bloquante):', skillError);
+      }
+
+      // 7. Fermer le modal et recharger
       setShowValidationModal(false);
       setSelectedQuest(null);
       setAdminComment('');

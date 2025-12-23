@@ -121,14 +121,18 @@ export const useSkillTree = (options = {}) => {
       return;
     }
 
-    // Temps réel avec onSnapshot
-    const userRef = doc(db, 'users', user.uid);
+    // Temps réel avec onSnapshot sur la collection user_skills
+    const skillsRef = doc(db, 'user_skills', user.uid);
 
-    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+    const unsubscribe = onSnapshot(skillsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         const skills = data.skills || {};
         setUserSkills(skills);
+        console.log('🌳 [SKILLS] Données chargées:', Object.keys(skills).length, 'compétences');
+      } else {
+        console.log('🌳 [SKILLS] Aucune donnée de compétences trouvée');
+        setUserSkills({});
       }
       setLoading(false);
     }, (err) => {
