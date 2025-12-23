@@ -64,7 +64,6 @@ import {
   Megaphone,
   Package,
   Wrench,
-  Handshake,
   ShieldCheck,
   ShieldAlert,
   ToggleLeft,

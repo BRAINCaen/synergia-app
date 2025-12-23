@@ -56,7 +56,6 @@ import {
   Info,
   ChevronRight,
   ChevronDown,
-  Toggle,
   ToggleLeft,
   ToggleRight,
   Building,
@@ -2667,9 +2666,9 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Vérifier la taille (max 10 Mo)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('❌ Le fichier est trop volumineux (max 10 Mo)');
+      // Vérifier la taille (max 5 Mo pour stockage base64)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('❌ Le fichier est trop volumineux (max 5 Mo)');
         return;
       }
       // Vérifier le type
@@ -2687,6 +2686,16 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
     }
   };
 
+  // Convertir un fichier en base64 Data URL
+  const fileToDataURL = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Upload du document
   const handleUpload = async () => {
     if (!selectedEmployee || !uploadForm.title || !uploadFile) {
@@ -2694,10 +2703,17 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
       return;
     }
 
+    // Vérifier la taille pour le stockage base64 (limite à 5MB pour Firestore)
+    if (uploadFile.size > 5 * 1024 * 1024) {
+      alert('❌ Le fichier est trop volumineux pour le stockage (max 5 Mo). Veuillez compresser le fichier.');
+      return;
+    }
+
     setUploading(true);
     try {
-      // TODO: Dans un vrai cas, uploader d'abord le fichier vers Firebase Storage
-      // et récupérer l'URL. Pour l'instant on enregistre les métadonnées.
+      // Convertir le fichier en base64 Data URL pour le stockage
+      const fileDataUrl = await fileToDataURL(uploadFile);
+
       const result = await hrDocumentService.createDocument({
         employeeId: selectedEmployee.id,
         employeeName: selectedEmployee.name,
@@ -2708,6 +2724,7 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
         fileName: uploadFile.name,
         fileSize: uploadFile.size,
         mimeType: uploadFile.type,
+        fileUrl: fileDataUrl, // Stocker le fichier en base64
         uploadedBy: currentUser.uid,
         uploadedByName: currentUser.displayName || currentUser.email
       });
@@ -2715,6 +2732,7 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
       if (result.success) {
         setShowUploadModal(false);
         setUploadFile(null);
+        setUploadForm({ type: 'payslip', title: '', description: '', period: '' });
         alert('✅ Document ajouté avec succès !');
       } else {
         alert('❌ Erreur: ' + result.error);
@@ -2733,6 +2751,19 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
     await hrDocumentService.deleteDocument(docId, isAdmin);
   };
 
+  // Convertir une Data URL en Blob
+  const dataURLtoBlob = (dataURL) => {
+    const arr = dataURL.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
   // Télécharger un document
   const handleDownloadDocument = async (doc) => {
     // Marquer comme vu
@@ -2743,17 +2774,34 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
     );
 
     if (doc.fileUrl) {
-      // Si on a une URL de fichier, télécharger
-      const link = document.createElement('a');
-      link.href = doc.fileUrl;
-      link.download = doc.fileName || 'document';
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        // Si c'est une Data URL (base64), convertir en Blob pour le téléchargement
+        if (doc.fileUrl.startsWith('data:')) {
+          const blob = dataURLtoBlob(doc.fileUrl);
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = doc.fileName || 'document';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        } else {
+          // URL externe normale
+          const link = document.createElement('a');
+          link.href = doc.fileUrl;
+          link.download = doc.fileName || 'document';
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (error) {
+        console.error('Erreur téléchargement:', error);
+        alert('❌ Erreur lors du téléchargement du fichier');
+      }
     } else {
-      // Pas encore d'URL (stockage non implémenté)
-      alert('Le fichier n\'est pas encore disponible au téléchargement. Le stockage des fichiers sera bientôt disponible.');
+      alert('❌ Le fichier n\'est pas disponible. Veuillez re-uploader le document.');
     }
   };
 
@@ -2767,11 +2815,23 @@ const DocumentsTab = ({ documents, employees, onRefresh, currentUser, isAdmin })
     );
 
     if (doc.fileUrl) {
-      // Ouvrir dans un nouvel onglet
-      window.open(doc.fileUrl, '_blank');
+      try {
+        // Si c'est une Data URL (base64), convertir en Blob URL pour l'affichage
+        if (doc.fileUrl.startsWith('data:')) {
+          const blob = dataURLtoBlob(doc.fileUrl);
+          const blobUrl = URL.createObjectURL(blob);
+          window.open(blobUrl, '_blank');
+          // Note: Le Blob URL sera révoqué quand l'onglet sera fermé
+        } else {
+          // URL externe normale
+          window.open(doc.fileUrl, '_blank');
+        }
+      } catch (error) {
+        console.error('Erreur visualisation:', error);
+        alert('❌ Erreur lors de l\'ouverture du fichier');
+      }
     } else {
-      // Pas encore d'URL (stockage non implémenté)
-      alert('Le fichier n\'est pas encore disponible à la visualisation. Le stockage des fichiers sera bientôt disponible.');
+      alert('❌ Le fichier n\'est pas disponible. Veuillez re-uploader le document.');
     }
   };
 
