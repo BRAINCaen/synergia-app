@@ -160,6 +160,7 @@ const HRPage = () => {
   const [employees, setEmployees] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [timesheets, setTimesheets] = useState([]);
+  const [leaves, setLeaves] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -249,6 +250,12 @@ const HRPage = () => {
       const timesheetsSnapshot = await getDocs(timesheetsQuery);
       const timesheetsData = timesheetsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTimesheets(timesheetsData);
+
+      // Charger les congés pour PayrollTab
+      const leavesQuery = query(collection(db, 'leave_requests'), orderBy('createdAt', 'desc'));
+      const leavesSnapshot = await getDocs(leavesQuery);
+      const leavesData = leavesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setLeaves(leavesData);
 
       calculateStats(employeesData, timesheetsData);
 
