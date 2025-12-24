@@ -11,7 +11,7 @@ import {
   ShoppingCart, Clock, User, Calendar, TrendingUp, Crown,
   Shield, Eye, EyeOff, Package, Zap, Heart, Coffee, Gamepad2,
   MapPin, Camera, Music, Book, Palette, Dumbbell, ChefHat, Save,
-  SlidersHorizontal
+  SlidersHorizontal, Lightbulb, Send, Sparkles
 } from 'lucide-react';
 import notificationService from '../core/services/notificationService.js';
 
@@ -326,6 +326,12 @@ const RewardsPage = () => {
   const [contributionAmount, setContributionAmount] = useState(100);
   const [topContributors, setTopContributors] = useState([]);
 
+  // Etats suggestions
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [suggestionForm, setSuggestionForm] = useState({ name: '', description: '', estimatedCost: '' });
+  const [submittingSuggestion, setSubmittingSuggestion] = useState(false);
+  const [recentSuggestions, setRecentSuggestions] = useState([]);
+
   // Hook cagnotte
   const {
     stats: poolStats, loading: poolLoading, contributing,
@@ -382,7 +388,7 @@ const RewardsPage = () => {
       const requestsSnapshot = await getDocs(requestsQuery);
       setUserRewards(requestsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-      await loadTopContributors();
+      await Promise.all([loadTopContributors(), loadRecentSuggestions()]);
     } catch (error) {
       console.error('Erreur chargement:', error);
     } finally {
@@ -410,6 +416,85 @@ const RewardsPage = () => {
       );
     } catch (err) {
       console.error('Erreur contributeurs:', err);
+    }
+  };
+
+  // Charger les suggestions récentes
+  const loadRecentSuggestions = async () => {
+    try {
+      const q = query(
+        collection(db, 'rewardSuggestions'),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
+      const snapshot = await getDocs(q);
+      setRecentSuggestions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (err) {
+      console.error('Erreur chargement suggestions:', err);
+    }
+  };
+
+  // Soumettre une suggestion
+  const handleSubmitSuggestion = async (e) => {
+    e.preventDefault();
+    if (!suggestionForm.name.trim()) return;
+
+    setSubmittingSuggestion(true);
+    try {
+      await addDoc(collection(db, 'rewardSuggestions'), {
+        name: suggestionForm.name.trim(),
+        description: suggestionForm.description.trim(),
+        estimatedCost: suggestionForm.estimatedCost ? parseInt(suggestionForm.estimatedCost) : null,
+        userId: user.uid,
+        userName: user.displayName || user.email,
+        status: 'pending',
+        votes: 0,
+        votedBy: [],
+        createdAt: serverTimestamp()
+      });
+
+      setShowSuggestionModal(false);
+      setSuggestionForm({ name: '', description: '', estimatedCost: '' });
+      await loadRecentSuggestions();
+
+      // Notification de succès
+      alert('🎉 Merci pour ta suggestion ! Elle sera examinée par l\'équipe.');
+    } catch (error) {
+      console.error('Erreur suggestion:', error);
+      alert('Erreur lors de l\'envoi de la suggestion');
+    } finally {
+      setSubmittingSuggestion(false);
+    }
+  };
+
+  // Voter pour une suggestion
+  const handleVoteSuggestion = async (suggestionId) => {
+    try {
+      const suggestionRef = doc(db, 'rewardSuggestions', suggestionId);
+      const suggestionSnap = await getDoc(suggestionRef);
+
+      if (!suggestionSnap.exists()) return;
+
+      const data = suggestionSnap.data();
+      const votedBy = data.votedBy || [];
+
+      if (votedBy.includes(user.uid)) {
+        // Retirer le vote
+        await updateDoc(suggestionRef, {
+          votes: (data.votes || 1) - 1,
+          votedBy: votedBy.filter(id => id !== user.uid)
+        });
+      } else {
+        // Ajouter le vote
+        await updateDoc(suggestionRef, {
+          votes: (data.votes || 0) + 1,
+          votedBy: [...votedBy, user.uid]
+        });
+      }
+
+      await loadRecentSuggestions();
+    } catch (error) {
+      console.error('Erreur vote:', error);
     }
   };
 
@@ -752,6 +837,71 @@ const RewardsPage = () => {
               gradient="from-blue-500/10 to-blue-600/5"
             />
           </div>
+
+          {/* SECTION SUGGESTIONS */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
+          >
+            <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-pink-500/10 border border-amber-400/30 rounded-2xl p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                {/* Texte d'incitation */}
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                    <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-sm sm:text-base flex items-center gap-2">
+                      Une idee de recompense ?
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                    </h3>
+                    <p className="text-gray-400 text-xs sm:text-sm mt-0.5">
+                      Propose une recompense que tu aimerais voir dans la boutique !
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bouton suggérer */}
+                <button
+                  onClick={() => setShowSuggestionModal(true)}
+                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg shadow-amber-500/20 whitespace-nowrap"
+                >
+                  <Send className="w-4 h-4" />
+                  <span className="text-sm sm:text-base">Suggerer</span>
+                </button>
+              </div>
+
+              {/* Suggestions récentes (si il y en a) */}
+              {recentSuggestions.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    Suggestions populaires
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {recentSuggestions.slice(0, 3).map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        onClick={() => handleVoteSuggestion(suggestion.id)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs transition-all ${
+                          suggestion.votedBy?.includes(user?.uid)
+                            ? 'bg-amber-500/30 text-amber-300 border border-amber-500/50'
+                            : 'bg-white/5 text-gray-400 border border-white/10 hover:border-amber-500/30'
+                        }`}
+                      >
+                        <Heart className={`w-3 h-3 ${suggestion.votedBy?.includes(user?.uid) ? 'fill-amber-400' : ''}`} />
+                        <span className="truncate max-w-[120px]">{suggestion.name}</span>
+                        <span className="bg-white/10 px-1.5 py-0.5 rounded text-[10px]">
+                          {suggestion.votes || 0}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
 
           {/* INFO SYSTEM */}
           <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-400/30 rounded-xl p-3 sm:p-4 mb-6">
@@ -1255,6 +1405,107 @@ const RewardsPage = () => {
                   {contributing ? 'En cours...' : `Contribuer ${contributionAmount} XP`}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL SUGGESTION */}
+      <AnimatePresence>
+        {showSuggestionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
+            onClick={() => setShowSuggestionModal(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-slate-800 border-t sm:border border-white/20 rounded-t-3xl sm:rounded-xl p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-center sm:hidden mb-4">
+                <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+              </div>
+
+              <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                <Lightbulb className="w-6 h-6 text-amber-400" />
+                Suggerer une recompense
+              </h2>
+              <p className="text-gray-400 text-sm mb-6">
+                Propose une recompense que tu aimerais voir dans la boutique. Les suggestions les plus populaires seront ajoutees !
+              </p>
+
+              <form onSubmit={handleSubmitSuggestion} className="space-y-4">
+                <div>
+                  <label className="block text-gray-300 text-sm mb-1">Nom de la recompense *</label>
+                  <input
+                    type="text"
+                    value={suggestionForm.name}
+                    onChange={(e) => setSuggestionForm({...suggestionForm, name: e.target.value})}
+                    placeholder="Ex: Journee teletravail, Carte cinema..."
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-3 text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 text-sm mb-1">Description (optionnel)</label>
+                  <textarea
+                    value={suggestionForm.description}
+                    onChange={(e) => setSuggestionForm({...suggestionForm, description: e.target.value})}
+                    placeholder="Decris ta recompense ideale..."
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-3 text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none resize-none"
+                    rows="3"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-300 text-sm mb-1">Cout XP suggere (optionnel)</label>
+                  <input
+                    type="number"
+                    value={suggestionForm.estimatedCost}
+                    onChange={(e) => setSuggestionForm({...suggestionForm, estimatedCost: e.target.value})}
+                    placeholder="Ex: 500"
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-3 text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+                    min="1"
+                  />
+                  <p className="text-gray-500 text-xs mt-1">
+                    Le cout final sera determine par l'equipe
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowSuggestionModal(false)}
+                    className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingSuggestion || !suggestionForm.name.trim()}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submittingSuggestion ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Envoi...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        Envoyer
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}
