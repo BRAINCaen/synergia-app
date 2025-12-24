@@ -1732,10 +1732,13 @@ const MentoringPage = () => {
         }
 
         // Si tuteur ou admin, charger la liste des alternants depuis la collection users
+        console.log(`🔍 [ALTERNANCE] Condition tuteur/admin: isTut=${isTut}, isUserAdmin=${isUserAdmin}`);
         if (isTut || isUserAdmin) {
+          console.log('📂 [ALTERNANCE] Chargement des utilisateurs...');
           // 1. Charger tous les utilisateurs avec la permission alternant
           const usersRef = collection(db, 'users');
           const usersSnapshot = await getDocs(usersRef);
+          console.log(`📊 [ALTERNANCE] ${usersSnapshot.docs.length} utilisateurs chargés`);
 
           // Filtrer les alternants (ceux avec la permission ou le flag)
           // NOTE: modulePermissions.alternance est un TABLEAU de strings!
@@ -1757,6 +1760,15 @@ const MentoringPage = () => {
               // Sinon, le tuteur voit tous les alternants sans tuteur assigné
               return true;
             });
+
+          console.log(`👥 [ALTERNANCE] ${alternantUsers.length} alternant(s) après filtrage:`,
+            alternantUsers.map(u => ({
+              name: u.displayName || u.email,
+              perms: u.modulePermissions?.alternance,
+              contractType: u.contractType,
+              isAlternant: u.isAlternant
+            }))
+          );
 
           // 2. Pour chaque alternant, charger ses données de tracking
           const alternants = await Promise.all(alternantUsers.map(async (altUser) => {
