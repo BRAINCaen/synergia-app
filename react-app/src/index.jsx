@@ -22,7 +22,7 @@ import App from './App.jsx'
 import './index.css'
 
 // 🚀 Configuration complète de l'environnement
-console.log('🔧 [MAIN] Synergia v4.0.0 - Initialisation avec corrections d\'urgence');
+console.log('🔧 [MAIN] Synergia v4.1.0 - Initialisation avec corrections d\'urgence');
 console.log('🚨 [EMERGENCY] Corrections Users appliquées');
 
 // Configuration de développement avancée
@@ -155,7 +155,7 @@ if (!container) {
     
     root.render(<AppWithStrictMode />)
     
-    console.log('🚀 [MAIN] ✅ Synergia v4.0.0 démarré avec succès');
+    console.log('🚀 [MAIN] ✅ Synergia v4.1.0 démarré avec succès');
     console.log('📁 [MAIN] Architecture: index.jsx → App.jsx → routes/index.jsx');
     console.log('🎯 [MAIN] Router: COMPLET avec toutes les pages');
     console.log('🛡️ [MAIN] Sécurité: Protection routes + admin active');

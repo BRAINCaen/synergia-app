@@ -2104,13 +2104,17 @@ const MentoringPage = () => {
   // Handler pour créer un objectif personnalisé
   const handleCreateObjective = async (objectiveData) => {
     try {
+      // Ne pas inclure l'ID temporaire dans Firestore - Firestore génère son propre ID
+      const { id: tempId, ...dataWithoutId } = objectiveData;
+
       const docRef = await addDoc(collection(db, 'alternance_objectives'), {
-        ...objectiveData,
+        ...dataWithoutId,
         createdAt: serverTimestamp(),
         createdBy: user?.uid
       });
 
-      setCustomObjectives(prev => [...prev, { id: docRef.id, ...objectiveData }]);
+      // Utiliser l'ID généré par Firestore (docRef.id), pas l'ID temporaire
+      setCustomObjectives(prev => [...prev, { ...dataWithoutId, id: docRef.id }]);
       alert('✅ Objectif créé avec succès !');
       return true;
     } catch (error) {

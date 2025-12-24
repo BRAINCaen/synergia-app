@@ -18,33 +18,39 @@ import {
 export const CHANGELOG = [
   {
     version: '4.1.0',
-    date: '22 Décembre 2024',
-    title: 'La Taverne & Améliorations Sociales',
+    date: '24 Décembre 2024',
+    title: 'Module Alternance & Objectifs Personnalisables',
     isNew: true,
     highlights: [
       {
+        icon: '🎓',
+        title: 'Module Alternance amélioré',
+        description: 'Gestion complète des parcours d\'alternants avec sélection multi-alternants pour les tuteurs.',
+        type: 'feature'
+      },
+      {
+        icon: '🎯',
+        title: 'Objectifs personnalisables',
+        description: 'Les tuteurs peuvent créer, modifier et supprimer des objectifs scolaires. Fonctionne aussi sur les objectifs par défaut !',
+        type: 'feature'
+      },
+      {
+        icon: '✅',
+        title: 'Validation XP corrigée',
+        description: 'L\'XP est maintenant correctement attribué à l\'alternant sélectionné, pas au tuteur.',
+        type: 'fix'
+      },
+      {
+        icon: '🔧',
+        title: 'Corrections techniques',
+        description: 'Fix des permissions (tableau vs objet), import Firebase manquant, chargement des alternants.',
+        type: 'fix'
+      },
+      {
         icon: '🍺',
-        title: 'Nouvelle page : La Taverne',
-        description: 'Un espace social dédié combinant messagerie et boosts. Échangez avec vos collègues dans un lieu convivial !',
+        title: 'La Taverne',
+        description: 'Espace social combinant messagerie et boosts pour échanger avec vos collègues.',
         type: 'feature'
-      },
-      {
-        icon: '💬',
-        title: 'Messagerie intégrée',
-        description: 'Envoyez des messages privés à vos collègues directement depuis la Taverne. Conversations en temps réel !',
-        type: 'feature'
-      },
-      {
-        icon: '⚡',
-        title: 'Boosts centralisés',
-        description: 'Tous vos boosts reçus et envoyés sont maintenant visibles dans la Taverne avec des statistiques détaillées.',
-        type: 'improvement'
-      },
-      {
-        icon: '📚',
-        title: 'Guide mis à jour',
-        description: 'Le tutoriel a été enrichi avec les nouvelles sections Taverne et Équipe.',
-        type: 'improvement'
       }
     ]
   },

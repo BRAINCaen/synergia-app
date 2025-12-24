@@ -28,7 +28,7 @@ const LoadingScreen = ({ message = "Chargement...", subtitle = null }) => {
         <h1 className="text-4xl font-bold text-white mb-2">
           Synergia
           <span className="ml-3 px-3 py-1 text-sm bg-gradient-to-r from-blue-500 to-purple-600 rounded-full">
-            v3.5.1
+            v4.1.0
           </span>
         </h1>
         

@@ -332,7 +332,7 @@ const Login = () => {
             <span>Firebase Auth</span>
           </div>
           <div className="w-1 h-1 rounded-full bg-gray-700" />
-          <span>v4.0</span>
+          <span>v4.1.0</span>
         </motion.div>
       </div>
     </div>

@@ -168,7 +168,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
                   color: 'rgba(156, 163, 175, 1)',
                   margin: '4px 0 0 0'
                 }}>
-                  v3.5 - Menu Principal
+                  v4.1.0 - Menu Principal
                 </p>
               </div>
             </div>
