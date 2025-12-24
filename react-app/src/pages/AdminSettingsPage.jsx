@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminSettingsPage.jsx
-// PAGE PARAMÈTRES SYSTÈME v4.0.0 - TOUS LES MODULES
+// PAGE PARAMÈTRES SYSTÈME v4.1.0 - TOUS LES MODULES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -81,7 +81,7 @@ const showNotification = (message, type = 'info') => {
 };
 
 /**
- * ⚙️ PAGE PARAMÈTRES SYSTÈME ADMINISTRATION v4.0.0
+ * ⚙️ PAGE PARAMÈTRES SYSTÈME ADMINISTRATION v4.1.0
  */
 const AdminSettingsPage = () => {
   const { user } = useAuthStore();
@@ -302,7 +302,7 @@ const AdminSettingsPage = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      console.log('⚙️ Chargement des paramètres système v4.0.0...');
+      console.log('⚙️ Chargement des paramètres système v4.1.0...');
 
       const settingsRef = doc(db, 'systemSettings', 'main');
       const settingsDoc = await getDoc(settingsRef);
@@ -318,7 +318,7 @@ const AdminSettingsPage = () => {
         await saveSettings(settings);
       }
 
-      console.log('✅ Paramètres v4.0.0 chargés avec succès');
+      console.log('✅ Paramètres v4.1.0 chargés avec succès');
     } catch (error) {
       console.error('❌ Erreur chargement paramètres:', error);
       showNotification('Erreur lors du chargement des paramètres', 'error');
@@ -333,7 +333,7 @@ const AdminSettingsPage = () => {
   const saveSettings = async (settingsToSave = settings) => {
     try {
       setSaving(true);
-      console.log('💾 Sauvegarde des paramètres v4.0.0...');
+      console.log('💾 Sauvegarde des paramètres v4.1.0...');
 
       const settingsRef = doc(db, 'systemSettings', 'main');
       await setDoc(settingsRef, {
@@ -852,7 +852,7 @@ const AdminSettingsPage = () => {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement des paramètres v4.0.0...</p>
+            <p className="text-gray-400">Chargement des paramètres v4.1.0...</p>
           </div>
         </div>
       </Layout>
