@@ -247,8 +247,8 @@ const TeamChallengeCard = ({
             </div>
           </div>
 
-          {/* Actions selon le statut */}
-          {isActive && !isAdmin && (
+          {/* Actions selon le statut - Bouton Contribuer pour tous (y compris admins) */}
+          {isActive && (
             <button
               onClick={() => setShowContributeModal(true)}
               className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-500/30"
