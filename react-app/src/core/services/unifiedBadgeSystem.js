@@ -133,6 +133,18 @@ export const UNIFIED_BADGE_DEFINITIONS = {
     trigger: 'task_completed'
   },
 
+  five_tasks: {
+    id: 'five_tasks',
+    name: '5 Quêtes',
+    description: 'Compléter 5 quêtes',
+    icon: '📋',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.PRODUCTIVITY,
+    xpReward: 35,
+    autoCheck: (userData) => (userData.gamification?.tasksCompleted || 0) >= 5,
+    trigger: 'task_completed'
+  },
+
   task_enthusiast: {
     id: 'task_enthusiast',
     name: 'Enthousiaste',

@@ -62,6 +62,19 @@ export const BADGE_DEFINITIONS = {
     }
   },
 
+  five_tasks: {
+    id: 'five_tasks',
+    name: '5 Quêtes',
+    description: 'Compléter 5 quêtes',
+    icon: '📋',
+    rarity: 'common',
+    category: 'productivity',
+    xpReward: 35,
+    condition: (stats) => {
+      return stats.tasksCompleted >= 5;
+    }
+  },
+
   task_enthusiast: {
     id: 'task_enthusiast',
     name: 'Enthousiaste',
