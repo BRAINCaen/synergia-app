@@ -209,12 +209,33 @@ const OBJECTIVE_CATEGORIES = {
   milestones: { label: 'Étapes clés', icon: Trophy, color: 'indigo' }
 };
 
-const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin, isTutor, isAlternant, tutoredAlternants = [] }) => {
+const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpdateObjective, onDeleteObjective, alternanceData, isAdmin, isTutor, isAlternant, tutoredAlternants = [], customObjectives = [] }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showValidateModal, setShowValidateModal] = useState(false);
   const [selectedObjective, setSelectedObjective] = useState(null);
   const [validationNote, setValidationNote] = useState('');
   const [selectedAlternantId, setSelectedAlternantId] = useState(null);
+
+  // États pour la gestion des objectifs personnalisés
+  const [showObjectiveModal, setShowObjectiveModal] = useState(false);
+  const [editingObjective, setEditingObjective] = useState(null);
+  const [objectiveForm, setObjectiveForm] = useState({
+    title: '',
+    description: '',
+    xpReward: 50,
+    category: 'work',
+    color: 'blue'
+  });
+
+  // Combiner les objectifs par défaut avec les objectifs personnalisés
+  const allObjectives = [
+    ...SCHOOL_OBJECTIVES,
+    ...customObjectives.map(obj => ({
+      ...obj,
+      icon: OBJECTIVE_CATEGORIES[obj.category]?.icon || Target,
+      isCustom: true
+    }))
+  ];
 
   // Pour les tuteurs/admins, permettre de sélectionner un alternant
   const currentAlternantData = selectedAlternantId
@@ -245,8 +266,58 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin,
 
   // Filtrer les objectifs par catégorie
   const filteredObjectives = selectedCategory === 'all'
-    ? SCHOOL_OBJECTIVES
-    : SCHOOL_OBJECTIVES.filter(obj => obj.category === selectedCategory);
+    ? allObjectives
+    : allObjectives.filter(obj => obj.category === selectedCategory);
+
+  // Handlers pour la gestion des objectifs personnalisés
+  const handleOpenCreateObjective = () => {
+    setEditingObjective(null);
+    setObjectiveForm({
+      title: '',
+      description: '',
+      xpReward: 50,
+      category: 'work',
+      color: 'blue'
+    });
+    setShowObjectiveModal(true);
+  };
+
+  const handleOpenEditObjective = (objective) => {
+    setEditingObjective(objective);
+    setObjectiveForm({
+      title: objective.title,
+      description: objective.description,
+      xpReward: objective.xpReward,
+      category: objective.category,
+      color: objective.color
+    });
+    setShowObjectiveModal(true);
+  };
+
+  const handleSaveObjective = async () => {
+    if (!objectiveForm.title.trim()) {
+      alert('❌ Le titre est obligatoire');
+      return;
+    }
+
+    if (editingObjective) {
+      // Modification
+      await onUpdateObjective?.(editingObjective.id, objectiveForm);
+    } else {
+      // Création
+      await onCreateObjective?.({
+        ...objectiveForm,
+        id: `custom_${Date.now()}`,
+        frequency: 'per_event'
+      });
+    }
+    setShowObjectiveModal(false);
+  };
+
+  const handleDeleteObjective = async (objective) => {
+    if (!confirm(`Supprimer l'objectif "${objective.title}" ?`)) return;
+    await onDeleteObjective?.(objective.id);
+  };
 
   // Vérifier si un objectif a été validé
   const isObjectiveCompleted = (objectiveId) => {
@@ -489,6 +560,26 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin,
                 +{objective.xpReward} XP
               </div>
 
+              {/* Boutons edit/delete pour les objectifs personnalisés (tuteur/admin) */}
+              {canValidate && objective.isCustom && (
+                <div className="absolute top-2 right-14 flex gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleOpenEditObjective(objective); }}
+                    className="p-1 rounded bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 transition-colors"
+                    title="Modifier"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteObjective(objective); }}
+                    className="p-1 rounded bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-lg ${colors.bg}`}>
                   <ObjIcon className={`w-5 h-5 ${colors.text}`} />
@@ -527,6 +618,19 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin,
           );
         })}
       </div>
+
+      {/* Bouton créer un objectif personnalisé (tuteur/admin) */}
+      {canValidate && (
+        <div className="relative mt-4">
+          <button
+            onClick={handleOpenCreateObjective}
+            className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-500/30 hover:border-indigo-500/50 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-400 font-medium text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Créer un objectif personnalisé
+          </button>
+        </div>
+      )}
 
       {/* Message motivation */}
       <div className="relative mt-6 p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 rounded-xl border border-indigo-500/20 text-center">
@@ -598,6 +702,126 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin,
                   className={`flex-1 px-4 py-3 bg-gradient-to-r ${colorClasses[selectedObjective.color].gradient} text-white font-medium rounded-xl hover:opacity-90 transition-opacity`}
                 >
                   Valider +{selectedObjective.xpReward} XP
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal création/modification d'objectif */}
+      <AnimatePresence>
+        {showObjectiveModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowObjectiveModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 rounded-xl bg-indigo-500/20">
+                  <Target className="w-6 h-6 text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    {editingObjective ? 'Modifier l\'objectif' : 'Nouvel objectif'}
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    {editingObjective ? 'Modifiez les détails de l\'objectif' : 'Créez un objectif personnalisé pour vos alternants'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Formulaire */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Titre *</label>
+                  <input
+                    type="text"
+                    value={objectiveForm.title}
+                    onChange={(e) => setObjectiveForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Ex: Rapport mensuel validé"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Description</label>
+                  <textarea
+                    value={objectiveForm.description}
+                    onChange={(e) => setObjectiveForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Décrivez l'objectif à atteindre..."
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Récompense XP</label>
+                    <input
+                      type="number"
+                      min="10"
+                      max="1000"
+                      step="10"
+                      value={objectiveForm.xpReward}
+                      onChange={(e) => setObjectiveForm(prev => ({ ...prev, xpReward: parseInt(e.target.value) || 50 }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Catégorie</label>
+                    <select
+                      value={objectiveForm.category}
+                      onChange={(e) => setObjectiveForm(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                    >
+                      {Object.entries(OBJECTIVE_CATEGORIES).map(([key, cat]) => (
+                        <option key={key} value={key} className="bg-gray-800">
+                          {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Couleur</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['emerald', 'blue', 'amber', 'purple', 'pink', 'indigo', 'cyan', 'rose'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setObjectiveForm(prev => ({ ...prev, color }))}
+                        className={`w-8 h-8 rounded-full transition-all ${
+                          objectiveForm.color === color ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-900' : ''
+                        }`}
+                        style={{ backgroundColor: `var(--color-${color}-500, ${color === 'emerald' ? '#10b981' : color === 'blue' ? '#3b82f6' : color === 'amber' ? '#f59e0b' : color === 'purple' ? '#a855f7' : color === 'pink' ? '#ec4899' : color === 'indigo' ? '#6366f1' : color === 'cyan' ? '#06b6d4' : '#f43f5e'})` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowObjectiveModal(false)}
+                  className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveObjective}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  {editingObjective ? 'Enregistrer' : 'Créer l\'objectif'}
                 </button>
               </div>
             </motion.div>
@@ -1624,6 +1848,7 @@ const MentoringPage = () => {
   const [isAlternant, setIsAlternant] = useState(false);
   const [isTutor, setIsTutor] = useState(false);
   const [tutoredAlternants, setTutoredAlternants] = useState([]);
+  const [customObjectives, setCustomObjectives] = useState([]);
 
   // Types de formations
   const trainingTypes = [
@@ -1829,6 +2054,83 @@ const MentoringPage = () => {
 
     loadAlternanceData();
   }, [user?.uid, user?.modulePermissions, user?.isAdmin]);
+
+  // Charger les objectifs personnalisés
+  useEffect(() => {
+    const loadCustomObjectives = async () => {
+      try {
+        const objectivesRef = collection(db, 'alternance_objectives');
+        const objectivesSnapshot = await getDocs(objectivesRef);
+        const objectives = objectivesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setCustomObjectives(objectives);
+        console.log(`📋 [OBJECTIVES] ${objectives.length} objectif(s) personnalisé(s) chargé(s)`);
+      } catch (error) {
+        console.error('Erreur chargement objectifs personnalisés:', error);
+      }
+    };
+
+    loadCustomObjectives();
+  }, []);
+
+  // Handler pour créer un objectif personnalisé
+  const handleCreateObjective = async (objectiveData) => {
+    try {
+      const docRef = await addDoc(collection(db, 'alternance_objectives'), {
+        ...objectiveData,
+        createdAt: serverTimestamp(),
+        createdBy: user?.uid
+      });
+
+      setCustomObjectives(prev => [...prev, { id: docRef.id, ...objectiveData }]);
+      alert('✅ Objectif créé avec succès !');
+      return true;
+    } catch (error) {
+      console.error('Erreur création objectif:', error);
+      alert('❌ Erreur lors de la création');
+      return false;
+    }
+  };
+
+  // Handler pour modifier un objectif personnalisé
+  const handleUpdateObjective = async (objectiveId, objectiveData) => {
+    try {
+      const { doc: docFn, updateDoc } = await import('firebase/firestore');
+      await updateDoc(docFn(db, 'alternance_objectives', objectiveId), {
+        ...objectiveData,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.uid
+      });
+
+      setCustomObjectives(prev => prev.map(obj =>
+        obj.id === objectiveId ? { ...obj, ...objectiveData } : obj
+      ));
+      alert('✅ Objectif modifié avec succès !');
+      return true;
+    } catch (error) {
+      console.error('Erreur modification objectif:', error);
+      alert('❌ Erreur lors de la modification');
+      return false;
+    }
+  };
+
+  // Handler pour supprimer un objectif personnalisé
+  const handleDeleteObjective = async (objectiveId) => {
+    try {
+      const { doc: docFn, deleteDoc } = await import('firebase/firestore');
+      await deleteDoc(docFn(db, 'alternance_objectives', objectiveId));
+
+      setCustomObjectives(prev => prev.filter(obj => obj.id !== objectiveId));
+      alert('✅ Objectif supprimé !');
+      return true;
+    } catch (error) {
+      console.error('Erreur suppression objectif:', error);
+      alert('❌ Erreur lors de la suppression');
+      return false;
+    }
+  };
 
   // Fonction pour valider un objectif scolaire
   // alternantData peut être passé pour valider pour un alternant spécifique (tuteur/admin)
@@ -2597,6 +2899,10 @@ const MentoringPage = () => {
               user={user}
               alternanceData={alternanceData}
               onValidateObjective={handleValidateSchoolObjective}
+              onCreateObjective={handleCreateObjective}
+              onUpdateObjective={handleUpdateObjective}
+              onDeleteObjective={handleDeleteObjective}
+              customObjectives={customObjectives}
               isAdmin={user?.isAdmin || user?.role === 'admin'}
               isTutor={isTutor}
               isAlternant={isAlternant}
