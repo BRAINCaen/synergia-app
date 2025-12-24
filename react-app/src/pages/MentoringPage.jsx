@@ -1848,6 +1848,13 @@ const MentoringPage = () => {
     }
 
     try {
+      console.log('🎯 [VALIDATION] Début validation pour:', {
+        alternantUserId,
+        alternantUserName,
+        objectiveData,
+        targetData: targetData ? { id: targetData.id, userId: targetData.userId } : null
+      });
+
       const newObjective = {
         ...objectiveData,
         validatedBy: user.uid,
@@ -1859,8 +1866,10 @@ const MentoringPage = () => {
       const newTotalXp = (targetData.totalXpEarned || 0) + objectiveData.xpReward;
 
       // Mettre à jour ou créer le document de tracking pour l'ALTERNANT
+      console.log('📝 [VALIDATION] Recherche tracking existant...');
       const altRef = collection(db, 'alternance_tracking');
       const docRef = await getDocs(query(altRef, where('userId', '==', alternantUserId)));
+      console.log('📝 [VALIDATION] Tracking existant:', !docRef.empty);
 
       if (!docRef.empty) {
         const { updateDoc, doc: docFn } = await import('firebase/firestore');
@@ -1869,6 +1878,7 @@ const MentoringPage = () => {
           totalXpEarned: newTotalXp,
           updatedAt: serverTimestamp()
         });
+        console.log('✅ [VALIDATION] Tracking mis à jour');
       } else {
         // Créer le document pour cet alternant
         await addDoc(collection(db, 'alternance_tracking'), {
@@ -1879,6 +1889,7 @@ const MentoringPage = () => {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
+        console.log('✅ [VALIDATION] Nouveau tracking créé');
       }
 
       // 🎯 IMPORTANT: Ajouter l'XP au profil de L'ALTERNANT (pas du tuteur!)
@@ -1917,8 +1928,10 @@ const MentoringPage = () => {
       alert(`✅ Objectif validé pour ${alternantUserName} ! +${objectiveData.xpReward} XP`);
       return true;
     } catch (error) {
-      console.error('Erreur validation objectif:', error);
-      alert('❌ Erreur lors de la validation');
+      console.error('❌ [VALIDATION] Erreur complète:', error);
+      console.error('❌ [VALIDATION] Message:', error.message);
+      console.error('❌ [VALIDATION] Code:', error.code);
+      alert(`❌ Erreur lors de la validation: ${error.message}`);
       return false;
     }
   };
