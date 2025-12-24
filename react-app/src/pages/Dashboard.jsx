@@ -108,7 +108,8 @@ const Dashboard = () => {
   }
 
   const userRank = getUserRank();
-  const topUsers = leaderboard.slice(0, 5);
+  // Tous les utilisateurs pour le classement complet
+  const allUsers = leaderboard;
   // Utiliser la valeur max entre xpStats (calculée) et gamification.loginStreak (trackée)
   // pour éviter d'afficher 0 si une des sources manque de données
   const currentStreak = Math.max(
@@ -393,130 +394,81 @@ const Dashboard = () => {
             )}
           </motion.div>
 
-          {/* GRILLE INFÉRIEURE */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          {/* RÉUSSITES */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8"
+          >
+            <div className="flex items-center gap-3 mb-4 sm:mb-6">
+              <div className="p-2.5 sm:p-3 rounded-xl bg-gradient-to-br from-yellow-600/30 to-amber-600/30">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white text-sm sm:text-base">Réussites</h3>
+                <p className="text-xs sm:text-sm text-gray-400">Vos accomplissements</p>
+              </div>
+            </div>
 
-            {/* TOP PERFORMERS */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 }}
-              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6"
-            >
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h3 className="text-sm sm:text-lg font-semibold text-white flex items-center gap-2">
-                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-                  Top Performers
-                </h3>
-                <span className="text-xs text-gray-400">{topUsers.length} utilisateurs</span>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {/* Quêtes complétées */}
+              <div className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 rounded-xl p-3 sm:p-4 border border-green-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                  <span className="text-xs sm:text-sm text-green-300">Quêtes</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{gamification.tasksCompleted}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">complétées</div>
               </div>
 
-              <div className="space-y-2 sm:space-y-3">
-                {topUsers.map((topUser, index) => (
-                  <motion.div
-                    key={topUser.id}
-                    whileHover={{ scale: 1.01 }}
-                    className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-all ${
-                      topUser.id === user?.uid
-                        ? 'bg-purple-600/20 border border-purple-500/50'
-                        : 'bg-white/5 border border-white/5 hover:bg-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${
-                        index === 0 ? 'bg-yellow-500 text-black' :
-                        index === 1 ? 'bg-gray-400 text-black' :
-                        index === 2 ? 'bg-orange-600 text-white' :
-                        'bg-gray-600 text-white'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-white font-medium text-sm sm:text-base truncate">{topUser.displayName}</div>
-                        <div className="text-xs text-gray-400">Niveau {topUser.level}</div>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-yellow-400 font-bold text-sm sm:text-base">{topUser.totalXp}</div>
-                      <div className="text-xs text-gray-400">{topUser.badges} badges</div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* SÉRIE ET RECORDS */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.45 }}
-              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6"
-            >
-              <div className="flex items-center gap-3 mb-4 sm:mb-6">
-                <div className={`p-2.5 sm:p-3 rounded-xl ${currentStreak >= 7 ? 'bg-orange-600/20' : 'bg-blue-600/20'}`}>
-                  <Flame className={`w-5 h-5 sm:w-6 sm:h-6 ${currentStreak >= 7 ? 'text-orange-400' : 'text-blue-400'}`} />
+              {/* Projets créés */}
+              <div className="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 rounded-xl p-3 sm:p-4 border border-blue-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                  <span className="text-xs sm:text-sm text-blue-300">Projets</span>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white text-sm sm:text-base">Série & Records</h3>
-                  <p className="text-xs sm:text-sm text-gray-400">Vos performances</p>
-                </div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{gamification.projectsCreated}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">créés</div>
               </div>
 
-              {/* Série actuelle */}
-              <div className="bg-white/5 backdrop-blur-xl rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 border border-white/10">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm sm:text-base">Série actuelle</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl sm:text-2xl font-bold text-white">{currentStreak} jours</span>
-                    {currentStreak >= 7 && (
-                      <motion.span
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                        className="text-lg sm:text-xl"
-                      >
-                        🔥
-                      </motion.span>
-                    )}
-                  </div>
+              {/* Badges obtenus */}
+              <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 rounded-xl p-3 sm:p-4 border border-purple-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                  <span className="text-xs sm:text-sm text-purple-300">Badges</span>
                 </div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{gamification.badgeCount}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">débloqués</div>
               </div>
 
-              {/* Records */}
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex justify-between items-center p-2.5 sm:p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-                    <span className="text-gray-300 text-xs sm:text-sm">Meilleure journée</span>
-                  </div>
-                  <span className="text-white font-bold text-sm sm:text-base">{xpStats?.bestDay?.xp || 0} XP</span>
+              {/* XP Total */}
+              <div className="bg-gradient-to-br from-yellow-600/20 to-orange-600/20 rounded-xl p-3 sm:p-4 border border-yellow-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                  <span className="text-xs sm:text-sm text-yellow-300">XP Total</span>
                 </div>
-
-                <div className="flex justify-between items-center p-2.5 sm:p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
-                    <span className="text-gray-300 text-xs sm:text-sm">Plus longue série</span>
-                  </div>
-                  <span className="text-white font-bold text-sm sm:text-base">{xpStats?.longestStreak || currentStreak} jours</span>
-                </div>
-
-                <div className="flex justify-between items-center p-2.5 sm:p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Target className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                    <span className="text-gray-300 text-xs sm:text-sm">Projets créés</span>
-                  </div>
-                  <span className="text-white font-bold text-sm sm:text-base">{gamification.projectsCreated}</span>
-                </div>
-
-                <div className="flex justify-between items-center p-2.5 sm:p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
-                    <span className="text-gray-300 text-xs sm:text-sm">XP ce mois</span>
-                  </div>
-                  <span className="text-white font-bold text-sm sm:text-base">{gamification.monthlyXp}</span>
-                </div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{gamification.totalXp.toLocaleString()}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">accumulés</div>
               </div>
-            </motion.div>
-          </div>
+            </div>
+
+            {/* Stats additionnelles */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-4 pt-4 border-t border-white/10">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-white">{gamification.completionRate}%</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Taux de succès</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-green-400">{xpStats?.bestDay?.xp || 0}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Record XP/jour</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-purple-400">{gamification.monthlyXp}</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">XP ce mois</div>
+              </div>
+            </div>
+          </motion.div>
 
           {/* 💰 WIDGET CAGNOTTE D'ÉQUIPE */}
           <motion.div
@@ -708,6 +660,61 @@ const Dashboard = () => {
               </div>
             </motion.div>
           )}
+
+          {/* CLASSEMENT DE L'ÉQUIPE - Tous les membres */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.65 }}
+            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 mt-6 sm:mt-8"
+          >
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-sm sm:text-lg font-semibold text-white flex items-center gap-2">
+                <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                Classement de l'Équipe
+              </h3>
+              <span className="text-xs text-gray-400 bg-white/10 px-2 py-1 rounded-lg">{allUsers.length} membres</span>
+            </div>
+
+            <div className="space-y-2 sm:space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              {allUsers.map((teamUser, index) => (
+                <motion.div
+                  key={teamUser.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 + index * 0.03 }}
+                  whileHover={{ scale: 1.01 }}
+                  className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl transition-all ${
+                    teamUser.id === user?.uid
+                      ? 'bg-purple-600/20 border border-purple-500/50'
+                      : 'bg-white/5 border border-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${
+                      index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black' :
+                      index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-black' :
+                      index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                      'bg-gray-700 text-white'
+                    }`}>
+                      {index === 0 ? <Crown className="w-4 h-4" /> : index + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-white font-medium text-sm sm:text-base truncate flex items-center gap-1">
+                        {teamUser.displayName}
+                        {teamUser.id === user?.uid && <span className="text-xs text-purple-400">(vous)</span>}
+                      </div>
+                      <div className="text-xs text-gray-400">Niveau {teamUser.level}</div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-yellow-400 font-bold text-sm sm:text-base">{teamUser.totalXp?.toLocaleString()}</div>
+                    <div className="text-xs text-gray-400">{teamUser.badges} badges</div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
 
         </div>
       </div>
