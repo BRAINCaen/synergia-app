@@ -197,13 +197,13 @@ export const BADGE_DEFINITIONS = {
   mentor: {
     id: 'mentor',
     name: 'Mentor',
-    description: 'Aider 10 collègues différents',
-    icon: '🎓',
+    description: 'Responsable d\'un·e stagiaire durant toute la période de stage ! Badge acquis au terme du stage si le·a stagiaire valide le mentorat !',
+    icon: '👨‍🏫',
     rarity: 'rare',
     category: 'collaboration',
-    xpReward: 150,
+    xpReward: 300,
     condition: (stats) => {
-      return stats.helpedColleagues >= 10;
+      return stats.stagiairesValidated >= 1;
     }
   },
 
