@@ -96,6 +96,156 @@ if (typeof window !== 'undefined') {
   };
 
   console.log('🔧 [ADMIN] synergia.cleanupUsers(dryRun) disponible');
+
+  // 🏆 Fonction de rattrapage des badges (recalcule les stats et vérifie les badges)
+  window.synergia.retroactiveBadges = async (dryRun = true) => {
+    const { collection, getDocs, doc, updateDoc, query, where, setDoc } = await import('firebase/firestore');
+
+    console.log('%c🏆 RATTRAPAGE BADGES SYNERGIA', 'font-size: 20px; font-weight: bold;');
+    console.log(dryRun ? '🔍 MODE: DRY RUN (simulation)' : '⚠️ MODE: RÉEL');
+    console.log('');
+
+    const stats = { usersProcessed: 0, badgesAwarded: 0, statsUpdated: 0, errors: 0 };
+    const details = [];
+
+    try {
+      // 1. Charger tous les utilisateurs
+      const usersSnap = await getDocs(collection(db, 'users'));
+      console.log(`📊 ${usersSnap.size} utilisateurs trouvés`);
+
+      // 2. Charger toutes les tâches complétées/validées
+      const tasksSnap = await getDocs(collection(db, 'tasks'));
+      const allTasks = tasksSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const completedTasks = allTasks.filter(t => ['completed', 'validated'].includes(t.status));
+
+      console.log(`📋 ${completedTasks.length} quêtes complétées/validées trouvées`);
+      console.log('');
+
+      // 3. Calculer les stats par utilisateur
+      const userTaskCounts = {};
+      completedTasks.forEach(task => {
+        const assignedTo = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+        assignedTo.forEach(userId => {
+          if (userId?.trim()) {
+            userTaskCounts[userId] = (userTaskCounts[userId] || 0) + 1;
+          }
+        });
+      });
+
+      // 4. Charger le service de badges
+      const { default: unifiedBadgeService } = await import('./services/unifiedBadgeSystem.js');
+
+      // 5. Traiter chaque utilisateur
+      for (const userDoc of usersSnap.docs) {
+        const userId = userDoc.id;
+        const userData = userDoc.data();
+        const displayName = userData.displayName || userData.email || userId;
+
+        try {
+          const actualTasksCompleted = userTaskCounts[userId] || 0;
+          const currentTasksCompleted = userData.gamification?.tasksCompleted || 0;
+          const currentBadges = userData.gamification?.badges || [];
+
+          let needsUpdate = false;
+          const changes = [];
+
+          // Vérifier si le compteur de tâches est à jour
+          if (actualTasksCompleted !== currentTasksCompleted) {
+            needsUpdate = true;
+            changes.push(`tasksCompleted: ${currentTasksCompleted} → ${actualTasksCompleted}`);
+          }
+
+          // Mettre à jour les stats si nécessaire
+          if (needsUpdate && !dryRun) {
+            await updateDoc(doc(db, 'users', userId), {
+              'gamification.tasksCompleted': actualTasksCompleted,
+              'gamification.lastStatsSync': new Date().toISOString()
+            });
+            stats.statsUpdated++;
+          }
+
+          // Vérifier les badges (même en mode dry run pour voir ce qui serait débloqué)
+          const userDataWithCorrectStats = {
+            ...userData,
+            gamification: {
+              ...userData.gamification,
+              tasksCompleted: actualTasksCompleted
+            }
+          };
+
+          // Simuler la vérification des badges
+          const potentialBadges = [];
+          const badgeDefs = unifiedBadgeService.badgeDefinitions || {};
+
+          for (const [badgeId, badgeDef] of Object.entries(badgeDefs)) {
+            if (currentBadges.some(b => b.id === badgeId)) continue;
+
+            try {
+              if (typeof badgeDef.autoCheck === 'function' && badgeDef.autoCheck(userDataWithCorrectStats)) {
+                potentialBadges.push({
+                  id: badgeId,
+                  name: badgeDef.name,
+                  icon: badgeDef.icon,
+                  xpReward: badgeDef.xpReward
+                });
+              }
+            } catch (e) { /* ignore */ }
+          }
+
+          // Appliquer les badges si mode réel
+          if (potentialBadges.length > 0) {
+            if (!dryRun) {
+              // Forcer la mise à jour des stats avant la vérification
+              await updateDoc(doc(db, 'users', userId), {
+                'gamification.tasksCompleted': actualTasksCompleted
+              });
+              // Vérifier et débloquer les badges
+              const result = await unifiedBadgeService.checkAndUnlockBadges(userId, 'automatic');
+              stats.badgesAwarded += result.newBadges?.length || 0;
+            }
+            changes.push(`Badges potentiels: ${potentialBadges.map(b => b.icon + ' ' + b.name).join(', ')}`);
+          }
+
+          if (changes.length > 0) {
+            console.log(`✅ ${displayName}:`);
+            changes.forEach(c => console.log(`   → ${c}`));
+            details.push({ userId, displayName, changes });
+          }
+
+          stats.usersProcessed++;
+
+        } catch (error) {
+          stats.errors++;
+          console.error(`❌ Erreur pour ${displayName}:`, error.message);
+        }
+      }
+
+      // Résumé final
+      console.log('');
+      console.log('%c📊 RÉSUMÉ', 'font-size: 16px; font-weight: bold;');
+      console.log('═══════════════════════════════════════');
+      console.log(`👥 Utilisateurs traités: ${stats.usersProcessed}`);
+      console.log(`📈 Stats mises à jour: ${stats.statsUpdated}`);
+      console.log(`🏆 Badges attribués: ${stats.badgesAwarded}`);
+      console.log(`❌ Erreurs: ${stats.errors}`);
+      console.log('');
+
+      if (dryRun) {
+        console.log('%c🔍 DRY RUN - Aucune modification effectuée', 'color: orange; font-weight: bold;');
+        console.log('Pour appliquer: synergia.retroactiveBadges(false)');
+      } else {
+        console.log('%c✅ Rattrapage terminé !', 'color: green; font-weight: bold;');
+      }
+
+      return { stats, details };
+
+    } catch (error) {
+      console.error('❌ Erreur globale:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  console.log('🔧 [ADMIN] synergia.retroactiveBadges(dryRun) disponible');
 }
 
 export default app;

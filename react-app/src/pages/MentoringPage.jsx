@@ -268,12 +268,13 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin,
   const handleConfirmValidation = async () => {
     if (!selectedObjective || !onValidateObjective) return;
 
+    // Passer l'alternant sélectionné pour que l'XP aille à la bonne personne
     const success = await onValidateObjective({
       objectiveId: selectedObjective.id,
       xpReward: selectedObjective.xpReward,
       note: validationNote,
       validatedAt: new Date().toISOString()
-    });
+    }, currentAlternantData);
 
     if (success) {
       setShowValidateModal(false);
@@ -307,18 +308,42 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin,
       {/* Header */}
       <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-indigo-500/30 to-purple-500/30 backdrop-blur-xl border border-white/10 rounded-xl">
-            <GraduationCap className="w-7 h-7 text-indigo-300" />
-          </div>
+          {/* Photo de l'alternant si tuteur/admin */}
+          {canValidate && currentAlternantData?.userPhoto ? (
+            <img
+              src={currentAlternantData.userPhoto}
+              alt={currentAlternantData.userName}
+              className="w-12 h-12 rounded-xl border-2 border-indigo-500/50 object-cover"
+            />
+          ) : (
+            <div className="p-3 bg-gradient-to-br from-indigo-500/30 to-purple-500/30 backdrop-blur-xl border border-white/10 rounded-xl">
+              <GraduationCap className="w-7 h-7 text-indigo-300" />
+            </div>
+          )}
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-              Parcours Alternance
-              <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">
-                {isAlternant ? '🎓 Mon parcours' : isTutor ? '👨‍🏫 Tuteur' : '👑 Admin'}
-              </span>
+              {/* Afficher le nom de l'alternant si tuteur/admin avec sélection */}
+              {canValidate && currentAlternantData?.userName ? (
+                <>
+                  {currentAlternantData.userName}
+                  <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">
+                    🎓 Alternant
+                  </span>
+                </>
+              ) : (
+                <>
+                  Parcours Alternance
+                  <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">
+                    {isAlternant ? '🎓 Mon parcours' : isTutor ? '👨‍🏫 Tuteur' : '👑 Admin'}
+                  </span>
+                </>
+              )}
             </h2>
             <p className="text-gray-400 text-sm">
-              {isAlternant ? 'Gagne de l\'XP avec ton parcours scolaire !' : 'Suivez et validez les objectifs de vos alternants'}
+              {canValidate && currentAlternantData?.userName
+                ? `Validez les objectifs scolaires de ${currentAlternantData.userName.split(' ')[0]}`
+                : isAlternant ? 'Gagne de l\'XP avec ton parcours scolaire !' : 'Suivez et validez les objectifs de vos alternants'
+              }
             </p>
           </div>
         </div>
@@ -329,14 +354,14 @@ const AlternanceSection = ({ user, onValidateObjective, alternanceData, isAdmin,
             <select
               value={selectedAlternantId || ''}
               onChange={(e) => setSelectedAlternantId(e.target.value || null)}
-              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-indigo-500 focus:outline-none"
+              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-indigo-500 focus:outline-none min-w-[200px]"
             >
               <option value="" className="bg-slate-800">
-                {isAlternant ? 'Mon parcours' : 'Sélectionner un alternant'}
+                {tutoredAlternants.length > 0 ? '👤 Choisir un alternant...' : 'Aucun alternant'}
               </option>
               {tutoredAlternants.map(alt => (
                 <option key={alt.id} value={alt.id} className="bg-slate-800">
-                  {alt.userName || alt.userId}
+                  🎓 {alt.userName || alt.email || alt.userId}
                 </option>
               ))}
             </select>
@@ -1701,26 +1726,57 @@ const MentoringPage = () => {
           }
         }
 
-        // Si tuteur ou admin, charger la liste des alternants qu'il supervise
+        // Si tuteur ou admin, charger la liste des alternants depuis la collection users
         if (isTut || isUserAdmin) {
-          const altRef = collection(db, 'alternance_tracking');
-          let altQuery;
+          // 1. Charger tous les utilisateurs avec la permission alternant
+          const usersRef = collection(db, 'users');
+          const usersSnapshot = await getDocs(usersRef);
 
-          if (isUserAdmin) {
-            // Admin voit tous les alternants
-            altQuery = query(altRef);
-          } else {
-            // Tuteur voit seulement ses alternants
-            altQuery = query(altRef, where('tutorId', '==', user.uid));
-          }
+          // Filtrer les alternants (ceux avec la permission ou le flag)
+          const alternantUsers = usersSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(u => {
+              const perms = u.modulePermissions?.alternance || {};
+              return perms.alternance_is_alternant === true ||
+                     u.contractType === 'alternance' ||
+                     u.contractType === 'apprentissage' ||
+                     u.isAlternant === true;
+            })
+            // Pour les tuteurs non-admin, filtrer par tutorId si défini
+            .filter(u => {
+              if (isUserAdmin) return true;
+              // Si l'alternant a un tutorId défini, vérifier qu'il correspond
+              if (u.tutorId) return u.tutorId === user.uid;
+              // Sinon, le tuteur voit tous les alternants sans tuteur assigné
+              return true;
+            });
 
-          const altSnapshot = await getDocs(altQuery);
-          const alternants = altSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            completedObjectives: doc.data().completedObjectives || []
+          // 2. Pour chaque alternant, charger ses données de tracking
+          const alternants = await Promise.all(alternantUsers.map(async (altUser) => {
+            const trackingRef = collection(db, 'alternance_tracking');
+            const trackingQuery = query(trackingRef, where('userId', '==', altUser.id));
+            const trackingSnap = await getDocs(trackingQuery);
+
+            const trackingData = trackingSnap.empty ? {} : trackingSnap.docs[0].data();
+
+            return {
+              id: altUser.id,
+              odocTrackingId: trackingSnap.empty ? null : trackingSnap.docs[0].id,
+              userId: altUser.id,
+              userName: altUser.displayName || altUser.email || 'Alternant',
+              userPhoto: altUser.photoURL,
+              email: altUser.email,
+              schoolName: altUser.schoolName || trackingData.schoolName || 'École non renseignée',
+              diploma: altUser.diploma || trackingData.diploma || 'Diplôme en cours',
+              currentYear: altUser.currentYear || trackingData.currentYear || 1,
+              totalYears: altUser.totalYears || trackingData.totalYears || 2,
+              tutorId: altUser.tutorId,
+              completedObjectives: trackingData.completedObjectives || [],
+              totalXpEarned: trackingData.totalXpEarned || 0
+            };
           }));
 
+          console.log(`✅ [ALTERNANCE] ${alternants.length} alternant(s) trouvé(s)`);
           setTutoredAlternants(alternants);
 
           // Si pas alternant mais tuteur/admin, utiliser les données du premier alternant pour l'affichage
@@ -1737,8 +1793,22 @@ const MentoringPage = () => {
   }, [user?.uid, user?.modulePermissions, user?.isAdmin]);
 
   // Fonction pour valider un objectif scolaire
-  const handleValidateSchoolObjective = async (objectiveData) => {
-    if (!user?.uid || !alternanceData) return false;
+  // alternantData peut être passé pour valider pour un alternant spécifique (tuteur/admin)
+  const handleValidateSchoolObjective = async (objectiveData, targetAlternant = null) => {
+    if (!user?.uid) return false;
+
+    // Utiliser l'alternant cible ou les données par défaut
+    const targetData = targetAlternant || alternanceData;
+    if (!targetData) return false;
+
+    // L'ID de l'alternant qui recevra l'XP
+    const alternantUserId = targetData.userId || targetData.id;
+    const alternantUserName = targetData.userName || targetData.displayName || 'Alternant';
+
+    if (!alternantUserId) {
+      alert('❌ Aucun alternant sélectionné');
+      return false;
+    }
 
     try {
       const newObjective = {
@@ -1748,31 +1818,49 @@ const MentoringPage = () => {
         validatedAt: new Date().toISOString()
       };
 
-      const updatedObjectives = [...(alternanceData.completedObjectives || []), newObjective];
-      const newTotalXp = (alternanceData.totalXpEarned || 0) + objectiveData.xpReward;
+      const updatedObjectives = [...(targetData.completedObjectives || []), newObjective];
+      const newTotalXp = (targetData.totalXpEarned || 0) + objectiveData.xpReward;
 
-      // Mettre à jour dans Firestore
-      if (alternanceData.id) {
-        const altRef = collection(db, 'alternance_tracking');
-        const docRef = await getDocs(query(altRef, where('userId', '==', user.uid)));
-        if (!docRef.empty) {
-          const { updateDoc, doc } = await import('firebase/firestore');
-          await updateDoc(doc(db, 'alternance_tracking', docRef.docs[0].id), {
-            completedObjectives: updatedObjectives,
-            totalXpEarned: newTotalXp,
-            updatedAt: serverTimestamp()
-          });
-        }
+      // Mettre à jour ou créer le document de tracking pour l'ALTERNANT
+      const altRef = collection(db, 'alternance_tracking');
+      const docRef = await getDocs(query(altRef, where('userId', '==', alternantUserId)));
+
+      if (!docRef.empty) {
+        const { updateDoc, doc: docFn } = await import('firebase/firestore');
+        await updateDoc(docFn(db, 'alternance_tracking', docRef.docs[0].id), {
+          completedObjectives: updatedObjectives,
+          totalXpEarned: newTotalXp,
+          updatedAt: serverTimestamp()
+        });
       } else {
-        // Créer le document s'il n'existe pas
+        // Créer le document pour cet alternant
         await addDoc(collection(db, 'alternance_tracking'), {
-          userId: user.uid,
-          userName: user.displayName || user.email,
+          userId: alternantUserId,
+          userName: alternantUserName,
           completedObjectives: updatedObjectives,
           totalXpEarned: newTotalXp,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
+      }
+
+      // 🎯 IMPORTANT: Ajouter l'XP au profil de L'ALTERNANT (pas du tuteur!)
+      try {
+        const { doc: docFn, updateDoc, increment } = await import('firebase/firestore');
+        await updateDoc(docFn(db, 'users', alternantUserId), {
+          'gamification.totalXp': increment(objectiveData.xpReward),
+          'gamification.xp': increment(objectiveData.xpReward),
+          'gamification.lastXpGain': {
+            amount: objectiveData.xpReward,
+            source: 'school_objective',
+            objectiveId: objectiveData.objectiveId,
+            validatedBy: user.uid,
+            timestamp: new Date().toISOString()
+          }
+        });
+        console.log(`✅ [ALTERNANCE] +${objectiveData.xpReward} XP ajoutés à ${alternantUserName}`);
+      } catch (xpError) {
+        console.error('Erreur ajout XP:', xpError);
       }
 
       // Mettre à jour l'état local
@@ -1782,10 +1870,14 @@ const MentoringPage = () => {
         totalXpEarned: newTotalXp
       }));
 
-      // Ajouter l'XP au profil de l'utilisateur (si le hook existe)
-      // await addXP(objectiveData.xpReward, 'school_objective', objectiveData.objectiveId);
+      // Mettre à jour aussi dans tutoredAlternants si applicable
+      setTutoredAlternants(prev => prev.map(alt =>
+        alt.userId === alternantUserId
+          ? { ...alt, completedObjectives: updatedObjectives, totalXpEarned: newTotalXp }
+          : alt
+      ));
 
-      alert(`✅ Objectif validé ! +${objectiveData.xpReward} XP`);
+      alert(`✅ Objectif validé pour ${alternantUserName} ! +${objectiveData.xpReward} XP`);
       return true;
     } catch (error) {
       console.error('Erreur validation objectif:', error);

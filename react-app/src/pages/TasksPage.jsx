@@ -51,9 +51,12 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  setDoc,
+  increment,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+import unifiedBadgeService from '../core/services/unifiedBadgeSystem.js';
 
 // Constantes
 const QUEST_STATUS = {
@@ -483,11 +486,40 @@ const TasksPage = () => {
 
   const handleStatusChange = useCallback(async (task, newStatus) => {
     try {
+      // Vérifier si c'est un changement vers un statut de complétion (et pas déjà complété)
+      const isCompletion = (newStatus === 'completed' || newStatus === 'validated') &&
+                           task.status !== 'completed' && task.status !== 'validated';
+
       await updateDoc(doc(db, 'tasks', task.id), {
         status: newStatus,
         updatedAt: serverTimestamp()
       });
+
+      // Si tâche complétée/validée, mettre à jour la gamification des utilisateurs assignés
+      if (isCompletion) {
+        const assignedUsers = Array.isArray(task.assignedTo) ? task.assignedTo : [];
+
+        for (const userId of assignedUsers) {
+          if (!userId?.trim()) continue;
+
+          try {
+            // Incrémenter tasksCompleted dans gamification
+            await updateDoc(doc(db, 'users', userId), {
+              'gamification.tasksCompleted': increment(1),
+              'gamification.lastActivityAt': serverTimestamp()
+            });
+
+            // Vérifier et débloquer les badges
+            await unifiedBadgeService.checkAndUnlockBadges(userId, 'task_completed');
+
+            console.log(`✅ [GAMIFICATION] Quête complétée pour ${userId}, badges vérifiés`);
+          } catch (userError) {
+            console.error(`❌ Erreur gamification pour ${userId}:`, userError);
+          }
+        }
+      }
     } catch (error) {
+      console.error('Erreur lors du changement de statut:', error);
       alert('Erreur lors du changement de statut');
     }
   }, []);
