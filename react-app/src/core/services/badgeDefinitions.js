@@ -62,6 +62,19 @@ export const BADGE_DEFINITIONS = {
     }
   },
 
+  five_tasks: {
+    id: 'five_tasks',
+    name: '5 Quêtes',
+    description: 'Compléter 5 quêtes',
+    icon: '📋',
+    rarity: 'common',
+    category: 'productivity',
+    xpReward: 35,
+    condition: (stats) => {
+      return stats.tasksCompleted >= 5;
+    }
+  },
+
   task_enthusiast: {
     id: 'task_enthusiast',
     name: 'Enthousiaste',
@@ -197,13 +210,13 @@ export const BADGE_DEFINITIONS = {
   mentor: {
     id: 'mentor',
     name: 'Mentor',
-    description: 'Aider 10 collègues différents',
-    icon: '🎓',
+    description: 'Responsable d\'un·e stagiaire durant toute la période de stage ! Badge acquis au terme du stage si le·a stagiaire valide le mentorat !',
+    icon: '👨‍🏫',
     rarity: 'rare',
     category: 'collaboration',
-    xpReward: 150,
+    xpReward: 300,
     condition: (stats) => {
-      return stats.helpedColleagues >= 10;
+      return stats.stagiairesValidated >= 1;
     }
   },
 

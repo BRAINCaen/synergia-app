@@ -133,6 +133,18 @@ export const UNIFIED_BADGE_DEFINITIONS = {
     trigger: 'task_completed'
   },
 
+  five_tasks: {
+    id: 'five_tasks',
+    name: '5 Quêtes',
+    description: 'Compléter 5 quêtes',
+    icon: '📋',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.PRODUCTIVITY,
+    xpReward: 35,
+    autoCheck: (userData) => (userData.gamification?.tasksCompleted || 0) >= 5,
+    trigger: 'task_completed'
+  },
+
   task_enthusiast: {
     id: 'task_enthusiast',
     name: 'Enthousiaste',
@@ -435,13 +447,13 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   mentor: {
     id: 'mentor',
     name: 'Mentor',
-    description: 'Aider 10 collègues différents',
-    icon: '🎓',
+    description: 'Responsable d\'un·e stagiaire durant toute la période de stage ! Badge acquis au terme du stage si le·a stagiaire valide le mentorat !',
+    icon: '👨‍🏫',
     rarity: 'rare',
     category: BADGE_CATEGORIES.COLLABORATION,
-    xpReward: 150,
-    autoCheck: (userData) => (userData.gamification?.helpedColleagues || 0) >= 10,
-    trigger: 'help_provided'
+    xpReward: 300,
+    autoCheck: (userData) => (userData.gamification?.stagiairesValidated || 0) >= 1,
+    trigger: 'mentoring_completed'
   },
 
   communicator: {
