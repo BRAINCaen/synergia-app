@@ -41,7 +41,7 @@ SYNERGIA v3.0 est une application web moderne de gestion d'équipe qui révoluti
 
 ### 1. Cloner le projet
 ```bash
-git clone https://github.com/BRAINCaen/synergia-app-V3.git
+git clone https://github.com/SARL-BOEHME/synergia-app-V3.git
 cd synergia-app-V3
 ```
 

@@ -90,9 +90,9 @@ const AdminSettingsPage = () => {
   const [settings, setSettings] = useState({
     // 📱 APPLICATION
     app: {
-      name: 'Synergia BRAIN CAEN',
-      version: '4.0.0',
-      description: 'Gestion collaborative du centre de loisir Brain Caen',
+      name: 'Synergia',
+      version: '4.1.0',
+      description: 'Plateforme de Gamification RH et Engagement Collaborateur par SARL BOEHME',
       maintenanceMode: false,
       maxUsers: 1000,
       sessionTimeout: 3600,
@@ -312,7 +312,7 @@ const AdminSettingsPage = () => {
         setSettings(prevSettings => ({
           ...prevSettings,
           ...savedSettings,
-          app: { ...prevSettings.app, ...savedSettings.app, version: '4.0.0' }
+          app: { ...prevSettings.app, ...savedSettings.app, version: '4.1.0' }
         }));
       } else {
         await saveSettings(settings);

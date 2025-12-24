@@ -69,7 +69,7 @@ Synergia est une application web moderne qui transforme l'expérience collaborat
 
 ```bash
 # Cloner le repository
-git clone https://github.com/BRAINCaen/synergia-app.git
+git clone https://github.com/SARL-BOEHME/synergia-app.git
 
 # Accéder au dossier
 cd synergia-app/react-app
@@ -133,11 +133,11 @@ react-app/
 
 ## Licence
 
-Propriétaire - BRAIN Caen © 2024-2025
+Propriétaire - SARL BOEHME © 2024-2025
 
 ---
 
 ## Contact
 
-- **Entreprise** : BRAIN Caen
+- **Entreprise** : SARL BOEHME
 - **Application** : Synergia v4.1.0
