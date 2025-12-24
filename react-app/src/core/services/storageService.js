@@ -315,10 +315,217 @@ export const uploadFileWithProgress = async (file, path, onProgress) => {
   }
 };
 
+/**
+ * 📎 UPLOAD PIÈCE JOINTE POUR UNE QUÊTE (CRÉATION)
+ * Supporte images et vidéos sans limite de taille
+ * @param {File} file - Fichier à uploader
+ * @param {string} userId - ID de l'utilisateur
+ * @param {function} onProgress - Callback de progression
+ * @returns {Promise<{url: string, name: string, type: string, size: number}>}
+ */
+export const uploadTaskAttachment = async (file, userId, onProgress = () => {}) => {
+  try {
+    console.log('📎 [STORAGE] Upload pièce jointe quête:', file.name, '- Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+
+    if (!file) {
+      throw new Error('Aucun fichier fourni');
+    }
+
+    // Créer le nom de fichier unique
+    const timestamp = Date.now();
+    const fileExtension = file.name.split('.').pop();
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = `${timestamp}_${safeFileName}`;
+    const filePath = `tasks/attachments/${userId}/${fileName}`;
+
+    console.log('📤 [STORAGE] Upload vers:', filePath);
+
+    // Récupérer le token d'authentification
+    const token = await getAuthToken();
+
+    // Configuration de l'upload via API REST
+    const bucket = 'synergia-app-f27e7.firebasestorage.app';
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=multipart&name=${encodeURIComponent(filePath)}`;
+
+    // Simuler la progression
+    onProgress(10);
+
+    // Upload du fichier via fetch
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': file.type
+      },
+      body: file
+    });
+
+    onProgress(80);
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('❌ [STORAGE] Erreur upload:', errorText);
+      throw new Error(`Erreur upload: ${uploadResponse.status}`);
+    }
+
+    const uploadData = await uploadResponse.json();
+    console.log('✅ [STORAGE] Upload réussi:', uploadData.name);
+
+    // Construire l'URL de téléchargement
+    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+
+    onProgress(100);
+
+    return {
+      url: downloadURL,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      path: filePath
+    };
+
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur upload pièce jointe:', error);
+    throw error;
+  }
+};
+
+/**
+ * 🖼️ UPLOAD MÉDIA POUR VALIDATION DE QUÊTE
+ * Supporte images et vidéos sans limite de taille
+ * @param {File} file - Fichier à uploader
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} taskId - ID de la quête
+ * @param {function} onProgress - Callback de progression
+ * @returns {Promise<{url: string, type: string}>}
+ */
+export const uploadValidationMedia = async (file, userId, taskId, onProgress = () => {}) => {
+  try {
+    console.log('🖼️ [STORAGE] Upload média validation:', file.name, '- Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+
+    if (!file) {
+      throw new Error('Aucun fichier fourni');
+    }
+
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+
+    if (!isImage && !isVideo) {
+      throw new Error('Seules les images et vidéos sont acceptées');
+    }
+
+    // Créer le nom de fichier unique
+    const timestamp = Date.now();
+    const fileExtension = file.name.split('.').pop();
+    const mediaType = isImage ? 'photo' : 'video';
+    const fileName = `${mediaType}_${timestamp}.${fileExtension}`;
+    const filePath = `tasks/validations/${taskId}/${userId}/${fileName}`;
+
+    console.log('📤 [STORAGE] Upload vers:', filePath);
+
+    // Récupérer le token d'authentification
+    const token = await getAuthToken();
+
+    // Configuration de l'upload via API REST
+    const bucket = 'synergia-app-f27e7.firebasestorage.app';
+    const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=multipart&name=${encodeURIComponent(filePath)}`;
+
+    onProgress(10);
+
+    // Upload du fichier via fetch
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': file.type
+      },
+      body: file
+    });
+
+    onProgress(80);
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('❌ [STORAGE] Erreur upload média:', errorText);
+      throw new Error(`Erreur upload: ${uploadResponse.status}`);
+    }
+
+    const uploadData = await uploadResponse.json();
+    console.log('✅ [STORAGE] Upload média réussi:', uploadData.name);
+
+    // Construire l'URL de téléchargement
+    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+
+    onProgress(100);
+
+    return {
+      url: downloadURL,
+      type: isImage ? 'image' : 'video',
+      name: file.name,
+      size: file.size,
+      path: filePath
+    };
+
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur upload média validation:', error);
+    throw error;
+  }
+};
+
+/**
+ * 📚 UPLOAD MULTIPLE FICHIERS
+ * Upload plusieurs fichiers en parallèle
+ * @param {File[]} files - Tableau de fichiers à uploader
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} context - Contexte ('task' ou 'validation')
+ * @param {string} taskId - ID de la quête (optionnel)
+ * @param {function} onProgress - Callback de progression globale
+ * @returns {Promise<Array>}
+ */
+export const uploadMultipleFiles = async (files, userId, context = 'task', taskId = null, onProgress = () => {}) => {
+  try {
+    console.log(`📚 [STORAGE] Upload multiple: ${files.length} fichiers`);
+
+    if (!files || files.length === 0) {
+      return [];
+    }
+
+    const results = [];
+    const totalFiles = files.length;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileProgress = (progress) => {
+        const globalProgress = Math.round(((i * 100) + progress) / totalFiles);
+        onProgress(globalProgress);
+      };
+
+      let result;
+      if (context === 'validation' && taskId) {
+        result = await uploadValidationMedia(file, userId, taskId, fileProgress);
+      } else {
+        result = await uploadTaskAttachment(file, userId, fileProgress);
+      }
+
+      results.push(result);
+    }
+
+    console.log(`✅ [STORAGE] ${results.length} fichiers uploadés avec succès`);
+    return results;
+
+  } catch (error) {
+    console.error('❌ [STORAGE] Erreur upload multiple:', error);
+    throw error;
+  }
+};
+
 export default {
   uploadUserAvatar,
   deleteUserAvatar,
   uploadFile,
   deleteFile,
-  uploadFileWithProgress
+  uploadFileWithProgress,
+  uploadTaskAttachment,
+  uploadValidationMedia,
+  uploadMultipleFiles
 };
