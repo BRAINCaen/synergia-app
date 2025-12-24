@@ -75,8 +75,8 @@ const NewTaskModal = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [tagInput, setTagInput] = useState('');
   
-  // États pour l'upload de fichiers
-  const [selectedFile, setSelectedFile] = useState(null);
+  // États pour l'upload de fichiers (MULTI-FICHIERS)
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
@@ -168,63 +168,74 @@ const NewTaskModal = ({
     }));
   };
 
-  // Gestion de la sélection de fichier
+  // Gestion de la sélection de fichiers (MULTI-FICHIERS, SANS LIMITE)
   const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Vérifier la taille (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Le fichier est trop volumineux (max 5MB)');
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      // Vérifier que ce sont des images ou vidéos
+      const validFiles = files.filter(file => {
+        const isValid = file.type.startsWith('image/') || file.type.startsWith('video/');
+        if (!isValid) {
+          console.warn('⚠️ Fichier ignoré (type non supporté):', file.name);
+        }
+        return isValid;
+      });
+
+      if (validFiles.length === 0) {
+        setError('Seules les images et vidéos sont acceptées');
         return;
       }
-      
-      setSelectedFile(file);
+
+      setSelectedFiles(prev => [...prev, ...validFiles]);
       setError('');
+
+      // Reset input pour permettre la resélection
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
-  // Upload du fichier vers Firebase Storage
-  const uploadFileToStorage = async () => {
-    if (!selectedFile) return null;
-    
+  // Supprimer un fichier de la sélection
+  const handleRemoveFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Upload de tous les fichiers vers Firebase Storage
+  const uploadFilesToStorage = async () => {
+    if (selectedFiles.length === 0) return [];
+
     try {
       setUploading(true);
       setUploadProgress(0);
-      
-      console.log('📤 [UPLOAD] Début upload fichier:', selectedFile.name);
-      
-      const uploadResult = await storageService.uploadTaskAttachment(
-        selectedFile,
+
+      console.log('📤 [UPLOAD] Début upload de', selectedFiles.length, 'fichiers');
+
+      const uploadResults = await storageService.uploadMultipleFiles(
+        selectedFiles,
         user.uid,
+        'task',
+        null,
         (progress) => {
           setUploadProgress(progress);
-          console.log('📊 [UPLOAD] Progression:', progress + '%');
         }
       );
-      
-      console.log('✅ [UPLOAD] Fichier uploadé:', uploadResult);
-      
-      return {
-        name: selectedFile.name,
-        url: uploadResult.url,
-        type: selectedFile.type,
-        size: selectedFile.size,
+
+      console.log('✅ [UPLOAD] Tous les fichiers uploadés:', uploadResults.length);
+
+      return uploadResults.map(result => ({
+        name: result.name,
+        url: result.url,
+        type: result.type,
+        size: result.size,
         uploadedAt: new Date().toISOString(),
         uploadedBy: user.uid
-      };
-      
+      }));
+
     } catch (error) {
       console.error('❌ [UPLOAD] Erreur upload:', error);
-      
-      if (error.message?.includes('non autorisé')) {
-        setError('Upload non autorisé. Vérifiez les règles Firebase Storage.');
-      } else if (error.message?.includes('trop volumineux')) {
-        setError('Fichier trop volumineux (max 5MB)');
-      } else {
-        console.warn('⚠️ [UPLOAD] Échec upload, la quête sera créée sans fichier.');
-      }
-      
-      return null;
+      setError('Erreur lors de l\'upload des fichiers. La quête sera créée sans pièces jointes.');
+      return [];
     } finally {
       setUploading(false);
     }
@@ -234,7 +245,7 @@ const NewTaskModal = ({
     setError('');
     setLoading(false);
     setTagInput('');
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setShowAdvanced(false);
     setUploadProgress(0);
     setUploading(false);
@@ -258,21 +269,22 @@ const NewTaskModal = ({
     setError('');
     
     try {
-      // ✅ ÉTAPE 1 : Upload du fichier si présent
-      let uploadedAttachment = null;
-      if (selectedFile) {
-        console.log('📤 Upload du fichier avant création de la quête...');
-        uploadedAttachment = await uploadFileToStorage();
-        
-        if (!uploadedAttachment) {
-          console.warn('⚠️ Upload échoué, création de la quête sans fichier');
+      // ✅ ÉTAPE 1 : Upload des fichiers si présents
+      let uploadedAttachments = [];
+      if (selectedFiles.length > 0) {
+        console.log('📤 Upload de', selectedFiles.length, 'fichiers avant création de la quête...');
+        uploadedAttachments = await uploadFilesToStorage();
+
+        if (uploadedAttachments.length === 0) {
+          console.warn('⚠️ Upload échoué, création de la quête sans fichiers');
+        } else {
+          console.log('✅', uploadedAttachments.length, 'fichiers uploadés');
         }
       }
 
-      // ✅ ÉTAPE 2 : Préparer les données avec l'attachment uploadé
-      const attachments = uploadedAttachment 
-        ? [uploadedAttachment] 
-        : (Array.isArray(formData.attachments) ? formData.attachments : []);
+      // ✅ ÉTAPE 2 : Préparer les données avec les attachments uploadés
+      const existingAttachments = Array.isArray(formData.attachments) ? formData.attachments : [];
+      const attachments = [...existingAttachments, ...uploadedAttachments];
 
       const cleanedData = {
         title: formData.title.trim(),
@@ -802,11 +814,12 @@ const NewTaskModal = ({
                 )}
               </div>
 
-              {/* Upload de fichier */}
+              {/* Upload de fichiers (MULTI-FICHIERS) */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   <Paperclip className="w-4 h-4 inline mr-2 text-gray-400" />
-                  Pièce jointe
+                  Photos / Vidéos
+                  <span className="text-xs text-gray-500 ml-2">(sans limite de taille)</span>
                 </label>
 
                 <input
@@ -814,7 +827,8 @@ const NewTaskModal = ({
                   type="file"
                   onChange={handleFileSelect}
                   className="hidden"
-                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  accept="image/*,video/*"
+                  multiple
                 />
 
                 <button
@@ -824,8 +838,48 @@ const NewTaskModal = ({
                   className="w-full p-3 border border-dashed border-white/20 rounded-xl hover:border-purple-500/50 hover:bg-purple-500/5 transition-all flex items-center justify-center gap-2 text-gray-400 hover:text-purple-300"
                 >
                   <Upload className="w-4 h-4" />
-                  <span className="text-sm">{selectedFile ? selectedFile.name : 'Choisir un fichier'}</span>
+                  <span className="text-sm">
+                    {selectedFiles.length > 0
+                      ? `${selectedFiles.length} fichier(s) sélectionné(s) - Ajouter plus`
+                      : 'Ajouter des photos ou vidéos'}
+                  </span>
                 </button>
+
+                {/* Liste des fichiers sélectionnés */}
+                {selectedFiles.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10"
+                      >
+                        {file.type.startsWith('image/') ? (
+                          <div className="w-10 h-10 rounded bg-purple-500/20 flex items-center justify-center">
+                            <Paperclip className="w-4 h-4 text-purple-400" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-blue-500/20 flex items-center justify-center">
+                            <Eye className="w-4 h-4 text-blue-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white truncate">{file.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                            {file.type.startsWith('video/') && ' • Vidéo'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(index)}
+                          className="p-1 hover:bg-red-500/20 rounded text-red-400"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {uploading && (
                   <div className="mt-2">
