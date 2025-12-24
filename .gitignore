@@ -17,5 +17,15 @@ react-app/dist/
 *~
 .DS_Store
 
-# Others
+# Environment variables - NEVER COMMIT SECRETS!
 .env
+.env.local
+.env.development
+.env.production
+.env*.local
+*/.env
+*/.env.local
+*/.env.*
+
+# Keep example file
+!.env.example
