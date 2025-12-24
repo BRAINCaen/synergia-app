@@ -1680,14 +1680,19 @@ const MentoringPage = () => {
 
       try {
         // Vérifier les permissions de l'utilisateur via modulePermissions
-        const userPermissions = user.modulePermissions?.alternance || {};
+        // NOTE: Les permissions sont stockées comme un TABLEAU de strings, pas un objet booléen
+        const userPermissions = user.modulePermissions?.alternance || [];
+        const permissionsArray = Array.isArray(userPermissions) ? userPermissions : [];
         const isUserAdmin = user.isAdmin || user.role === 'admin';
 
-        // Vérifier le statut alternant via les permissions
-        const hasAlternantPermission = userPermissions.alternance_is_alternant === true;
+        // Vérifier le statut alternant via les permissions (tableau.includes)
+        const hasAlternantPermission = permissionsArray.includes('alternance_is_alternant');
         // Vérifier le statut tuteur via les permissions
-        const hasTutorPermission = userPermissions.alternance_is_tutor === true ||
-                                   userPermissions.alternance_validate === true;
+        const hasTutorPermission = permissionsArray.includes('alternance_is_tutor') ||
+                                   permissionsArray.includes('alternance_validate');
+
+        console.log(`🔍 [ALTERNANCE] Permissions utilisateur:`, permissionsArray);
+        console.log(`   → isAlternant: ${hasAlternantPermission}, isTutor: ${hasTutorPermission}, isAdmin: ${isUserAdmin}`);
 
         // Fallback: vérifier aussi le type de contrat pour rétrocompatibilité
         const isAltByContract = user.contractType === 'alternance' ||
@@ -1733,11 +1738,13 @@ const MentoringPage = () => {
           const usersSnapshot = await getDocs(usersRef);
 
           // Filtrer les alternants (ceux avec la permission ou le flag)
+          // NOTE: modulePermissions.alternance est un TABLEAU de strings!
           const alternantUsers = usersSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
             .filter(u => {
-              const perms = u.modulePermissions?.alternance || {};
-              return perms.alternance_is_alternant === true ||
+              const perms = u.modulePermissions?.alternance || [];
+              const permsArray = Array.isArray(perms) ? perms : [];
+              return permsArray.includes('alternance_is_alternant') ||
                      u.contractType === 'alternance' ||
                      u.contractType === 'apprentissage' ||
                      u.isAlternant === true;
