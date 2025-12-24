@@ -209,7 +209,7 @@ const OBJECTIVE_CATEGORIES = {
   milestones: { label: 'Étapes clés', icon: Trophy, color: 'indigo' }
 };
 
-const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpdateObjective, onDeleteObjective, alternanceData, isAdmin, isTutor, isAlternant, tutoredAlternants = [], customObjectives = [] }) => {
+const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpdateObjective, onDeleteObjective, alternanceData, isAdmin, isTutor, isAlternant, tutoredAlternants = [], customObjectives = [], deletedObjectiveIds = [], modifiedObjectives = {} }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showValidateModal, setShowValidateModal] = useState(false);
   const [selectedObjective, setSelectedObjective] = useState(null);
@@ -227,9 +227,16 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
     color: 'blue'
   });
 
-  // Combiner les objectifs par défaut avec les objectifs personnalisés
+  // Combiner les objectifs : défaut (avec modifications) + personnalisés - supprimés
   const allObjectives = [
-    ...SCHOOL_OBJECTIVES,
+    // Objectifs par défaut (avec modifications appliquées), filtrer les supprimés
+    ...SCHOOL_OBJECTIVES
+      .filter(obj => !deletedObjectiveIds.includes(obj.id))
+      .map(obj => {
+        const mods = modifiedObjectives[obj.id];
+        return mods ? { ...obj, ...mods, isModifiedDefault: true } : obj;
+      }),
+    // Objectifs personnalisés
     ...customObjectives.map(obj => ({
       ...obj,
       icon: OBJECTIVE_CATEGORIES[obj.category]?.icon || Target,
@@ -560,8 +567,8 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
                 +{objective.xpReward} XP
               </div>
 
-              {/* Boutons edit/delete pour les objectifs personnalisés (tuteur/admin) */}
-              {canValidate && objective.isCustom && (
+              {/* Boutons edit/delete pour TOUS les objectifs (tuteur/admin) */}
+              {canValidate && (
                 <div className="absolute top-2 right-14 flex gap-1">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleOpenEditObjective(objective); }}
@@ -1849,6 +1856,8 @@ const MentoringPage = () => {
   const [isTutor, setIsTutor] = useState(false);
   const [tutoredAlternants, setTutoredAlternants] = useState([]);
   const [customObjectives, setCustomObjectives] = useState([]);
+  const [deletedObjectiveIds, setDeletedObjectiveIds] = useState([]);
+  const [modifiedObjectives, setModifiedObjectives] = useState({});
 
   // Types de formations
   const trainingTypes = [
@@ -2055,10 +2064,11 @@ const MentoringPage = () => {
     loadAlternanceData();
   }, [user?.uid, user?.modulePermissions, user?.isAdmin]);
 
-  // Charger les objectifs personnalisés
+  // Charger les objectifs personnalisés et les paramètres (suppressions/modifications)
   useEffect(() => {
-    const loadCustomObjectives = async () => {
+    const loadObjectivesData = async () => {
       try {
+        // 1. Charger les objectifs personnalisés
         const objectivesRef = collection(db, 'alternance_objectives');
         const objectivesSnapshot = await getDocs(objectivesRef);
         const objectives = objectivesSnapshot.docs.map(doc => ({
@@ -2067,12 +2077,28 @@ const MentoringPage = () => {
         }));
         setCustomObjectives(objectives);
         console.log(`📋 [OBJECTIVES] ${objectives.length} objectif(s) personnalisé(s) chargé(s)`);
+
+        // 2. Charger les paramètres (IDs supprimés et modifications des objectifs par défaut)
+        const settingsRef = collection(db, 'alternance_settings');
+        const settingsSnapshot = await getDocs(settingsRef);
+
+        if (!settingsSnapshot.empty) {
+          const settings = settingsSnapshot.docs[0].data();
+          if (settings.deletedObjectiveIds) {
+            setDeletedObjectiveIds(settings.deletedObjectiveIds);
+            console.log(`🗑️ [OBJECTIVES] ${settings.deletedObjectiveIds.length} objectif(s) masqué(s)`);
+          }
+          if (settings.modifiedObjectives) {
+            setModifiedObjectives(settings.modifiedObjectives);
+            console.log(`✏️ [OBJECTIVES] ${Object.keys(settings.modifiedObjectives).length} objectif(s) modifié(s)`);
+          }
+        }
       } catch (error) {
-        console.error('Erreur chargement objectifs personnalisés:', error);
+        console.error('Erreur chargement objectifs:', error);
       }
     };
 
-    loadCustomObjectives();
+    loadObjectivesData();
   }, []);
 
   // Handler pour créer un objectif personnalisé
@@ -2094,19 +2120,45 @@ const MentoringPage = () => {
     }
   };
 
-  // Handler pour modifier un objectif personnalisé
+  // Helper pour sauvegarder les settings dans Firestore
+  const saveObjectiveSettings = async (newDeletedIds, newModifiedObjs) => {
+    const { doc: docFn, setDoc } = await import('firebase/firestore');
+    await setDoc(docFn(db, 'alternance_settings', 'objectives_config'), {
+      deletedObjectiveIds: newDeletedIds,
+      modifiedObjectives: newModifiedObjs,
+      updatedAt: serverTimestamp(),
+      updatedBy: user?.uid
+    }, { merge: true });
+  };
+
+  // Handler pour modifier un objectif (personnalisé OU par défaut)
   const handleUpdateObjective = async (objectiveId, objectiveData) => {
     try {
-      const { doc: docFn, updateDoc } = await import('firebase/firestore');
-      await updateDoc(docFn(db, 'alternance_objectives', objectiveId), {
-        ...objectiveData,
-        updatedAt: serverTimestamp(),
-        updatedBy: user?.uid
-      });
+      // Vérifier si c'est un objectif personnalisé (existe dans customObjectives)
+      const isCustom = customObjectives.some(obj => obj.id === objectiveId);
 
-      setCustomObjectives(prev => prev.map(obj =>
-        obj.id === objectiveId ? { ...obj, ...objectiveData } : obj
-      ));
+      if (isCustom) {
+        // Objectif personnalisé : mise à jour dans alternance_objectives
+        const { doc: docFn, updateDoc } = await import('firebase/firestore');
+        await updateDoc(docFn(db, 'alternance_objectives', objectiveId), {
+          ...objectiveData,
+          updatedAt: serverTimestamp(),
+          updatedBy: user?.uid
+        });
+
+        setCustomObjectives(prev => prev.map(obj =>
+          obj.id === objectiveId ? { ...obj, ...objectiveData } : obj
+        ));
+      } else {
+        // Objectif par défaut : stocker les modifications dans alternance_settings
+        const newModified = {
+          ...modifiedObjectives,
+          [objectiveId]: objectiveData
+        };
+        await saveObjectiveSettings(deletedObjectiveIds, newModified);
+        setModifiedObjectives(newModified);
+      }
+
       alert('✅ Objectif modifié avec succès !');
       return true;
     } catch (error) {
@@ -2116,13 +2168,29 @@ const MentoringPage = () => {
     }
   };
 
-  // Handler pour supprimer un objectif personnalisé
+  // Handler pour supprimer un objectif (personnalisé OU par défaut)
   const handleDeleteObjective = async (objectiveId) => {
     try {
-      const { doc: docFn, deleteDoc } = await import('firebase/firestore');
-      await deleteDoc(docFn(db, 'alternance_objectives', objectiveId));
+      // Vérifier si c'est un objectif personnalisé
+      const isCustom = customObjectives.some(obj => obj.id === objectiveId);
 
-      setCustomObjectives(prev => prev.filter(obj => obj.id !== objectiveId));
+      if (isCustom) {
+        // Objectif personnalisé : supprimer de alternance_objectives
+        const { doc: docFn, deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(docFn(db, 'alternance_objectives', objectiveId));
+        setCustomObjectives(prev => prev.filter(obj => obj.id !== objectiveId));
+      } else {
+        // Objectif par défaut : ajouter l'ID aux suppressions dans alternance_settings
+        const newDeletedIds = [...deletedObjectiveIds, objectiveId];
+        // Supprimer aussi des modifications si présent
+        const newModified = { ...modifiedObjectives };
+        delete newModified[objectiveId];
+
+        await saveObjectiveSettings(newDeletedIds, newModified);
+        setDeletedObjectiveIds(newDeletedIds);
+        setModifiedObjectives(newModified);
+      }
+
       alert('✅ Objectif supprimé !');
       return true;
     } catch (error) {
@@ -2903,6 +2971,8 @@ const MentoringPage = () => {
               onUpdateObjective={handleUpdateObjective}
               onDeleteObjective={handleDeleteObjective}
               customObjectives={customObjectives}
+              deletedObjectiveIds={deletedObjectiveIds}
+              modifiedObjectives={modifiedObjectives}
               isAdmin={user?.isAdmin || user?.role === 'admin'}
               isTutor={isTutor}
               isAlternant={isAlternant}
