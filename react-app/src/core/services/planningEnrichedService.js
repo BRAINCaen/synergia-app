@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/core/services/planningEnrichedService.js
-// SERVICE PLANNING ENRICHI TYPE SKELLO
+// SERVICE PLANNING SYNERGIA
 // ==========================================
 
 import { 
@@ -20,8 +20,8 @@ import {
 import { db } from '../firebase.js';
 
 /**
- * 📅 SERVICE DE GESTION DU PLANNING ENRICHI
- * Fonctionnalités type Skello : heures contrat, badges, exports
+ * 📅 SERVICE DE GESTION DU PLANNING SYNERGIA
+ * Fonctionnalités : heures contrat, badges, exports
  */
 class PlanningEnrichedService {
   constructor() {
