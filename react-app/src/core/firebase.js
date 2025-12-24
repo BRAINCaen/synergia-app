@@ -38,4 +38,64 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
 
 console.log('✅ [FIREBASE] Firebase initialisé avec Storage et GoogleProvider');
 
+// 🔧 EXPOSITION GLOBALE POUR DEBUG/ADMIN (console)
+if (typeof window !== 'undefined') {
+  window.synergia = window.synergia || {};
+  window.synergia.db = db;
+  window.synergia.auth = auth;
+
+  // 🧹 Fonction de nettoyage des profils
+  window.synergia.cleanupUsers = async (dryRun = true) => {
+    const { collection, getDocs, doc, updateDoc, deleteField } = await import('firebase/firestore');
+
+    console.log('🧹 NETTOYAGE PROFILS SYNERGIA');
+    console.log(dryRun ? '🔍 MODE: DRY RUN' : '⚠️ MODE: RÉEL');
+
+    const FIELDS_TO_DELETE = [
+      'level', 'xp', 'totalXp', 'totalXP', 'tasksCompleted',
+      'loginStreak', 'projectsCompleted', 'streak', 'badges', 'lastXpGain'
+    ];
+
+    const snapshot = await getDocs(collection(db, 'users'));
+    console.log(`📊 ${snapshot.size} utilisateurs`);
+
+    let cleaned = 0, skipped = 0;
+
+    for (const userDoc of snapshot.docs) {
+      const data = userDoc.data();
+      const updates = {};
+      const removed = [];
+
+      FIELDS_TO_DELETE.forEach(f => {
+        if (data.hasOwnProperty(f)) {
+          updates[f] = deleteField();
+          removed.push(f);
+        }
+      });
+
+      // Fix badgesUnlocked
+      const actual = data.gamification?.badges?.length || 0;
+      if (actual !== (data.gamification?.badgesUnlocked || 0)) {
+        updates['gamification.badgesUnlocked'] = actual;
+        removed.push('badgesUnlocked');
+      }
+
+      if (Object.keys(updates).length > 0) {
+        updates.cleanupMigration = { migratedAt: new Date().toISOString(), version: '1.0' };
+        if (!dryRun) await updateDoc(doc(db, 'users', userDoc.id), updates);
+        console.log(`✅ ${data.displayName || data.email}: ${removed.join(', ')}`);
+        cleaned++;
+      } else {
+        skipped++;
+      }
+    }
+
+    console.log(`\n📊 Terminé: ${cleaned} nettoyés, ${skipped} ignorés`);
+    if (dryRun) console.log('🔍 DRY RUN - Pour appliquer: synergia.cleanupUsers(false)');
+    return { cleaned, skipped };
+  };
+
+  console.log('🔧 [ADMIN] synergia.cleanupUsers(dryRun) disponible');
+}
+
 export default app;
