@@ -1770,30 +1770,48 @@ const MentoringPage = () => {
             }))
           );
 
-          // 2. Pour chaque alternant, charger ses données de tracking
-          const alternants = await Promise.all(alternantUsers.map(async (altUser) => {
-            const trackingRef = collection(db, 'alternance_tracking');
-            const trackingQuery = query(trackingRef, where('userId', '==', altUser.id));
-            const trackingSnap = await getDocs(trackingQuery);
+          // 2. Pour chaque alternant, charger ses données de tracking (avec gestion d'erreur individuelle)
+          const alternants = [];
+          for (const altUser of alternantUsers) {
+            try {
+              const trackingRef = collection(db, 'alternance_tracking');
+              const trackingQuery = query(trackingRef, where('userId', '==', altUser.id));
+              const trackingSnap = await getDocs(trackingQuery);
+              const trackingData = trackingSnap.empty ? {} : trackingSnap.docs[0].data();
 
-            const trackingData = trackingSnap.empty ? {} : trackingSnap.docs[0].data();
-
-            return {
-              id: altUser.id,
-              odocTrackingId: trackingSnap.empty ? null : trackingSnap.docs[0].id,
-              userId: altUser.id,
-              userName: altUser.displayName || altUser.email || 'Alternant',
-              userPhoto: altUser.photoURL,
-              email: altUser.email,
-              schoolName: altUser.schoolName || trackingData.schoolName || 'École non renseignée',
-              diploma: altUser.diploma || trackingData.diploma || 'Diplôme en cours',
-              currentYear: altUser.currentYear || trackingData.currentYear || 1,
-              totalYears: altUser.totalYears || trackingData.totalYears || 2,
-              tutorId: altUser.tutorId,
-              completedObjectives: trackingData.completedObjectives || [],
-              totalXpEarned: trackingData.totalXpEarned || 0
-            };
-          }));
+              alternants.push({
+                id: altUser.id,
+                odocTrackingId: trackingSnap.empty ? null : trackingSnap.docs[0].id,
+                userId: altUser.id,
+                userName: altUser.displayName || altUser.email || 'Alternant',
+                userPhoto: altUser.photoURL,
+                email: altUser.email,
+                schoolName: altUser.schoolName || trackingData.schoolName || 'École non renseignée',
+                diploma: altUser.diploma || trackingData.diploma || 'Diplôme en cours',
+                currentYear: altUser.currentYear || trackingData.currentYear || 1,
+                totalYears: altUser.totalYears || trackingData.totalYears || 2,
+                tutorId: altUser.tutorId,
+                completedObjectives: trackingData.completedObjectives || [],
+                totalXpEarned: trackingData.totalXpEarned || 0
+              });
+            } catch (trackingError) {
+              console.warn(`⚠️ [ALTERNANCE] Erreur chargement tracking pour ${altUser.displayName}:`, trackingError);
+              // Ajouter quand même l'alternant avec données par défaut
+              alternants.push({
+                id: altUser.id,
+                userId: altUser.id,
+                userName: altUser.displayName || altUser.email || 'Alternant',
+                userPhoto: altUser.photoURL,
+                email: altUser.email,
+                schoolName: altUser.schoolName || 'École non renseignée',
+                diploma: altUser.diploma || 'Diplôme en cours',
+                currentYear: altUser.currentYear || 1,
+                totalYears: altUser.totalYears || 2,
+                completedObjectives: [],
+                totalXpEarned: 0
+              });
+            }
+          }
 
           console.log(`✅ [ALTERNANCE] ${alternants.length} alternant(s) trouvé(s)`);
           setTutoredAlternants(alternants);
