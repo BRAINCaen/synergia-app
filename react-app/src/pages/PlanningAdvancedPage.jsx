@@ -52,8 +52,11 @@ import leaveRequestService, { LEAVE_TYPES, REQUEST_STATUS } from '../core/servic
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 // Firebase
-import { doc, getDoc, collection, getDocs, query, orderBy, where, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, where, Timestamp } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+
+// Icône pour notes
+import { StickyNote, Lightbulb, History, Save } from 'lucide-react';
 
 // Composants UI
 const GlassCard = ({ children, className = '' }) => (
@@ -166,6 +169,13 @@ const PlanningAdvancedPage = () => {
   const [submittingLeave, setSubmittingLeave] = useState(false);
   const [selectedCellForLeave, setSelectedCellForLeave] = useState(null); // { date, employeeId }
   const [allPendingLeaves, setAllPendingLeaves] = useState([]); // Toutes les demandes en attente (tous users)
+
+  // 📝 NOTES DE PLANNING (rappels annuels)
+  const [planningNotes, setPlanningNotes] = useState('');
+  const [lastYearNotes, setLastYearNotes] = useState(null); // { notes, year, weekNumber }
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [editingNoteText, setEditingNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   // ==========================================
   // CHARGEMENT INITIAL
@@ -533,9 +543,110 @@ const PlanningAdvancedPage = () => {
     const start = getWeekStart(currentWeek);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
-    
+
     return `${start.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} - ${end.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}`;
   };
+
+  // ==========================================
+  // 📝 NOTES DE PLANNING (RAPPELS ANNUELS)
+  // ==========================================
+
+  // Calculer le numéro de semaine ISO
+  const getISOWeekNumber = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNumber = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return { weekNumber, year: d.getFullYear() };
+  };
+
+  // Vérifier si l'utilisateur peut éditer les notes (gestionnaire planning)
+  const canEditPlanningNotes = () => {
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const planningPerms = user.modulePermissions?.planning;
+    if (Array.isArray(planningPerms)) {
+      return planningPerms.includes('planning_edit') || planningPerms.includes('planning_admin');
+    }
+    return planningPerms?.planning_edit || planningPerms?.planning_admin || false;
+  };
+
+  // Charger les notes de la semaine courante + année précédente
+  const loadPlanningNotes = async () => {
+    try {
+      const weekStart = getWeekStart(currentWeek);
+      const { weekNumber, year } = getISOWeekNumber(weekStart);
+
+      // Charger les notes de cette année
+      const currentNoteRef = doc(db, 'planning_notes', `${year}-W${weekNumber}`);
+      const currentNoteSnap = await getDoc(currentNoteRef);
+
+      if (currentNoteSnap.exists()) {
+        setPlanningNotes(currentNoteSnap.data().notes || '');
+      } else {
+        setPlanningNotes('');
+      }
+
+      // Charger les notes de l'année précédente (même semaine)
+      const lastYearNoteRef = doc(db, 'planning_notes', `${year - 1}-W${weekNumber}`);
+      const lastYearNoteSnap = await getDoc(lastYearNoteRef);
+
+      if (lastYearNoteSnap.exists() && lastYearNoteSnap.data().notes) {
+        setLastYearNotes({
+          notes: lastYearNoteSnap.data().notes,
+          year: year - 1,
+          weekNumber
+        });
+      } else {
+        setLastYearNotes(null);
+      }
+
+      console.log(`📝 Notes semaine ${weekNumber}/${year} chargées`);
+    } catch (error) {
+      console.error('❌ Erreur chargement notes planning:', error);
+    }
+  };
+
+  // Sauvegarder une note de planning
+  const savePlanningNote = async () => {
+    try {
+      setSavingNote(true);
+      const weekStart = getWeekStart(currentWeek);
+      const { weekNumber, year } = getISOWeekNumber(weekStart);
+
+      const noteRef = doc(db, 'planning_notes', `${year}-W${weekNumber}`);
+      await setDoc(noteRef, {
+        notes: editingNoteText,
+        weekNumber,
+        year,
+        updatedAt: new Date(),
+        updatedBy: user?.uid,
+        updatedByName: user?.displayName || user?.email
+      });
+
+      setPlanningNotes(editingNoteText);
+      setShowNotesModal(false);
+      showNotification('📝 Note sauvegardée avec succès !', 'success');
+      console.log(`✅ Note semaine ${weekNumber}/${year} sauvegardée`);
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde note:', error);
+      showNotification('Erreur lors de la sauvegarde', 'error');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  // Ouvrir le modal d'édition des notes
+  const openNotesModal = () => {
+    setEditingNoteText(planningNotes);
+    setShowNotesModal(true);
+  };
+
+  // Charger les notes quand la semaine change
+  useEffect(() => {
+    loadPlanningNotes();
+  }, [currentWeek]);
 
   // ==========================================
   // VÉRIFICATION CONFORMITÉ
@@ -1357,6 +1468,165 @@ const PlanningAdvancedPage = () => {
               </GlassCard>
             </div>
           )}
+
+          {/* 📝 SECTION NOTES DE PLANNING */}
+          {(lastYearNotes || planningNotes || canEditPlanningNotes()) && (
+            <div className="mb-4 sm:mb-6 space-y-3">
+              {/* Rappel de l'année précédente */}
+              {lastYearNotes && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-amber-500/20 border-2 border-amber-500/50 rounded-2xl p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/30 rounded-lg">
+                      <History className="w-5 h-5 text-amber-300" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Lightbulb className="w-4 h-4 text-amber-400" />
+                        <h4 className="text-amber-300 font-bold text-sm">
+                          Rappel de {lastYearNotes.year} (Semaine {lastYearNotes.weekNumber})
+                        </h4>
+                      </div>
+                      <p className="text-amber-100 text-sm whitespace-pre-wrap">{lastYearNotes.notes}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Notes de cette année */}
+              <GlassCard className="!p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                      <StickyNote className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-white font-bold text-sm mb-1">
+                        Notes de la semaine {getISOWeekNumber(getWeekStart(currentWeek)).weekNumber}
+                      </h4>
+                      {planningNotes ? (
+                        <p className="text-gray-300 text-sm whitespace-pre-wrap">{planningNotes}</p>
+                      ) : (
+                        <p className="text-gray-500 text-sm italic">
+                          {canEditPlanningNotes()
+                            ? "Aucune note pour cette semaine. Cliquez pour en ajouter une."
+                            : "Aucune note pour cette semaine."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {canEditPlanningNotes() && (
+                    <button
+                      onClick={openNotesModal}
+                      className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors"
+                      title="Modifier les notes"
+                    >
+                      <Edit className="w-4 h-4 text-blue-400" />
+                    </button>
+                  )}
+                </div>
+              </GlassCard>
+            </div>
+          )}
+
+          {/* MODAL ÉDITION NOTES */}
+          <AnimatePresence>
+            {showNotesModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+                onClick={() => setShowNotesModal(false)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto border-t sm:border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/20 rounded-xl">
+                        <StickyNote className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Notes de planning</h2>
+                        <p className="text-gray-400 text-sm">
+                          Semaine {getISOWeekNumber(getWeekStart(currentWeek)).weekNumber} / {getISOWeekNumber(getWeekStart(currentWeek)).year}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowNotesModal(false)}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      Notes et remarques pour cette semaine
+                    </label>
+                    <p className="text-gray-500 text-xs mb-3">
+                      Ces notes seront rappelées l'année prochaine sur la même semaine.
+                    </p>
+                    <textarea
+                      value={editingNoteText}
+                      onChange={(e) => setEditingNoteText(e.target.value)}
+                      placeholder="Ex: Prévoir plus de personnel le soir, trop de monde pendant les vacances..."
+                      rows={6}
+                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    />
+                  </div>
+
+                  {/* Rappel année précédente dans le modal */}
+                  {lastYearNotes && (
+                    <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <History className="w-4 h-4 text-amber-400" />
+                        <span className="text-amber-300 text-sm font-medium">
+                          Note de {lastYearNotes.year}
+                        </span>
+                      </div>
+                      <p className="text-amber-200/80 text-sm">{lastYearNotes.notes}</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowNotesModal(false)}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl transition-colors font-medium"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={savePlanningNote}
+                      disabled={savingNote}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {savingNote ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Sauvegarde...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Sauvegarder
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* MODAL DIAGNOSTIC */}
           <AnimatePresence>
