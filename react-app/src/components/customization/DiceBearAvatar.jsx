@@ -523,7 +523,11 @@ export const DiceBearAvatarPreview = ({
             <motion.div
               key={i}
               className="absolute w-2 h-2 rounded-full"
-              style={{ backgroundColor: effect.color === 'rainbow' ? ['#ff0000', '#ff9900', '#ffff00', '#00ff00', '#0099ff', '#9900ff'][i] : effect.color }}
+              style={{
+                backgroundColor: effect.color === 'rainbow' ? ['#ff0000', '#ff9900', '#ffff00', '#00ff00', '#0099ff', '#9900ff'][i] : effect.color,
+                left: `${30 + Math.random() * 40}%`,
+                top: `${30 + Math.random() * 40}%`
+              }}
               initial={{ opacity: 0, scale: 0 }}
               animate={{
                 opacity: [0, 1, 0],
@@ -532,7 +536,6 @@ export const DiceBearAvatarPreview = ({
                 y: [0, (Math.random() - 0.5) * 60]
               }}
               transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
-              style={{ left: `${30 + Math.random() * 40}%`, top: `${30 + Math.random() * 40}%` }}
             />
           ))}
         </div>

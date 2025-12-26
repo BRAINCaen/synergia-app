@@ -951,6 +951,50 @@ class ProfileCustomizationService {
     }
   }
 
+  // ==========================================
+  // PIXEL ART RPG AVATAR SYSTEM (NOUVEAU v4.1)
+  // ==========================================
+
+  /**
+   * Obtenir la configuration PixelArt d'un utilisateur
+   */
+  async getPixelArtConfig(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        return null;
+      }
+
+      const data = userDoc.data();
+      return data.pixelArtAvatar || null;
+    } catch (error) {
+      console.error('Erreur récupération PixelArt config:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sauvegarder la configuration PixelArt RPG
+   */
+  async savePixelArtConfig(userId, config, userStats) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        pixelArtAvatar: config,
+        avatarType: 'pixelart', // Marquer le type d'avatar utilisé
+        updatedAt: new Date()
+      });
+
+      console.log('✅ Config PixelArt sauvegardée:', config);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur sauvegarde PixelArt:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   /**
    * S'abonner aux changements d'avatar builder
    */
