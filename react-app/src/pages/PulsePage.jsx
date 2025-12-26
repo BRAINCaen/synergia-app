@@ -1,10 +1,10 @@
 // ==========================================
 // react-app/src/pages/PulsePage.jsx
-// PAGE PULSE + BADGEUSE - SYNERGIA v4.0
-// Module Pulse: Check-in quotidien + Pointage
+// PAGE PULSE + BADGEUSE - SYNERGIA v4.1
+// Module Pulse: Check-in quotidien + Pointage avec Géofencing
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart,
@@ -30,7 +30,11 @@ import {
   CheckCircle,
   Coffee,
   Timer,
-  X
+  X,
+  MapPin,
+  AlertTriangle,
+  Navigation,
+  Shield
 } from 'lucide-react';
 
 // Firebase imports
@@ -44,7 +48,8 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
-  doc
+  doc,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -479,7 +484,7 @@ const UserPulseStats = ({ stats }) => {
 };
 
 // ==========================================
-// COMPOSANT BADGEUSE (POINTAGE)
+// COMPOSANT BADGEUSE (POINTAGE) AVEC GÉOFENCING
 // ==========================================
 const BadgeuseSection = ({ user }) => {
   const [pointages, setPointages] = useState([]);
@@ -492,6 +497,125 @@ const BadgeuseSection = ({ user }) => {
   const [stats, setStats] = useState({
     thisWeekHours: 0
   });
+
+  // 📍 GÉOFENCING - États
+  const [geofenceSettings, setGeofenceSettings] = useState({
+    enabled: false,
+    latitude: 49.1829, // Coordonnées par défaut (Caen)
+    longitude: -0.3707,
+    radius: 100, // Rayon en mètres
+    workplaceName: 'Lieu de travail'
+  });
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState('idle'); // idle, loading, success, error, outside
+  const [locationError, setLocationError] = useState(null);
+  const [distanceFromWork, setDistanceFromWork] = useState(null);
+
+  // 📍 Charger les paramètres de géofencing
+  useEffect(() => {
+    const loadGeofenceSettings = async () => {
+      try {
+        const settingsRef = doc(db, 'systemSettings', 'geofencing');
+        const settingsSnap = await getDoc(settingsRef);
+
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          setGeofenceSettings({
+            enabled: data.enabled ?? false,
+            latitude: data.latitude ?? 49.1829,
+            longitude: data.longitude ?? -0.3707,
+            radius: data.radius ?? 100,
+            workplaceName: data.workplaceName ?? 'Lieu de travail'
+          });
+          console.log('📍 Géofencing chargé:', data.enabled ? 'ACTIF' : 'INACTIF');
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement géofencing:', error);
+      }
+    };
+
+    loadGeofenceSettings();
+  }, []);
+
+  // 📍 Calculer la distance entre deux points (formule Haversine)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Rayon de la Terre en mètres
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // Distance en mètres
+  };
+
+  // 📍 Vérifier la position actuelle
+  const checkCurrentLocation = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Géolocalisation non supportée par ce navigateur'));
+        return;
+      }
+
+      setLocationStatus('loading');
+      setLocationError(null);
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          setCurrentLocation({ latitude, longitude, accuracy });
+
+          // Calculer la distance depuis le lieu de travail
+          const distance = calculateDistance(
+            latitude, longitude,
+            geofenceSettings.latitude, geofenceSettings.longitude
+          );
+          setDistanceFromWork(Math.round(distance));
+
+          // Vérifier si dans la zone autorisée
+          const isWithinZone = distance <= geofenceSettings.radius;
+          setLocationStatus(isWithinZone ? 'success' : 'outside');
+
+          console.log(`📍 Position: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} | Distance: ${Math.round(distance)}m | Zone: ${isWithinZone ? '✅' : '❌'}`);
+
+          resolve({ latitude, longitude, accuracy, distance, isWithinZone });
+        },
+        (error) => {
+          let errorMessage = 'Erreur de géolocalisation';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Accès à la localisation refusé. Autorisez l\'accès dans les paramètres.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Position indisponible. Vérifiez votre GPS.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Délai dépassé pour obtenir la position.';
+              break;
+          }
+          setLocationError(errorMessage);
+          setLocationStatus('error');
+          reject(new Error(errorMessage));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 30000
+        }
+      );
+    });
+  }, [geofenceSettings]);
+
+  // 📍 Vérifier la position au chargement si géofencing actif
+  useEffect(() => {
+    if (geofenceSettings.enabled) {
+      checkCurrentLocation().catch(() => {});
+    }
+  }, [geofenceSettings.enabled, checkCurrentLocation]);
 
   // Mise a jour de l'heure
   useEffect(() => {
@@ -662,11 +786,37 @@ const BadgeuseSection = ({ user }) => {
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Pointer l'arrivee
+  // 📍 Pointer l'arrivée (avec vérification géofencing)
   const handleArrival = async () => {
     if (!user?.uid || isCurrentlyWorking) return;
 
     try {
+      let locationData = null;
+
+      // Si géofencing activé, vérifier la position
+      if (geofenceSettings.enabled) {
+        setLocationStatus('loading');
+        try {
+          const location = await checkCurrentLocation();
+
+          if (!location.isWithinZone) {
+            alert(`⚠️ Pointage impossible !\n\nVous êtes à ${Math.round(location.distance)}m du lieu de travail.\nZone autorisée : ${geofenceSettings.radius}m autour de "${geofenceSettings.workplaceName}".`);
+            return;
+          }
+
+          locationData = {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+            distanceFromWork: Math.round(location.distance),
+            withinGeofence: true
+          };
+        } catch (geoError) {
+          alert(`⚠️ Impossible de vérifier votre position.\n\n${geoError.message}\n\nActivez la géolocalisation pour pointer.`);
+          return;
+        }
+      }
+
       const now = new Date();
       const timestamp = Timestamp.fromDate(now);
 
@@ -677,20 +827,49 @@ const BadgeuseSection = ({ user }) => {
         date: timestamp,
         status: 'active',
         validated: false,
+        ...(locationData && { location: locationData }),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+
+      console.log('✅ Pointage arrivée enregistré', locationData ? `(${locationData.distanceFromWork}m du travail)` : '');
     } catch (error) {
       console.error('Erreur pointage arrivee:', error);
       alert('Erreur lors du pointage');
     }
   };
 
-  // Pointer le depart
+  // 📍 Pointer le départ (avec vérification géofencing)
   const handleDeparture = async () => {
     if (!user?.uid || !isCurrentlyWorking) return;
 
     try {
+      let locationData = null;
+
+      // Si géofencing activé, vérifier la position
+      if (geofenceSettings.enabled) {
+        setLocationStatus('loading');
+        try {
+          const location = await checkCurrentLocation();
+
+          if (!location.isWithinZone) {
+            alert(`⚠️ Pointage impossible !\n\nVous êtes à ${Math.round(location.distance)}m du lieu de travail.\nZone autorisée : ${geofenceSettings.radius}m autour de "${geofenceSettings.workplaceName}".`);
+            return;
+          }
+
+          locationData = {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+            distanceFromWork: Math.round(location.distance),
+            withinGeofence: true
+          };
+        } catch (geoError) {
+          alert(`⚠️ Impossible de vérifier votre position.\n\n${geoError.message}\n\nActivez la géolocalisation pour pointer.`);
+          return;
+        }
+      }
+
       const now = new Date();
       const timestamp = Timestamp.fromDate(now);
 
@@ -701,9 +880,12 @@ const BadgeuseSection = ({ user }) => {
         date: timestamp,
         status: 'active',
         validated: false,
+        ...(locationData && { location: locationData }),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+
+      console.log('✅ Pointage départ enregistré', locationData ? `(${locationData.distanceFromWork}m du travail)` : '');
     } catch (error) {
       console.error('Erreur pointage depart:', error);
       alert('Erreur lors du pointage');
@@ -802,13 +984,74 @@ const BadgeuseSection = ({ user }) => {
           </motion.button>
         </div>
 
-        {/* Statut */}
+        {/* Statut travail */}
         <div className="mt-4 flex items-center justify-center gap-2">
           <div className={`w-2 h-2 rounded-full ${isCurrentlyWorking ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
           <span className={`text-sm ${isCurrentlyWorking ? 'text-green-400' : 'text-gray-400'}`}>
             {isCurrentlyWorking ? `Au travail depuis ${formatHour(currentSegmentStart)}` : 'Hors travail'}
           </span>
         </div>
+
+        {/* 📍 Statut Géofencing */}
+        {geofenceSettings.enabled && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`mt-4 p-3 rounded-xl border ${
+              locationStatus === 'success'
+                ? 'bg-green-500/10 border-green-500/30'
+                : locationStatus === 'outside'
+                ? 'bg-red-500/10 border-red-500/30'
+                : locationStatus === 'error'
+                ? 'bg-orange-500/10 border-orange-500/30'
+                : 'bg-blue-500/10 border-blue-500/30'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {locationStatus === 'loading' ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
+                    <span className="text-blue-300 text-sm">Vérification position...</span>
+                  </>
+                ) : locationStatus === 'success' ? (
+                  <>
+                    <MapPin className="w-4 h-4 text-green-400" />
+                    <span className="text-green-300 text-sm">
+                      Zone autorisée ({distanceFromWork}m de {geofenceSettings.workplaceName})
+                    </span>
+                  </>
+                ) : locationStatus === 'outside' ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <span className="text-red-300 text-sm">
+                      Hors zone ! ({distanceFromWork}m - max {geofenceSettings.radius}m)
+                    </span>
+                  </>
+                ) : locationStatus === 'error' ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-orange-400" />
+                    <span className="text-orange-300 text-sm text-left">
+                      {locationError || 'Erreur de localisation'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-4 h-4 text-blue-400" />
+                    <span className="text-blue-300 text-sm">Géofencing actif</span>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={() => checkCurrentLocation().catch(() => {})}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                title="Actualiser ma position"
+              >
+                <Navigation className={`w-4 h-4 ${locationStatus === 'loading' ? 'animate-spin text-blue-400' : 'text-gray-400 hover:text-white'}`} />
+              </button>
+            </div>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Stats du jour */}

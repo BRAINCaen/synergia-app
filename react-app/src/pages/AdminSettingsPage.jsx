@@ -35,7 +35,8 @@ import {
   Star,
   TreePine,
   Trophy,
-  Sparkles
+  Sparkles,
+  MapPin
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT STANDARD AVEC MENU HAMBURGER
@@ -187,6 +188,15 @@ const AdminSettingsPage = () => {
       notifyAdminsOnLowPulse: true
     },
 
+    // 📍 GÉOFENCING (Pointage géolocalisé)
+    geofencing: {
+      enabled: false,
+      latitude: 49.1829,
+      longitude: -0.3707,
+      radius: 100,
+      workplaceName: 'Lieu de travail'
+    },
+
     // 🎖️ RANKS
     ranks: {
       enabled: true,
@@ -335,12 +345,24 @@ const AdminSettingsPage = () => {
       setSaving(true);
       console.log('💾 Sauvegarde des paramètres v4.1.0...');
 
+      // Sauvegarder les paramètres principaux
       const settingsRef = doc(db, 'systemSettings', 'main');
       await setDoc(settingsRef, {
         ...settingsToSave,
         updatedAt: new Date(),
         updatedBy: user?.uid || 'system'
       });
+
+      // 📍 Sauvegarder les paramètres de géofencing séparément (pour la badgeuse)
+      if (settingsToSave.geofencing) {
+        const geofencingRef = doc(db, 'systemSettings', 'geofencing');
+        await setDoc(geofencingRef, {
+          ...settingsToSave.geofencing,
+          updatedAt: new Date(),
+          updatedBy: user?.uid || 'system'
+        });
+        console.log('📍 Paramètres géofencing sauvegardés');
+      }
 
       setPendingChanges(false);
       showNotification('Paramètres sauvegardés avec succès', 'success');
@@ -429,6 +451,7 @@ const AdminSettingsPage = () => {
     { id: 'checkpoints', label: 'Checkpoints', icon: Flag, color: 'purple' },
     { id: 'mentoring', label: 'Mentoring', icon: GraduationCap, color: 'indigo' },
     { id: 'pulse', label: 'Pulse', icon: Heart, color: 'pink' },
+    { id: 'geofencing', label: 'Géofencing', icon: MapPin, color: 'teal' },
     { id: 'ranks', label: 'Rangs', icon: Trophy, color: 'amber' },
     { id: 'rewards', label: 'Rewards', icon: Gift, color: 'emerald' },
     { id: 'hr', label: 'RH', icon: Briefcase, color: 'slate' },
@@ -623,6 +646,17 @@ const AdminSettingsPage = () => {
           { type: 'toggle', key: 'suggestionsEnabled', label: "Suggestions activées" },
           { type: 'number', key: 'alertThreshold', label: "Seuil d'alerte (1-5)", min: 1, max: 5 },
           { type: 'toggle', key: 'notifyAdminsOnLowPulse', label: "Alerter admins si pulse bas" }
+        ]
+      },
+      geofencing: {
+        title: "Géofencing - Zone de pointage autorisée",
+        icon: MapPin,
+        fields: [
+          { type: 'toggle', key: 'enabled', label: "Activer le géofencing", description: "Obliger les employés à pointer depuis le lieu de travail" },
+          { type: 'text', key: 'workplaceName', label: "Nom du lieu de travail" },
+          { type: 'number', key: 'latitude', label: "Latitude GPS", min: -90, max: 90, step: 0.0001 },
+          { type: 'number', key: 'longitude', label: "Longitude GPS", min: -180, max: 180, step: 0.0001 },
+          { type: 'number', key: 'radius', label: "Rayon autorisé (mètres)", min: 10, max: 1000 }
         ]
       },
       ranks: {
