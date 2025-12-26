@@ -1624,6 +1624,184 @@ class UnifiedBadgeService {
   getAllBadges() {
     return Object.values(this.badgeDefinitions);
   }
+
+  // ==========================================
+  // 🔄 SYNCHRONISATION COMPLÈTE DES BADGES
+  // ==========================================
+
+  /**
+   * 🔄 SYNCHRONISER STATISTIQUES ET BADGES D'UN UTILISATEUR
+   * Recalcule les statistiques à partir des vraies données
+   * puis vérifie et attribue les badges manquants
+   */
+  async syncUserBadges(userId) {
+    try {
+      console.log('🔄 [SYNC] Début synchronisation badges pour:', userId);
+
+      // 1. Récupérer les données utilisateur
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        return { success: false, message: 'Utilisateur non trouvé' };
+      }
+
+      const userData = userSnap.data();
+
+      // 2. Compter les quêtes depuis la collection quests
+      const questsQuery = query(
+        collection(db, 'quests'),
+        where('userId', '==', userId)
+      );
+      const questsSnapshot = await getDocs(questsQuery);
+
+      let tasksCreated = 0;
+      let tasksCompleted = 0;
+      let questsCompletedThisWeek = 0;
+      let questsCompletedToday = 0;
+
+      const now = new Date();
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      questsSnapshot.forEach(doc => {
+        const quest = doc.data();
+        tasksCreated++;
+
+        if (quest.status === 'completed' || quest.status === 'approved' || quest.status === 'validated') {
+          tasksCompleted++;
+
+          const completedAt = quest.completedAt?.toDate?.() || quest.approvedAt?.toDate?.() || quest.updatedAt?.toDate?.();
+          if (completedAt) {
+            if (completedAt > oneWeekAgo) questsCompletedThisWeek++;
+            if (completedAt > todayStart) questsCompletedToday++;
+          }
+        }
+      });
+
+      // 3. Calculer les jours actifs depuis la création du compte
+      const createdAt = userData.createdAt?.toDate?.() || new Date();
+      const daysSinceCreation = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+      const activeDays = Math.max(userData.gamification?.activeDays || 0, Math.min(daysSinceCreation, 365));
+
+      // 4. Mettre à jour les statistiques
+      const updatedStats = {
+        tasksCreated,
+        tasksCompleted,
+        questsCompletedThisWeek,
+        questsCompletedToday,
+        activeDays,
+        lastSync: new Date().toISOString()
+      };
+
+      await setDoc(userRef, {
+        gamification: {
+          ...userData.gamification,
+          tasksCreated,
+          tasksCompleted,
+          activeDays,
+          stats: {
+            ...(userData.gamification?.stats || {}),
+            ...updatedStats
+          }
+        },
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      console.log('📊 [SYNC] Stats recalculées:', updatedStats);
+
+      // 5. Vérifier et attribuer les badges
+      const updatedUserSnap = await getDoc(userRef);
+      const updatedUserData = updatedUserSnap.data();
+
+      const currentBadges = updatedUserData.gamification?.badges || [];
+      const currentBadgeIds = currentBadges.map(b => b.id);
+
+      const newlyUnlocked = [];
+
+      for (const [badgeId, badgeDef] of Object.entries(this.badgeDefinitions)) {
+        // Skip si déjà obtenu
+        if (currentBadgeIds.includes(badgeId)) continue;
+
+        try {
+          // Vérifier la condition avec les données mises à jour
+          if (typeof badgeDef.autoCheck === 'function' && badgeDef.autoCheck(updatedUserData)) {
+            const newBadge = {
+              id: badgeId,
+              name: badgeDef.name,
+              description: badgeDef.description,
+              icon: badgeDef.icon,
+              rarity: badgeDef.rarity,
+              category: badgeDef.category,
+              xpReward: badgeDef.xpReward,
+              unlockedAt: new Date().toISOString(),
+              trigger: 'sync'
+            };
+            newlyUnlocked.push(newBadge);
+            console.log(`🎖️ [SYNC] Badge débloqué: ${badgeDef.name}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ [SYNC] Erreur vérification badge ${badgeId}:`, error.message);
+        }
+      }
+
+      // 6. Sauvegarder les nouveaux badges
+      if (newlyUnlocked.length > 0) {
+        await this.saveBadges(userId, updatedUserData, newlyUnlocked);
+      }
+
+      const result = {
+        success: true,
+        stats: updatedStats,
+        newBadges: newlyUnlocked,
+        totalBadgesNow: currentBadges.length + newlyUnlocked.length,
+        message: `Synchronisation réussie: ${tasksCompleted} quêtes complétées, ${newlyUnlocked.length} nouveaux badges`
+      };
+
+      console.log('✅ [SYNC] Synchronisation terminée:', result);
+      return result;
+
+    } catch (error) {
+      console.error('❌ [SYNC] Erreur synchronisation:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🔄 SYNCHRONISER TOUS LES UTILISATEURS (ADMIN)
+   */
+  async syncAllUsersBadges() {
+    try {
+      console.log('🔄 [SYNC-ALL] Début synchronisation de tous les utilisateurs...');
+
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const results = [];
+
+      for (const userDoc of usersSnapshot.docs) {
+        const result = await this.syncUserBadges(userDoc.id);
+        results.push({
+          userId: userDoc.id,
+          displayName: userDoc.data().displayName,
+          ...result
+        });
+      }
+
+      const totalNewBadges = results.reduce((sum, r) => sum + (r.newBadges?.length || 0), 0);
+
+      console.log(`✅ [SYNC-ALL] ${results.length} utilisateurs synchronisés, ${totalNewBadges} badges attribués`);
+
+      return {
+        success: true,
+        usersProcessed: results.length,
+        totalNewBadges,
+        details: results
+      };
+
+    } catch (error) {
+      console.error('❌ [SYNC-ALL] Erreur:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 // ==========================================
@@ -1633,10 +1811,38 @@ class UnifiedBadgeService {
 // Instance singleton
 const unifiedBadgeService = new UnifiedBadgeService();
 
-// Exposition globale pour debug
+// Exposition globale pour debug et utilisation console
 if (typeof window !== 'undefined') {
   window.unifiedBadgeService = unifiedBadgeService;
   window.UNIFIED_BADGES = UNIFIED_BADGE_DEFINITIONS;
+
+  // 🔄 Fonction de synchronisation accessible depuis la console
+  window.syncMyBadges = async () => {
+    const user = window.synergia?.auth?.currentUser;
+    if (!user) {
+      console.error('❌ Vous devez être connecté pour synchroniser vos badges');
+      console.log('💡 Tip: Assurez-vous d\'être connecté à Synergia');
+      return;
+    }
+    console.log('🔄 Synchronisation de vos badges en cours...');
+    const result = await unifiedBadgeService.syncUserBadges(user.uid);
+    console.log('✅ Résultat:', result);
+    if (result.newBadges?.length > 0) {
+      console.log('🎉 Nouveaux badges débloqués:', result.newBadges.map(b => b.name).join(', '));
+      alert(`🎉 ${result.newBadges.length} nouveaux badges débloqués !\n\n${result.newBadges.map(b => `${b.icon} ${b.name}`).join('\n')}\n\nRechargez la page pour les voir.`);
+    } else {
+      console.log('ℹ️ Aucun nouveau badge, vos stats ont été mises à jour.');
+    }
+    return result;
+  };
+
+  // 🔄 Fonction pour sync tous les users (admin seulement)
+  window.syncAllBadges = async () => {
+    console.log('🔄 Synchronisation de TOUS les utilisateurs...');
+    return await unifiedBadgeService.syncAllUsersBadges();
+  };
+
+  console.log('💡 Tapez syncMyBadges() dans la console pour synchroniser vos badges !');
 }
 
 export default unifiedBadgeService;
