@@ -45,7 +45,8 @@ import {
   Trash2,
   AlertTriangle,
   Info,
-  ChevronDown
+  ChevronDown,
+  Bot
 } from 'lucide-react';
 
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
@@ -350,7 +351,8 @@ const ProfilePage = () => {
               language: userData.preferences?.interface?.language ?? 'fr',
               soundEffects: userData.preferences?.interface?.soundEffects ?? true,
               animations: userData.preferences?.interface?.animations ?? true,
-              compactMode: userData.preferences?.interface?.compactMode ?? false
+              compactMode: userData.preferences?.interface?.compactMode ?? false,
+              aiAssistant: userData.preferences?.interface?.aiAssistant ?? true
             },
             gamification: {
               showXP: userData.preferences?.gamification?.showXP ?? true,
@@ -421,7 +423,8 @@ const ProfilePage = () => {
         'preferences.interface.soundEffects': formData.preferences.interface.soundEffects,
         'preferences.interface.animations': formData.preferences.interface.animations,
         'preferences.interface.compactMode': formData.preferences.interface.compactMode,
-        
+        'preferences.interface.aiAssistant': formData.preferences.interface.aiAssistant,
+
         // Préférences gamification
         'preferences.gamification.showXP': formData.preferences.gamification.showXP,
         'preferences.gamification.showBadges': formData.preferences.gamification.showBadges,
@@ -1083,12 +1086,18 @@ const ProfilePage = () => {
                     {[
                       { key: 'soundEffects', label: 'Effets sonores', icon: formData.preferences.interface.soundEffects ? Volume2 : VolumeX },
                       { key: 'animations', label: 'Animations', icon: RefreshCw },
-                      { key: 'compactMode', label: 'Mode compact', icon: Smartphone }
-                    ].map(({ key, label, icon: Icon }) => (
+                      { key: 'compactMode', label: 'Mode compact', icon: Smartphone },
+                      { key: 'aiAssistant', label: 'Assistant IA Nova', icon: Bot, description: 'Assistant intelligent pour suggestions et aide' }
+                    ].map(({ key, label, icon: Icon, description }) => (
                       <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
                         <div className="flex items-center space-x-3">
                           <Icon className="w-5 h-5 text-purple-400" />
-                          <span className="text-white font-medium">{label}</span>
+                          <div>
+                            <span className="text-white font-medium">{label}</span>
+                            {description && (
+                              <p className="text-xs text-gray-400">{description}</p>
+                            )}
+                          </div>
                         </div>
                         <button
                           onClick={() => handlePreferenceChange('interface', key, !formData.preferences.interface[key])}

@@ -470,13 +470,44 @@ const AIAssistantPanel = ({ isOpen, onClose }) => {
 // ==========================================
 
 const AIAssistant = () => {
+  const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [hasNotification, setHasNotification] = useState(true);
+  const [isEnabled, setIsEnabled] = useState(true);
+
+  // Vérifier les préférences utilisateur
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const checkPreference = async () => {
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('../../core/firebase.js');
+
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const aiEnabled = userData.preferences?.interface?.aiAssistant ?? true;
+          setIsEnabled(aiEnabled);
+        }
+      } catch (error) {
+        console.log('ℹ️ Préférence IA non trouvée, activation par défaut');
+        setIsEnabled(true);
+      }
+    };
+
+    checkPreference();
+  }, [user?.uid]);
 
   const handleOpen = () => {
     setIsOpen(true);
     setHasNotification(false);
   };
+
+  // Ne pas afficher si désactivé
+  if (!isEnabled) {
+    return null;
+  }
 
   return (
     <>
