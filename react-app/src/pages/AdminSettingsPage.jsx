@@ -43,7 +43,7 @@ import {
 import Layout from '../components/layout/Layout.jsx';
 
 // Firebase
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
 // Services
@@ -194,7 +194,9 @@ const AdminSettingsPage = () => {
       latitude: 49.1829,
       longitude: -0.3707,
       radius: 100,
-      workplaceName: 'Lieu de travail'
+      workplaceName: 'Lieu de travail',
+      remoteAuthorizedUsers: [], // Liste des utilisateurs autorisés à pointer à distance
+      remoteAuthorizationReason: {} // Raisons d'autorisation par utilisateur { odM: "Déplacement client", ... }
     },
 
     // 🎖️ RANKS
@@ -305,6 +307,26 @@ const AdminSettingsPage = () => {
   const [activeTab, setActiveTab] = useState('app');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(false);
+  const [allUsers, setAllUsers] = useState([]); // Liste de tous les utilisateurs pour la sélection
+
+  // Charger la liste des utilisateurs pour le géofencing
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const usersRef = collection(db, 'users');
+        const usersSnap = await getDocs(usersRef);
+        const usersList = usersSnap.docs.map(doc => ({
+          uid: doc.id,
+          ...doc.data()
+        }));
+        setAllUsers(usersList);
+        console.log('👥 Utilisateurs chargés:', usersList.length);
+      } catch (error) {
+        console.error('❌ Erreur chargement utilisateurs:', error);
+      }
+    };
+    loadUsers();
+  }, []);
 
   /**
    * 📊 CHARGER LES PARAMÈTRES
@@ -875,6 +897,110 @@ const AdminSettingsPage = () => {
               return null;
             })}
           </div>
+
+          {/* Section spéciale pour le géofencing - Autorisation de pointage à distance */}
+          {sectionId === 'geofencing' && (
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <h4 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+                <Users className="w-5 h-5 text-teal-400" />
+                Autorisations de pointage à distance
+              </h4>
+              <p className="text-gray-400 text-sm mb-4">
+                Sélectionnez les employés autorisés à pointer en dehors de la zone géofencing (déplacements, télétravail, etc.)
+              </p>
+
+              {/* Liste des utilisateurs avec checkbox */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2">
+                {allUsers.map((u) => {
+                  const isAuthorized = (sectionData.remoteAuthorizedUsers || []).includes(u.uid);
+                  const reason = (sectionData.remoteAuthorizationReason || {})[u.uid] || '';
+
+                  return (
+                    <div
+                      key={u.uid}
+                      className={`p-3 rounded-lg border ${
+                        isAuthorized
+                          ? 'bg-teal-500/20 border-teal-500/50'
+                          : 'bg-gray-700/50 border-gray-600'
+                      } transition-all`}
+                    >
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isAuthorized}
+                          onChange={(e) => {
+                            const currentList = sectionData.remoteAuthorizedUsers || [];
+                            const newList = e.target.checked
+                              ? [...currentList, u.uid]
+                              : currentList.filter(id => id !== u.uid);
+
+                            updateSetting('geofencing', 'remoteAuthorizedUsers', newList);
+
+                            // Si on retire l'autorisation, supprimer aussi la raison
+                            if (!e.target.checked) {
+                              const reasons = { ...(sectionData.remoteAuthorizationReason || {}) };
+                              delete reasons[u.uid];
+                              updateSetting('geofencing', 'remoteAuthorizationReason', reasons);
+                            }
+                          }}
+                          className="mt-1 w-4 h-4 rounded border-gray-500 text-teal-500 focus:ring-teal-500 bg-gray-700"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium truncate">
+                            {u.displayName || u.email || 'Sans nom'}
+                          </p>
+                          <p className="text-gray-400 text-xs truncate">{u.email}</p>
+                          {u.role && (
+                            <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-gray-600 rounded text-gray-300">
+                              {u.role}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+
+                      {/* Champ raison si autorisé */}
+                      {isAuthorized && (
+                        <div className="mt-2 pl-7">
+                          <input
+                            type="text"
+                            placeholder="Raison (ex: Déplacement client)"
+                            value={reason}
+                            onChange={(e) => {
+                              const reasons = { ...(sectionData.remoteAuthorizationReason || {}) };
+                              reasons[u.uid] = e.target.value;
+                              updateSetting('geofencing', 'remoteAuthorizationReason', reasons);
+                            }}
+                            className="w-full px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Résumé des autorisations */}
+              {(sectionData.remoteAuthorizedUsers || []).length > 0 && (
+                <div className="mt-4 p-3 bg-teal-500/10 border border-teal-500/30 rounded-lg">
+                  <p className="text-teal-400 text-sm font-medium">
+                    ✅ {(sectionData.remoteAuthorizedUsers || []).length} employé(s) autorisé(s) à pointer à distance
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(sectionData.remoteAuthorizedUsers || []).map(uid => {
+                      const u = allUsers.find(user => user.uid === uid);
+                      const reason = (sectionData.remoteAuthorizationReason || {})[uid];
+                      return u ? (
+                        <span key={uid} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-teal-500/20 rounded-full text-teal-300">
+                          {u.displayName || u.email?.split('@')[0]}
+                          {reason && <span className="text-teal-400/70">({reason})</span>}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
     );

@@ -525,9 +525,14 @@ const BadgeuseSection = ({ user }) => {
             latitude: data.latitude ?? 49.1829,
             longitude: data.longitude ?? -0.3707,
             radius: data.radius ?? 100,
-            workplaceName: data.workplaceName ?? 'Lieu de travail'
+            workplaceName: data.workplaceName ?? 'Lieu de travail',
+            remoteAuthorizedUsers: data.remoteAuthorizedUsers ?? [],
+            remoteAuthorizationReason: data.remoteAuthorizationReason ?? {}
           });
           console.log('📍 Géofencing chargé:', data.enabled ? 'ACTIF' : 'INACTIF');
+          if (data.remoteAuthorizedUsers?.length > 0) {
+            console.log('📍 Utilisateurs autorisés à distance:', data.remoteAuthorizedUsers.length);
+          }
         }
       } catch (error) {
         console.error('❌ Erreur chargement géofencing:', error);
@@ -786,6 +791,10 @@ const BadgeuseSection = ({ user }) => {
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // 📍 Vérifier si l'utilisateur est autorisé à pointer à distance
+  const isAuthorizedForRemote = user?.uid && (geofenceSettings.remoteAuthorizedUsers || []).includes(user.uid);
+  const remoteAuthReason = isAuthorizedForRemote ? (geofenceSettings.remoteAuthorizationReason || {})[user.uid] : null;
+
   // 📍 Pointer l'arrivée (avec vérification géofencing)
   const handleArrival = async () => {
     if (!user?.uid || isCurrentlyWorking) return;
@@ -793,8 +802,8 @@ const BadgeuseSection = ({ user }) => {
     try {
       let locationData = null;
 
-      // Si géofencing activé, vérifier la position
-      if (geofenceSettings.enabled) {
+      // Si géofencing activé ET utilisateur non autorisé à distance, vérifier la position
+      if (geofenceSettings.enabled && !isAuthorizedForRemote) {
         setLocationStatus('loading');
         try {
           const location = await checkCurrentLocation();
@@ -815,6 +824,28 @@ const BadgeuseSection = ({ user }) => {
           alert(`⚠️ Impossible de vérifier votre position.\n\n${geoError.message}\n\nActivez la géolocalisation pour pointer.`);
           return;
         }
+      } else if (geofenceSettings.enabled && isAuthorizedForRemote) {
+        // Utilisateur autorisé à distance - enregistrer quand même la position si disponible
+        try {
+          const location = await checkCurrentLocation();
+          locationData = {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+            distanceFromWork: Math.round(location.distance),
+            withinGeofence: location.isWithinZone,
+            remoteAuthorized: true,
+            remoteReason: remoteAuthReason || 'Déplacement autorisé'
+          };
+        } catch {
+          // Position non disponible mais autorisé à pointer quand même
+          locationData = {
+            remoteAuthorized: true,
+            remoteReason: remoteAuthReason || 'Déplacement autorisé',
+            positionUnavailable: true
+          };
+        }
+        console.log('📍 Pointage à distance autorisé:', remoteAuthReason || 'Déplacement');
       }
 
       const now = new Date();
@@ -846,8 +877,8 @@ const BadgeuseSection = ({ user }) => {
     try {
       let locationData = null;
 
-      // Si géofencing activé, vérifier la position
-      if (geofenceSettings.enabled) {
+      // Si géofencing activé ET utilisateur non autorisé à distance, vérifier la position
+      if (geofenceSettings.enabled && !isAuthorizedForRemote) {
         setLocationStatus('loading');
         try {
           const location = await checkCurrentLocation();
@@ -868,6 +899,28 @@ const BadgeuseSection = ({ user }) => {
           alert(`⚠️ Impossible de vérifier votre position.\n\n${geoError.message}\n\nActivez la géolocalisation pour pointer.`);
           return;
         }
+      } else if (geofenceSettings.enabled && isAuthorizedForRemote) {
+        // Utilisateur autorisé à distance - enregistrer quand même la position si disponible
+        try {
+          const location = await checkCurrentLocation();
+          locationData = {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+            distanceFromWork: Math.round(location.distance),
+            withinGeofence: location.isWithinZone,
+            remoteAuthorized: true,
+            remoteReason: remoteAuthReason || 'Déplacement autorisé'
+          };
+        } catch {
+          // Position non disponible mais autorisé à pointer quand même
+          locationData = {
+            remoteAuthorized: true,
+            remoteReason: remoteAuthReason || 'Déplacement autorisé',
+            positionUnavailable: true
+          };
+        }
+        console.log('📍 Dépointage à distance autorisé:', remoteAuthReason || 'Déplacement');
       }
 
       const now = new Date();
@@ -998,7 +1051,9 @@ const BadgeuseSection = ({ user }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={`mt-4 p-3 rounded-xl border ${
-              locationStatus === 'success'
+              isAuthorizedForRemote
+                ? 'bg-teal-500/10 border-teal-500/30'
+                : locationStatus === 'success'
                 ? 'bg-green-500/10 border-green-500/30'
                 : locationStatus === 'outside'
                 ? 'bg-red-500/10 border-red-500/30'
@@ -1009,7 +1064,19 @@ const BadgeuseSection = ({ user }) => {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {locationStatus === 'loading' ? (
+                {isAuthorizedForRemote ? (
+                  <>
+                    <MapPin className="w-4 h-4 text-teal-400" />
+                    <div className="text-left">
+                      <span className="text-teal-300 text-sm font-medium block">
+                        Pointage à distance autorisé
+                      </span>
+                      {remoteAuthReason && (
+                        <span className="text-teal-400/70 text-xs">{remoteAuthReason}</span>
+                      )}
+                    </div>
+                  </>
+                ) : locationStatus === 'loading' ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
                     <span className="text-blue-300 text-sm">Vérification position...</span>
@@ -1042,13 +1109,15 @@ const BadgeuseSection = ({ user }) => {
                   </>
                 )}
               </div>
-              <button
-                onClick={() => checkCurrentLocation().catch(() => {})}
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                title="Actualiser ma position"
-              >
-                <Navigation className={`w-4 h-4 ${locationStatus === 'loading' ? 'animate-spin text-blue-400' : 'text-gray-400 hover:text-white'}`} />
-              </button>
+              {!isAuthorizedForRemote && (
+                <button
+                  onClick={() => checkCurrentLocation().catch(() => {})}
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                  title="Actualiser ma position"
+                >
+                  <Navigation className={`w-4 h-4 ${locationStatus === 'loading' ? 'animate-spin text-blue-400' : 'text-gray-400 hover:text-white'}`} />
+                </button>
+              )}
             </div>
           </motion.div>
         )}
