@@ -317,7 +317,7 @@ export const uploadFileWithProgress = async (file, path, onProgress) => {
 
 /**
  * 📎 UPLOAD PIÈCE JOINTE POUR UNE QUÊTE (CRÉATION)
- * Supporte images et vidéos sans limite de taille
+ * Supporte images et vidéos avec timeout de 2 minutes
  * @param {File} file - Fichier à uploader
  * @param {string} userId - ID de l'utilisateur
  * @param {function} onProgress - Callback de progression
@@ -350,39 +350,57 @@ export const uploadTaskAttachment = async (file, userId, onProgress = () => {}) 
     // Simuler la progression
     onProgress(10);
 
-    // Upload du fichier via fetch
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': file.type
-      },
-      body: file
-    });
+    // Upload avec timeout de 2 minutes
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.error('❌ [STORAGE] Timeout upload après 2 minutes');
+    }, 120000);
 
-    onProgress(80);
+    try {
+      // Upload du fichier via fetch avec timeout
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': file.type
+        },
+        body: file,
+        signal: controller.signal
+      });
 
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('❌ [STORAGE] Erreur upload:', errorText);
-      throw new Error(`Erreur upload: ${uploadResponse.status}`);
+      clearTimeout(timeoutId);
+      onProgress(80);
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('❌ [STORAGE] Erreur upload:', errorText);
+        throw new Error(`Erreur upload: ${uploadResponse.status}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+      console.log('✅ [STORAGE] Upload réussi:', uploadData.name);
+
+      // Construire l'URL de téléchargement
+      const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+
+      onProgress(100);
+
+      return {
+        url: downloadURL,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        path: filePath
+      };
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Upload annulé : le fichier est peut-être trop volumineux ou la connexion trop lente');
+      }
+      throw fetchError;
     }
-
-    const uploadData = await uploadResponse.json();
-    console.log('✅ [STORAGE] Upload réussi:', uploadData.name);
-
-    // Construire l'URL de téléchargement
-    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
-
-    onProgress(100);
-
-    return {
-      url: downloadURL,
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      path: filePath
-    };
 
   } catch (error) {
     console.error('❌ [STORAGE] Erreur upload pièce jointe:', error);
@@ -392,7 +410,7 @@ export const uploadTaskAttachment = async (file, userId, onProgress = () => {}) 
 
 /**
  * 🖼️ UPLOAD MÉDIA POUR VALIDATION DE QUÊTE
- * Supporte images et vidéos sans limite de taille
+ * Supporte images et vidéos avec timeout de 2 minutes
  * @param {File} file - Fichier à uploader
  * @param {string} userId - ID de l'utilisateur
  * @param {string} taskId - ID de la quête
@@ -432,39 +450,57 @@ export const uploadValidationMedia = async (file, userId, taskId, onProgress = (
 
     onProgress(10);
 
-    // Upload du fichier via fetch
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': file.type
-      },
-      body: file
-    });
+    // Upload avec timeout de 2 minutes
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.error('❌ [STORAGE] Timeout upload après 2 minutes');
+    }, 120000);
 
-    onProgress(80);
+    try {
+      // Upload du fichier via fetch avec timeout
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': file.type
+        },
+        body: file,
+        signal: controller.signal
+      });
 
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('❌ [STORAGE] Erreur upload média:', errorText);
-      throw new Error(`Erreur upload: ${uploadResponse.status}`);
+      clearTimeout(timeoutId);
+      onProgress(80);
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('❌ [STORAGE] Erreur upload média:', errorText);
+        throw new Error(`Erreur upload: ${uploadResponse.status}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+      console.log('✅ [STORAGE] Upload média réussi:', uploadData.name);
+
+      // Construire l'URL de téléchargement
+      const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+
+      onProgress(100);
+
+      return {
+        url: downloadURL,
+        type: isImage ? 'image' : 'video',
+        name: file.name,
+        size: file.size,
+        path: filePath
+      };
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Upload annulé : le fichier est peut-être trop volumineux ou la connexion trop lente');
+      }
+      throw fetchError;
     }
-
-    const uploadData = await uploadResponse.json();
-    console.log('✅ [STORAGE] Upload média réussi:', uploadData.name);
-
-    // Construire l'URL de téléchargement
-    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
-
-    onProgress(100);
-
-    return {
-      url: downloadURL,
-      type: isImage ? 'image' : 'video',
-      name: file.name,
-      size: file.size,
-      path: filePath
-    };
 
   } catch (error) {
     console.error('❌ [STORAGE] Erreur upload média validation:', error);
