@@ -17,11 +17,14 @@ import {
   Zap,
   RefreshCw,
   MessageCircle,
-  BookOpen
+  BookOpen,
+  CheckCircle,
+  Loader
 } from 'lucide-react';
 
 import { useAuthStore } from '../../shared/stores/authStore';
 import aiAssistantService from '../../core/services/aiAssistantService';
+import { createTaskSafely } from '../../core/services/taskCreationFix';
 
 // ==========================================
 // COMPOSANT BULLE ASSISTANT
@@ -70,7 +73,7 @@ const AssistantBubble = ({ onClick, hasNotification = false }) => {
 // CARTE DE SUGGESTION
 // ==========================================
 
-const SuggestionCard = ({ suggestion, onAccept, onRefresh }) => {
+const SuggestionCard = ({ suggestion, onAccept, onRefresh, isLoading = false }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -101,18 +104,31 @@ const SuggestionCard = ({ suggestion, onAccept, onRefresh }) => {
 
       <div className="flex gap-2 mt-3">
         <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => onAccept(suggestion)}
-          className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg transition-colors"
+          whileHover={{ scale: isLoading ? 1 : 1.02 }}
+          whileTap={{ scale: isLoading ? 1 : 0.98 }}
+          onClick={() => !isLoading && onAccept(suggestion)}
+          disabled={isLoading}
+          className={`flex-1 py-2 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
+            isLoading
+              ? 'bg-purple-600/50 cursor-not-allowed'
+              : 'bg-purple-600 hover:bg-purple-500'
+          }`}
         >
-          Accepter la quête
+          {isLoading ? (
+            <>
+              <Loader className="w-4 h-4 animate-spin" />
+              Création...
+            </>
+          ) : (
+            'Accepter la quête'
+          )}
         </motion.button>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onRefresh}
-          className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+          disabled={isLoading}
+          className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className="w-4 h-4" />
         </motion.button>
@@ -135,6 +151,8 @@ const AIAssistantPanel = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [creatingQuest, setCreatingQuest] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Charger les données initiales
   useEffect(() => {
@@ -173,10 +191,58 @@ const AIAssistantPanel = ({ isOpen, onClose }) => {
     setTip(newTip);
   };
 
-  const handleAcceptQuest = (quest) => {
-    // TODO: Créer la quête dans le système
-    console.log('Quête acceptée:', quest);
-    // Afficher un message de succès
+  const handleAcceptQuest = async (quest) => {
+    if (creatingQuest) return; // Éviter les doubles clics
+
+    setCreatingQuest(quest.id);
+    setSuccessMessage(null);
+
+    try {
+      // Mapper la difficulté IA vers le système de tâches
+      const difficultyMap = {
+        'easy': 'easy',
+        'medium': 'medium',
+        'hard': 'hard',
+        'legendary': 'expert'
+      };
+
+      // Créer la quête dans le système
+      const taskData = {
+        title: quest.title,
+        description: `Quête suggérée par Nova : ${quest.reason || 'Personnalisée pour toi !'}`,
+        status: 'todo',
+        priority: quest.difficulty === 'easy' ? 'low' : quest.difficulty === 'legendary' ? 'urgent' : 'medium',
+        difficulty: difficultyMap[quest.difficulty] || 'medium',
+        category: quest.category || 'general',
+        xpReward: quest.xp || 25,
+        estimatedHours: quest.difficulty === 'easy' ? 0.5 : quest.difficulty === 'hard' ? 2 : 1,
+        tags: ['nova', 'ai-suggested', quest.category].filter(Boolean),
+        openToVolunteers: false
+      };
+
+      const result = await createTaskSafely(taskData, user);
+
+      if (result.success) {
+        console.log('✅ Quête créée:', result);
+        setSuccessMessage(`Quête "${quest.title}" ajoutée à tes quêtes !`);
+
+        // Retirer la suggestion de la liste
+        setSuggestions(prev => prev.filter(s => s.id !== quest.id));
+
+        // Effacer le message après 3 secondes
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        console.error('❌ Erreur création quête:', result);
+        setSuccessMessage('Erreur lors de la création de la quête');
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      setSuccessMessage('Erreur lors de la création de la quête');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } finally {
+      setCreatingQuest(null);
+    }
   };
 
   const tabs = [
@@ -291,6 +357,21 @@ const AIAssistantPanel = ({ isOpen, onClose }) => {
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      {/* Message de succès */}
+                      <AnimatePresence>
+                        {successMessage && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="p-3 bg-green-500/20 border border-green-500/30 rounded-xl flex items-center gap-2"
+                          >
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                            <p className="text-green-200 text-sm">{successMessage}</p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       {suggestions.map((suggestion, index) => (
                         <motion.div
                           key={suggestion.id || index}
@@ -302,6 +383,7 @@ const AIAssistantPanel = ({ isOpen, onClose }) => {
                             suggestion={suggestion}
                             onAccept={handleAcceptQuest}
                             onRefresh={refreshSuggestions}
+                            isLoading={creatingQuest === suggestion.id}
                           />
                         </motion.div>
                       ))}

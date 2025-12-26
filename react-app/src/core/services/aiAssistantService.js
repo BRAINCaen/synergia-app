@@ -65,13 +65,6 @@ const QUEST_TEMPLATES = {
     { title: "Partager tes connaissances avec un junior", xp: 45, difficulty: 'medium', icon: '🎓' },
     { title: "Documenter une procédure", xp: 40, difficulty: 'medium', icon: '📋' }
   ],
-  wellbeing: [
-    { title: "Prendre une pause de 10 min", xp: 15, difficulty: 'easy', icon: '☕' },
-    { title: "Faire une activité physique", xp: 30, difficulty: 'medium', icon: '🏃' },
-    { title: "Méditer 5 minutes", xp: 20, difficulty: 'easy', icon: '🧘' },
-    { title: "Sortir prendre l'air", xp: 15, difficulty: 'easy', icon: '🌳' },
-    { title: "Déjeuner sans écran", xp: 25, difficulty: 'medium', icon: '🥗' }
-  ],
   challenges: [
     { title: "Doubler ton XP habituel aujourd'hui", xp: 100, difficulty: 'hard', icon: '🔥' },
     { title: "Compléter 5 quêtes d'affilée", xp: 75, difficulty: 'hard', icon: '⚔️' },
@@ -293,7 +286,7 @@ class AIAssistantService {
       // Prioriser les catégories basées sur les faiblesses
       let priorityCategories = [];
       if (analysis?.weaknesses.includes('collaboration')) priorityCategories.push('collaboration');
-      if (analysis?.weaknesses.includes('consistency')) priorityCategories.push('wellbeing');
+      if (analysis?.weaknesses.includes('consistency')) priorityCategories.push('productivity');
       if (analysis?.weaknesses.includes('exploration')) priorityCategories.push('challenges');
 
       // Ajouter des catégories aléatoires
@@ -329,7 +322,6 @@ class AIAssistantService {
       productivity: "Pour booster ta productivité !",
       collaboration: "Pour renforcer les liens d'équipe !",
       learning: "Pour développer tes compétences !",
-      wellbeing: "Pour ton bien-être au travail !",
       challenges: "Pour repousser tes limites !"
     };
 
