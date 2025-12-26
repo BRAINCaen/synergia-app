@@ -94,8 +94,12 @@ export const uploadUserAvatar = async (userId, file) => {
     const uploadData = await uploadResponse.json();
     console.log('✅ [STORAGE] Upload réussi:', uploadData);
 
-    // Construire l'URL de téléchargement public
-    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+    // Construire l'URL de téléchargement AVEC le token d'accès
+    const downloadToken = uploadData.downloadTokens;
+    let downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+    if (downloadToken) {
+      downloadURL += `&token=${downloadToken}`;
+    }
     console.log('🔗 [STORAGE] URL de téléchargement:', downloadURL);
 
     // Mettre à jour le profil utilisateur dans Firestore
@@ -194,8 +198,15 @@ export const uploadFile = async (path, file) => {
       throw new Error(`Erreur upload: ${uploadResponse.status} - ${errorText}`);
     }
 
-    // Construire l'URL de téléchargement
-    const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
+    // Récupérer le token de téléchargement
+    const uploadData = await uploadResponse.json();
+    const downloadToken = uploadData.downloadTokens;
+
+    // Construire l'URL de téléchargement AVEC le token d'accès
+    let downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
+    if (downloadToken) {
+      downloadURL += `&token=${downloadToken}`;
+    }
     console.log('✅ [STORAGE] Fichier uploadé:', downloadURL);
 
     return downloadURL;
@@ -286,9 +297,22 @@ export const uploadFileWithProgress = async (file, path, onProgress) => {
       // Gestion de la réussite
       xhr.addEventListener('load', () => {
         if (xhr.status === 200) {
-          const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
-          console.log('✅ [STORAGE] Upload terminé:', downloadURL);
-          resolve(downloadURL);
+          try {
+            // Extraire le token de téléchargement de la réponse
+            const uploadData = JSON.parse(xhr.responseText);
+            const downloadToken = uploadData.downloadTokens;
+            let downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
+            if (downloadToken) {
+              downloadURL += `&token=${downloadToken}`;
+            }
+            console.log('✅ [STORAGE] Upload terminé:', downloadURL);
+            resolve(downloadURL);
+          } catch (e) {
+            // Fallback sans token si parsing échoue
+            const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
+            console.log('✅ [STORAGE] Upload terminé (sans token):', downloadURL);
+            resolve(downloadURL);
+          }
         } else {
           reject(new Error(`Erreur upload: ${xhr.status} - ${xhr.responseText}`));
         }
@@ -381,8 +405,12 @@ export const uploadTaskAttachment = async (file, userId, onProgress = () => {}) 
       const uploadData = await uploadResponse.json();
       console.log('✅ [STORAGE] Upload réussi:', uploadData.name);
 
-      // Construire l'URL de téléchargement
-      const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+      // Construire l'URL de téléchargement AVEC le token d'accès
+      const downloadToken = uploadData.downloadTokens;
+      let downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+      if (downloadToken) {
+        downloadURL += `&token=${downloadToken}`;
+      }
 
       onProgress(100);
 
@@ -481,8 +509,12 @@ export const uploadValidationMedia = async (file, userId, taskId, onProgress = (
       const uploadData = await uploadResponse.json();
       console.log('✅ [STORAGE] Upload média réussi:', uploadData.name);
 
-      // Construire l'URL de téléchargement
-      const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+      // Construire l'URL de téléchargement AVEC le token d'accès
+      const downloadToken = uploadData.downloadTokens;
+      let downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+      if (downloadToken) {
+        downloadURL += `&token=${downloadToken}`;
+      }
 
       onProgress(100);
 
