@@ -17,12 +17,13 @@ import {
   onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL 
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL
 } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
+import { getAuth } from 'firebase/auth';
 
 // ✅ IMPORT DU SERVICE DE NOTIFICATIONS
 import notificationService from './notificationService.js';
@@ -60,7 +61,7 @@ class TaskValidationService {
   }
 
   /**
-   * 📤 UPLOAD D'UN FICHIER VERS FIREBASE STORAGE
+   * 📤 UPLOAD D'UN FICHIER VERS FIREBASE STORAGE (API REST avec timeout)
    * @param {File} file - Le fichier à uploader
    * @param {string} taskId - L'ID de la tâche
    * @param {string} userId - L'ID de l'utilisateur
@@ -80,33 +81,69 @@ class TaskValidationService {
       // Créer un nom de fichier unique
       const timestamp = Date.now();
       const extension = file.name.split('.').pop() || (type === 'photo' ? 'jpg' : 'mp4');
-      const fileName = `task-validations/${userId}/${taskId}_${type}_${timestamp}.${extension}`;
-      
-      // Référence vers Firebase Storage
-      const storageRef = ref(storage, fileName);
-      
-      // Upload du fichier
-      console.log(`📤 [UPLOAD] Upload en cours vers: ${fileName}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      
-      // Récupérer l'URL de téléchargement
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
-      console.log(`✅ [UPLOAD] ${type} uploadé avec succès:`, downloadURL);
-      return downloadURL;
+      const filePath = `task-validations/${userId}/${taskId}_${type}_${timestamp}.${extension}`;
+
+      // Récupérer le token d'authentification
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('Utilisateur non connecté');
+      }
+      const token = await user.getIdToken();
+
+      // Configuration upload REST API (plus fiable que le SDK)
+      const bucket = 'synergia-app-f27e7.firebasestorage.app';
+      const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=multipart&name=${encodeURIComponent(filePath)}`;
+
+      console.log(`📤 [UPLOAD] Upload REST API vers: ${filePath}`);
+
+      // Upload avec timeout de 2 minutes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+      try {
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': file.type
+          },
+          body: file,
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('❌ [UPLOAD] Erreur réponse:', errorText);
+          throw new Error(`Erreur upload: ${uploadResponse.status}`);
+        }
+
+        // Construire l'URL de téléchargement
+        const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+
+        console.log(`✅ [UPLOAD] ${type} uploadé avec succès:`, downloadURL);
+        return downloadURL;
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.error('❌ [UPLOAD] Timeout - fichier trop volumineux ou connexion lente');
+        }
+        throw fetchError;
+      }
 
     } catch (error) {
       console.error(`❌ [UPLOAD] Erreur upload ${type}:`, error);
-      
-      // Gérer les erreurs CORS ou de configuration
-      if (error.code === 'storage/unauthorized') {
-        console.warn('⚠️ [UPLOAD] Erreur d\'autorisation Storage - vérifier les règles Firebase');
-      } else if (error.code === 'storage/canceled') {
-        console.warn('⚠️ [UPLOAD] Upload annulé');
-      } else if (error.message?.includes('CORS')) {
-        console.warn('⚠️ [UPLOAD] Erreur CORS - vérifier la configuration Firebase Storage');
+
+      // Gérer les erreurs spécifiques
+      if (error.message?.includes('Timeout') || error.name === 'AbortError') {
+        console.warn('⚠️ [UPLOAD] Le fichier est peut-être trop volumineux. Essayez un fichier plus petit.');
+      } else if (error.message?.includes('401') || error.message?.includes('403')) {
+        console.warn('⚠️ [UPLOAD] Erreur d\'autorisation - vérifier les règles Firebase Storage');
       }
-      
+
       // Ne pas bloquer la soumission si l'upload échoue
       return null;
     }

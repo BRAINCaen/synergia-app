@@ -674,6 +674,52 @@ const TaskDetailModal = ({
                     </div>
                   </div>
                 )}
+
+                {/* Pièces jointes */}
+                {task.attachments && task.attachments.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2 text-gray-300 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4" />
+                      Pièces jointes ({task.attachments.length})
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {task.attachments.map((attachment, index) => (
+                        <a
+                          key={index}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group relative bg-gray-800 rounded-lg border border-gray-700 overflow-hidden hover:border-blue-500 transition-colors"
+                        >
+                          {attachment.type?.startsWith('image/') ? (
+                            <img
+                              src={attachment.url}
+                              alt={attachment.name || `Image ${index + 1}`}
+                              className="w-full h-32 object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : attachment.type?.startsWith('video/') ? (
+                            <div className="w-full h-32 bg-gray-900 flex flex-col items-center justify-center gap-2">
+                              <Play className="w-10 h-10 text-blue-400" />
+                              <span className="text-xs text-gray-400 truncate max-w-full px-2">
+                                {attachment.name || 'Vidéo'}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="w-full h-32 bg-gray-900 flex flex-col items-center justify-center gap-2">
+                              <FileText className="w-10 h-10 text-gray-400" />
+                              <span className="text-xs text-gray-400 truncate max-w-full px-2">
+                                {attachment.name || 'Fichier'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm px-2 py-1 text-xs text-gray-300 truncate">
+                            {attachment.name || `Fichier ${index + 1}`}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
