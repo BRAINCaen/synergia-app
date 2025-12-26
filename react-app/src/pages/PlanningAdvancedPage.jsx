@@ -40,6 +40,7 @@ import {
 
 // Layout
 import Layout from '../components/layout/Layout.jsx';
+import UserAvatar from '../components/common/UserAvatar.jsx';
 
 // Services
 import planningEnrichedService from '../core/services/planningEnrichedService.js';
@@ -2541,17 +2542,12 @@ const PlanningAdvancedPage = () => {
                       <tr key={employee.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition-colors">
                         <td className="p-2 sm:p-4 sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10">
                           <div className="flex items-center gap-2 sm:gap-3">
-                            {employee.photoURL ? (
-                              <img
-                                src={employee.photoURL}
-                                alt={employee.name}
-                                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-purple-500/50 flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-xs sm:text-base flex-shrink-0">
-                                {employee.name.charAt(0)}
-                              </div>
-                            )}
+                            <UserAvatar
+                              user={employee}
+                              size="md"
+                              showBorder={true}
+                              className="flex-shrink-0"
+                            />
                             <div className="min-w-0">
                               <p className="text-white font-semibold text-xs sm:text-base truncate">{employee.name}</p>
                               <p className="text-gray-400 text-[10px] sm:text-sm truncate hidden sm:block">{employee.position}</p>

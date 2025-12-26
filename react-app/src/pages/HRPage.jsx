@@ -82,6 +82,7 @@ import {
 
 // 🎯 IMPORTS
 import Layout from '../components/layout/Layout.jsx';
+import UserAvatar from '../components/common/UserAvatar.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
 // 🔥 FIREBASE
@@ -769,17 +770,14 @@ const EmployeeCard = ({ employee, onViewEmployee, onRefresh }) => {
     <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:bg-gray-700/50 transition-all">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          {employee.photoURL ? (
-            <img 
-              src={employee.photoURL} 
-              alt={`${employee.firstName} ${employee.lastName}`}
-              className="w-12 h-12 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-              {employee.firstName?.[0]}{employee.lastName?.[0]}
-            </div>
-          )}
+          <UserAvatar
+            user={{
+              ...employee,
+              displayName: `${employee.firstName} ${employee.lastName}`
+            }}
+            size="lg"
+            showBorder={true}
+          />
           <div>
             <h3 className="text-white font-semibold">{employee.firstName} {employee.lastName}</h3>
             <p className="text-gray-400 text-sm">{employee.position}</p>
@@ -904,17 +902,14 @@ const EmployeeDetailModal = ({ employee, onClose, onSuccess }) => {
         {/* HEADER */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {employee.photoURL ? (
-              <img 
-                src={employee.photoURL} 
-                alt={`${employee.firstName} ${employee.lastName}`}
-                className="w-16 h-16 rounded-full object-cover border-2 border-white"
-              />
-            ) : (
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                {employee.firstName?.[0]}{employee.lastName?.[0]}
-              </div>
-            )}
+            <UserAvatar
+              user={{
+                ...employee,
+                displayName: `${employee.firstName} ${employee.lastName}`
+              }}
+              size="xl"
+              showBorder={true}
+            />
             <div>
               <h2 className="text-2xl font-bold text-white">{employee.firstName} {employee.lastName}</h2>
               <p className="text-blue-100">{employee.position}</p>
@@ -1559,13 +1554,11 @@ const LeavesTab = ({ employees, onRefresh }) => {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     {/* Info employé */}
                     <div className="flex items-center gap-3">
-                      {emp.photoURL ? (
-                        <img src={emp.photoURL} alt={emp.displayName} className="w-10 h-10 rounded-full" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
-                          {emp.displayName?.charAt(0) || '?'}
-                        </div>
-                      )}
+                      <UserAvatar
+                        user={emp}
+                        size="md"
+                        showBorder={true}
+                      />
                       <div>
                         <p className="text-white font-medium">{emp.displayName || emp.email}</p>
                         <p className="text-gray-400 text-sm">{emp.email}</p>
@@ -4208,13 +4201,14 @@ const PayrollTab = ({ employees, timesheets, leaves, companyName, onRefresh, cur
                           return (
                             <div key={emp.id} className="flex items-center justify-between p-3 bg-gray-900/30 rounded-lg">
                               <div className="flex items-center gap-3">
-                                {emp.photoURL ? (
-                                  <img src={emp.photoURL} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                                    {emp.firstName?.[0]}{emp.lastName?.[0]}
-                                  </div>
-                                )}
+                                <UserAvatar
+                                  user={{
+                                    ...emp,
+                                    displayName: `${emp.firstName} ${emp.lastName}`
+                                  }}
+                                  size="sm"
+                                  showBorder={true}
+                                />
                                 <span className="text-white">{emp.firstName} {emp.lastName}</span>
                               </div>
                               <div className="flex items-center gap-2">

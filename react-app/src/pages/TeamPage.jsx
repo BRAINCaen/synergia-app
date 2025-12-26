@@ -16,6 +16,9 @@ import {
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
 import Layout from '../components/layout/Layout.jsx';
 
+// 🖼️ IMPORT DU COMPOSANT AVATAR UNIVERSEL
+import UserAvatar from '../components/common/UserAvatar.jsx';
+
 // 🚀 IMPORT DU SYSTÈME BOOST
 import { BoostButton } from '../components/boost';
 
@@ -297,6 +300,11 @@ const loadAllTeamMembers = async () => {
             role: userData.role || 'Membre',
             department: userData.department || 'Non spécifié',
             photoURL: userData.photoURL || null,
+            // Données avatar personnalisé
+            avatarType: userData.avatarType || null,
+            pixelArtAvatar: userData.pixelArtAvatar || null,
+            diceBearAvatar: userData.diceBearAvatar || null,
+            customization: userData.customization || null,
             status: userData.status || 'actif',
             isOnline: userData.isOnline || false,
             joinedAt: userData.createdAt?.toDate?.() || new Date(),
@@ -872,19 +880,11 @@ const loadAllTeamMembers = async () => {
 
                       <div className="mt-6 text-center">
                         <div className="relative inline-block mb-4">
-                          {member.photoURL ? (
-                            <img 
-                              src={member.photoURL} 
-                              alt={member.name}
-                              className="w-16 h-16 rounded-full object-cover mx-auto"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto">
-                              <span className="text-white font-bold text-xl">
-                                {member.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
+                          <UserAvatar
+                            user={member}
+                            size="xl"
+                            showBorder={true}
+                          />
                         </div>
 
                         <h3 className="text-lg font-semibold text-white mb-1">{member.name}</h3>
@@ -1101,19 +1101,12 @@ const loadAllTeamMembers = async () => {
 {/* HEADER DU MODAL */}
 <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
   <div className="flex items-center gap-3 sm:gap-4">
-    {selectedMember.photoURL ? (
-      <img
-        src={selectedMember.photoURL}
-        alt={selectedMember.name}
-        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover"
-      />
-    ) : (
-      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
-        <span className="text-white font-bold text-xl sm:text-2xl">
-          {selectedMember.name.charAt(0).toUpperCase()}
-        </span>
-      </div>
-    )}
+    <UserAvatar
+      user={selectedMember}
+      size="xl"
+      showBorder={true}
+      className="shrink-0"
+    />
     <div className="min-w-0">
       <h3 className="text-lg sm:text-2xl font-bold text-white truncate">{selectedMember.name}</h3>
       <p className="text-gray-400 text-sm sm:text-base">{selectedMember.role}</p>
