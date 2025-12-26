@@ -17,13 +17,11 @@ import {
   onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytesResumable,
-  getDownloadURL, 
-  deleteObject 
+import {
+  ref,
+  deleteObject
 } from 'firebase/storage';
-import { db, storage } from '../firebase.js';
+import { db, storage, auth } from '../firebase.js';
 import notificationService from './notificationService.js';
 
 /**
@@ -52,112 +50,134 @@ class InfosService {
   }
 
   /**
-   * 📤 UPLOAD FICHIER AVEC PROGRESSION
+   * 📤 UPLOAD FICHIER AVEC PROGRESSION - API REST AVEC TOKEN
    */
   async uploadFile(file, userId, onProgress) {
-    return new Promise((resolve, reject) => {
+    try {
+      console.log('📤 [INFOS] Upload fichier:', file.name, 'Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (!isImage && !isVideo) {
+        throw new Error('Seules les images et vidéos sont acceptées');
+      }
+
+      // Vérifier l'authentification
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('Utilisateur non authentifié');
+      }
+
+      // Obtenir le token d'authentification
+      const token = await currentUser.getIdToken();
+
+      // Construire le chemin du fichier
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${timestamp}_${userId}.${fileExtension}`;
+      const storagePath = `${this.STORAGE_PATH}/${fileName}`;
+
+      // Récupérer le bucket Firebase Storage
+      const bucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET;
+      if (!bucket) {
+        throw new Error('Configuration Firebase Storage manquante');
+      }
+
+      console.log('📤 [INFOS] Début upload vers Firebase Storage REST API...');
+      console.log('📤 [INFOS] Chemin:', storagePath);
+
+      // Simuler la progression au démarrage
+      if (onProgress) {
+        onProgress(10);
+      }
+
+      // ✅ TIMEOUT DE 2 MINUTES AVEC ABORTCONTROLLER
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 120000); // 2 minutes
+
       try {
-        console.log('📤 [INFOS] Upload fichier:', file.name, 'Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
-        
-        const isImage = file.type.startsWith('image/');
-        const isVideo = file.type.startsWith('video/');
-        
-        if (!isImage && !isVideo) {
-          reject(new Error('Seules les images et vidéos sont acceptées'));
-          return;
+        // URL d'upload REST API Firebase Storage
+        const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(storagePath)}`;
+
+        // Progression à 30%
+        if (onProgress) {
+          onProgress(30);
         }
 
-        const timestamp = Date.now();
-        const fileExtension = file.name.split('.').pop();
-        const fileName = `${timestamp}_${userId}.${fileExtension}`;
-        const storagePath = `${this.STORAGE_PATH}/${fileName}`;
-        const storageRef = ref(storage, storagePath);
-
-        console.log('📤 [INFOS] Début upload vers Firebase Storage...');
-
-        // ✅ Upload avec suivi de progression
-        const uploadTask = uploadBytesResumable(storageRef, file, {
-          contentType: file.type,
-          customMetadata: {
-            uploadedBy: userId,
-            uploadedAt: new Date().toISOString(),
-            originalSize: file.size.toString(),
-            originalName: file.name
-          }
+        // Upload via REST API
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': file.type
+          },
+          body: file,
+          signal: controller.signal
         });
 
-        // Écouter les changements d'état
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            // Calculer le pourcentage de progression
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            console.log('📊 [INFOS] Progression upload:', progress.toFixed(1) + '%');
-            
-            // Appeler le callback de progression si fourni
-            if (onProgress) {
-              onProgress(progress);
-            }
+        clearTimeout(timeoutId);
 
-            // Afficher l'état
-            switch (snapshot.state) {
-              case 'paused':
-                console.log('⏸️ [INFOS] Upload en pause');
-                break;
-              case 'running':
-                console.log('▶️ [INFOS] Upload en cours...');
-                break;
-            }
-          },
-          (error) => {
-            // Gestion des erreurs
-            console.error('❌ [INFOS] Erreur upload:', error);
-            
-            let errorMessage = 'Erreur lors de l\'upload';
-            
-            switch (error.code) {
-              case 'storage/unauthorized':
-                errorMessage = 'Permission refusée. Vérifiez vos droits.';
-                break;
-              case 'storage/canceled':
-                errorMessage = 'Upload annulé';
-                break;
-              case 'storage/unknown':
-                errorMessage = 'Erreur inconnue. Réessayez.';
-                break;
-              case 'storage/retry-limit-exceeded':
-                errorMessage = 'Délai dépassé. Vérifiez votre connexion.';
-                break;
-            }
-            
-            reject(new Error(errorMessage));
-          },
-          async () => {
-            // Upload terminé avec succès
-            try {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              
-              console.log('✅ [INFOS] Fichier uploadé avec succès:', downloadURL);
-              
-              resolve({
-                url: downloadURL,
-                type: isVideo ? 'video' : 'image',
-                filename: file.name,
-                size: file.size,
-                storagePath
-              });
-            } catch (error) {
-              console.error('❌ [INFOS] Erreur récupération URL:', error);
-              reject(error);
-            }
-          }
-        );
+        // Progression à 70%
+        if (onProgress) {
+          onProgress(70);
+        }
 
-      } catch (error) {
-        console.error('❌ [INFOS] Erreur initialisation upload:', error);
-        reject(error);
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('❌ [INFOS] Erreur upload:', uploadResponse.status, errorText);
+          throw new Error(`Erreur upload: ${uploadResponse.status}`);
+        }
+
+        // ✅ RÉCUPÉRER LE TOKEN DE TÉLÉCHARGEMENT
+        const uploadData = await uploadResponse.json();
+        console.log('📊 [INFOS] Réponse upload:', uploadData);
+
+        // Extraire le token de la réponse
+        const downloadToken = uploadData.downloadTokens;
+
+        // Construire l'URL avec le token
+        let downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
+
+        if (downloadToken) {
+          downloadURL += `&token=${downloadToken}`;
+          console.log('✅ [INFOS] Token de téléchargement ajouté');
+        } else {
+          console.warn('⚠️ [INFOS] Pas de token dans la réponse, URL sans token');
+        }
+
+        // Progression à 100%
+        if (onProgress) {
+          onProgress(100);
+        }
+
+        console.log('✅ [INFOS] Fichier uploadé avec succès:', downloadURL);
+
+        return {
+          url: downloadURL,
+          type: isVideo ? 'video' : 'image',
+          filename: file.name,
+          size: file.size,
+          storagePath
+        };
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+
+        if (fetchError.name === 'AbortError') {
+          console.error('⏱️ [INFOS] Timeout - Upload annulé après 2 minutes');
+          throw new Error('Upload annulé: délai dépassé (2 minutes). Vérifiez votre connexion.');
+        }
+
+        throw fetchError;
       }
-    });
+
+    } catch (error) {
+      console.error('❌ [INFOS] Erreur upload:', error);
+      throw error;
+    }
   }
 
   /**
