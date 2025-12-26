@@ -36,6 +36,7 @@ import TitleSelector from '../components/customization/TitleSelector.jsx';
 import BannerSelector from '../components/customization/BannerSelector.jsx';
 import AvatarBuilder, { AvatarPreview } from '../components/customization/AvatarBuilder.jsx';
 import DiceBearAvatarBuilder, { DiceBearAvatarPreview, DEFAULT_DICEBEAR_CONFIG } from '../components/customization/DiceBearAvatar.jsx';
+import PixelArtAvatarBuilder, { PixelArtAvatarPreview, DEFAULT_PIXEL_CONFIG, PIXEL_CLASSES, PIXEL_PALETTES, PIXEL_POSES, PIXEL_BACKGROUNDS } from '../components/customization/PixelArtAvatar.jsx';
 import { useProfileCustomization } from '../shared/hooks/useProfileCustomization.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { profileCustomizationService, DEFAULT_AVATAR_CONFIG } from '../core/services/profileCustomizationService.js';
@@ -118,10 +119,11 @@ const RecommendedUnlocks = ({ items }) => {
 
 const ProfileCustomizationPage = () => {
   const { user } = useAuthStore();
-  const [mode, setMode] = useState('dicebear'); // 'simple', 'builder' ou 'dicebear'
+  const [mode, setMode] = useState('pixelart'); // 'simple', 'builder', 'dicebear' ou 'pixelart'
   const [activeTab, setActiveTab] = useState('avatars');
   const [avatarBuilderConfig, setAvatarBuilderConfig] = useState(DEFAULT_AVATAR_CONFIG);
   const [diceBearConfig, setDiceBearConfig] = useState(DEFAULT_DICEBEAR_CONFIG);
+  const [pixelArtConfig, setPixelArtConfig] = useState(DEFAULT_PIXEL_CONFIG);
   const [savingBuilder, setSavingBuilder] = useState(false);
   const [recommendedItems, setRecommendedItems] = useState([]);
 
@@ -146,7 +148,7 @@ const ProfileCustomizationPage = () => {
     refresh
   } = useProfileCustomization();
 
-  // Charger la config avatar builder et DiceBear
+  // Charger la config avatar builder, DiceBear et PixelArt
   useEffect(() => {
     const loadAvatarConfigs = async () => {
       if (user?.uid) {
@@ -157,6 +159,10 @@ const ProfileCustomizationPage = () => {
         // Config DiceBear
         const diceBear = await profileCustomizationService.getDiceBearConfig(user.uid);
         setDiceBearConfig(diceBear || DEFAULT_DICEBEAR_CONFIG);
+
+        // Config PixelArt RPG
+        const pixelArt = await profileCustomizationService.getPixelArtConfig(user.uid);
+        setPixelArtConfig(pixelArt || DEFAULT_PIXEL_CONFIG);
 
         // Charger les recommandations
         const normalizedStats = profileCustomizationService.normalizeUserStats(userStats);
@@ -218,6 +224,34 @@ const ProfileCustomizationPage = () => {
       }
     } catch (error) {
       console.error('Erreur sauvegarde DiceBear:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    } finally {
+      setSavingBuilder(false);
+    }
+  }, [user?.uid, userStats]);
+
+  // Sauvegarder la config PixelArt RPG
+  const handleSavePixelArt = useCallback(async (config) => {
+    if (!user?.uid) return;
+
+    setSavingBuilder(true);
+    try {
+      const normalizedStats = profileCustomizationService.normalizeUserStats(userStats);
+      const result = await profileCustomizationService.savePixelArtConfig(
+        user.uid,
+        config,
+        normalizedStats
+      );
+
+      if (result.success) {
+        setPixelArtConfig(config);
+        alert('✅ Avatar Pixel Art sauvegardé !');
+      } else {
+        console.error('Erreur sauvegarde PixelArt:', result.error);
+        alert('❌ Erreur lors de la sauvegarde');
+      }
+    } catch (error) {
+      console.error('Erreur sauvegarde PixelArt:', error);
       alert('❌ Erreur lors de la sauvegarde');
     } finally {
       setSavingBuilder(false);
@@ -314,6 +348,20 @@ const ProfileCustomizationPage = () => {
                 {/* Toggle Mode */}
                 <div className="flex bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl p-1">
                   <motion.button
+                    onClick={() => setMode('pixelart')}
+                    whileTap={{ scale: 0.95 }}
+                    className={`
+                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
+                      ${mode === 'pixelart'
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
+                        : 'text-gray-400 hover:text-white'
+                      }
+                    `}
+                  >
+                    <Sword className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="font-medium">RPG</span>
+                  </motion.button>
+                  <motion.button
                     onClick={() => setMode('dicebear')}
                     whileTap={{ scale: 0.95 }}
                     className={`
@@ -326,20 +374,6 @@ const ProfileCustomizationPage = () => {
                   >
                     <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="font-medium">Avatar</span>
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setMode('builder')}
-                    whileTap={{ scale: 0.95 }}
-                    className={`
-                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
-                      ${mode === 'builder'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                      }
-                    `}
-                  >
-                    <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="font-medium">RPG</span>
                   </motion.button>
                   <motion.button
                     onClick={() => setMode('simple')}
@@ -386,7 +420,78 @@ const ProfileCustomizationPage = () => {
                 </div>
               </motion.div>
 
-              {mode === 'dicebear' ? (
+              {mode === 'pixelart' ? (
+                // Stats Pixel Art RPG
+                <>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Sword className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_CLASSES).length}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Classes</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_PALETTES).length}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Couleurs</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_POSES).length}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Poses</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Image className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_BACKGROUNDS).length}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Fonds</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              ) : mode === 'dicebear' ? (
                 // Stats DiceBear
                 <>
                   <motion.div
@@ -619,8 +724,23 @@ const ProfileCustomizationPage = () => {
 
           {/* Contenu principal */}
           <AnimatePresence mode="wait">
-            {mode === 'dicebear' ? (
-              // MODE DICEBEAR - VRAIS AVATARS PERSONNALISABLES
+            {mode === 'pixelart' ? (
+              // MODE PIXEL ART RPG - VRAIS PERSONNAGES PIXEL ART
+              <motion.div
+                key="pixelart"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <PixelArtAvatarBuilder
+                  initialConfig={pixelArtConfig}
+                  userStats={profileCustomizationService.normalizeUserStats(userStats)}
+                  onSave={handleSavePixelArt}
+                  saving={savingBuilder}
+                />
+              </motion.div>
+            ) : mode === 'dicebear' ? (
+              // MODE DICEBEAR - AVATARS CARTOON
               <motion.div
                 key="dicebear"
                 initial={{ opacity: 0, y: 20 }}
@@ -633,33 +753,6 @@ const ProfileCustomizationPage = () => {
                   onSave={handleSaveDiceBear}
                   saving={savingBuilder}
                 />
-              </motion.div>
-            ) : mode === 'builder' ? (
-              // MODE AVATAR BUILDER RPG (ANCIEN)
-              <motion.div
-                key="builder"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <AvatarBuilder
-                  initialConfig={avatarBuilderConfig}
-                  userStats={profileCustomizationService.normalizeUserStats(userStats)}
-                  onSave={handleSaveAvatarBuilder}
-                  saving={savingBuilder}
-                />
-
-                {/* Section recommandations */}
-                {recommendedItems.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mt-6"
-                  >
-                    <RecommendedUnlocks items={recommendedItems} />
-                  </motion.div>
-                )}
               </motion.div>
             ) : (
               // MODE SIMPLE (EXISTANT)
