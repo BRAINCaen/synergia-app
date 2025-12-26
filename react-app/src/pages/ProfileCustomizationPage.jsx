@@ -35,6 +35,7 @@ import AvatarSelector from '../components/customization/AvatarSelector.jsx';
 import TitleSelector from '../components/customization/TitleSelector.jsx';
 import BannerSelector from '../components/customization/BannerSelector.jsx';
 import AvatarBuilder, { AvatarPreview } from '../components/customization/AvatarBuilder.jsx';
+import DiceBearAvatarBuilder, { DiceBearAvatarPreview, DEFAULT_DICEBEAR_CONFIG } from '../components/customization/DiceBearAvatar.jsx';
 import { useProfileCustomization } from '../shared/hooks/useProfileCustomization.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { profileCustomizationService, DEFAULT_AVATAR_CONFIG } from '../core/services/profileCustomizationService.js';
@@ -117,9 +118,10 @@ const RecommendedUnlocks = ({ items }) => {
 
 const ProfileCustomizationPage = () => {
   const { user } = useAuthStore();
-  const [mode, setMode] = useState('builder'); // 'simple' ou 'builder'
+  const [mode, setMode] = useState('dicebear'); // 'simple', 'builder' ou 'dicebear'
   const [activeTab, setActiveTab] = useState('avatars');
   const [avatarBuilderConfig, setAvatarBuilderConfig] = useState(DEFAULT_AVATAR_CONFIG);
+  const [diceBearConfig, setDiceBearConfig] = useState(DEFAULT_DICEBEAR_CONFIG);
   const [savingBuilder, setSavingBuilder] = useState(false);
   const [recommendedItems, setRecommendedItems] = useState([]);
 
@@ -144,12 +146,17 @@ const ProfileCustomizationPage = () => {
     refresh
   } = useProfileCustomization();
 
-  // Charger la config avatar builder
+  // Charger la config avatar builder et DiceBear
   useEffect(() => {
-    const loadAvatarBuilderConfig = async () => {
+    const loadAvatarConfigs = async () => {
       if (user?.uid) {
+        // Config classique
         const config = await profileCustomizationService.getAvatarBuilderConfig(user.uid);
         setAvatarBuilderConfig(config);
+
+        // Config DiceBear
+        const diceBear = await profileCustomizationService.getDiceBearConfig(user.uid);
+        setDiceBearConfig(diceBear || DEFAULT_DICEBEAR_CONFIG);
 
         // Charger les recommandations
         const normalizedStats = profileCustomizationService.normalizeUserStats(userStats);
@@ -157,7 +164,7 @@ const ProfileCustomizationPage = () => {
         setRecommendedItems(recommended);
       }
     };
-    loadAvatarBuilderConfig();
+    loadAvatarConfigs();
   }, [user?.uid, userStats]);
 
   const currentAvatar = getCurrentAvatar();
@@ -184,6 +191,34 @@ const ProfileCustomizationPage = () => {
       }
     } catch (error) {
       console.error('Erreur sauvegarde avatar builder:', error);
+    } finally {
+      setSavingBuilder(false);
+    }
+  }, [user?.uid, userStats]);
+
+  // Sauvegarder la config DiceBear
+  const handleSaveDiceBear = useCallback(async (config) => {
+    if (!user?.uid) return;
+
+    setSavingBuilder(true);
+    try {
+      const normalizedStats = profileCustomizationService.normalizeUserStats(userStats);
+      const result = await profileCustomizationService.saveDiceBearConfig(
+        user.uid,
+        config,
+        normalizedStats
+      );
+
+      if (result.success) {
+        setDiceBearConfig(config);
+        alert('✅ Avatar DiceBear sauvegardé !');
+      } else {
+        console.error('Erreur sauvegarde DiceBear:', result.error);
+        alert('❌ Erreur lors de la sauvegarde');
+      }
+    } catch (error) {
+      console.error('Erreur sauvegarde DiceBear:', error);
+      alert('❌ Erreur lors de la sauvegarde');
     } finally {
       setSavingBuilder(false);
     }
@@ -279,6 +314,20 @@ const ProfileCustomizationPage = () => {
                 {/* Toggle Mode */}
                 <div className="flex bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl p-1">
                   <motion.button
+                    onClick={() => setMode('dicebear')}
+                    whileTap={{ scale: 0.95 }}
+                    className={`
+                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
+                      ${mode === 'dicebear'
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                        : 'text-gray-400 hover:text-white'
+                      }
+                    `}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="font-medium">Avatar</span>
+                  </motion.button>
+                  <motion.button
                     onClick={() => setMode('builder')}
                     whileTap={{ scale: 0.95 }}
                     className={`
@@ -337,7 +386,78 @@ const ProfileCustomizationPage = () => {
                 </div>
               </motion.div>
 
-              {mode === 'builder' ? (
+              {mode === 'dicebear' ? (
+                // Stats DiceBear
+                <>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">8</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Styles</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">18</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Coiffures</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">18</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Couleurs</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
+                  >
+                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                        <Image className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+                      </div>
+                      <div>
+                        <p className="text-base sm:text-xl font-bold text-white">13</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400">Fonds</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              ) : mode === 'builder' ? (
                 // Stats Avatar Builder
                 <>
                   <motion.div
@@ -499,8 +619,23 @@ const ProfileCustomizationPage = () => {
 
           {/* Contenu principal */}
           <AnimatePresence mode="wait">
-            {mode === 'builder' ? (
-              // MODE AVATAR BUILDER RPG
+            {mode === 'dicebear' ? (
+              // MODE DICEBEAR - VRAIS AVATARS PERSONNALISABLES
+              <motion.div
+                key="dicebear"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <DiceBearAvatarBuilder
+                  initialConfig={diceBearConfig}
+                  userStats={profileCustomizationService.normalizeUserStats(userStats)}
+                  onSave={handleSaveDiceBear}
+                  saving={savingBuilder}
+                />
+              </motion.div>
+            ) : mode === 'builder' ? (
+              // MODE AVATAR BUILDER RPG (ANCIEN)
               <motion.div
                 key="builder"
                 initial={{ opacity: 0, y: 20 }}

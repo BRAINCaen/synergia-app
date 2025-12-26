@@ -907,6 +907,50 @@ class ProfileCustomizationService {
     return getCategoryItems(category, userStats);
   }
 
+  // ==========================================
+  // DICEBEAR AVATAR SYSTEM (NOUVEAU v4.1)
+  // ==========================================
+
+  /**
+   * Obtenir la configuration DiceBear d'un utilisateur
+   */
+  async getDiceBearConfig(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        return null;
+      }
+
+      const data = userDoc.data();
+      return data.diceBearAvatar || null;
+    } catch (error) {
+      console.error('Erreur récupération DiceBear config:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sauvegarder la configuration DiceBear
+   */
+  async saveDiceBearConfig(userId, config, userStats) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        diceBearAvatar: config,
+        avatarType: 'dicebear', // Marquer le type d'avatar utilisé
+        updatedAt: new Date()
+      });
+
+      console.log('✅ Config DiceBear sauvegardée:', config);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur sauvegarde DiceBear:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   /**
    * S'abonner aux changements d'avatar builder
    */
