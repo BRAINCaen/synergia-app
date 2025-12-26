@@ -8,6 +8,7 @@ import { useAuthStore } from '../../shared/stores/authStore';
 import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
 import { db } from '../../core/firebase.js'; // 🔧 CORRECTION: Chemin absolu
 import LoadingSpinner from '../ui/LoadingSpinner';
+import UserAvatar from '../common/UserAvatar.jsx';
 
 const Leaderboard = () => {
   const { user } = useAuthStore();
@@ -90,13 +91,19 @@ const Leaderboard = () => {
               id: doc.id,
               rank: index + 1,
               name: cleanedName, // 🔧 NOM NETTOYÉ
+              displayName: cleanedName,
               email: userDocData.email,
               role: userDocData.profile?.role || 'Membre',
               level: userDocData.gamification.level || 1,
               totalXp: userDocData.gamification.totalXp || 0,
               tasksCompleted: userDocData.gamification.tasksCompleted || 0,
               badges: userDocData.gamification.badges || [],
-              avatar: userDocData.photoURL || '👤',
+              photoURL: userDocData.photoURL || null,
+              // Données avatar personnalisé
+              avatarType: userDocData.avatarType || null,
+              pixelArtAvatar: userDocData.pixelArtAvatar || null,
+              diceBearAvatar: userDocData.diceBearAvatar || null,
+              customization: userDocData.customization || null,
               isCurrentUser: doc.id === user?.uid,
               streak: userDocData.gamification.loginStreak || 0,
               lastActivity: userDocData.gamification.lastLoginDate
@@ -124,13 +131,19 @@ const Leaderboard = () => {
                 id: currentUserDoc.id,
                 rank: realUsers.length + 1,
                 name: cleanedCurrentName, // 🔧 NOM NETTOYÉ
+                displayName: cleanedCurrentName,
                 email: currentUserData.email,
                 role: currentUserData.profile?.role || 'Membre',
                 level: currentUserData.gamification?.level || 1,
                 totalXp: currentUserData.gamification?.totalXp || 0,
                 tasksCompleted: currentUserData.gamification?.tasksCompleted || 0,
                 badges: currentUserData.gamification?.badges || [],
-                avatar: currentUserData.photoURL || '👤',
+                photoURL: currentUserData.photoURL || null,
+                // Données avatar personnalisé
+                avatarType: currentUserData.avatarType || null,
+                pixelArtAvatar: currentUserData.pixelArtAvatar || null,
+                diceBearAvatar: currentUserData.diceBearAvatar || null,
+                customization: currentUserData.customization || null,
                 isCurrentUser: true,
                 streak: currentUserData.gamification?.loginStreak || 0,
                 lastActivity: currentUserData.gamification?.lastLoginDate,
@@ -349,12 +362,11 @@ const Leaderboard = () => {
                       {getRankIcon(userInfo.rank)}
                     </div>
                     
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                      {userInfo.avatar === '👤' ? 
-                        userInfo.name.charAt(0).toUpperCase() : 
-                        userInfo.avatar
-                      }
-                    </div>
+                    <UserAvatar
+                      user={userInfo}
+                      size="lg"
+                      showBorder={true}
+                    />
                     
                     <div>
                       <span className={`font-semibold text-lg ${userInfo.isCurrentUser ? 'text-blue-400' : 'text-white'}`}>

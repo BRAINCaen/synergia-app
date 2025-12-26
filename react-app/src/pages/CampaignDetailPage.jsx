@@ -50,6 +50,7 @@ import {
 
 // 🎯 IMPORT DU LAYOUT SYNERGIA
 import Layout from '../components/layout/Layout.jsx';
+import UserAvatar from '../components/common/UserAvatar.jsx';
 
 // 🔥 HOOKS ET SERVICES
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -976,13 +977,12 @@ const CampaignDetailPage = () => {
                       <div className="flex items-center gap-6">
                         {/* Avatar du créateur */}
                         <div className="relative">
-                          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center text-white font-bold text-2xl overflow-hidden ring-4 ring-yellow-500/30">
-                            {creator.photoURL ? (
-                              <img src={creator.photoURL} alt={creator.displayName} className="w-full h-full object-cover" />
-                            ) : (
-                              creator.displayName?.charAt(0).toUpperCase() || '?'
-                            )}
-                          </div>
+                          <UserAvatar
+                            user={creator}
+                            size="2xl"
+                            showBorder={true}
+                            className="ring-4 ring-yellow-500/30"
+                          />
                           <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg">
                             <Crown className="w-4 h-4 text-white" />
                           </div>
@@ -1064,17 +1064,12 @@ const CampaignDetailPage = () => {
                           >
                             {/* Avatar */}
                             <div className="relative flex-shrink-0">
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold overflow-hidden ${
-                                member.isCreator
-                                  ? 'bg-gradient-to-br from-yellow-500 to-orange-600 ring-2 ring-yellow-500/50'
-                                  : 'bg-gradient-to-br from-purple-600 to-blue-600'
-                              }`}>
-                                {member.photoURL ? (
-                                  <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" />
-                                ) : (
-                                  member.displayName?.charAt(0).toUpperCase() || '?'
-                                )}
-                              </div>
+                              <UserAvatar
+                                user={member}
+                                size="lg"
+                                showBorder={true}
+                                className={member.isCreator ? 'ring-2 ring-yellow-500/50' : ''}
+                              />
                               {member.isCreator && (
                                 <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
                                   <Crown className="w-2.5 h-2.5 text-white" />
@@ -1295,13 +1290,11 @@ const CampaignDetailPage = () => {
                           <div className="flex items-start gap-4">
                             {/* Avatar */}
                             <div className="relative">
-                              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-xl overflow-hidden">
-                                {member.photoURL ? (
-                                  <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" />
-                                ) : (
-                                  member.displayName?.charAt(0).toUpperCase()
-                                )}
-                              </div>
+                              <UserAvatar
+                                user={member}
+                                size="xl"
+                                showBorder={true}
+                              />
                               {member.isCreator && (
                                 <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
                                   <Crown className="w-3 h-3 text-white" />
@@ -1940,13 +1933,12 @@ const CampaignDetailPage = () => {
                       >
                         <div className="flex items-center gap-4">
                           {/* Avatar */}
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
-                            {userItem.photoURL ? (
-                              <img src={userItem.photoURL} alt={userItem.displayName} className="w-full h-full object-cover" />
-                            ) : (
-                              (userItem.displayName || userItem.email)?.charAt(0).toUpperCase()
-                            )}
-                          </div>
+                          <UserAvatar
+                            user={userItem}
+                            size="lg"
+                            showBorder={true}
+                            className="flex-shrink-0"
+                          />
 
                           {/* Info utilisateur */}
                           <div className="flex-1">

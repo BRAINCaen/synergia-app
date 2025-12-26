@@ -50,6 +50,7 @@ import {
 
 // 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER (IDENTIQUE AU DASHBOARD)
 import Layout from '../components/layout/Layout.jsx';
+import UserAvatar from '../components/common/UserAvatar.jsx';
 
 // 🏆 IMPORTS GAMIFICATION
 import ProfileBadges from '../components/gamification/ProfileBadges.jsx';
@@ -718,19 +719,15 @@ const ProfilePage = () => {
                     <div className="flex items-center space-x-6 mb-8">
                       {/* Avatar */}
                       <div className="relative">
-                        <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-3xl font-bold text-white overflow-hidden">
-                          {user?.photoURL ? (
-                            <img 
-                              src={user.photoURL} 
-                              alt="Avatar"
-                              className="w-full h-full object-cover"
-                              key={user.photoURL} // Force re-render si photoURL change
-                            />
-                          ) : (
-                            userProfile.displayName?.charAt(0)?.toUpperCase() || 
-                            userProfile.email?.charAt(0)?.toUpperCase() || '?'
-                          )}
-                        </div>
+                        <UserAvatar
+                          user={{
+                            ...user,
+                            ...userProfile,
+                            displayName: userProfile.displayName || user?.displayName
+                          }}
+                          size="3xl"
+                          showBorder={true}
+                        />
                         
                         {/* Bouton changement avatar */}
                         <label className="absolute -bottom-2 -right-2 w-8 h-8 bg-purple-600 hover:bg-purple-500 rounded-full flex items-center justify-center cursor-pointer transition-colors">

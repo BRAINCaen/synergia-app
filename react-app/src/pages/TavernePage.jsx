@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
+import UserAvatar from '../components/common/UserAvatar.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { boostService, BOOST_TYPES } from '../core/services/boostService.js';
 import { BoostButton } from '../components/boost';
@@ -989,17 +990,11 @@ const TavernePage = () => {
                         }}
                         className="w-full flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-left"
                       >
-                        {member.photoURL ? (
-                          <img
-                            src={member.photoURL}
-                            alt={member.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                            {member.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                        <UserAvatar
+                          user={member}
+                          size="md"
+                          showBorder={true}
+                        />
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-medium truncate">{member.name}</p>
                           <p className="text-gray-500 text-sm truncate">{member.role}</p>

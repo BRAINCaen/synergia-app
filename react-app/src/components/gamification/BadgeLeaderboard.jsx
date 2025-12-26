@@ -13,6 +13,7 @@ import {
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../core/firebase.js';
 import { useAuthStore } from '../../shared/stores/authStore.js';
+import UserAvatar from '../common/UserAvatar.jsx';
 
 /**
  * 🏆 BADGE LEADERBOARD - Classement par badges
@@ -49,6 +50,11 @@ const BadgeLeaderboard = ({
             displayName: data.displayName || data.email?.split('@')[0] || 'Anonyme',
             email: data.email,
             photoURL: data.photoURL,
+            // Données avatar personnalisé
+            avatarType: data.avatarType || null,
+            pixelArtAvatar: data.pixelArtAvatar || null,
+            diceBearAvatar: data.diceBearAvatar || null,
+            customization: data.customization || null,
             badgeCount,
             totalXp,
             level: data.gamification?.level || 1,
@@ -187,17 +193,11 @@ const BadgeLeaderboard = ({
 
             {/* Avatar */}
             <div className="relative">
-              {userData.photoURL ? (
-                <img
-                  src={userData.photoURL}
-                  alt={userData.displayName}
-                  className="w-12 h-12 rounded-full border-2 border-gray-600"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-                  <User className="h-6 w-6 text-white" />
-                </div>
-              )}
+              <UserAvatar
+                user={userData}
+                size="lg"
+                showBorder={true}
+              />
               {/* Badge niveau */}
               <div className="absolute -bottom-1 -right-1 bg-gray-900 rounded-full px-1.5 py-0.5 text-xs font-bold text-purple-400 border border-purple-500/50">
                 Nv.{userData.level}
@@ -264,17 +264,11 @@ const BadgeLeaderboard = ({
             </div>
 
             <div className="relative">
-              {currentUserRank.photoURL ? (
-                <img
-                  src={currentUserRank.photoURL}
-                  alt={currentUserRank.displayName}
-                  className="w-12 h-12 rounded-full border-2 border-purple-500"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-                  <User className="h-6 w-6 text-white" />
-                </div>
-              )}
+              <UserAvatar
+                user={currentUserRank}
+                size="lg"
+                showBorder={true}
+              />
             </div>
 
             <div className="flex-1">
