@@ -120,8 +120,15 @@ class TaskValidationService {
           throw new Error(`Erreur upload: ${uploadResponse.status}`);
         }
 
-        // Construire l'URL de téléchargement
-        const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+        // Récupérer le token de téléchargement depuis la réponse
+        const uploadData = await uploadResponse.json();
+        const downloadToken = uploadData.downloadTokens;
+
+        // Construire l'URL de téléchargement AVEC le token d'accès
+        let downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath)}?alt=media`;
+        if (downloadToken) {
+          downloadURL += `&token=${downloadToken}`;
+        }
 
         console.log(`✅ [UPLOAD] ${type} uploadé avec succès:`, downloadURL);
         return downloadURL;
