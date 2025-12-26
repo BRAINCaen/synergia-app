@@ -1,6 +1,6 @@
 // ==========================================
-// SYNERGIA v4.1 - DiceBear Avatar System
-// Vrais avatars personnalisables avec accessoires intégrés
+// SYNERGIA v4.1 - RPG Avatar System avec DiceBear
+// Interface RPG + Vrais avatars personnalisables
 // ==========================================
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -8,181 +8,302 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Palette, Crown, Sword, Heart, Sparkles, Shield, Image,
   Lock, Check, ChevronRight, Star, Zap, Trophy, RefreshCw,
-  Eye, EyeOff, RotateCcw, Save, Shirt, Glasses, Smile
+  Eye, EyeOff, RotateCcw, Save, Wand2
 } from 'lucide-react';
 
 // ==========================================
-// CONFIGURATION DICEBEAR
+// CLASSES RPG → Configurations DiceBear
+// Chaque classe a un look distinct
 // ==========================================
-
-// Styles d'avatars disponibles
-export const AVATAR_STYLES = {
-  adventurer: {
-    id: 'adventurer',
-    name: 'Aventurier',
-    description: 'Style cartoon coloré',
+export const RPG_CLASSES = {
+  mage: {
+    id: 'mage',
+    name: 'Mage',
+    description: 'Maître des arcanes',
     icon: '🧙',
+    // Config DiceBear pour ce look
+    dicebear: {
+      hair: 'long09',
+      hairColor: '9b59b6', // Violet
+      skinColor: 'f2d3b1',
+      eyebrows: 'variant10',
+      eyes: 'variant26',
+      mouth: 'variant01'
+    },
     unlockCondition: { type: 'default' }
   },
-  'adventurer-neutral': {
-    id: 'adventurer-neutral',
-    name: 'Aventurier Neutre',
-    description: 'Style simplifié',
-    icon: '🧝',
-    unlockCondition: { type: 'level', value: 5 }
-  },
-  'pixel-art': {
-    id: 'pixel-art',
-    name: 'Pixel Art',
-    description: 'Style rétro 8-bit',
-    icon: '👾',
+  warrior: {
+    id: 'warrior',
+    name: 'Guerrier',
+    description: 'Force et honneur',
+    icon: '⚔️',
+    dicebear: {
+      hair: 'short04',
+      hairColor: '6a4e35',
+      skinColor: 'd08b5b',
+      eyebrows: 'variant06',
+      eyes: 'variant14',
+      mouth: 'variant07'
+    },
     unlockCondition: { type: 'level', value: 3 }
   },
-  lorelei: {
-    id: 'lorelei',
-    name: 'Artistique',
-    description: 'Dessins élégants',
-    icon: '🎨',
-    unlockCondition: { type: 'level', value: 10 }
+  archer: {
+    id: 'archer',
+    name: 'Archer',
+    description: 'Précision et agilité',
+    icon: '🏹',
+    dicebear: {
+      hair: 'long03',
+      hairColor: 'c9b291',
+      skinColor: 'ecad80',
+      eyebrows: 'variant04',
+      eyes: 'variant05',
+      mouth: 'variant05'
+    },
+    unlockCondition: { type: 'level', value: 5 }
   },
-  bottts: {
-    id: 'bottts',
-    name: 'Robot',
-    description: 'Avatars robotiques',
-    icon: '🤖',
+  knight: {
+    id: 'knight',
+    name: 'Chevalier',
+    description: 'Défenseur de la justice',
+    icon: '🛡️',
+    dicebear: {
+      hair: 'short02',
+      hairColor: '3a3a3a',
+      skinColor: 'f2d3b1',
+      eyebrows: 'variant09',
+      eyes: 'variant17',
+      mouth: 'variant12'
+    },
+    unlockCondition: { type: 'level', value: 8 }
+  },
+  healer: {
+    id: 'healer',
+    name: 'Soigneur',
+    description: 'Gardien de la vie',
+    icon: '💚',
+    dicebear: {
+      hair: 'long06',
+      hairColor: 'e5c293',
+      skinColor: 'f2d3b1',
+      eyebrows: 'variant02',
+      eyes: 'variant23',
+      mouth: 'variant02'
+    },
     unlockCondition: { type: 'badges', value: 5 }
   },
-  'fun-emoji': {
-    id: 'fun-emoji',
-    name: 'Emoji Fun',
-    description: 'Emojis expressifs',
-    icon: '😎',
+  rogue: {
+    id: 'rogue',
+    name: 'Voleur',
+    description: 'Rapide et furtif',
+    icon: '🗡️',
+    dicebear: {
+      hair: 'short05',
+      hairColor: '0e0e0e',
+      skinColor: 'ae5d29',
+      eyebrows: 'variant07',
+      eyes: 'variant12',
+      mouth: 'variant09'
+    },
     unlockCondition: { type: 'streak', value: 7 }
   },
-  micah: {
-    id: 'micah',
-    name: 'Illustré',
-    description: 'Portraits modernes',
-    icon: '👤',
-    unlockCondition: { type: 'xp', value: 2000 }
+  necromancer: {
+    id: 'necromancer',
+    name: 'Nécromancien',
+    description: 'Maître des ombres',
+    icon: '💀',
+    dicebear: {
+      hair: 'long12',
+      hairColor: '0e0e0e',
+      skinColor: 'c0aede', // Pâle/violet
+      eyebrows: 'variant12',
+      eyes: 'variant08',
+      mouth: 'variant11'
+    },
+    unlockCondition: { type: 'level', value: 15 }
   },
-  notionists: {
-    id: 'notionists',
-    name: 'Minimaliste',
-    description: 'Style Notion épuré',
+  paladin: {
+    id: 'paladin',
+    name: 'Paladin',
+    description: 'Champion de la lumière',
     icon: '✨',
-    unlockCondition: { type: 'tasks', value: 25 }
+    dicebear: {
+      hair: 'short03',
+      hairColor: 'f39c12', // Doré
+      skinColor: 'ecad80',
+      eyebrows: 'variant01',
+      eyes: 'variant19',
+      mouth: 'variant03'
+    },
+    unlockCondition: { type: 'level', value: 20 }
+  },
+  ranger: {
+    id: 'ranger',
+    name: 'Rôdeur',
+    description: 'Un avec la nature',
+    icon: '🌿',
+    dicebear: {
+      hair: 'long04',
+      hairColor: '6a4e35',
+      skinColor: 'd08b5b',
+      eyebrows: 'variant05',
+      eyes: 'variant10',
+      mouth: 'variant06'
+    },
+    unlockCondition: { type: 'xp', value: 3000 }
+  },
+  villager: {
+    id: 'villager',
+    name: 'Villageois',
+    description: 'Travailleur acharné',
+    icon: '👨‍🌾',
+    dicebear: {
+      hair: 'short01',
+      hairColor: '977e63',
+      skinColor: 'ecad80',
+      eyebrows: 'variant03',
+      eyes: 'variant01',
+      mouth: 'variant04'
+    },
+    unlockCondition: { type: 'default' }
   }
 };
 
-// Options de cheveux pour adventurer
-export const HAIR_OPTIONS = {
-  short01: { id: 'short01', name: 'Court 1', icon: '💇', unlockCondition: { type: 'default' } },
-  short02: { id: 'short02', name: 'Court 2', icon: '💇', unlockCondition: { type: 'default' } },
-  short03: { id: 'short03', name: 'Court 3', icon: '💇', unlockCondition: { type: 'default' } },
-  short04: { id: 'short04', name: 'Court 4', icon: '💇', unlockCondition: { type: 'level', value: 2 } },
-  short05: { id: 'short05', name: 'Court 5', icon: '💇', unlockCondition: { type: 'level', value: 3 } },
-  long01: { id: 'long01', name: 'Long 1', icon: '💇‍♀️', unlockCondition: { type: 'default' } },
-  long02: { id: 'long02', name: 'Long 2', icon: '💇‍♀️', unlockCondition: { type: 'default' } },
-  long03: { id: 'long03', name: 'Long 3', icon: '💇‍♀️', unlockCondition: { type: 'level', value: 2 } },
-  long04: { id: 'long04', name: 'Long 4', icon: '💇‍♀️', unlockCondition: { type: 'level', value: 4 } },
-  long05: { id: 'long05', name: 'Long 5', icon: '💇‍♀️', unlockCondition: { type: 'level', value: 5 } },
-  long06: { id: 'long06', name: 'Long 6', icon: '💇‍♀️', unlockCondition: { type: 'level', value: 6 } },
-  long07: { id: 'long07', name: 'Long 7', icon: '💇‍♀️', unlockCondition: { type: 'level', value: 7 } },
-  long08: { id: 'long08', name: 'Long 8', icon: '💇‍♀️', unlockCondition: { type: 'level', value: 8 } },
-  long09: { id: 'long09', name: 'Long 9', icon: '💇‍♀️', unlockCondition: { type: 'badges', value: 5 } },
-  long10: { id: 'long10', name: 'Long 10', icon: '💇‍♀️', unlockCondition: { type: 'badges', value: 10 } },
-  long11: { id: 'long11', name: 'Long 11', icon: '💇‍♀️', unlockCondition: { type: 'xp', value: 1000 } },
-  long12: { id: 'long12', name: 'Long 12', icon: '💇‍♀️', unlockCondition: { type: 'xp', value: 2000 } },
-  long13: { id: 'long13', name: 'Long 13', icon: '💇‍♀️', unlockCondition: { type: 'xp', value: 3000 } }
+// ==========================================
+// COULEURS (appliquées sur l'avatar)
+// ==========================================
+export const RPG_COLORS = {
+  natural: { id: 'natural', name: 'Naturel', color: null, icon: '🎨', unlockCondition: { type: 'default' } },
+  fire: { id: 'fire', name: 'Feu', hairColor: 'e74c3c', icon: '🔥', unlockCondition: { type: 'level', value: 3 } },
+  ice: { id: 'ice', name: 'Glace', hairColor: '3498db', icon: '❄️', unlockCondition: { type: 'level', value: 5 } },
+  nature: { id: 'nature', name: 'Nature', hairColor: '2ecc71', icon: '🌿', unlockCondition: { type: 'level', value: 7 } },
+  shadow: { id: 'shadow', name: 'Ombre', hairColor: '2c3e50', icon: '🌑', unlockCondition: { type: 'level', value: 10 } },
+  light: { id: 'light', name: 'Lumière', hairColor: 'f1c40f', icon: '☀️', unlockCondition: { type: 'badges', value: 5 } },
+  arcane: { id: 'arcane', name: 'Arcane', hairColor: '9b59b6', icon: '🔮', unlockCondition: { type: 'level', value: 12 } },
+  blood: { id: 'blood', name: 'Sang', hairColor: 'c0392b', icon: '🩸', unlockCondition: { type: 'level', value: 15 } },
+  storm: { id: 'storm', name: 'Tempête', hairColor: '1abc9c', icon: '⚡', unlockCondition: { type: 'xp', value: 5000 } },
+  void: { id: 'void', name: 'Néant', hairColor: '000000', icon: '🕳️', unlockCondition: { type: 'level', value: 20 } },
+  celestial: { id: 'celestial', name: 'Céleste', hairColor: 'ffffff', icon: '⭐', unlockCondition: { type: 'streak', value: 30 } },
+  rainbow: { id: 'rainbow', name: 'Arc-en-ciel', hairColor: 'e91e63', icon: '🌈', unlockCondition: { type: 'badges', value: 20 } },
+  phoenix: { id: 'phoenix', name: 'Phénix', hairColor: 'ff5722', icon: '🦅', unlockCondition: { type: 'challenges', value: 10 } },
+  ocean: { id: 'ocean', name: 'Océan', hairColor: '00bcd4', icon: '🌊', unlockCondition: { type: 'tasks', value: 50 } },
+  forest: { id: 'forest', name: 'Forêt', hairColor: '4caf50', icon: '🌲', unlockCondition: { type: 'level', value: 8 } },
+  desert: { id: 'desert', name: 'Désert', hairColor: 'ff9800', icon: '🏜️', unlockCondition: { type: 'level', value: 6 } },
+  mystic: { id: 'mystic', name: 'Mystique', hairColor: '673ab7', icon: '🔯', unlockCondition: { type: 'level', value: 18 } },
+  royal: { id: 'royal', name: 'Royal', hairColor: 'ffc107', icon: '👑', unlockCondition: { type: 'level', value: 25 } }
 };
 
-// Couleurs de cheveux
-export const HAIR_COLORS = {
-  '0e0e0e': { id: '0e0e0e', name: 'Noir', color: '#0e0e0e', unlockCondition: { type: 'default' } },
-  '3a3a3a': { id: '3a3a3a', name: 'Gris foncé', color: '#3a3a3a', unlockCondition: { type: 'default' } },
-  '6a4e35': { id: '6a4e35', name: 'Brun', color: '#6a4e35', unlockCondition: { type: 'default' } },
-  '977e63': { id: '977e63', name: 'Châtain', color: '#977e63', unlockCondition: { type: 'default' } },
-  'c9b291': { id: 'c9b291', name: 'Blond foncé', color: '#c9b291', unlockCondition: { type: 'level', value: 2 } },
-  'e5c293': { id: 'e5c293', name: 'Blond', color: '#e5c293', unlockCondition: { type: 'level', value: 3 } },
-  'f5d5b8': { id: 'f5d5b8', name: 'Blond clair', color: '#f5d5b8', unlockCondition: { type: 'level', value: 4 } },
-  'b55239': { id: 'b55239', name: 'Roux', color: '#b55239', unlockCondition: { type: 'level', value: 5 } },
-  'd6542e': { id: 'd6542e', name: 'Orange', color: '#d6542e', unlockCondition: { type: 'badges', value: 3 } },
-  'e74c3c': { id: 'e74c3c', name: 'Rouge', color: '#e74c3c', unlockCondition: { type: 'badges', value: 5 } },
-  '9b59b6': { id: '9b59b6', name: 'Violet', color: '#9b59b6', unlockCondition: { type: 'badges', value: 8 } },
-  '3498db': { id: '3498db', name: 'Bleu', color: '#3498db', unlockCondition: { type: 'level', value: 10 } },
-  '2ecc71': { id: '2ecc71', name: 'Vert', color: '#2ecc71', unlockCondition: { type: 'level', value: 12 } },
-  'f39c12': { id: 'f39c12', name: 'Or', color: '#f39c12', unlockCondition: { type: 'xp', value: 5000 } },
-  'e91e63': { id: 'e91e63', name: 'Rose', color: '#e91e63', unlockCondition: { type: 'streak', value: 14 } },
-  '00bcd4': { id: '00bcd4', name: 'Cyan', color: '#00bcd4', unlockCondition: { type: 'tasks', value: 50 } },
-  'ff5722': { id: 'ff5722', name: 'Feu', color: '#ff5722', unlockCondition: { type: 'challenges', value: 5 } },
-  'ffffff': { id: 'ffffff', name: 'Blanc', color: '#ffffff', unlockCondition: { type: 'level', value: 20 } }
+// ==========================================
+// COIFFES (styles de cheveux/accessoires tête)
+// ==========================================
+export const RPG_HEADGEAR = {
+  none: { id: 'none', name: 'Aucun', icon: '❌', hair: null, unlockCondition: { type: 'default' } },
+  short: { id: 'short', name: 'Courts', icon: '💇', hair: 'short01', unlockCondition: { type: 'default' } },
+  medium: { id: 'medium', name: 'Mi-longs', icon: '💇', hair: 'short04', unlockCondition: { type: 'default' } },
+  long: { id: 'long', name: 'Longs', icon: '💇‍♀️', hair: 'long01', unlockCondition: { type: 'default' } },
+  warrior_helm: { id: 'warrior_helm', name: 'Casque guerrier', icon: '⚔️', hair: 'short02', glasses: 'variant02', unlockCondition: { type: 'level', value: 5 } },
+  mage_hood: { id: 'mage_hood', name: 'Capuche mage', icon: '🧙', hair: 'long09', unlockCondition: { type: 'level', value: 5 } },
+  crown: { id: 'crown', name: 'Couronne', icon: '👑', hair: 'long05', earrings: 'variant05', unlockCondition: { type: 'level', value: 15 } },
+  bandana: { id: 'bandana', name: 'Bandana', icon: '🎀', hair: 'short05', unlockCondition: { type: 'level', value: 3 } },
+  ponytail: { id: 'ponytail', name: 'Queue de cheval', icon: '🎀', hair: 'long03', unlockCondition: { type: 'level', value: 4 } },
+  braids: { id: 'braids', name: 'Tresses', icon: '🎀', hair: 'long07', unlockCondition: { type: 'level', value: 6 } },
+  mohawk: { id: 'mohawk', name: 'Crête', icon: '💀', hair: 'short03', unlockCondition: { type: 'badges', value: 5 } },
+  wild: { id: 'wild', name: 'Sauvage', icon: '🦁', hair: 'long11', unlockCondition: { type: 'streak', value: 14 } },
+  elegant: { id: 'elegant', name: 'Élégant', icon: '✨', hair: 'long06', earrings: 'variant03', unlockCondition: { type: 'level', value: 10 } }
 };
 
-// Couleurs de peau
-export const SKIN_COLORS = {
-  'f2d3b1': { id: 'f2d3b1', name: 'Claire', color: '#f2d3b1', unlockCondition: { type: 'default' } },
-  'ecad80': { id: 'ecad80', name: 'Moyenne claire', color: '#ecad80', unlockCondition: { type: 'default' } },
-  'd08b5b': { id: 'd08b5b', name: 'Moyenne', color: '#d08b5b', unlockCondition: { type: 'default' } },
-  'ae5d29': { id: 'ae5d29', name: 'Mate', color: '#ae5d29', unlockCondition: { type: 'default' } },
-  '614335': { id: '614335', name: 'Foncée', color: '#614335', unlockCondition: { type: 'default' } },
-  // Couleurs fantaisie (débloquables)
-  'b6e3f4': { id: 'b6e3f4', name: 'Glace', color: '#b6e3f4', unlockCondition: { type: 'level', value: 15 } },
-  'c0aede': { id: 'c0aede', name: 'Lavande', color: '#c0aede', unlockCondition: { type: 'badges', value: 15 } },
-  'd1d4f9': { id: 'd1d4f9', name: 'Céleste', color: '#d1d4f9', unlockCondition: { type: 'xp', value: 10000 } },
-  'ffd5dc': { id: 'ffd5dc', name: 'Rose', color: '#ffd5dc', unlockCondition: { type: 'streak', value: 30 } },
-  'a8e6cf': { id: 'a8e6cf', name: 'Menthe', color: '#a8e6cf', unlockCondition: { type: 'tasks', value: 100 } }
+// ==========================================
+// ARMES (affichées à côté de l'avatar)
+// ==========================================
+export const RPG_WEAPONS = {
+  none: { id: 'none', name: 'Aucune', icon: '❌', emoji: null, unlockCondition: { type: 'default' } },
+  sword: { id: 'sword', name: 'Épée', icon: '⚔️', emoji: '⚔️', unlockCondition: { type: 'default' } },
+  staff: { id: 'staff', name: 'Bâton', icon: '🪄', emoji: '🪄', unlockCondition: { type: 'default' } },
+  bow: { id: 'bow', name: 'Arc', icon: '🏹', emoji: '🏹', unlockCondition: { type: 'level', value: 3 } },
+  axe: { id: 'axe', name: 'Hache', icon: '🪓', emoji: '🪓', unlockCondition: { type: 'level', value: 5 } },
+  dagger: { id: 'dagger', name: 'Dague', icon: '🗡️', emoji: '🗡️', unlockCondition: { type: 'level', value: 4 } },
+  shield: { id: 'shield', name: 'Bouclier', icon: '🛡️', emoji: '🛡️', unlockCondition: { type: 'level', value: 6 } },
+  hammer: { id: 'hammer', name: 'Marteau', icon: '🔨', emoji: '🔨', unlockCondition: { type: 'level', value: 8 } },
+  scythe: { id: 'scythe', name: 'Faux', icon: '⚰️', emoji: '💀', unlockCondition: { type: 'level', value: 15 } },
+  trident: { id: 'trident', name: 'Trident', icon: '🔱', emoji: '🔱', unlockCondition: { type: 'level', value: 12 } },
+  crystal: { id: 'crystal', name: 'Cristal', icon: '💎', emoji: '💎', unlockCondition: { type: 'badges', value: 10 } },
+  fire_sword: { id: 'fire_sword', name: 'Épée de feu', icon: '🔥', emoji: '🔥⚔️', unlockCondition: { type: 'level', value: 18 } },
+  ice_staff: { id: 'ice_staff', name: 'Bâton de glace', icon: '❄️', emoji: '❄️🪄', unlockCondition: { type: 'level', value: 18 } },
+  holy_sword: { id: 'holy_sword', name: 'Épée sacrée', icon: '✨', emoji: '✨⚔️', unlockCondition: { type: 'level', value: 20 } },
+  dark_blade: { id: 'dark_blade', name: 'Lame obscure', icon: '🌑', emoji: '🌑⚔️', unlockCondition: { type: 'level', value: 20 } },
+  legendary: { id: 'legendary', name: 'Arme légendaire', icon: '⭐', emoji: '⭐⚔️', unlockCondition: { type: 'level', value: 25 } },
+  dual_blades: { id: 'dual_blades', name: 'Doubles lames', icon: '⚔️', emoji: '⚔️⚔️', unlockCondition: { type: 'challenges', value: 10 } },
+  magic_book: { id: 'magic_book', name: 'Grimoire', icon: '📖', emoji: '📖', unlockCondition: { type: 'xp', value: 5000 } }
 };
 
-// Styles de lunettes
-export const GLASSES_OPTIONS = {
-  none: { id: 'none', name: 'Aucune', icon: '❌', unlockCondition: { type: 'default' } },
-  variant01: { id: 'variant01', name: 'Rondes', icon: '👓', unlockCondition: { type: 'default' } },
-  variant02: { id: 'variant02', name: 'Carrées', icon: '🤓', unlockCondition: { type: 'level', value: 3 } },
-  variant03: { id: 'variant03', name: 'Sport', icon: '🥽', unlockCondition: { type: 'level', value: 5 } },
-  variant04: { id: 'variant04', name: 'Soleil', icon: '🕶️', unlockCondition: { type: 'badges', value: 3 } },
-  variant05: { id: 'variant05', name: 'Futuristes', icon: '😎', unlockCondition: { type: 'level', value: 8 } }
+// ==========================================
+// COMPAGNONS (affichés à côté de l'avatar)
+// ==========================================
+export const RPG_COMPANIONS = {
+  none: { id: 'none', name: 'Aucun', icon: '❌', emoji: null, unlockCondition: { type: 'default' } },
+  wolf: { id: 'wolf', name: 'Loup', icon: '🐺', emoji: '🐺', unlockCondition: { type: 'level', value: 3 } },
+  cat: { id: 'cat', name: 'Chat', icon: '🐱', emoji: '🐱', unlockCondition: { type: 'default' } },
+  owl: { id: 'owl', name: 'Hibou', icon: '🦉', emoji: '🦉', unlockCondition: { type: 'level', value: 5 } },
+  dragon: { id: 'dragon', name: 'Dragon', icon: '🐉', emoji: '🐉', unlockCondition: { type: 'level', value: 15 } },
+  phoenix: { id: 'phoenix', name: 'Phénix', icon: '🔥', emoji: '🦅🔥', unlockCondition: { type: 'level', value: 20 } },
+  unicorn: { id: 'unicorn', name: 'Licorne', icon: '🦄', emoji: '🦄', unlockCondition: { type: 'badges', value: 10 } },
+  fairy: { id: 'fairy', name: 'Fée', icon: '🧚', emoji: '🧚', unlockCondition: { type: 'level', value: 8 } },
+  raven: { id: 'raven', name: 'Corbeau', icon: '🐦‍⬛', emoji: '🐦‍⬛', unlockCondition: { type: 'level', value: 10 } },
+  snake: { id: 'snake', name: 'Serpent', icon: '🐍', emoji: '🐍', unlockCondition: { type: 'streak', value: 7 } },
+  bear: { id: 'bear', name: 'Ours', icon: '🐻', emoji: '🐻', unlockCondition: { type: 'level', value: 12 } },
+  eagle: { id: 'eagle', name: 'Aigle', icon: '🦅', emoji: '🦅', unlockCondition: { type: 'level', value: 7 } },
+  fox: { id: 'fox', name: 'Renard', icon: '🦊', emoji: '🦊', unlockCondition: { type: 'level', value: 4 } },
+  tiger: { id: 'tiger', name: 'Tigre', icon: '🐯', emoji: '🐯', unlockCondition: { type: 'level', value: 18 } },
+  ghost: { id: 'ghost', name: 'Fantôme', icon: '👻', emoji: '👻', unlockCondition: { type: 'level', value: 13 } },
+  spirit: { id: 'spirit', name: 'Esprit', icon: '✨', emoji: '✨👻', unlockCondition: { type: 'xp', value: 8000 } },
+  golem: { id: 'golem', name: 'Golem', icon: '🪨', emoji: '🗿', unlockCondition: { type: 'challenges', value: 5 } },
+  familiar: { id: 'familiar', name: 'Familier', icon: '🔮', emoji: '🔮', unlockCondition: { type: 'tasks', value: 30 } }
 };
 
-// Styles de boucles d'oreilles
-export const EARRINGS_OPTIONS = {
-  none: { id: 'none', name: 'Aucune', icon: '❌', unlockCondition: { type: 'default' } },
-  variant01: { id: 'variant01', name: 'Anneaux', icon: '⭕', unlockCondition: { type: 'level', value: 2 } },
-  variant02: { id: 'variant02', name: 'Gouttes', icon: '💧', unlockCondition: { type: 'level', value: 4 } },
-  variant03: { id: 'variant03', name: 'Studs', icon: '✨', unlockCondition: { type: 'badges', value: 3 } },
-  variant04: { id: 'variant04', name: 'Plumes', icon: '🪶', unlockCondition: { type: 'level', value: 7 } },
-  variant05: { id: 'variant05', name: 'Étoiles', icon: '⭐', unlockCondition: { type: 'xp', value: 3000 } },
-  variant06: { id: 'variant06', name: 'Diamants', icon: '💎', unlockCondition: { type: 'level', value: 15 } }
+// ==========================================
+// EFFETS (aura/particules autour de l'avatar)
+// ==========================================
+export const RPG_EFFECTS = {
+  none: { id: 'none', name: 'Aucun', icon: '❌', cssClass: '', unlockCondition: { type: 'default' } },
+  sparkle: { id: 'sparkle', name: 'Étincelles', icon: '✨', cssClass: 'animate-pulse', color: '#ffd700', unlockCondition: { type: 'level', value: 3 } },
+  fire_aura: { id: 'fire_aura', name: 'Aura de feu', icon: '🔥', cssClass: '', color: '#ff4500', unlockCondition: { type: 'level', value: 8 } },
+  ice_aura: { id: 'ice_aura', name: 'Aura de glace', icon: '❄️', cssClass: '', color: '#00bfff', unlockCondition: { type: 'level', value: 8 } },
+  lightning: { id: 'lightning', name: 'Éclairs', icon: '⚡', cssClass: '', color: '#ffff00', unlockCondition: { type: 'level', value: 10 } },
+  shadow: { id: 'shadow', name: 'Ombre', icon: '🌑', cssClass: '', color: '#2c3e50', unlockCondition: { type: 'level', value: 12 } },
+  holy: { id: 'holy', name: 'Lumière sacrée', icon: '☀️', cssClass: '', color: '#fff9c4', unlockCondition: { type: 'level', value: 15 } },
+  nature: { id: 'nature', name: 'Nature', icon: '🌿', cssClass: '', color: '#4caf50', unlockCondition: { type: 'badges', value: 8 } },
+  arcane: { id: 'arcane', name: 'Arcane', icon: '🔮', cssClass: '', color: '#9c27b0', unlockCondition: { type: 'level', value: 18 } },
+  void: { id: 'void', name: 'Néant', icon: '🕳️', cssClass: '', color: '#1a1a2e', unlockCondition: { type: 'level', value: 20 } },
+  rainbow: { id: 'rainbow', name: 'Arc-en-ciel', icon: '🌈', cssClass: '', color: 'rainbow', unlockCondition: { type: 'streak', value: 30 } },
+  legendary: { id: 'legendary', name: 'Légendaire', icon: '⭐', cssClass: '', color: '#ffd700', unlockCondition: { type: 'level', value: 25 } }
 };
 
-// Couleurs de fond
-export const BACKGROUND_COLORS = {
-  transparent: { id: 'transparent', name: 'Transparent', gradient: 'from-gray-800 to-gray-900', unlockCondition: { type: 'default' } },
-  b6e3f4: { id: 'b6e3f4', name: 'Ciel', color: '#b6e3f4', gradient: 'from-sky-400 to-blue-500', unlockCondition: { type: 'default' } },
-  c0aede: { id: 'c0aede', name: 'Lavande', color: '#c0aede', gradient: 'from-purple-400 to-indigo-500', unlockCondition: { type: 'level', value: 2 } },
-  d1d4f9: { id: 'd1d4f9', name: 'Pervenche', color: '#d1d4f9', gradient: 'from-indigo-300 to-purple-400', unlockCondition: { type: 'level', value: 3 } },
-  ffd5dc: { id: 'ffd5dc', name: 'Rose', color: '#ffd5dc', gradient: 'from-pink-300 to-rose-400', unlockCondition: { type: 'level', value: 4 } },
-  ffdfbf: { id: 'ffdfbf', name: 'Pêche', color: '#ffdfbf', gradient: 'from-orange-200 to-amber-300', unlockCondition: { type: 'level', value: 5 } },
-  '3498db': { id: '3498db', name: 'Océan', color: '#3498db', gradient: 'from-blue-500 to-cyan-600', unlockCondition: { type: 'badges', value: 5 } },
-  '2ecc71': { id: '2ecc71', name: 'Nature', color: '#2ecc71', gradient: 'from-green-400 to-emerald-500', unlockCondition: { type: 'badges', value: 8 } },
-  e74c3c: { id: 'e74c3c', name: 'Passion', color: '#e74c3c', gradient: 'from-red-500 to-pink-600', unlockCondition: { type: 'level', value: 10 } },
-  f39c12: { id: 'f39c12', name: 'Soleil', color: '#f39c12', gradient: 'from-yellow-400 to-orange-500', unlockCondition: { type: 'xp', value: 5000 } },
-  '9b59b6': { id: '9b59b6', name: 'Mystique', color: '#9b59b6', gradient: 'from-purple-500 to-violet-600', unlockCondition: { type: 'level', value: 15 } },
-  '1a1a2e': { id: '1a1a2e', name: 'Nuit', color: '#1a1a2e', gradient: 'from-slate-900 to-gray-900', unlockCondition: { type: 'streak', value: 14 } },
-  'gradient1': { id: 'gradient1', name: 'Arc-en-ciel', color: 'rainbow', gradient: 'from-red-500 via-yellow-500 to-blue-500', unlockCondition: { type: 'level', value: 20 } }
+// ==========================================
+// FONDS
+// ==========================================
+export const RPG_BACKGROUNDS = {
+  default: { id: 'default', name: 'Classique', gradient: 'from-indigo-900 to-purple-900', color: 'b6e3f4', unlockCondition: { type: 'default' } },
+  forest: { id: 'forest', name: 'Forêt', gradient: 'from-green-900 to-emerald-900', color: '2ecc71', unlockCondition: { type: 'level', value: 2 } },
+  fire: { id: 'fire', name: 'Flammes', gradient: 'from-red-900 to-orange-900', color: 'e74c3c', unlockCondition: { type: 'level', value: 4 } },
+  ice: { id: 'ice', name: 'Glace', gradient: 'from-cyan-900 to-blue-900', color: '3498db', unlockCondition: { type: 'level', value: 4 } },
+  shadow: { id: 'shadow', name: 'Ombres', gradient: 'from-gray-900 to-slate-900', color: '2c3e50', unlockCondition: { type: 'level', value: 6 } },
+  celestial: { id: 'celestial', name: 'Céleste', gradient: 'from-violet-900 to-purple-900', color: 'c0aede', unlockCondition: { type: 'level', value: 8 } },
+  ocean: { id: 'ocean', name: 'Océan', gradient: 'from-blue-900 to-teal-900', color: '00bcd4', unlockCondition: { type: 'level', value: 10 } },
+  desert: { id: 'desert', name: 'Désert', gradient: 'from-amber-900 to-orange-900', color: 'ff9800', unlockCondition: { type: 'level', value: 12 } },
+  void: { id: 'void', name: 'Néant', gradient: 'from-black to-gray-900', color: '1a1a2e', unlockCondition: { type: 'level', value: 15 } },
+  holy: { id: 'holy', name: 'Sacré', gradient: 'from-yellow-800 to-amber-900', color: 'fff9c4', unlockCondition: { type: 'level', value: 18 } },
+  legendary: { id: 'legendary', name: 'Légendaire', gradient: 'from-yellow-600 via-red-600 to-purple-600', color: 'ffd700', unlockCondition: { type: 'level', value: 25 } }
 };
 
 // Configuration par défaut
 export const DEFAULT_DICEBEAR_CONFIG = {
-  style: 'adventurer',
-  seed: '',
-  hair: 'short01',
-  hairColor: '6a4e35',
-  skinColor: 'ecad80',
-  glasses: 'none',
-  earrings: 'none',
-  backgroundColor: 'b6e3f4',
-  flip: false
+  class: 'mage',
+  color: 'natural',
+  headgear: 'none',
+  weapon: 'staff',
+  companion: 'none',
+  effect: 'none',
+  background: 'default'
 };
 
 // ==========================================
@@ -190,121 +311,101 @@ export const DEFAULT_DICEBEAR_CONFIG = {
 // ==========================================
 
 export const isUnlocked = (item, userStats = {}) => {
-  if (!item.unlockCondition) return true;
-
+  if (!item?.unlockCondition) return true;
   const condition = item.unlockCondition;
 
   switch (condition.type) {
-    case 'default':
-      return true;
-    case 'level':
-      return (userStats.level || 1) >= condition.value;
-    case 'xp':
-      return (userStats.totalXp || 0) >= condition.value;
-    case 'tasks':
-      return (userStats.tasksCompleted || 0) >= condition.value;
-    case 'badges':
-      return (userStats.badgesCount || 0) >= condition.value;
-    case 'streak':
-      return (userStats.currentStreak || 0) >= condition.value;
-    case 'challenges':
-      return (userStats.challengesCompleted || 0) >= condition.value;
-    default:
-      return false;
+    case 'default': return true;
+    case 'level': return (userStats.level || 1) >= condition.value;
+    case 'xp': return (userStats.totalXp || 0) >= condition.value;
+    case 'tasks': return (userStats.tasksCompleted || 0) >= condition.value;
+    case 'badges': return (userStats.badgesCount || 0) >= condition.value;
+    case 'streak': return (userStats.currentStreak || 0) >= condition.value;
+    case 'challenges': return (userStats.challengesCompleted || 0) >= condition.value;
+    default: return false;
   }
 };
 
 export const getUnlockText = (item) => {
-  if (!item.unlockCondition) return '';
-
+  if (!item?.unlockCondition) return '';
   const condition = item.unlockCondition;
 
   switch (condition.type) {
-    case 'default':
-      return 'Disponible';
-    case 'level':
-      return `Niveau ${condition.value}`;
-    case 'xp':
-      return `${condition.value} XP`;
-    case 'tasks':
-      return `${condition.value} tâches`;
-    case 'badges':
-      return `${condition.value} badges`;
-    case 'streak':
-      return `${condition.value}j série`;
-    case 'challenges':
-      return `${condition.value} défis`;
-    default:
-      return 'Verrouillé';
+    case 'default': return 'Disponible';
+    case 'level': return `Niveau ${condition.value}`;
+    case 'xp': return `${condition.value} XP`;
+    case 'tasks': return `${condition.value} tâches`;
+    case 'badges': return `${condition.value} badges`;
+    case 'streak': return `${condition.value}j série`;
+    case 'challenges': return `${condition.value} défis`;
+    default: return 'Verrouillé';
   }
 };
 
 export const getUnlockProgress = (item, userStats = {}) => {
-  if (!item.unlockCondition || item.unlockCondition.type === 'default') return 100;
-
+  if (!item?.unlockCondition || item.unlockCondition.type === 'default') return 100;
   const condition = item.unlockCondition;
   let current = 0;
 
   switch (condition.type) {
-    case 'level':
-      current = userStats.level || 1;
-      break;
-    case 'xp':
-      current = userStats.totalXp || 0;
-      break;
-    case 'tasks':
-      current = userStats.tasksCompleted || 0;
-      break;
-    case 'badges':
-      current = userStats.badgesCount || 0;
-      break;
-    case 'streak':
-      current = userStats.currentStreak || 0;
-      break;
-    case 'challenges':
-      current = userStats.challengesCompleted || 0;
-      break;
-    default:
-      return 0;
+    case 'level': current = userStats.level || 1; break;
+    case 'xp': current = userStats.totalXp || 0; break;
+    case 'tasks': current = userStats.tasksCompleted || 0; break;
+    case 'badges': current = userStats.badgesCount || 0; break;
+    case 'streak': current = userStats.currentStreak || 0; break;
+    case 'challenges': current = userStats.challengesCompleted || 0; break;
+    default: return 0;
   }
 
   return Math.min(100, Math.round((current / condition.value) * 100));
 };
 
-// Générer l'URL DiceBear
+// Générer l'URL DiceBear avec les options RPG
 export const generateDiceBearUrl = (config, size = 200) => {
-  const style = config.style || 'adventurer';
+  const rpgClass = RPG_CLASSES[config.class] || RPG_CLASSES.mage;
+  const rpgColor = RPG_COLORS[config.color];
+  const rpgHeadgear = RPG_HEADGEAR[config.headgear];
+  const rpgBackground = RPG_BACKGROUNDS[config.background];
+
   const params = new URLSearchParams();
 
-  // Seed unique basé sur les options
-  const seed = config.seed || `synergia-${Date.now()}`;
-  params.append('seed', seed);
+  // Seed basé sur la classe pour consistance
+  params.append('seed', `synergia-${config.class}-${Date.now()}`);
   params.append('size', size);
 
-  // Style spécifiques selon le type d'avatar
-  if (style === 'adventurer' || style === 'adventurer-neutral') {
-    if (config.hair && config.hair !== 'none') params.append('hair', config.hair);
-    if (config.hairColor) params.append('hairColor', config.hairColor);
-    if (config.skinColor) params.append('skinColor', config.skinColor);
-    if (config.glasses && config.glasses !== 'none') params.append('glasses', config.glasses);
-    if (config.earrings && config.earrings !== 'none') params.append('earrings', config.earrings);
+  // Appliquer les options de la classe
+  if (rpgClass.dicebear) {
+    Object.entries(rpgClass.dicebear).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+  }
+
+  // Override avec la couleur si pas "natural"
+  if (rpgColor && rpgColor.hairColor) {
+    params.append('hairColor', rpgColor.hairColor);
+  }
+
+  // Override avec le headgear
+  if (rpgHeadgear && rpgHeadgear.hair) {
+    params.append('hair', rpgHeadgear.hair);
+  }
+  if (rpgHeadgear && rpgHeadgear.glasses) {
+    params.append('glasses', rpgHeadgear.glasses);
+  }
+  if (rpgHeadgear && rpgHeadgear.earrings) {
+    params.append('earrings', rpgHeadgear.earrings);
   }
 
   // Background
-  if (config.backgroundColor && config.backgroundColor !== 'transparent') {
-    params.append('backgroundColor', config.backgroundColor);
+  if (rpgBackground && rpgBackground.color) {
+    params.append('backgroundColor', rpgBackground.color);
   }
 
-  // Flip
-  if (config.flip) {
-    params.append('flip', 'true');
-  }
-
-  return `https://api.dicebear.com/7.x/${style}/svg?${params.toString()}`;
+  return `https://api.dicebear.com/7.x/adventurer/svg?${params.toString()}`;
 };
 
 // ==========================================
-// COMPOSANT AVATAR PREVIEW DICEBEAR
+// COMPOSANT AVATAR PREVIEW RPG
 // ==========================================
 export const DiceBearAvatarPreview = ({
   config,
@@ -324,19 +425,16 @@ export const DiceBearAvatarPreview = ({
     xlarge: 'w-56 h-56'
   };
 
-  const sizePx = {
-    tiny: 32,
-    small: 64,
-    medium: 96,
-    large: 160,
-    xlarge: 224
-  };
+  const sizePx = { tiny: 32, small: 64, medium: 96, large: 160, xlarge: 224 };
 
   const avatarUrl = useMemo(() => {
-    return generateDiceBearUrl(config, sizePx[size] * 2); // 2x pour retina
+    return generateDiceBearUrl(config, sizePx[size] * 2);
   }, [config, size]);
 
-  const bgConfig = BACKGROUND_COLORS[config.backgroundColor] || BACKGROUND_COLORS.b6e3f4;
+  const bgConfig = RPG_BACKGROUNDS[config.background] || RPG_BACKGROUNDS.default;
+  const weapon = RPG_WEAPONS[config.weapon];
+  const companion = RPG_COMPANIONS[config.companion];
+  const effect = RPG_EFFECTS[config.effect];
 
   useEffect(() => {
     setImageLoaded(false);
@@ -349,19 +447,32 @@ export const DiceBearAvatarPreview = ({
       animate={animated ? { y: [0, -3, 0] } : {}}
       transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
     >
-      {/* Arrière-plan avec gradient */}
+      {/* Effet d'aura */}
+      {showEffects && effect && effect.id !== 'none' && (
+        <motion.div
+          className="absolute inset-0 rounded-2xl"
+          animate={{
+            boxShadow: [
+              `0 0 20px ${effect.color}40`,
+              `0 0 40px ${effect.color}60`,
+              `0 0 20px ${effect.color}40`
+            ]
+          }}
+          transition={{ duration: 2, repeat: Infinity }}
+          style={{
+            filter: effect.color === 'rainbow' ? 'hue-rotate(360deg)' : 'none',
+          }}
+        />
+      )}
+
+      {/* Container principal */}
       <div className={`
         ${sizeClasses[size]} rounded-2xl overflow-hidden
         bg-gradient-to-br ${bgConfig.gradient}
         border-4 border-white/20 shadow-2xl
-        flex items-center justify-center
+        flex items-center justify-center relative
       `}>
-        {/* Glow effect */}
-        {showEffects && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-        )}
-
-        {/* Avatar Image */}
+        {/* Avatar */}
         {!imageError ? (
           <img
             src={avatarUrl}
@@ -371,40 +482,57 @@ export const DiceBearAvatarPreview = ({
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="text-4xl">👤</div>
+          <div className="text-4xl">{RPG_CLASSES[config.class]?.icon || '👤'}</div>
         )}
 
-        {/* Loading spinner */}
+        {/* Loading */}
         {!imageLoaded && !imageError && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/50" />
           </div>
         )}
+
+        {/* Arme (coin bas droit) */}
+        {weapon && weapon.emoji && (
+          <motion.div
+            initial={{ scale: 0, rotate: -45 }}
+            animate={{ scale: 1, rotate: 0 }}
+            className={`absolute ${size === 'xlarge' ? 'bottom-2 right-2 text-3xl' : size === 'large' ? 'bottom-1 right-1 text-2xl' : 'bottom-0 right-0 text-lg'}`}
+          >
+            {weapon.emoji}
+          </motion.div>
+        )}
+
+        {/* Compagnon (coin bas gauche) */}
+        {companion && companion.emoji && (
+          <motion.div
+            initial={{ scale: 0, x: -20 }}
+            animate={{ scale: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className={`absolute ${size === 'xlarge' ? 'bottom-2 left-2 text-2xl' : size === 'large' ? 'bottom-1 left-1 text-xl' : 'bottom-0 left-0 text-base'}`}
+          >
+            {companion.emoji}
+          </motion.div>
+        )}
       </div>
 
-      {/* Effet d'étincelles */}
-      {showEffects && imageLoaded && (
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(4)].map((_, i) => (
+      {/* Particules d'effet */}
+      {showEffects && effect && effect.id !== 'none' && imageLoaded && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+          {[...Array(6)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-1 h-1 bg-white rounded-full"
+              className="absolute w-2 h-2 rounded-full"
+              style={{ backgroundColor: effect.color === 'rainbow' ? ['#ff0000', '#ff9900', '#ffff00', '#00ff00', '#0099ff', '#9900ff'][i] : effect.color }}
               initial={{ opacity: 0, scale: 0 }}
               animate={{
                 opacity: [0, 1, 0],
-                scale: [0, 1, 0],
-                x: [0, (Math.random() - 0.5) * 30],
-                y: [0, (Math.random() - 0.5) * 30]
+                scale: [0, 1.5, 0],
+                x: [0, (Math.random() - 0.5) * 60],
+                y: [0, (Math.random() - 0.5) * 60]
               }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-                delay: i * 0.5
-              }}
-              style={{
-                left: `${30 + Math.random() * 40}%`,
-                top: `${30 + Math.random() * 40}%`
-              }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+              style={{ left: `${30 + Math.random() * 40}%`, top: `${30 + Math.random() * 40}%` }}
             />
           ))}
         </div>
@@ -414,22 +542,14 @@ export const DiceBearAvatarPreview = ({
 };
 
 // ==========================================
-// COMPOSANT ITEM SELECTOR
+// COMPOSANT ITEM SELECTOR RPG
 // ==========================================
-const ItemSelector = ({
-  items,
-  selectedId,
-  onSelect,
-  userStats,
-  showColors = false,
-  columns = 4
-}) => {
+const ItemSelector = ({ items, selectedId, onSelect, userStats, columns = 4 }) => {
   return (
-    <div className={`grid grid-cols-${columns} gap-2`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
       {Object.values(items).map((item) => {
         const unlocked = isUnlocked(item, userStats);
         const isSelected = selectedId === item.id;
-        const progress = getUnlockProgress(item, userStats);
 
         return (
           <motion.button
@@ -439,48 +559,36 @@ const ItemSelector = ({
             whileHover={unlocked ? { scale: 1.05 } : {}}
             whileTap={unlocked ? { scale: 0.95 } : {}}
             className={`
-              relative p-2 rounded-xl border-2 transition-all min-h-[60px]
+              relative p-3 rounded-xl border-2 transition-all
               ${unlocked
                 ? 'border-white/20 bg-white/5 hover:bg-white/10 cursor-pointer'
-                : 'border-gray-700 bg-gray-800/50 cursor-not-allowed opacity-60'
+                : 'border-gray-700 bg-gray-800/50 cursor-not-allowed opacity-50'
               }
               ${isSelected ? 'ring-2 ring-purple-500 border-purple-500 bg-purple-500/20' : ''}
             `}
           >
-            {/* Couleur ou icône */}
-            <div className="flex flex-col items-center justify-center gap-1">
-              {showColors && item.color ? (
-                <div
-                  className="w-8 h-8 rounded-full border-2 border-white/30"
-                  style={{ backgroundColor: item.color }}
-                />
-              ) : item.gradient ? (
-                <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${item.gradient}`} />
-              ) : (
-                <span className="text-xl">{item.icon}</span>
-              )}
-              <span className={`text-[10px] font-medium text-center truncate w-full ${unlocked ? 'text-white' : 'text-gray-500'}`}>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-2xl">{item.icon}</span>
+              <span className={`text-xs font-medium text-center ${unlocked ? 'text-white' : 'text-gray-500'}`}>
                 {item.name}
               </span>
             </div>
 
-            {/* Badge sélection */}
             {isSelected && unlocked && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center"
+                className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center"
               >
-                <Check className="w-2.5 h-2.5 text-white" />
+                <Check className="w-3 h-3 text-white" />
               </motion.div>
             )}
 
-            {/* Verrou */}
             {!unlocked && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
-                <div className="text-center px-1">
-                  <Lock className="w-3 h-3 text-gray-400 mx-auto mb-0.5" />
-                  <p className="text-[8px] text-gray-400">{getUnlockText(item)}</p>
+                <div className="text-center">
+                  <Lock className="w-4 h-4 text-gray-400 mx-auto mb-1" />
+                  <p className="text-[9px] text-gray-400">{getUnlockText(item)}</p>
                 </div>
               </div>
             )}
@@ -492,7 +600,7 @@ const ItemSelector = ({
 };
 
 // ==========================================
-// COMPOSANT PRINCIPAL - DICEBEAR AVATAR BUILDER
+// COMPOSANT PRINCIPAL - RPG AVATAR BUILDER
 // ==========================================
 const DiceBearAvatarBuilder = ({
   initialConfig = DEFAULT_DICEBEAR_CONFIG,
@@ -502,72 +610,52 @@ const DiceBearAvatarBuilder = ({
   saving = false
 }) => {
   const [config, setConfig] = useState(initialConfig);
-  const [activeTab, setActiveTab] = useState('style');
-  const [showPreview, setShowPreview] = useState(true);
+  const [activeTab, setActiveTab] = useState('class');
 
-  // Catégories de personnalisation
   const categories = [
-    { id: 'style', label: 'Style', icon: User, items: AVATAR_STYLES },
-    { id: 'hair', label: 'Cheveux', icon: Crown, items: HAIR_OPTIONS },
-    { id: 'hairColor', label: 'Couleur', icon: Palette, items: HAIR_COLORS, showColors: true },
-    { id: 'skinColor', label: 'Peau', icon: Smile, items: SKIN_COLORS, showColors: true },
-    { id: 'glasses', label: 'Lunettes', icon: Glasses, items: GLASSES_OPTIONS },
-    { id: 'earrings', label: 'Boucles', icon: Sparkles, items: EARRINGS_OPTIONS },
-    { id: 'backgroundColor', label: 'Fond', icon: Image, items: BACKGROUND_COLORS }
+    { id: 'class', label: 'Classe', icon: User, items: RPG_CLASSES },
+    { id: 'color', label: 'Couleur', icon: Palette, items: RPG_COLORS },
+    { id: 'headgear', label: 'Coiffe', icon: Crown, items: RPG_HEADGEAR },
+    { id: 'weapon', label: 'Arme', icon: Sword, items: RPG_WEAPONS },
+    { id: 'companion', label: 'Compagnon', icon: Heart, items: RPG_COMPANIONS },
+    { id: 'effect', label: 'Effet', icon: Sparkles, items: RPG_EFFECTS },
+    { id: 'background', label: 'Fond', icon: Image, items: RPG_BACKGROUNDS }
   ];
 
-  // Stats de déblocage
   const unlockStats = useMemo(() => {
-    let total = 0;
-    let unlocked = 0;
-
+    let total = 0, unlocked = 0;
     categories.forEach(cat => {
       const items = Object.values(cat.items);
       total += items.length;
       unlocked += items.filter(item => isUnlocked(item, userStats)).length;
     });
-
     return { total, unlocked, percentage: Math.round((unlocked / total) * 100) };
   }, [userStats]);
 
   const handleSelect = (categoryId, itemId) => {
-    setConfig(prev => ({
-      ...prev,
-      [categoryId]: itemId,
-      // Générer un nouveau seed pour varier l'avatar
-      seed: categoryId === 'style' ? `synergia-${Date.now()}` : prev.seed
-    }));
+    setConfig(prev => ({ ...prev, [categoryId]: itemId }));
   };
 
   const handleRandomize = () => {
-    const newConfig = { ...config, seed: `synergia-${Date.now()}` };
-
+    const newConfig = { ...config };
     categories.forEach(cat => {
       const items = Object.values(cat.items).filter(item => isUnlocked(item, userStats));
       if (items.length > 0) {
-        const randomItem = items[Math.floor(Math.random() * items.length)];
-        newConfig[cat.id] = randomItem.id;
+        newConfig[cat.id] = items[Math.floor(Math.random() * items.length)].id;
       }
     });
-
     setConfig(newConfig);
   };
 
-  const handleReset = () => {
-    setConfig({ ...DEFAULT_DICEBEAR_CONFIG, seed: `synergia-${Date.now()}` });
-  };
-
-  const handleSave = () => {
-    if (onSave) {
-      onSave(config);
-    }
-  };
+  const handleReset = () => setConfig(DEFAULT_DICEBEAR_CONFIG);
+  const handleSave = () => onSave && onSave(config);
 
   const currentCategory = categories.find(c => c.id === activeTab);
+  const currentClass = RPG_CLASSES[config.class];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Colonne gauche - Preview */}
+      {/* Preview */}
       <div className="lg:col-span-1 space-y-4">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -579,34 +667,19 @@ const DiceBearAvatarBuilder = ({
               <Eye className="w-5 h-5 text-purple-400" />
               Aperçu
             </h3>
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
-            >
-              {showPreview ? <EyeOff className="w-4 h-4 text-white" /> : <Eye className="w-4 h-4 text-white" />}
-            </button>
           </div>
 
-          <AnimatePresence>
-            {showPreview && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="flex justify-center py-6"
-              >
-                <DiceBearAvatarPreview config={config} size="xlarge" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="flex justify-center py-4">
+            <DiceBearAvatarPreview config={config} size="xlarge" />
+          </div>
 
-          {/* Info style */}
+          {/* Info classe */}
           <div className="mt-4 p-3 bg-white/5 rounded-xl">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">{AVATAR_STYLES[config.style]?.icon}</span>
+              <span className="text-2xl">{currentClass?.icon}</span>
               <div>
-                <p className="text-white font-semibold">{AVATAR_STYLES[config.style]?.name}</p>
-                <p className="text-xs text-gray-400">{AVATAR_STYLES[config.style]?.description}</p>
+                <p className="text-white font-semibold">{currentClass?.name}</p>
+                <p className="text-xs text-gray-400">{currentClass?.description}</p>
               </div>
             </div>
           </div>
@@ -617,26 +690,25 @@ const DiceBearAvatarBuilder = ({
               onClick={handleRandomize}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex-1 py-2 px-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 rounded-lg text-purple-300 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              className="flex-1 py-2 px-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 rounded-lg text-purple-300 text-sm font-medium flex items-center justify-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               Aléatoire
             </motion.button>
-
             <motion.button
               onClick={handleReset}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="py-2 px-3 bg-white/10 hover:bg-white/20 rounded-lg text-gray-300 text-sm font-medium transition-colors"
+              className="py-2 px-3 bg-white/10 hover:bg-white/20 rounded-lg text-gray-300"
             >
               <RotateCcw className="w-4 h-4" />
             </motion.button>
           </div>
 
-          {/* Stats de déblocage */}
+          {/* Stats */}
           <div className="mt-4 p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/20">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-400">Éléments débloqués</span>
+              <span className="text-xs text-gray-400">Débloqués</span>
               <span className="text-sm font-bold text-purple-300">{unlockStats.unlocked}/{unlockStats.total}</span>
             </div>
             <div className="w-full h-2 bg-gray-700 rounded-full">
@@ -648,42 +720,24 @@ const DiceBearAvatarBuilder = ({
             </div>
           </div>
 
-          {/* Boutons Save/Cancel */}
-          <div className="flex gap-2 mt-4">
-            {onCancel && (
-              <motion.button
-                onClick={onCancel}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-medium transition-colors"
-              >
-                Annuler
-              </motion.button>
+          {/* Save */}
+          <motion.button
+            onClick={handleSave}
+            disabled={saving}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full mt-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {saving ? (
+              <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> Sauvegarde...</>
+            ) : (
+              <><Save className="w-4 h-4" /> Sauvegarder</>
             )}
-            <motion.button
-              onClick={handleSave}
-              disabled={saving}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl text-white font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                  Sauvegarde...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Sauvegarder
-                </>
-              )}
-            </motion.button>
-          </div>
+          </motion.button>
         </motion.div>
       </div>
 
-      {/* Colonne droite - Options */}
+      {/* Options */}
       <div className="lg:col-span-2 space-y-4">
         {/* Tabs */}
         <div className="flex flex-wrap gap-2">
@@ -716,7 +770,7 @@ const DiceBearAvatarBuilder = ({
           })}
         </div>
 
-        {/* Contenu de l'onglet actif */}
+        {/* Content */}
         <motion.div
           key={activeTab}
           initial={{ opacity: 0, y: 20 }}
@@ -729,7 +783,7 @@ const DiceBearAvatarBuilder = ({
               {currentCategory?.label}
             </h3>
             <span className="text-sm text-gray-400">
-              Sélection actuelle: {currentCategory?.items[config[activeTab]]?.name || 'Aucun'}
+              {currentCategory?.items[config[activeTab]]?.name || 'Aucun'}
             </span>
           </div>
 
@@ -738,8 +792,7 @@ const DiceBearAvatarBuilder = ({
             selectedId={config[activeTab]}
             onSelect={(id) => handleSelect(activeTab, id)}
             userStats={userStats}
-            showColors={currentCategory?.showColors}
-            columns={activeTab === 'style' ? 4 : 6}
+            columns={activeTab === 'class' ? 5 : 6}
           />
         </motion.div>
       </div>
