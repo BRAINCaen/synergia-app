@@ -21,6 +21,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { externalNotificationService } from './externalNotificationService.js';
 
 /**
  * 🔔 TYPES DE NOTIFICATIONS
@@ -448,6 +449,17 @@ class NotificationService {
         priority: 'high'
       });
 
+      // 📧 Envoyer notification externe (email/push)
+      try {
+        await externalNotificationService.notifyQuestApproved(userId, {
+          id: questId,
+          title: questTitle,
+          xpAmount: xpAmount || 25
+        });
+      } catch (extError) {
+        console.warn('⚠️ [NOTIF] Erreur notification externe (non bloquante):', extError);
+      }
+
       console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - quête approuvée`);
       return { success: true };
     } catch (error) {
@@ -477,6 +489,17 @@ class NotificationService {
         },
         priority: 'high'
       });
+
+      // 📧 Envoyer notification externe (email/push)
+      try {
+        await externalNotificationService.notifyQuestRejected(userId, {
+          id: questId,
+          title: questTitle,
+          reason
+        });
+      } catch (extError) {
+        console.warn('⚠️ [NOTIF] Erreur notification externe (non bloquante):', extError);
+      }
 
       console.log(`🔔 [NOTIF] Utilisateur ${userId} notifié - quête rejetée`);
       return { success: true };
@@ -508,6 +531,18 @@ class NotificationService {
         priority: 'high'
       });
 
+      // 📧 Envoyer notification externe (email/push)
+      try {
+        await externalNotificationService.notifyBadgeEarned(userId, {
+          id: badgeId,
+          name: badgeName,
+          icon: badgeIcon,
+          description: badgeDescription
+        });
+      } catch (extError) {
+        console.warn('⚠️ [NOTIF] Erreur notification externe (non bloquante):', extError);
+      }
+
       return { success: true };
     } catch (error) {
       console.error('❌ [NOTIF] Erreur notification badge:', error);
@@ -532,6 +567,13 @@ class NotificationService {
         data: { newLevel, previousLevel },
         priority: 'high'
       });
+
+      // 📧 Envoyer notification externe (email/push)
+      try {
+        await externalNotificationService.notifyLevelUp(userId, { newLevel, previousLevel });
+      } catch (extError) {
+        console.warn('⚠️ [NOTIF] Erreur notification externe (non bloquante):', extError);
+      }
 
       return { success: true };
     } catch (error) {
@@ -566,6 +608,18 @@ class NotificationService {
         },
         priority: 'high'
       });
+
+      // 📧 Envoyer notification externe (email/push)
+      try {
+        await externalNotificationService.notifyBoostReceived(userId, {
+          emoji: boostEmoji,
+          label: boostLabel,
+          fromUserName,
+          xpAmount
+        });
+      } catch (extError) {
+        console.warn('⚠️ [NOTIF] Erreur notification externe (non bloquante):', extError);
+      }
 
       console.log(`⚡ [NOTIF] Utilisateur ${userId} notifié - boost reçu de ${fromUserName}`);
       return { success: true };
@@ -1048,6 +1102,18 @@ class NotificationService {
         priority: 'high'
       });
 
+      // 📧 Envoyer notification externe (email/push)
+      try {
+        await externalNotificationService.notifyLeaveApproved(userId, {
+          type: leaveLabel,
+          startDate,
+          endDate,
+          approverName
+        });
+      } catch (extError) {
+        console.warn('⚠️ [NOTIF] Erreur notification externe (non bloquante):', extError);
+      }
+
       console.log(`✅ [NOTIF] Utilisateur ${userId} notifié - congé approuvé`);
       return { success: true };
     } catch (error) {
@@ -1073,6 +1139,18 @@ class NotificationService {
         data: { requestId, leaveLabel, startDate, endDate, rejectedByName, reason },
         priority: 'high'
       });
+
+      // 📧 Envoyer notification externe (email/push)
+      try {
+        await externalNotificationService.notifyLeaveRejected(userId, {
+          type: leaveLabel,
+          startDate,
+          endDate,
+          reason
+        });
+      } catch (extError) {
+        console.warn('⚠️ [NOTIF] Erreur notification externe (non bloquante):', extError);
+      }
 
       console.log(`❌ [NOTIF] Utilisateur ${userId} notifié - congé refusé`);
       return { success: true };

@@ -67,6 +67,9 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 import ExportReportsPanel from '../components/exports/ExportReportsPanel.jsx';
 import useExportData from '../hooks/useExportData.js';
 
+// 🔔 NOTIFICATIONS PREFERENCES
+import NotificationPreferencesPanel from '../components/notifications/NotificationPreferencesPanel.jsx';
+
 // 📊 FIREBASE IMPORTS
 import { 
   doc, 
@@ -1051,43 +1054,7 @@ const ProfilePage = () => {
 
             {/* ========== ONGLET NOTIFICATIONS ========== */}
             {activeTab === 'notifications' && (
-              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
-                  <Bell className="w-6 h-6 text-green-400 mr-3" />
-                  Préférences de Notifications
-                </h3>
-                
-                <div className="space-y-4">
-                  {[
-                    { key: 'email', label: 'Notifications par email', icon: Bell },
-                    { key: 'push', label: 'Notifications push', icon: Smartphone },
-                    { key: 'mentions', label: 'Notifications de mentions', icon: User },
-                    { key: 'taskReminders', label: 'Rappels de tâches', icon: AlertTriangle },
-                    { key: 'weeklyReport', label: 'Rapport hebdomadaire', icon: BarChart3 }
-                  ].map(({ key, label, icon: Icon }) => (
-                    <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-                      <div className="flex items-center space-x-3">
-                        <Icon className="w-5 h-5 text-green-400" />
-                        <span className="text-white font-medium">{label}</span>
-                      </div>
-                      <button
-                        onClick={() => handlePreferenceChange('notifications', key, !formData.preferences.notifications[key])}
-                        className={`
-                          relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                          ${formData.preferences.notifications[key] ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gray-600'}
-                        `}
-                      >
-                        <span
-                          className={`
-                            inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                            ${formData.preferences.notifications[key] ? 'translate-x-6' : 'translate-x-1'}
-                          `}
-                        />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <NotificationPreferencesPanel />
             )}
 
             {/* ========== ONGLET INTERFACE ========== */}
