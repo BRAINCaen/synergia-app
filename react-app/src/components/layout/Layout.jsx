@@ -13,6 +13,9 @@ import { NotificationCenter, NotificationToast } from '../notifications';
 import { useTheme } from '../../shared/hooks/useTheme.js';
 import { hasAdminMenuAccess } from '../../core/services/modulePermissionsService.js';
 
+// 🤖 ASSISTANT IA NOVA
+import AIAssistant from '../ai/AIAssistant.jsx';
+
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD
 const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin }) => {
@@ -565,6 +568,9 @@ const Layout = memo(({ children }) => {
       <main style={{ minHeight: '100vh', paddingTop: '70px' }}>
         {children}
       </main>
+
+      {/* 🤖 ASSISTANT IA NOVA */}
+      <AIAssistant />
     </div>
   );
 });
