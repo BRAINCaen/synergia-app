@@ -14,37 +14,9 @@ import {
   PIXEL_PALETTES,
   PIXEL_BACKGROUNDS,
   PixelArtAvatarPreview,
-  DEFAULT_PIXEL_CONFIG
+  DEFAULT_PIXEL_CONFIG,
+  generatePixelCharacter
 } from '../customization/PixelArtAvatar.jsx';
-
-// ==========================================
-// GÉNÉRATION SVG PIXEL ART (version simplifiée pour mini avatars)
-// ==========================================
-const generateMiniPixelCharacter = (classId, palette) => {
-  const classColors = {
-    warrior: { armor: '#8B4513', accent: '#CD853F' },
-    archer: { armor: '#228B22', accent: '#32CD32' },
-    mage: { armor: '#9932CC', accent: '#BA55D3' },
-    knight: { armor: '#4682B4', accent: '#87CEEB' },
-    rogue: { armor: '#2F4F4F', accent: '#696969' },
-    paladin: { armor: '#FFD700', accent: '#FFF8DC' },
-    necromancer: { armor: '#4B0082', accent: '#9370DB' },
-    berserker: { armor: '#DC143C', accent: '#FF6347' }
-  };
-
-  const colors = classColors[classId] || classColors.warrior;
-  const paletteData = PIXEL_PALETTES[palette] || PIXEL_PALETTES.default;
-
-  // SVG simplifié pour les petites tailles
-  return `
-    <rect x="10" y="4" width="12" height="10" fill="#deb887"/>
-    <rect x="12" y="6" width="3" height="2" fill="#000"/>
-    <rect x="8" y="14" width="16" height="12" fill="${colors.armor}"/>
-    <rect x="10" y="16" width="4" height="4" fill="${colors.accent}"/>
-    <rect x="10" y="26" width="6" height="6" fill="${colors.armor}"/>
-    <rect x="16" y="26" width="6" height="6" fill="${colors.armor}"/>
-  `;
-};
 
 // ==========================================
 // COMPOSANT USERAVATAR
@@ -176,12 +148,17 @@ const UserAvatar = ({
   const renderAvatar = () => {
     switch (avatarInfo.type) {
 
-      // Avatar PixelArt RPG
+      // Avatar PixelArt RPG - Utilise la fonction complète avec pose et accessoires
       case 'pixelart': {
         const pixelConfig = avatarInfo.config || DEFAULT_PIXEL_CONFIG;
         const background = PIXEL_BACKGROUNDS[pixelConfig.background] || PIXEL_BACKGROUNDS.dungeon;
         const palette = PIXEL_PALETTES[pixelConfig.palette] || PIXEL_PALETTES.default;
-        const svgContent = generateMiniPixelCharacter(pixelConfig.class, pixelConfig.palette);
+        // Utiliser la fonction complète avec classe, palette ET pose
+        const svgContent = generatePixelCharacter(
+          pixelConfig.class || 'warrior',
+          pixelConfig.palette || 'default',
+          pixelConfig.pose || 'idle'
+        );
 
         return (
           <div
@@ -197,7 +174,7 @@ const UserAvatar = ({
           >
             <svg
               viewBox="0 0 32 32"
-              className="w-full h-full scale-125"
+              className="w-full h-full scale-110"
               style={{
                 filter: palette.filter,
                 imageRendering: 'pixelated'

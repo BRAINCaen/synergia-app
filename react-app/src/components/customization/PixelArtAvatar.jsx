@@ -1014,4 +1014,4 @@ const PixelArtAvatarBuilder = ({
 };
 
 export default PixelArtAvatarBuilder;
-export { PixelArtAvatarBuilder };
+export { PixelArtAvatarBuilder, generatePixelCharacter };
