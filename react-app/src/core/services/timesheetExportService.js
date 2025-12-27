@@ -917,32 +917,83 @@ async function getEmployeesWithContracts() {
 
 /**
  * Récupérer tous les pointages détaillés du mois
+ * Fusionne les données des collections 'pointages' (badgeuse) et 'timeEntries' (ajouts manuels RH)
  */
 async function getMonthlyPointagesDetailed(year, month) {
   try {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month + 1, 0).getDate();
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
+    const startDateObj = new Date(year, month, 1);
+    const endDateObj = new Date(year, month + 1, 0, 23, 59, 59);
 
-    const q = query(
-      collection(db, 'pointages'),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate),
-      orderBy('date', 'asc')
-    );
-
-    const snapshot = await getDocs(q);
     const pointages = [];
 
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      pointages.push({
-        id: doc.id,
-        ...data,
-        timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp)
+    // 1. Récupérer depuis 'pointages' (badgeuse géolocalisée)
+    try {
+      const pointagesQuery = query(
+        collection(db, 'pointages'),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate),
+        orderBy('date', 'asc')
+      );
+      const pointagesSnapshot = await getDocs(pointagesQuery);
+
+      pointagesSnapshot.forEach(doc => {
+        const data = doc.data();
+        pointages.push({
+          id: doc.id,
+          source: 'badgeuse',
+          ...data,
+          timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp)
+        });
       });
+      console.log(`📍 ${pointagesSnapshot.size} pointages badgeuse trouvés`);
+    } catch (e) {
+      console.warn('⚠️ Erreur collection pointages:', e.message);
+    }
+
+    // 2. Récupérer depuis 'timeEntries' (ajouts manuels RH)
+    try {
+      const timeEntriesQuery = query(
+        collection(db, 'timeEntries'),
+        where('date', '>=', startDateObj),
+        where('date', '<=', endDateObj),
+        orderBy('date', 'asc')
+      );
+      const timeEntriesSnapshot = await getDocs(timeEntriesQuery);
+
+      timeEntriesSnapshot.forEach(doc => {
+        const data = doc.data();
+        // Ignorer les entrées supprimées
+        if (data.status === 'deleted') return;
+
+        const dateValue = data.date?.toDate?.() || new Date(data.date);
+        const dateStr = dateValue.toISOString().split('T')[0];
+
+        pointages.push({
+          id: doc.id,
+          source: 'manual',
+          userId: data.userId,
+          type: data.type,
+          date: dateStr,
+          timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp),
+          isManualEntry: true,
+          addedBy: data.addedBy
+        });
+      });
+      console.log(`✏️ ${timeEntriesSnapshot.size} entrées manuelles trouvées`);
+    } catch (e) {
+      console.warn('⚠️ Erreur collection timeEntries:', e.message);
+    }
+
+    // Trier tous les pointages par date puis timestamp
+    pointages.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return new Date(a.timestamp) - new Date(b.timestamp);
     });
 
+    console.log(`📊 Total pointages fusionnés: ${pointages.length}`);
     return pointages;
   } catch (error) {
     console.error('❌ Erreur récupération pointages:', error);
