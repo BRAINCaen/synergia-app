@@ -1589,8 +1589,9 @@ const LeavesTab = ({ employees, onRefresh }) => {
                           <span className="text-amber-400 text-sm">🏖️ CP:</span>
                           <input
                             type="number"
+                            step="0.01"
                             value={balanceForm.paidLeaveDays}
-                            onChange={(e) => setBalanceForm({ ...balanceForm, paidLeaveDays: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => setBalanceForm({ ...balanceForm, paidLeaveDays: parseFloat(e.target.value) || 0 })}
                             className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-center text-sm"
                           />
                         </div>
@@ -1598,8 +1599,9 @@ const LeavesTab = ({ employees, onRefresh }) => {
                           <span className="text-purple-400 text-sm">🎁 Bonus:</span>
                           <input
                             type="number"
+                            step="0.01"
                             value={balanceForm.bonusOffDays}
-                            onChange={(e) => setBalanceForm({ ...balanceForm, bonusOffDays: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => setBalanceForm({ ...balanceForm, bonusOffDays: parseFloat(e.target.value) || 0 })}
                             className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-center text-sm"
                           />
                         </div>
@@ -1607,8 +1609,9 @@ const LeavesTab = ({ employees, onRefresh }) => {
                           <span className="text-green-400 text-sm">⏰ RTT:</span>
                           <input
                             type="number"
+                            step="0.01"
                             value={balanceForm.rttDays}
-                            onChange={(e) => setBalanceForm({ ...balanceForm, rttDays: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => setBalanceForm({ ...balanceForm, rttDays: parseFloat(e.target.value) || 0 })}
                             className="w-16 bg-gray-700 text-white px-2 py-1 rounded text-center text-sm"
                           />
                         </div>
