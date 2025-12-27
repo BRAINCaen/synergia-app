@@ -878,6 +878,7 @@ async function getEmployeesWithContracts() {
     snapshot.forEach(doc => {
       const data = doc.data();
       // Priorité aux données du profil pour les documents officiels de paie
+      // Puis aux champs directs firstName/lastName
       const firstName = data.profile?.firstName || data.firstName || data.displayName?.split(' ')[0] || '';
       const lastName = data.profile?.lastName || data.lastName || data.displayName?.split(' ').slice(1).join(' ') || '';
 
@@ -887,15 +888,16 @@ async function getEmployeesWithContracts() {
         prenom: firstName || 'Prénom',
         displayName: data.displayName || `${firstName} ${lastName}`.trim() || data.email,
         email: data.email || '',
-        matricule: data.matricule || data.contractData?.matricule || '',
-        // Données contractuelles
-        typeContrat: data.contractData?.type || 'CDI',
-        poste: data.profile?.role || data.position || data.poste || 'Employé',
-        dateDebut: data.contractData?.startDate || data.createdAt?.toDate?.()?.toISOString?.()?.split('T')[0] || '',
-        dateFin: data.contractData?.endDate || '',
-        // Données salariales
-        volumeHoraireHebdo: data.contractData?.weeklyHours || data.salaryData?.weeklyHours || 35,
-        tauxHoraireBrut: data.salaryData?.hourlyRate || 0,
+        // Matricule depuis contractData.registrationNumber
+        matricule: data.contractData?.registrationNumber || data.matricule || '',
+        // Données contractuelles - utiliser les bons noms de champs
+        typeContrat: data.contractData?.contractType || data.contractData?.type || 'CDI',
+        poste: data.contractData?.jobTitle || data.profile?.role || data.position || data.poste || 'Employé',
+        dateDebut: data.contractData?.contractStartDate || data.contractData?.startDate || data.createdAt?.toDate?.()?.toISOString?.()?.split('T')[0] || '',
+        dateFin: data.contractData?.contractEndDate || data.contractData?.endDate || '',
+        // Données salariales - lire depuis salaryData
+        volumeHoraireHebdo: data.salaryData?.weeklyHours || data.contractData?.weeklyHours || 35,
+        tauxHoraireBrut: data.salaryData?.hourlyGrossRate || data.salaryData?.hourlyRate || 0,
         etablissement: data.contractData?.establishment || data.profile?.department || 'Principal',
         statut: data.isActive !== false ? 'Actif' : 'Inactif',
         // Compteurs
