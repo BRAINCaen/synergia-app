@@ -153,6 +153,9 @@ const PlanningAdvancedPage = () => {
   // ⏱️ HEURES POINTÉES PAR EMPLOYÉ
   const [weeklyClockkedHours, setWeeklyClockkedHours] = useState({});
 
+  // 📍 POINTAGES PAR JOUR/EMPLOYÉ (pour affichage sans shift)
+  const [dailyPointages, setDailyPointages] = useState({});
+
   // 🏖️ GESTION DES CONGÉS
   const [showLeaveRequestModal, setShowLeaveRequestModal] = useState(false);
   const [showLeaveAdminPanel, setShowLeaveAdminPanel] = useState(false);
@@ -467,15 +470,63 @@ const PlanningAdvancedPage = () => {
       console.log('✅ Heures pointées calculées:', hoursByEmployee);
       setWeeklyClockkedHours(hoursByEmployee);
 
+      // 📍 Sauvegarder les pointages par jour/employé pour affichage
+      setDailyPointages(byUserDay);
+      console.log('📍 Pointages par jour sauvegardés:', Object.keys(byUserDay).length, 'employés');
+
     } catch (error) {
       console.error('❌ Erreur calcul heures pointées:', error);
       setWeeklyClockkedHours({});
+      setDailyPointages({});
     }
   };
 
   // Fonction pour récupérer les heures pointées d'un employé
   const getClockkedHoursForEmployee = (employeeId) => {
     return weeklyClockkedHours[employeeId] || 0;
+  };
+
+  // 📍 Fonction pour récupérer les pointages d'une cellule (employé + jour)
+  const getPointagesForCell = (employeeId, date) => {
+    const dayKey = new Date(date).toDateString();
+    const userPointages = dailyPointages[employeeId];
+    if (!userPointages) return null;
+
+    const dayPointages = userPointages[dayKey];
+    if (!dayPointages || dayPointages.length === 0) return null;
+
+    // Trier par timestamp et calculer les heures travaillées
+    const sorted = [...dayPointages].sort((a, b) => a.timestamp - b.timestamp);
+
+    // Calculer les heures travaillées pour ce jour
+    let workedMinutes = 0;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const current = sorted[i];
+      const next = sorted[i + 1];
+      if (current.type === 'arrival' && next.type === 'departure') {
+        const diff = (next.timestamp - current.timestamp) / 1000 / 60;
+        if (diff > 0 && diff < 24 * 60) {
+          workedMinutes += diff;
+        }
+        i++;
+      }
+    }
+
+    // Trouver la première arrivée et le dernier départ
+    const arrivals = sorted.filter(p => p.type === 'arrival');
+    const departures = sorted.filter(p => p.type === 'departure');
+
+    const firstArrival = arrivals[0];
+    const lastDeparture = departures[departures.length - 1];
+
+    return {
+      pointages: sorted,
+      workedMinutes,
+      workedHours: Math.round(workedMinutes / 60 * 10) / 10,
+      firstArrival: firstArrival?.timestamp,
+      lastDeparture: lastDeparture?.timestamp,
+      hasOpenSession: arrivals.length > departures.length
+    };
   };
 
   // ==========================================
@@ -2559,6 +2610,7 @@ const PlanningAdvancedPage = () => {
                           const shift = getShiftForCell(employee.id, date);
                           const approvedLeave = getApprovedLeaveForCell(employee.id, date);
                           const pendingLeave = getPendingLeaveForCell(employee.id, date);
+                          const cellPointages = getPointagesForCell(employee.id, date);
                           const isOver = dragOverCell?.employeeId === employee.id && dragOverCell?.date === date;
                           const dateAnalysis = getDateAnalysis(date);
                           const hasHighDemand = dateAnalysis && dateAnalysis.isSpecial;
@@ -2750,6 +2802,63 @@ const PlanningAdvancedPage = () => {
                                         {pendingLeave.halfDayPeriod === 'morning' ? 'Matin' : pendingLeave.halfDayPeriod === 'afternoon' ? 'Après-midi' : 'Soirée'}
                                       </div>
                                     )}
+                                  </div>
+                                </motion.div>
+                              ) : cellPointages ? (
+                                /* 📍 POINTAGES SANS SHIFT - Afficher les pointages même sans shift prévu */
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] shadow-lg relative bg-gradient-to-br from-cyan-600/80 to-blue-600/80 border-2 border-dashed border-cyan-400/50"
+                                >
+                                  <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 rounded-lg pointer-events-none" />
+                                  <div className="relative z-10">
+                                    {/* En-tête avec horaires */}
+                                    <div className="flex items-start justify-between mb-1 sm:mb-2">
+                                      <div className="flex items-center gap-1 text-[10px] sm:text-xs">
+                                        <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white drop-shadow-md" />
+                                        <span className="font-bold text-white drop-shadow-md">
+                                          {cellPointages.firstArrival
+                                            ? new Date(cellPointages.firstArrival).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                                            : '--:--'
+                                          }
+                                          {' - '}
+                                          {cellPointages.lastDeparture
+                                            ? new Date(cellPointages.lastDeparture).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                                            : cellPointages.hasOpenSession ? 'En cours' : '--:--'
+                                          }
+                                        </span>
+                                      </div>
+
+                                      {/* Bouton ajouter shift */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openAddShiftModal(employee.id, date);
+                                        }}
+                                        className="p-1 bg-black/30 hover:bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Créer un shift pour ce pointage"
+                                      >
+                                        <Plus className="w-3 h-3 text-white" />
+                                      </button>
+                                    </div>
+
+                                    {/* Label "Pointage hors planning" */}
+                                    <div className="text-white text-[10px] sm:text-sm font-bold truncate drop-shadow-md">
+                                      ⏱️ Pointage
+                                    </div>
+
+                                    {/* Heures travaillées */}
+                                    <div className="text-white/90 text-[10px] sm:text-xs font-semibold mt-0.5 sm:mt-1 drop-shadow-md">
+                                      {cellPointages.workedHours}h travaillé
+                                    </div>
+
+                                    {/* Badge "Hors planning" */}
+                                    <div className="absolute -top-1 -right-1">
+                                      <span className="text-[8px] sm:text-[10px] bg-orange-500/80 text-white px-1.5 py-0.5 rounded-full font-medium border border-orange-400/50">
+                                        ⚠️ Hors planning
+                                      </span>
+                                    </div>
                                   </div>
                                 </motion.div>
                               ) : (
