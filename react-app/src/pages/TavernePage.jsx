@@ -57,6 +57,8 @@ const TavernePage = () => {
   const [boostStats, setBoostStats] = useState(null);
   const [boostTab, setBoostTab] = useState('received');
   const [filterType, setFilterType] = useState('all');
+  const [showSendBoostModal, setShowSendBoostModal] = useState(false);
+  const [boostSearchTerm, setBoostSearchTerm] = useState('');
 
   // États équipe (pour envoyer des messages)
   const [teamMembers, setTeamMembers] = useState([]);
@@ -331,6 +333,15 @@ const TavernePage = () => {
     );
   }, [teamMembers, searchTerm]);
 
+  // Filtrer les membres pour envoi de boost
+  const filteredBoostMembers = useMemo(() => {
+    if (!boostSearchTerm) return teamMembers;
+    return teamMembers.filter(m =>
+      m.name.toLowerCase().includes(boostSearchTerm.toLowerCase()) ||
+      m.email.toLowerCase().includes(boostSearchTerm.toLowerCase())
+    );
+  }, [teamMembers, boostSearchTerm]);
+
   if (loading) {
     return (
       <Layout>
@@ -581,6 +592,21 @@ const TavernePage = () => {
                 exit={{ opacity: 0, x: 20 }}
                 className="space-y-4"
               >
+                {/* Bouton envoyer un boost */}
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                  <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-yellow-400" />
+                    Boosts
+                  </h2>
+                  <button
+                    onClick={() => setShowSendBoostModal(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white rounded-xl transition-all shadow-lg shadow-yellow-500/25"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span>Envoyer un Boost</span>
+                  </button>
+                </div>
+
                 {/* Stats boosts par type */}
                 <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6">
                   <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
@@ -1006,6 +1032,103 @@ const TavernePage = () => {
                     ))}
 
                     {filteredMembers.length === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        Aucun membre trouve
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ⚡ MODAL ENVOYER UN BOOST */}
+        <AnimatePresence>
+          {showSendBoostModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowSendBoostModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+              >
+                <div className="flex items-center justify-between p-4 border-b border-white/10">
+                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-yellow-400" />
+                    Envoyer un Boost
+                  </h3>
+                  <button
+                    onClick={() => setShowSendBoostModal(false)}
+                    className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="p-4">
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      value={boostSearchTerm}
+                      onChange={(e) => setBoostSearchTerm(e.target.value)}
+                      placeholder="Rechercher un collegue..."
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:border-yellow-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-4 pb-4">
+                  <div className="space-y-3">
+                    {filteredBoostMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="bg-white/5 hover:bg-white/10 rounded-xl p-4 transition-all"
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <UserAvatar
+                            user={member}
+                            size="md"
+                            showBorder={true}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium truncate">{member.name}</p>
+                            <p className="text-gray-500 text-sm truncate">{member.role}</p>
+                          </div>
+                        </div>
+                        <BoostButton
+                          targetUser={{
+                            uid: member.id,
+                            displayName: member.name,
+                            email: member.email,
+                            photoURL: member.photoURL
+                          }}
+                          currentUser={{
+                            uid: user?.uid,
+                            displayName: user?.displayName || user?.email,
+                            email: user?.email,
+                            photoURL: user?.photoURL
+                          }}
+                          variant="small"
+                          className="w-full justify-center"
+                          onBoostSent={(result) => {
+                            showNotification(result.message, 'success');
+                            loadBoostData();
+                            setShowSendBoostModal(false);
+                          }}
+                        />
+                      </div>
+                    ))}
+
+                    {filteredBoostMembers.length === 0 && (
                       <div className="text-center py-8 text-gray-400">
                         Aucun membre trouve
                       </div>
