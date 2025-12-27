@@ -877,8 +877,9 @@ async function getEmployeesWithContracts() {
 
     snapshot.forEach(doc => {
       const data = doc.data();
-      const firstName = data.displayName?.split(' ')[0] || data.profile?.firstName || data.firstName || '';
-      const lastName = data.displayName?.split(' ').slice(1).join(' ') || data.profile?.lastName || data.lastName || '';
+      // Priorité aux données du profil pour les documents officiels de paie
+      const firstName = data.profile?.firstName || data.firstName || data.displayName?.split(' ')[0] || '';
+      const lastName = data.profile?.lastName || data.lastName || data.displayName?.split(' ').slice(1).join(' ') || '';
 
       employees.push({
         id: doc.id,
