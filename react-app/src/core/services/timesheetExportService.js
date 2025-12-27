@@ -1059,15 +1059,19 @@ async function getAllLeavesForMonth(year, month) {
 }
 
 /**
- * Récupérer les soldes de congés
+ * Récupérer les soldes de congés depuis la collection users
  */
 async function getLeaveBalances() {
   try {
-    const snapshot = await getDocs(collection(db, 'leave_balances'));
+    const snapshot = await getDocs(collection(db, 'users'));
     const balances = {};
 
     snapshot.forEach(doc => {
-      balances[doc.id] = doc.data();
+      const userData = doc.data();
+      // Les soldes sont stockés dans users.leaveBalance
+      if (userData.leaveBalance) {
+        balances[doc.id] = userData.leaveBalance;
+      }
     });
 
     return balances;
@@ -1778,16 +1782,24 @@ async function createLeaveBalanceSheet(workbook, employees, leaveBalances, leave
 
     const balance = leaveBalances[emp.id] || {};
 
+    // Lire les bons champs: paidLeaveDays, usedPaidLeaveDays, rttDays, usedRttDays
+    const cpAcquis = balance.paidLeaveDays ?? emp.congesAcquis ?? 25;
+    const cpPris = (balance.usedPaidLeaveDays ?? emp.congesPris ?? 0) + cpPrisCeMois;
+    const cpRestants = cpAcquis - cpPris;
+    const cpN1 = balance.carryoverDays ?? balance.n1 ?? emp.congesN1 ?? 0;
+    const rttAcquis = balance.rttDays ?? 0;
+    const rttRestants = (balance.rttDays ?? 0) - (balance.usedRttDays ?? 0);
+
     const rowData = [
       emp.nom,
       emp.prenom,
       emp.matricule || '-',
-      balance.acquired || emp.congesAcquis || 25,
-      (balance.taken || emp.congesPris || 0) + cpPrisCeMois,
-      (balance.remaining || emp.congesRestants || 25) - cpPrisCeMois,
-      balance.n1 || emp.congesN1 || 0,
-      balance.rttAcquired || 0,
-      balance.rttRemaining || 0
+      cpAcquis,
+      cpPris,
+      cpRestants,
+      cpN1,
+      rttAcquis,
+      rttRestants
     ];
 
     rowData.forEach((value, idx) => {
