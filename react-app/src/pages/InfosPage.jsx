@@ -1179,9 +1179,9 @@ const InfoCard = ({ info, user, isAdmin, onEdit, onDelete, onValidate }) => {
 
 const CreateInfoModal = ({ info, user, onClose }) => {
   const [text, setText] = useState(info?.text || '');
-  const [file, setFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(info?.media?.url || null);
-  const [fileType, setFileType] = useState(info?.media?.type || null);
+  // Support multi-fichiers
+  const [files, setFiles] = useState([]);
+  const [filePreviews, setFilePreviews] = useState(info?.mediaList?.map(m => ({ url: m.url, type: m.type })) || (info?.media ? [{ url: info.media.url, type: info.media.type }] : []));
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
@@ -1189,35 +1189,61 @@ const CreateInfoModal = ({ info, user, onClose }) => {
   const fileInputRef = useRef(null);
 
   const handleFileSelect = (e) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
 
-    const isImage = selectedFile.type.startsWith('image/');
-    const isVideo = selectedFile.type.startsWith('video/');
+    const validFiles = [];
+    const newPreviews = [];
 
-    if (!isImage && !isVideo) {
+    selectedFiles.forEach(file => {
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (!isImage && !isVideo) {
+        console.warn('❌ Fichier ignoré (type non supporté):', file.name);
+        return;
+      }
+
+      console.log('📤 Fichier sélectionné:', {
+        name: file.name,
+        type: file.type,
+        size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
+      });
+
+      validFiles.push(file);
+
+      // Créer la preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        newPreviews.push({
+          url: e.target.result,
+          type: isVideo ? 'video' : 'image',
+          name: file.name
+        });
+        if (newPreviews.length === validFiles.length) {
+          setFilePreviews(prev => [...prev, ...newPreviews]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (validFiles.length === 0) {
       setError('Seules les images et vidéos sont acceptées');
       return;
     }
 
-    console.log('📤 Fichier sélectionné:', {
-      name: selectedFile.name,
-      type: selectedFile.type,
-      size: (selectedFile.size / 1024 / 1024).toFixed(2) + ' MB'
-    });
-
-    setFile(selectedFile);
-    setFileType(isVideo ? 'video' : 'image');
+    setFiles(prev => [...prev, ...validFiles]);
     setError('');
+  };
 
-    const reader = new FileReader();
-    reader.onload = (e) => setFilePreview(e.target.result);
-    reader.readAsDataURL(selectedFile);
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    setFilePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
-    if (!text.trim() && !file && !info?.media) {
-      setError('Veuillez ajouter du texte ou un fichier');
+    if (!text.trim() && files.length === 0 && filePreviews.length === 0) {
+      setError('Veuillez ajouter du texte ou au moins un fichier');
       return;
     }
 
@@ -1229,25 +1255,35 @@ const CreateInfoModal = ({ info, user, onClose }) => {
 
       console.log('🚀 [MODAL] Début de la soumission');
 
-      let mediaData = info?.media || null;
+      // Garder les médias existants (pour édition)
+      let mediaList = info?.mediaList || (info?.media ? [info.media] : []);
 
-      // Upload du fichier si présent
-      if (file) {
-        console.log('📤 [MODAL] Upload du fichier...');
-        setUploadStatus('Upload du fichier en cours...');
+      // Upload des nouveaux fichiers
+      if (files.length > 0) {
+        console.log(`📤 [MODAL] Upload de ${files.length} fichier(s)...`);
 
-        try {
-          mediaData = await infosService.uploadFile(file, user.uid, (progress) => {
-            console.log('📊 [MODAL] Progression:', progress.toFixed(1) + '%');
-            setUploadProgress(progress);
-          });
+        const uploadedMedia = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          setUploadStatus(`Upload ${i + 1}/${files.length}: ${file.name}`);
 
-          console.log('✅ [MODAL] Upload terminé:', mediaData);
-          setUploadStatus('Fichier uploadé, création de l\'information...');
-        } catch (uploadError) {
-          console.error('❌ [MODAL] Erreur upload fichier:', uploadError);
-          throw new Error('Erreur lors de l\'upload du fichier: ' + uploadError.message);
+          try {
+            const mediaData = await infosService.uploadFile(file, user.uid, (progress) => {
+              // Calcul de la progression globale
+              const globalProgress = ((i / files.length) + (progress / 100 / files.length)) * 100;
+              setUploadProgress(globalProgress);
+            });
+            uploadedMedia.push(mediaData);
+            console.log(`✅ [MODAL] Fichier ${i + 1} uploadé:`, mediaData.filename);
+          } catch (uploadError) {
+            console.error(`❌ [MODAL] Erreur upload fichier ${i + 1}:`, uploadError);
+            throw new Error(`Erreur upload "${file.name}": ${uploadError.message}`);
+          }
         }
+
+        mediaList = [...mediaList, ...uploadedMedia];
+        setUploadProgress(100);
+        setUploadStatus('Fichiers uploadés, enregistrement...');
       }
 
       // Création ou mise à jour de l'info
@@ -1255,12 +1291,19 @@ const CreateInfoModal = ({ info, user, onClose }) => {
       setUploadStatus('Enregistrement de l\'information...');
 
       try {
+        // Garder media pour rétrocompatibilité (premier média) + mediaList pour tous
+        const infoData = {
+          text: text.trim(),
+          media: mediaList[0] || null,
+          mediaList: mediaList.length > 0 ? mediaList : null
+        };
+
         if (info) {
           console.log('✏️ [MODAL] Mise à jour info:', info.id);
-          await infosService.updateInfo(info.id, { text: text.trim(), media: mediaData }, user);
+          await infosService.updateInfo(info.id, infoData, user);
         } else {
           console.log('➕ [MODAL] Création nouvelle info');
-          await infosService.createInfo({ text: text.trim(), media: mediaData }, user);
+          await infosService.createInfo(infoData, user);
         }
 
         console.log('✅ [MODAL] Information enregistrée avec succès');
@@ -1328,42 +1371,52 @@ const CreateInfoModal = ({ info, user, onClose }) => {
         </div>
 
         <div className="mb-4 sm:mb-6">
-          <label className="block text-gray-300 mb-2 font-semibold text-sm sm:text-base">Fichier (optionnel)</label>
+          <label className="block text-gray-300 mb-2 font-semibold text-sm sm:text-base">
+            Fichiers (optionnel) {filePreviews.length > 0 && <span className="text-purple-400">({filePreviews.length})</span>}
+          </label>
 
-          {filePreview ? (
-            <div className="relative rounded-xl overflow-hidden bg-black/20">
-              {fileType === 'image' ? (
-                <img src={filePreview} alt="Preview" className="w-full max-h-48 sm:max-h-64 object-contain" />
-              ) : (
-                <video src={filePreview} controls className="w-full max-h-48 sm:max-h-64" />
-              )}
-              {!uploading && (
-                <motion.button
-                  onClick={() => {
-                    setFile(null);
-                    setFilePreview(null);
-                    setFileType(null);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 sm:p-2 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </motion.button>
-              )}
+          {/* Grille de previews */}
+          {filePreviews.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+              {filePreviews.map((preview, index) => (
+                <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-black/20 group">
+                  {preview.type === 'image' ? (
+                    <img src={preview.url} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <video src={preview.url} className="w-full h-full object-cover" />
+                  )}
+                  {!uploading && (
+                    <motion.button
+                      onClick={() => removeFile(index)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <X className="w-3 h-3" />
+                    </motion.button>
+                  )}
+                  {preview.type === 'video' && (
+                    <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                      🎬 Vidéo
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          ) : (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="w-full bg-white/5 border-2 border-dashed border-white/20 hover:border-purple-500/50 rounded-xl p-6 sm:p-8 flex flex-col items-center gap-2 sm:gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Upload className="w-10 h-10 sm:w-12 sm:h-12 text-gray-500" />
-              <p className="text-gray-300 font-semibold text-sm sm:text-base">Ajouter une image ou vidéo</p>
-              <p className="text-gray-500 text-xs sm:text-sm">Aucune limite de taille</p>
-            </button>
           )}
+
+          {/* Bouton ajouter plus */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full bg-white/5 border-2 border-dashed border-white/20 hover:border-purple-500/50 rounded-xl p-4 sm:p-6 flex flex-col items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500" />
+            <p className="text-gray-300 font-semibold text-sm sm:text-base">
+              {filePreviews.length > 0 ? 'Ajouter d\'autres fichiers' : 'Ajouter des images ou vidéos'}
+            </p>
+            <p className="text-gray-500 text-xs sm:text-sm">Sélection multiple possible</p>
+          </button>
 
           <input
             ref={fileInputRef}
@@ -1372,6 +1425,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
             onChange={handleFileSelect}
             className="hidden"
             disabled={uploading}
+            multiple
           />
         </div>
 
@@ -1427,7 +1481,7 @@ const CreateInfoModal = ({ info, user, onClose }) => {
           </motion.button>
           <motion.button
             onClick={handleSubmit}
-            disabled={uploading || (!text.trim() && !file && !info?.media)}
+            disabled={uploading || (!text.trim() && files.length === 0 && filePreviews.length === 0)}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
