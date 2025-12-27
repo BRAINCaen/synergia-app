@@ -539,8 +539,16 @@ class LeaveAccrualService {
    */
   async logBalanceChange(data) {
     try {
+      // Filtrer les valeurs undefined pour éviter les erreurs Firebase
+      const cleanData = {};
+      Object.keys(data).forEach(key => {
+        if (data[key] !== undefined) {
+          cleanData[key] = data[key];
+        }
+      });
+
       await addDoc(collection(db, 'leave_balance_history'), {
-        ...data,
+        ...cleanData,
         createdAt: serverTimestamp()
       });
     } catch (error) {
