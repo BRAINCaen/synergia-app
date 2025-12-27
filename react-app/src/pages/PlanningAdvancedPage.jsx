@@ -159,6 +159,11 @@ const PlanningAdvancedPage = () => {
   // 🏖️ GESTION DES CONGÉS
   const [showLeaveRequestModal, setShowLeaveRequestModal] = useState(false);
   const [showLeaveAdminPanel, setShowLeaveAdminPanel] = useState(false);
+
+  // ✏️ ÉDITION DES POINTAGES (ADMIN)
+  const [showPointageEditModal, setShowPointageEditModal] = useState(false);
+  const [editingPointageData, setEditingPointageData] = useState(null);
+  const [pointageEditLoading, setPointageEditLoading] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [pendingLeaveRequests, setPendingLeaveRequests] = useState([]);
   const [myLeaveRequests, setMyLeaveRequests] = useState([]);
@@ -1285,6 +1290,136 @@ const PlanningAdvancedPage = () => {
       halfDayPeriod: 'morning'
     });
     setShowLeaveRequestModal(true);
+  };
+
+  // ==========================================
+  // ✏️ ÉDITION DES POINTAGES (ADMIN)
+  // ==========================================
+
+  // Ouvrir le modal d'édition des pointages
+  const openPointageEditModal = async (employeeId, date, employeeName) => {
+    setPointageEditLoading(true);
+    try {
+      // Récupérer les pointages du jour pour cet employé
+      const dayPointages = await pointageAnomalyService.getPointagesForDay(employeeId, date);
+
+      setEditingPointageData({
+        employeeId,
+        employeeName,
+        date,
+        pointages: dayPointages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      });
+      setShowPointageEditModal(true);
+    } catch (error) {
+      console.error('Erreur chargement pointages:', error);
+      alert('❌ Erreur lors du chargement des pointages');
+    } finally {
+      setPointageEditLoading(false);
+    }
+  };
+
+  // Mettre à jour un pointage
+  const handleUpdatePointage = async (pointageId, newTimestamp) => {
+    setPointageEditLoading(true);
+    try {
+      const result = await pointageAnomalyService.updatePointage(
+        pointageId,
+        { timestamp: newTimestamp },
+        user?.uid
+      );
+
+      if (result.success) {
+        // Recharger les pointages
+        const dayPointages = await pointageAnomalyService.getPointagesForDay(
+          editingPointageData.employeeId,
+          editingPointageData.date
+        );
+        setEditingPointageData(prev => ({
+          ...prev,
+          pointages: dayPointages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        }));
+
+        // Recharger les données globales
+        await loadWeeklyClockkedHours();
+      } else {
+        alert('❌ Erreur lors de la mise à jour: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Erreur mise à jour pointage:', error);
+      alert('❌ Erreur lors de la mise à jour');
+    } finally {
+      setPointageEditLoading(false);
+    }
+  };
+
+  // Supprimer un pointage
+  const handleDeletePointage = async (pointageId) => {
+    if (!confirm('Voulez-vous vraiment supprimer ce pointage ?')) return;
+
+    setPointageEditLoading(true);
+    try {
+      const result = await pointageAnomalyService.deletePointage(pointageId, user?.uid);
+
+      if (result.success) {
+        // Recharger les pointages
+        const dayPointages = await pointageAnomalyService.getPointagesForDay(
+          editingPointageData.employeeId,
+          editingPointageData.date
+        );
+        setEditingPointageData(prev => ({
+          ...prev,
+          pointages: dayPointages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        }));
+
+        // Recharger les données globales
+        await loadWeeklyClockkedHours();
+      } else {
+        alert('❌ Erreur lors de la suppression: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Erreur suppression pointage:', error);
+      alert('❌ Erreur lors de la suppression');
+    } finally {
+      setPointageEditLoading(false);
+    }
+  };
+
+  // Ajouter un nouveau pointage
+  const handleAddPointage = async (type, timestamp) => {
+    setPointageEditLoading(true);
+    try {
+      const result = await pointageAnomalyService.createPointage(
+        {
+          userId: editingPointageData.employeeId,
+          type: type, // 'arrival' ou 'departure'
+          timestamp: timestamp,
+          date: editingPointageData.date
+        },
+        user?.uid
+      );
+
+      if (result.success) {
+        // Recharger les pointages
+        const dayPointages = await pointageAnomalyService.getPointagesForDay(
+          editingPointageData.employeeId,
+          editingPointageData.date
+        );
+        setEditingPointageData(prev => ({
+          ...prev,
+          pointages: dayPointages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        }));
+
+        // Recharger les données globales
+        await loadWeeklyClockkedHours();
+      } else {
+        alert('❌ Erreur lors de la création: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Erreur création pointage:', error);
+      alert('❌ Erreur lors de la création');
+    } finally {
+      setPointageEditLoading(false);
+    }
   };
 
   // ==========================================
@@ -2662,9 +2797,19 @@ const PlanningAdvancedPage = () => {
                                             openEditShiftModal(shift);
                                           }}
                                           className="p-1 bg-black/30 hover:bg-black/50 rounded"
-                                          title="Éditer"
+                                          title="Éditer shift"
                                         >
                                           <Edit className="w-3 h-3 text-white" />
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openPointageEditModal(employee.id, date, employee.displayName || employee.name);
+                                          }}
+                                          className="p-1 bg-black/30 hover:bg-cyan-500/50 rounded"
+                                          title="Modifier pointages"
+                                        >
+                                          <Clock className="w-3 h-3 text-white" />
                                         </button>
                                         <button
                                           onClick={(e) => {
@@ -2809,7 +2954,8 @@ const PlanningAdvancedPage = () => {
                                 <motion.div
                                   initial={{ opacity: 0, scale: 0.8 }}
                                   animate={{ opacity: 1, scale: 1 }}
-                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] shadow-lg relative bg-gradient-to-br from-cyan-600/80 to-blue-600/80 border-2 border-dashed border-cyan-400/50"
+                                  onClick={() => openPointageEditModal(employee.id, date, employee.displayName || employee.name)}
+                                  className="rounded-lg p-1.5 sm:p-3 min-h-[60px] sm:min-h-[80px] shadow-lg relative bg-gradient-to-br from-cyan-600/80 to-blue-600/80 border-2 border-dashed border-cyan-400/50 cursor-pointer hover:from-cyan-500/80 hover:to-blue-500/80 transition-all group"
                                 >
                                   <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 rounded-lg pointer-events-none" />
                                   <div className="relative z-10">
@@ -2830,17 +2976,31 @@ const PlanningAdvancedPage = () => {
                                         </span>
                                       </div>
 
-                                      {/* Bouton ajouter shift */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openAddShiftModal(employee.id, date);
-                                        }}
-                                        className="p-1 bg-black/30 hover:bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Créer un shift pour ce pointage"
-                                      >
-                                        <Plus className="w-3 h-3 text-white" />
-                                      </button>
+                                      {/* Boutons d'action */}
+                                      <div className="flex gap-1">
+                                        {/* Bouton éditer pointage */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openPointageEditModal(employee.id, date, employee.displayName || employee.name);
+                                          }}
+                                          className="p-1 bg-black/30 hover:bg-cyan-500/50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                                          title="Modifier les pointages"
+                                        >
+                                          <Edit className="w-3 h-3 text-white" />
+                                        </button>
+                                        {/* Bouton ajouter shift */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openAddShiftModal(employee.id, date);
+                                          }}
+                                          className="p-1 bg-black/30 hover:bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                                          title="Créer un shift pour ce pointage"
+                                        >
+                                          <Plus className="w-3 h-3 text-white" />
+                                        </button>
+                                      </div>
                                     </div>
 
                                     {/* Label "Pointage hors planning" */}
@@ -2853,10 +3013,11 @@ const PlanningAdvancedPage = () => {
                                       {cellPointages.workedHours}h travaillé
                                     </div>
 
-                                    {/* Badge "Hors planning" */}
+                                    {/* Badge "Hors planning" + Edit icon on hover */}
                                     <div className="absolute -top-1 -right-1">
-                                      <span className="text-[8px] sm:text-[10px] bg-orange-500/80 text-white px-1.5 py-0.5 rounded-full font-medium border border-orange-400/50">
-                                        ⚠️ Hors planning
+                                      <span className="text-[8px] sm:text-[10px] bg-orange-500/80 text-white px-1.5 py-0.5 rounded-full font-medium border border-orange-400/50 group-hover:bg-cyan-500/80 group-hover:border-cyan-400/50 transition-colors">
+                                        <span className="group-hover:hidden">⚠️ Hors planning</span>
+                                        <span className="hidden group-hover:inline">✏️ Modifier</span>
                                       </span>
                                     </div>
                                   </div>
@@ -2994,6 +3155,211 @@ const PlanningAdvancedPage = () => {
               </GlassCard>
             )}
           </div>
+
+          {/* ✏️ MODAL ÉDITION DES POINTAGES */}
+          <AnimatePresence>
+            {showPointageEditModal && editingPointageData && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+                onClick={() => setShowPointageEditModal(false)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 50 }}
+                  className="bg-gray-900 rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden border border-gray-700/50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border-b border-gray-700/50 p-4 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                        <Edit className="w-5 h-5 text-cyan-400" />
+                        Modifier les pointages
+                      </h3>
+                      <p className="text-gray-400 text-sm mt-1">
+                        {editingPointageData.employeeName} - {new Date(editingPointageData.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowPointageEditModal(false)}
+                      className="p-2 hover:bg-gray-700/50 rounded-xl transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-4 overflow-y-auto max-h-[60vh]">
+                    {pointageEditLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Liste des pointages existants */}
+                        {editingPointageData.pointages.length > 0 ? (
+                          <div className="space-y-3">
+                            <h4 className="text-gray-400 text-sm font-medium flex items-center gap-2">
+                              <Clock className="w-4 h-4" />
+                              Pointages du jour ({editingPointageData.pointages.length})
+                            </h4>
+
+                            {editingPointageData.pointages.map((pointage, index) => (
+                              <div
+                                key={pointage.id}
+                                className={`
+                                  p-3 rounded-xl border transition-all
+                                  ${pointage.type === 'arrival'
+                                    ? 'bg-green-500/10 border-green-500/30'
+                                    : 'bg-red-500/10 border-red-500/30'}
+                                `}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`
+                                      w-10 h-10 rounded-lg flex items-center justify-center text-lg
+                                      ${pointage.type === 'arrival' ? 'bg-green-500/20' : 'bg-red-500/20'}
+                                    `}>
+                                      {pointage.type === 'arrival' ? '🟢' : '🔴'}
+                                    </div>
+                                    <div>
+                                      <p className={`font-medium ${pointage.type === 'arrival' ? 'text-green-400' : 'text-red-400'}`}>
+                                        {pointage.type === 'arrival' ? 'Arrivée' : 'Départ'}
+                                      </p>
+                                      <p className="text-gray-500 text-xs">
+                                        Source: {pointage.source === 'admin_manual' ? 'Manuel (admin)' : 'Automatique'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {/* Input heure modifiable */}
+                                    <input
+                                      type="time"
+                                      defaultValue={new Date(pointage.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                      className="bg-gray-800 border border-gray-600 rounded-lg px-2 py-1 text-white text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                      onChange={(e) => {
+                                        const [hours, minutes] = e.target.value.split(':');
+                                        const newDate = new Date(pointage.timestamp);
+                                        newDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                                        // Stocker la nouvelle valeur pour la sauvegarde
+                                        pointage._newTimestamp = newDate;
+                                      }}
+                                    />
+
+                                    {/* Bouton sauvegarder */}
+                                    <button
+                                      onClick={() => {
+                                        if (pointage._newTimestamp) {
+                                          handleUpdatePointage(pointage.id, pointage._newTimestamp);
+                                        }
+                                      }}
+                                      className="p-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg transition-colors"
+                                      title="Sauvegarder"
+                                    >
+                                      <Save className="w-4 h-4" />
+                                    </button>
+
+                                    {/* Bouton supprimer */}
+                                    <button
+                                      onClick={() => handleDeletePointage(pointage.id)}
+                                      className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                                      title="Supprimer"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                            <p>Aucun pointage pour ce jour</p>
+                          </div>
+                        )}
+
+                        {/* Section ajouter un pointage */}
+                        <div className="border-t border-gray-700/50 pt-4">
+                          <h4 className="text-gray-400 text-sm font-medium mb-3 flex items-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Ajouter un pointage
+                          </h4>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Ajouter arrivée */}
+                            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
+                              <p className="text-green-400 text-sm font-medium mb-2">🟢 Arrivée</p>
+                              <div className="flex gap-2">
+                                <input
+                                  type="time"
+                                  id="newArrivalTime"
+                                  defaultValue="09:00"
+                                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5 text-white text-sm focus:ring-2 focus:ring-green-500"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const timeInput = document.getElementById('newArrivalTime');
+                                    const [hours, minutes] = timeInput.value.split(':');
+                                    const timestamp = new Date(editingPointageData.date);
+                                    timestamp.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                                    handleAddPointage('arrival', timestamp);
+                                  }}
+                                  className="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Ajouter départ */}
+                            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                              <p className="text-red-400 text-sm font-medium mb-2">🔴 Départ</p>
+                              <div className="flex gap-2">
+                                <input
+                                  type="time"
+                                  id="newDepartureTime"
+                                  defaultValue="17:00"
+                                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5 text-white text-sm focus:ring-2 focus:ring-red-500"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const timeInput = document.getElementById('newDepartureTime');
+                                    const [hours, minutes] = timeInput.value.split(':');
+                                    const timestamp = new Date(editingPointageData.date);
+                                    timestamp.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                                    handleAddPointage('departure', timestamp);
+                                  }}
+                                  className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-gray-700/50 p-4 flex justify-end gap-3">
+                    <button
+                      onClick={() => setShowPointageEditModal(false)}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
         </div>
       </div>

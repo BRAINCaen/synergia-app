@@ -9,6 +9,11 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
   Timestamp,
   orderBy
 } from 'firebase/firestore';
@@ -562,6 +567,157 @@ class PointageAnomalyService {
     } catch (error) {
       console.error('❌ [ANOMALY] Erreur rapport employé:', error);
       return null;
+    }
+  }
+
+  // ==========================================
+  // 📝 FONCTIONS D'ÉDITION DES POINTAGES (ADMIN)
+  // ==========================================
+
+  /**
+   * 📝 Récupérer un pointage par son ID
+   */
+  async getPointageById(pointageId) {
+    try {
+      const pointageRef = doc(db, 'timeEntries', pointageId);
+      const pointageDoc = await getDoc(pointageRef);
+
+      if (!pointageDoc.exists()) {
+        return null;
+      }
+
+      const data = pointageDoc.data();
+      return {
+        id: pointageDoc.id,
+        ...data,
+        date: data.date?.toDate(),
+        timestamp: data.timestamp?.toDate()
+      };
+    } catch (error) {
+      console.error('❌ [ANOMALY] Erreur récupération pointage:', error);
+      return null;
+    }
+  }
+
+  /**
+   * ✏️ Mettre à jour un pointage existant
+   */
+  async updatePointage(pointageId, updates, modifiedBy) {
+    try {
+      const pointageRef = doc(db, 'timeEntries', pointageId);
+
+      // Préparer les mises à jour
+      const updateData = {
+        ...updates,
+        modifiedAt: Timestamp.now(),
+        modifiedBy: modifiedBy || 'admin'
+      };
+
+      // Convertir les dates si présentes
+      if (updates.timestamp && !(updates.timestamp instanceof Timestamp)) {
+        updateData.timestamp = Timestamp.fromDate(new Date(updates.timestamp));
+      }
+      if (updates.date && !(updates.date instanceof Timestamp)) {
+        updateData.date = Timestamp.fromDate(new Date(updates.date));
+      }
+
+      await updateDoc(pointageRef, updateData);
+
+      console.log('✅ [ANOMALY] Pointage mis à jour:', pointageId);
+      return { success: true, id: pointageId };
+    } catch (error) {
+      console.error('❌ [ANOMALY] Erreur mise à jour pointage:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🗑️ Supprimer un pointage (soft delete)
+   */
+  async deletePointage(pointageId, deletedBy) {
+    try {
+      const pointageRef = doc(db, 'timeEntries', pointageId);
+
+      await updateDoc(pointageRef, {
+        status: 'deleted',
+        deletedAt: Timestamp.now(),
+        deletedBy: deletedBy || 'admin'
+      });
+
+      console.log('✅ [ANOMALY] Pointage supprimé:', pointageId);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [ANOMALY] Erreur suppression pointage:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * ➕ Créer un nouveau pointage (admin)
+   */
+  async createPointage(pointageData, createdBy) {
+    try {
+      const newPointage = {
+        userId: pointageData.userId,
+        type: pointageData.type, // 'arrival' ou 'departure'
+        timestamp: Timestamp.fromDate(new Date(pointageData.timestamp)),
+        date: Timestamp.fromDate(new Date(pointageData.date)),
+        source: 'admin_manual',
+        status: 'active',
+        createdAt: Timestamp.now(),
+        createdBy: createdBy || 'admin',
+        note: pointageData.note || ''
+      };
+
+      const docRef = await addDoc(collection(db, 'timeEntries'), newPointage);
+
+      console.log('✅ [ANOMALY] Pointage créé:', docRef.id);
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('❌ [ANOMALY] Erreur création pointage:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 📋 Récupérer tous les pointages d'un utilisateur pour un jour donné
+   */
+  async getPointagesForDay(userId, date) {
+    try {
+      const dayStart = new Date(date);
+      dayStart.setHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const pointagesQuery = query(
+        collection(db, 'timeEntries'),
+        where('userId', '==', userId),
+        where('date', '>=', Timestamp.fromDate(dayStart)),
+        where('date', '<=', Timestamp.fromDate(dayEnd)),
+        orderBy('date', 'asc'),
+        orderBy('timestamp', 'asc')
+      );
+
+      const snapshot = await getDocs(pointagesQuery);
+      const pointages = [];
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.status !== 'deleted') {
+          pointages.push({
+            id: doc.id,
+            ...data,
+            date: data.date?.toDate(),
+            timestamp: data.timestamp?.toDate()
+          });
+        }
+      });
+
+      return pointages;
+    } catch (error) {
+      console.error('❌ [ANOMALY] Erreur récupération pointages jour:', error);
+      return [];
     }
   }
 }
