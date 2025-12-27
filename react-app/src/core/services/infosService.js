@@ -78,11 +78,8 @@ class InfosService {
       const fileName = `${timestamp}_${userId}.${fileExtension}`;
       const storagePath = `${this.STORAGE_PATH}/${fileName}`;
 
-      // Récupérer le bucket Firebase Storage
-      const bucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET;
-      if (!bucket) {
-        throw new Error('Configuration Firebase Storage manquante');
-      }
+      // ✅ Bucket Firebase Storage (format cohérent avec storageService)
+      const bucket = 'synergia-app-f27e7.firebasestorage.app';
 
       console.log('📤 [INFOS] Début upload vers Firebase Storage REST API...');
       console.log('📤 [INFOS] Chemin:', storagePath);
