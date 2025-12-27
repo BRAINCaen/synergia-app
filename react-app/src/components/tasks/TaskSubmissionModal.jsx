@@ -45,6 +45,8 @@ const TaskSubmissionModal = ({
   const [error, setError] = useState('');
   const [corsWarning, setCorsWarning] = useState(false);
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   const expectedXP = task?.xpReward || task?.difficulty === 'hard' ? 35 :
                      task?.difficulty === 'easy' ? 10 : 25;
@@ -345,6 +347,7 @@ const TaskSubmissionModal = ({
                       <span className="text-xs text-gray-500 ml-2">(sans limite de taille)</span>
                     </label>
 
+                    {/* Inputs cachés */}
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -354,24 +357,62 @@ const TaskSubmissionModal = ({
                       disabled={submitting}
                       multiple
                     />
-
-                    {/* Zone de drop */}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileSelect}
+                      className="hidden"
                       disabled={submitting}
-                      className="w-full p-4 border-2 border-dashed border-white/20 rounded-xl hover:border-green-500/50 hover:bg-green-500/5 transition-all flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-green-400"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Image className="w-6 h-6" />
-                        <Film className="w-6 h-6" />
+                    />
+                    <input
+                      ref={videoInputRef}
+                      type="file"
+                      accept="video/*"
+                      capture="environment"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      disabled={submitting}
+                    />
+
+                    {/* Boutons d'action caméra */}
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        disabled={submitting}
+                        className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl p-3 flex flex-col items-center gap-1 transition-all disabled:opacity-50"
+                      >
+                        <Camera className="w-5 h-5" />
+                        <span className="text-xs font-medium">Photo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => videoInputRef.current?.click()}
+                        disabled={submitting}
+                        className="bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl p-3 flex flex-col items-center gap-1 transition-all disabled:opacity-50"
+                      >
+                        <Video className="w-5 h-5" />
+                        <span className="text-xs font-medium">Vidéo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={submitting}
+                        className="bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl p-3 flex flex-col items-center gap-1 transition-all disabled:opacity-50"
+                      >
+                        <Image className="w-5 h-5" />
+                        <span className="text-xs font-medium">Galerie</span>
+                      </button>
+                    </div>
+
+                    {/* Zone indicative */}
+                    {selectedFiles.length === 0 && (
+                      <div className="text-center text-gray-500 text-xs py-2">
+                        Prenez une photo ou choisissez dans votre galerie
                       </div>
-                      <span className="text-sm">
-                        {selectedFiles.length > 0
-                          ? `${selectedFiles.length} fichier(s) - Ajouter plus`
-                          : 'Cliquez pour ajouter des photos ou vidéos'}
-                      </span>
-                    </button>
+                    )}
 
                     {/* Liste des fichiers sélectionnés */}
                     {selectedFiles.length > 0 && (

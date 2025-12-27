@@ -10,7 +10,9 @@ import {
   Loader, Send, CheckCircle, Eye, Bell, Users, ChevronDown, ChevronUp,
   // 💡 BOÎTE À IDÉES
   Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, TrendingUp, Sparkles, XOctagon,
-  RefreshCw, Vote
+  RefreshCw, Vote,
+  // 📷 CAMERA
+  Camera, Video
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
@@ -1187,6 +1189,8 @@ const CreateInfoModal = ({ info, user, onClose }) => {
   const [uploadStatus, setUploadStatus] = useState('');
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   const handleFileSelect = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -1405,19 +1409,40 @@ const CreateInfoModal = ({ info, user, onClose }) => {
             </div>
           )}
 
-          {/* Bouton ajouter plus */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="w-full bg-white/5 border-2 border-dashed border-white/20 hover:border-purple-500/50 rounded-xl p-4 sm:p-6 flex flex-col items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-gray-500" />
-            <p className="text-gray-300 font-semibold text-sm sm:text-base">
-              {filePreviews.length > 0 ? 'Ajouter d\'autres fichiers' : 'Ajouter des images ou vidéos'}
-            </p>
-            <p className="text-gray-500 text-xs sm:text-sm">Sélection multiple possible</p>
-          </button>
+          {/* Boutons d'action */}
+          <div className="grid grid-cols-3 gap-2">
+            {/* Prendre une photo */}
+            <button
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={uploading}
+              className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl p-3 sm:p-4 flex flex-col items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Camera className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="text-xs sm:text-sm font-medium">Photo</span>
+            </button>
 
+            {/* Filmer une vidéo */}
+            <button
+              onClick={() => videoInputRef.current?.click()}
+              disabled={uploading}
+              className="bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl p-3 sm:p-4 flex flex-col items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Video className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="text-xs sm:text-sm font-medium">Vidéo</span>
+            </button>
+
+            {/* Choisir depuis galerie */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl p-3 sm:p-4 flex flex-col items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="text-xs sm:text-sm font-medium">Galerie</span>
+            </button>
+          </div>
+
+          {/* Inputs cachés */}
           <input
             ref={fileInputRef}
             type="file"
@@ -1426,6 +1451,24 @@ const CreateInfoModal = ({ info, user, onClose }) => {
             className="hidden"
             disabled={uploading}
             multiple
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileSelect}
+            className="hidden"
+            disabled={uploading}
+          />
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            capture="environment"
+            onChange={handleFileSelect}
+            className="hidden"
+            disabled={uploading}
           />
         </div>
 
