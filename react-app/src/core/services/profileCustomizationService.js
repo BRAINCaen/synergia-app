@@ -995,6 +995,50 @@ class ProfileCustomizationService {
     }
   }
 
+  // ==========================================
+  // DETAILED PIXEL ART RPG AVATAR SYSTEM (v5.0)
+  // ==========================================
+
+  /**
+   * Obtenir la configuration Detailed Avatar d'un utilisateur
+   */
+  async getDetailedAvatarConfig(userId) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        return null;
+      }
+
+      const data = userDoc.data();
+      return data.detailedAvatar || null;
+    } catch (error) {
+      console.error('Erreur récupération Detailed Avatar config:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sauvegarder la configuration Detailed Avatar RPG
+   */
+  async saveDetailedAvatarConfig(userId, config, userStats) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        detailedAvatar: config,
+        avatarType: 'detailed', // Marquer le type d'avatar utilisé
+        updatedAt: new Date()
+      });
+
+      console.log('✅ Config Detailed Avatar sauvegardée:', config);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur sauvegarde Detailed Avatar:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   /**
    * S'abonner aux changements d'avatar builder
    */
