@@ -1,6 +1,7 @@
 // ==========================================
-// SYNERGIA v4.1 - Composant UserAvatar Universel
+// SYNERGIA v4.2 - Composant UserAvatar Universel
 // Affiche l'avatar personnalisé en priorité sur la photo Google
+// Supporte les avatars détaillés RPG (DetailedPixelAvatar)
 // ==========================================
 
 import React, { useMemo } from 'react';
@@ -17,6 +18,13 @@ import {
   DEFAULT_PIXEL_CONFIG,
   generatePixelCharacter
 } from '../customization/PixelArtAvatar.jsx';
+// Import du système d'avatar détaillé RPG
+import DetailedPixelAvatar, {
+  RACES,
+  SKIN_COLORS,
+  HAIR_COLORS,
+  DEFAULT_DETAILED_CONFIG
+} from '../customization/DetailedPixelAvatar.jsx';
 
 // ==========================================
 // COMPOSANT USERAVATAR
@@ -50,7 +58,15 @@ const UserAvatar = ({
 
     const avatarType = user.avatarType;
 
-    // 1. Avatar PixelArt RPG (priorité maximale)
+    // 0. Avatar Détaillé RPG (priorité maximale - nouveau système)
+    if (avatarType === 'detailed' && user.detailedAvatar) {
+      return {
+        type: 'detailed',
+        config: user.detailedAvatar
+      };
+    }
+
+    // 1. Avatar PixelArt RPG (ancien système)
     if (avatarType === 'pixelart' && user.pixelArtAvatar) {
       return {
         type: 'pixelart',
@@ -147,6 +163,27 @@ const UserAvatar = ({
   // Rendu selon le type d'avatar
   const renderAvatar = () => {
     switch (avatarInfo.type) {
+
+      // Avatar Détaillé RPG - Nouveau système avec races, accessoires, montures
+      case 'detailed': {
+        const detailedConfig = avatarInfo.config || DEFAULT_DETAILED_CONFIG;
+        return (
+          <div
+            className={`
+              ${config.container} rounded-full overflow-hidden
+              ${showBorder ? `${config.border} border-purple-500/50` : ''}
+              flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900
+            `}
+          >
+            <DetailedPixelAvatar
+              config={detailedConfig}
+              size="100%"
+              showBackground={false}
+              className="scale-125"
+            />
+          </div>
+        );
+      }
 
       // Avatar PixelArt RPG - Utilise la fonction complète avec pose et accessoires
       case 'pixelart': {
