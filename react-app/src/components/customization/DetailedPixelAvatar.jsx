@@ -9,8 +9,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Palette, Sword, Shield, Crown, Sparkles,
   Lock, Check, ChevronRight, ChevronLeft, Star, Zap,
-  RefreshCw, Save, Eye, Axe, Wand2, Target
+  RefreshCw, Save, Eye, Axe, Wand2, Target, Heart,
+  Cat, Bird, Gem, Shirt
 } from 'lucide-react';
+
+// ==========================================
+// GENRES
+// ==========================================
+export const GENDERS = {
+  male: { id: 'male', name: 'Masculin', icon: '♂️', unlockCondition: { type: 'default' } },
+  female: { id: 'female', name: 'Féminin', icon: '♀️', unlockCondition: { type: 'default' } }
+};
 
 // ==========================================
 // RACES DISPONIBLES
@@ -48,7 +57,7 @@ export const RACES = {
     widthMod: -2,
     skinTones: ['pale', 'fair', 'golden', 'silver', 'woodland'],
     canHaveBeard: false,
-    unlockCondition: { type: 'level', value: 3 }
+    unlockCondition: { type: 'level', value: 2 }
   },
   orc: {
     id: 'orc',
@@ -59,7 +68,76 @@ export const RACES = {
     widthMod: 6,
     skinTones: ['green', 'olive', 'gray', 'brown', 'pale_green'],
     canHaveBeard: true,
-    unlockCondition: { type: 'level', value: 5 }
+    unlockCondition: { type: 'level', value: 3 }
+  },
+  goblin: {
+    id: 'goblin',
+    name: 'Gobelin',
+    icon: '👺',
+    description: 'Petit mais rusé',
+    heightMod: -10,
+    widthMod: -2,
+    skinTones: ['green', 'olive', 'yellow_green', 'gray'],
+    canHaveBeard: false,
+    unlockCondition: { type: 'level', value: 4 }
+  },
+  undead: {
+    id: 'undead',
+    name: 'Mort-vivant',
+    icon: '💀',
+    description: 'Revenu d\'entre les morts',
+    heightMod: 0,
+    widthMod: 0,
+    skinTones: ['pale_gray', 'green_decay', 'bone', 'dark_purple'],
+    canHaveBeard: false,
+    unlockCondition: { type: 'level', value: 6 }
+  },
+  troll: {
+    id: 'troll',
+    name: 'Troll',
+    icon: '🧌',
+    description: 'Géant régénérant',
+    heightMod: 10,
+    widthMod: 8,
+    skinTones: ['moss_green', 'stone_gray', 'swamp', 'blue_troll'],
+    canHaveBeard: false,
+    unlockCondition: { type: 'level', value: 8 }
+  },
+  tiefling: {
+    id: 'tiefling',
+    name: 'Tieffelin',
+    icon: '😈',
+    description: 'Descendant démoniaque',
+    heightMod: 2,
+    widthMod: 0,
+    skinTones: ['red_demon', 'purple_demon', 'blue_demon', 'dark_demon'],
+    canHaveBeard: true,
+    hasHorns: true,
+    unlockCondition: { type: 'level', value: 10 }
+  },
+  fairy: {
+    id: 'fairy',
+    name: 'Fée',
+    icon: '🧚',
+    description: 'Créature magique ailée',
+    heightMod: -12,
+    widthMod: -4,
+    skinTones: ['fairy_pink', 'fairy_blue', 'fairy_green', 'fairy_gold'],
+    canHaveBeard: false,
+    hasWings: true,
+    unlockCondition: { type: 'level', value: 12 }
+  },
+  dragonborn: {
+    id: 'dragonborn',
+    name: 'Drakéide',
+    icon: '🐲',
+    description: 'Descendant des dragons',
+    heightMod: 6,
+    widthMod: 4,
+    skinTones: ['dragon_red', 'dragon_blue', 'dragon_green', 'dragon_gold', 'dragon_black'],
+    canHaveBeard: false,
+    hasScales: true,
+    unlockCondition: { type: 'level', value: 15 }
   }
 };
 
@@ -85,7 +163,35 @@ export const SKIN_COLORS = {
   green: { base: '#6B8E23', light: '#8FBC3F', dark: '#556B2F', shadow: '#3D4F1F' },
   olive: { base: '#808000', light: '#9ACD32', dark: '#6B6B00', shadow: '#4F4F00' },
   gray: { base: '#708090', light: '#8899AA', dark: '#5A6A7A', shadow: '#4A5A6A' },
-  pale_green: { base: '#98FB98', light: '#B0FFB0', dark: '#7AD97A', shadow: '#5CB85C' }
+  pale_green: { base: '#98FB98', light: '#B0FFB0', dark: '#7AD97A', shadow: '#5CB85C' },
+  // Gobelins
+  yellow_green: { base: '#9ACD32', light: '#ADFF2F', dark: '#6B8E23', shadow: '#556B2F' },
+  // Morts-vivants
+  pale_gray: { base: '#A0A0A0', light: '#C0C0C0', dark: '#707070', shadow: '#505050' },
+  green_decay: { base: '#6B8B6B', light: '#8FAF8F', dark: '#4A6B4A', shadow: '#2A4B2A' },
+  bone: { base: '#E8DCC8', light: '#FFF8E7', dark: '#C4B8A4', shadow: '#A09080' },
+  dark_purple: { base: '#5C4B6B', light: '#7B6A8B', dark: '#3C2B4B', shadow: '#2C1B3B' },
+  // Trolls
+  moss_green: { base: '#5A7A4A', light: '#7A9A6A', dark: '#3A5A2A', shadow: '#2A4A1A' },
+  stone_gray: { base: '#6A6A6A', light: '#8A8A8A', dark: '#4A4A4A', shadow: '#3A3A3A' },
+  swamp: { base: '#4A5A2A', light: '#6A7A4A', dark: '#2A3A0A', shadow: '#1A2A00' },
+  blue_troll: { base: '#4A5A7A', light: '#6A7A9A', dark: '#2A3A5A', shadow: '#1A2A4A' },
+  // Tieffelins (démons)
+  red_demon: { base: '#A02020', light: '#C04040', dark: '#801010', shadow: '#600000' },
+  purple_demon: { base: '#6B2D6B', light: '#8B4D8B', dark: '#4B0D4B', shadow: '#3B003B' },
+  blue_demon: { base: '#2D4D8B', light: '#4D6DAB', dark: '#0D2D6B', shadow: '#001D5B' },
+  dark_demon: { base: '#2D2D3D', light: '#4D4D5D', dark: '#1D1D2D', shadow: '#0D0D1D' },
+  // Fées
+  fairy_pink: { base: '#FFB6C1', light: '#FFD0D5', dark: '#FF9AAD', shadow: '#FF7A8D' },
+  fairy_blue: { base: '#B0E0E6', light: '#D0F0F6', dark: '#90C0D6', shadow: '#70A0B6' },
+  fairy_green: { base: '#98FB98', light: '#B8FFB8', dark: '#78DB78', shadow: '#58BB58' },
+  fairy_gold: { base: '#FFD700', light: '#FFE740', dark: '#DDB700', shadow: '#BB9700' },
+  // Drakéides (dragons)
+  dragon_red: { base: '#8B2500', light: '#AB4520', dark: '#6B0500', shadow: '#4B0000' },
+  dragon_blue: { base: '#25558B', light: '#4575AB', dark: '#05356B', shadow: '#00254B' },
+  dragon_green: { base: '#228B22', light: '#42AB42', dark: '#026B02', shadow: '#004B00' },
+  dragon_gold: { base: '#B8860B', light: '#D8A62B', dark: '#986600', shadow: '#785600' },
+  dragon_black: { base: '#2D2D2D', light: '#4D4D4D', dark: '#1D1D1D', shadow: '#0D0D0D' }
 };
 
 // ==========================================
@@ -279,9 +385,77 @@ export const BACKGROUNDS = {
 };
 
 // ==========================================
+// MONTURES
+// ==========================================
+export const MOUNTS = {
+  none: { id: 'none', name: 'Aucune', icon: '🚶', unlockCondition: { type: 'default' } },
+  horse: { id: 'horse', name: 'Cheval', icon: '🐎', unlockCondition: { type: 'level', value: 3 } },
+  war_horse: { id: 'war_horse', name: 'Destrier', icon: '🏇', unlockCondition: { type: 'level', value: 6 } },
+  wolf: { id: 'wolf', name: 'Loup', icon: '🐺', unlockCondition: { type: 'level', value: 5 } },
+  bear: { id: 'bear', name: 'Ours', icon: '🐻', unlockCondition: { type: 'level', value: 8 } },
+  boar: { id: 'boar', name: 'Sanglier', icon: '🐗', unlockCondition: { type: 'level', value: 4 } },
+  ram: { id: 'ram', name: 'Bélier', icon: '🐏', unlockCondition: { type: 'level', value: 4 } },
+  raptor: { id: 'raptor', name: 'Raptor', icon: '🦖', unlockCondition: { type: 'level', value: 10 } },
+  wyvern: { id: 'wyvern', name: 'Wyverne', icon: '🐉', unlockCondition: { type: 'level', value: 15 } },
+  griffin: { id: 'griffin', name: 'Griffon', icon: '🦅', unlockCondition: { type: 'level', value: 12 } },
+  unicorn: { id: 'unicorn', name: 'Licorne', icon: '🦄', unlockCondition: { type: 'level', value: 10 } },
+  nightmare: { id: 'nightmare', name: 'Cauchemar', icon: '🔥', unlockCondition: { type: 'level', value: 14 } },
+  spider: { id: 'spider', name: 'Araignée géante', icon: '🕷️', unlockCondition: { type: 'level', value: 8 } },
+  skeletal_horse: { id: 'skeletal_horse', name: 'Cheval squelette', icon: '💀', unlockCondition: { type: 'level', value: 12 } }
+};
+
+// ==========================================
+// ANIMAUX TOTEMS
+// ==========================================
+export const TOTEM_ANIMALS = {
+  none: { id: 'none', name: 'Aucun', icon: '✨', unlockCondition: { type: 'default' } },
+  wolf: { id: 'wolf', name: 'Loup', icon: '🐺', description: 'Loyauté et meute', unlockCondition: { type: 'level', value: 2 } },
+  eagle: { id: 'eagle', name: 'Aigle', icon: '🦅', description: 'Vision et liberté', unlockCondition: { type: 'level', value: 2 } },
+  bear: { id: 'bear', name: 'Ours', icon: '🐻', description: 'Force et protection', unlockCondition: { type: 'level', value: 3 } },
+  lion: { id: 'lion', name: 'Lion', icon: '🦁', description: 'Courage et noblesse', unlockCondition: { type: 'level', value: 4 } },
+  snake: { id: 'snake', name: 'Serpent', icon: '🐍', description: 'Sagesse et transformation', unlockCondition: { type: 'level', value: 3 } },
+  owl: { id: 'owl', name: 'Hibou', icon: '🦉', description: 'Connaissance et mystère', unlockCondition: { type: 'level', value: 3 } },
+  raven: { id: 'raven', name: 'Corbeau', icon: '🐦‍⬛', description: 'Magie et prophétie', unlockCondition: { type: 'level', value: 4 } },
+  stag: { id: 'stag', name: 'Cerf', icon: '🦌', description: 'Grâce et spiritualité', unlockCondition: { type: 'level', value: 3 } },
+  fox: { id: 'fox', name: 'Renard', icon: '🦊', description: 'Ruse et adaptabilité', unlockCondition: { type: 'level', value: 2 } },
+  dragon: { id: 'dragon', name: 'Dragon', icon: '🐲', description: 'Puissance et magie ancienne', unlockCondition: { type: 'level', value: 10 } },
+  phoenix: { id: 'phoenix', name: 'Phénix', icon: '🔥', description: 'Renaissance et immortalité', unlockCondition: { type: 'level', value: 12 } },
+  turtle: { id: 'turtle', name: 'Tortue', icon: '🐢', description: 'Patience et longévité', unlockCondition: { type: 'level', value: 2 } },
+  spider: { id: 'spider', name: 'Araignée', icon: '🕷️', description: 'Création et destin', unlockCondition: { type: 'level', value: 5 } },
+  bat: { id: 'bat', name: 'Chauve-souris', icon: '🦇', description: 'Intuition et renaissance', unlockCondition: { type: 'level', value: 4 } },
+  cat: { id: 'cat', name: 'Chat', icon: '🐱', description: 'Indépendance et mystère', unlockCondition: { type: 'level', value: 2 } },
+  horse: { id: 'horse', name: 'Cheval', icon: '🐴', description: 'Liberté et endurance', unlockCondition: { type: 'level', value: 2 } },
+  boar: { id: 'boar', name: 'Sanglier', icon: '🐗', description: 'Bravoure et férocité', unlockCondition: { type: 'level', value: 3 } },
+  crow: { id: 'crow', name: 'Corneille', icon: '🐦', description: 'Intelligence et mémoire', unlockCondition: { type: 'level', value: 3 } }
+};
+
+// ==========================================
+// ACCESSOIRES SUPPLÉMENTAIRES
+// ==========================================
+export const ACCESSORIES = {
+  none: { id: 'none', name: 'Aucun', icon: '✋', unlockCondition: { type: 'default' } },
+  necklace: { id: 'necklace', name: 'Collier', icon: '📿', unlockCondition: { type: 'level', value: 2 } },
+  earring: { id: 'earring', name: 'Boucle d\'oreille', icon: '💎', unlockCondition: { type: 'level', value: 2 } },
+  eyepatch: { id: 'eyepatch', name: 'Cache-œil', icon: '🏴‍☠️', unlockCondition: { type: 'level', value: 3 } },
+  scar: { id: 'scar', name: 'Cicatrice', icon: '⚔️', unlockCondition: { type: 'level', value: 3 } },
+  tattoo: { id: 'tattoo', name: 'Tatouage', icon: '🎨', unlockCondition: { type: 'level', value: 4 } },
+  glasses: { id: 'glasses', name: 'Lunettes', icon: '👓', unlockCondition: { type: 'level', value: 2 } },
+  monocle: { id: 'monocle', name: 'Monocle', icon: '🧐', unlockCondition: { type: 'level', value: 4 } },
+  pipe: { id: 'pipe', name: 'Pipe', icon: '🚬', unlockCondition: { type: 'level', value: 3 } },
+  scarf: { id: 'scarf', name: 'Écharpe', icon: '🧣', unlockCondition: { type: 'level', value: 2 } },
+  shoulder_pet: { id: 'shoulder_pet', name: 'Familier', icon: '🐦', unlockCondition: { type: 'level', value: 6 } },
+  backpack: { id: 'backpack', name: 'Sac à dos', icon: '🎒', unlockCondition: { type: 'level', value: 2 } },
+  quiver: { id: 'quiver', name: 'Carquois', icon: '🏹', unlockCondition: { type: 'level', value: 3 } },
+  tome: { id: 'tome', name: 'Grimoire', icon: '📖', unlockCondition: { type: 'level', value: 4 } },
+  belt_pouch: { id: 'belt_pouch', name: 'Sacoche', icon: '👝', unlockCondition: { type: 'level', value: 2 } },
+  warpaint: { id: 'warpaint', name: 'Peinture de guerre', icon: '🎭', unlockCondition: { type: 'level', value: 5 } }
+};
+
+// ==========================================
 // CONFIGURATION PAR DÉFAUT
 // ==========================================
 export const DEFAULT_DETAILED_CONFIG = {
+  gender: 'male',
   race: 'human',
   skinColor: 'medium',
   hairStyle: 'short',
@@ -296,6 +470,9 @@ export const DEFAULT_DETAILED_CONFIG = {
   cape: 'none',
   capeColor: 'red',
   background: 'none',
+  mount: 'none',
+  totemAnimal: 'none',
+  accessory: 'none',
   pose: 'idle'
 };
 
@@ -331,6 +508,7 @@ export const isUnlocked = (item, userStats) => {
 // ==========================================
 const generateDetailedPixelArt = (config) => {
   const {
+    gender = 'male',
     race = 'human',
     skinColor = 'medium',
     hairStyle = 'short',
@@ -344,6 +522,9 @@ const generateDetailedPixelArt = (config) => {
     helmet = 'none',
     cape = 'none',
     capeColor = 'red',
+    mount = 'none',
+    totemAnimal = 'none',
+    accessory = 'none',
     pose = 'idle'
   } = config;
 
@@ -353,14 +534,15 @@ const generateDetailedPixelArt = (config) => {
   const beard = HAIR_COLORS[beardColor] || HAIR_COLORS.brown;
   const armor = ARMOR_COLORS[armorColor] || ARMOR_COLORS.brown;
   const capeCol = CAPE_COLORS[capeColor] || CAPE_COLORS.red;
+  const isFemale = gender === 'female';
 
   // Ajustements selon la race
   const heightMod = raceData.heightMod || 0;
   const widthMod = raceData.widthMod || 0;
 
-  // Position de base du corps
-  const baseX = 32 - widthMod / 2;
-  const baseY = 16 - heightMod / 2;
+  // Position de base du corps (centré dans le viewBox élargi 96x88)
+  const baseX = 48 - widthMod / 2;
+  const baseY = 20 - heightMod / 2;
 
   let svgContent = '';
 
@@ -924,6 +1106,223 @@ const generateDetailedPixelArt = (config) => {
     svgContent += shieldStyles[shield] || '';
   }
 
+  // ===== TRAITS SPÉCIAUX DE RACE =====
+  // Cornes de Tieffelin
+  if (raceData.hasHorns) {
+    const hornX = headX;
+    const hornY = headY - 6;
+    svgContent += `
+      <!-- Cornes démoniaques -->
+      <rect x="${hornX - 4}" y="${hornY}" width="4" height="6" fill="#4a3728"/>
+      <rect x="${hornX - 6}" y="${hornY - 4}" width="4" height="6" fill="#3d2d1f"/>
+      <rect x="${hornX - 8}" y="${hornY - 8}" width="4" height="6" fill="#2d1d0f"/>
+      <rect x="${hornX + headW}" y="${hornY}" width="4" height="6" fill="#4a3728"/>
+      <rect x="${hornX + headW + 2}" y="${hornY - 4}" width="4" height="6" fill="#3d2d1f"/>
+      <rect x="${hornX + headW + 4}" y="${hornY - 8}" width="4" height="6" fill="#2d1d0f"/>
+    `;
+  }
+
+  // Ailes de Fée
+  if (raceData.hasWings) {
+    const wingX = baseX;
+    const wingY = baseY + 10;
+    svgContent += `
+      <!-- Ailes de fée -->
+      <rect x="${wingX - 18}" y="${wingY - 6}" width="16" height="28" fill="rgba(255,255,255,0.4)"/>
+      <rect x="${wingX - 16}" y="${wingY - 4}" width="12" height="24" fill="rgba(200,255,255,0.5)"/>
+      <rect x="${wingX - 14}" y="${wingY - 2}" width="8" height="20" fill="rgba(255,200,255,0.4)"/>
+      <rect x="${wingX - 12}" y="${wingY}" width="4" height="16" fill="rgba(255,255,200,0.5)"/>
+      <rect x="${wingX + 28 + widthMod}" y="${wingY - 6}" width="16" height="28" fill="rgba(255,255,255,0.4)"/>
+      <rect x="${wingX + 30 + widthMod}" y="${wingY - 4}" width="12" height="24" fill="rgba(200,255,255,0.5)"/>
+      <rect x="${wingX + 32 + widthMod}" y="${wingY - 2}" width="8" height="20" fill="rgba(255,200,255,0.4)"/>
+      <rect x="${wingX + 34 + widthMod}" y="${wingY}" width="4" height="16" fill="rgba(255,255,200,0.5)"/>
+      <!-- Paillettes -->
+      <rect x="${wingX - 14}" y="${wingY + 2}" width="2" height="2" fill="#FFD700"/>
+      <rect x="${wingX - 10}" y="${wingY + 8}" width="2" height="2" fill="#FF69B4"/>
+      <rect x="${wingX + 32 + widthMod}" y="${wingY + 4}" width="2" height="2" fill="#87CEEB"/>
+      <rect x="${wingX + 38 + widthMod}" y="${wingY + 10}" width="2" height="2" fill="#FFD700"/>
+    `;
+  }
+
+  // Écailles de Drakéide
+  if (raceData.hasScales) {
+    const scaleY = headY + 4;
+    svgContent += `
+      <!-- Écailles sur le visage -->
+      <rect x="${headX + 2}" y="${scaleY}" width="2" height="2" fill="${skin.dark}"/>
+      <rect x="${headX + 4}" y="${scaleY + 2}" width="2" height="2" fill="${skin.dark}"/>
+      <rect x="${headX + headW - 4}" y="${scaleY}" width="2" height="2" fill="${skin.dark}"/>
+      <rect x="${headX + headW - 6}" y="${scaleY + 2}" width="2" height="2" fill="${skin.dark}"/>
+      <!-- Petites cornes/crêtes -->
+      <rect x="${headX + headW/2 - 3}" y="${headY - 4}" width="6" height="4" fill="${skin.base}"/>
+      <rect x="${headX + headW/2 - 2}" y="${headY - 6}" width="4" height="4" fill="${skin.light}"/>
+    `;
+  }
+
+  // ===== ANIMAL TOTEM (petit esprit flottant) =====
+  if (totemAnimal !== 'none') {
+    const totemX = baseX - 16;
+    const totemY = baseY - 4;
+    const totemColors = {
+      wolf: { base: '#808080', accent: '#A0A0A0' },
+      eagle: { base: '#8B4513', accent: '#D2691E' },
+      bear: { base: '#6B4423', accent: '#8B5A2B' },
+      lion: { base: '#DAA520', accent: '#FFD700' },
+      snake: { base: '#228B22', accent: '#32CD32' },
+      owl: { base: '#A0522D', accent: '#CD853F' },
+      raven: { base: '#2D2D2D', accent: '#4D4D4D' },
+      stag: { base: '#8B4513', accent: '#D2691E' },
+      fox: { base: '#FF6B35', accent: '#FF8C42' },
+      dragon: { base: '#DC143C', accent: '#FF4040' },
+      phoenix: { base: '#FF4500', accent: '#FFD700' },
+      turtle: { base: '#228B22', accent: '#8FBC8F' },
+      spider: { base: '#2D2D2D', accent: '#4D4D4D' },
+      bat: { base: '#4D4D4D', accent: '#6B6B6B' },
+      cat: { base: '#FF8C00', accent: '#FFA500' },
+      horse: { base: '#8B4513', accent: '#A0522D' },
+      boar: { base: '#6B4423', accent: '#8B5A2B' },
+      crow: { base: '#1A1A1A', accent: '#2D2D2D' }
+    };
+    const tc = totemColors[totemAnimal] || totemColors.wolf;
+    svgContent += `
+      <!-- Animal totem (esprit) -->
+      <g opacity="0.7">
+        <rect x="${totemX}" y="${totemY}" width="8" height="8" fill="${tc.base}"/>
+        <rect x="${totemX + 2}" y="${totemY + 2}" width="4" height="4" fill="${tc.accent}"/>
+        <rect x="${totemX + 1}" y="${totemY + 1}" width="2" height="2" fill="#FFFFFF"/>
+        <!-- Aura magique -->
+        <rect x="${totemX - 2}" y="${totemY + 4}" width="2" height="2" fill="rgba(147,112,219,0.5)"/>
+        <rect x="${totemX + 10}" y="${totemY + 2}" width="2" height="2" fill="rgba(147,112,219,0.5)"/>
+        <rect x="${totemX + 4}" y="${totemY - 2}" width="2" height="2" fill="rgba(147,112,219,0.5)"/>
+      </g>
+    `;
+  }
+
+  // ===== ACCESSOIRES =====
+  if (accessory !== 'none') {
+    const accStyles = {
+      eyepatch: `
+        <rect x="${headX + 2}" y="${eyeY - 1}" width="6" height="6" fill="#1a1a1a"/>
+        <rect x="${headX}" y="${eyeY + 1}" width="2" height="1" fill="#4a3728"/>
+        <rect x="${headX + 8}" y="${eyeY + 1}" width="${headW - 8}" height="1" fill="#4a3728"/>
+      `,
+      scar: `
+        <rect x="${headX + headW/2 - 1}" y="${eyeY - 2}" width="2" height="8" fill="${skin.shadow}"/>
+        <rect x="${headX + headW/2}" y="${eyeY}" width="1" height="4" fill="${skin.dark}"/>
+      `,
+      necklace: `
+        <rect x="${headX + 4}" y="${headY + 16}" width="${headW - 8}" height="2" fill="#DAA520"/>
+        <rect x="${headX + headW/2 - 2}" y="${headY + 18}" width="4" height="4" fill="#DC143C"/>
+        <rect x="${headX + headW/2 - 1}" y="${headY + 19}" width="2" height="2" fill="#FF4040"/>
+      `,
+      earring: `
+        <rect x="${headX - 2}" y="${headY + 8}" width="2" height="4" fill="#DAA520"/>
+        <rect x="${headX - 3}" y="${headY + 10}" width="2" height="2" fill="#DC143C"/>
+      `,
+      glasses: `
+        <rect x="${headX + 2}" y="${eyeY - 1}" width="6" height="6" fill="rgba(100,149,237,0.4)"/>
+        <rect x="${headX + headW - 8}" y="${eyeY - 1}" width="6" height="6" fill="rgba(100,149,237,0.4)"/>
+        <rect x="${headX + 8}" y="${eyeY + 1}" width="${headW - 16}" height="1" fill="#4a3728"/>
+        <rect x="${headX + 2}" y="${eyeY - 1}" width="1" height="6" fill="#4a3728"/>
+        <rect x="${headX + 7}" y="${eyeY - 1}" width="1" height="6" fill="#4a3728"/>
+        <rect x="${headX + headW - 8}" y="${eyeY - 1}" width="1" height="6" fill="#4a3728"/>
+        <rect x="${headX + headW - 3}" y="${eyeY - 1}" width="1" height="6" fill="#4a3728"/>
+      `,
+      monocle: `
+        <rect x="${headX + headW - 10}" y="${eyeY - 2}" width="8" height="8" fill="rgba(200,200,200,0.3)"/>
+        <rect x="${headX + headW - 10}" y="${eyeY - 2}" width="1" height="8" fill="#DAA520"/>
+        <rect x="${headX + headW - 3}" y="${eyeY - 2}" width="1" height="8" fill="#DAA520"/>
+        <rect x="${headX + headW - 10}" y="${eyeY - 2}" width="8" height="1" fill="#DAA520"/>
+        <rect x="${headX + headW - 10}" y="${eyeY + 5}" width="8" height="1" fill="#DAA520"/>
+        <rect x="${headX + headW - 6}" y="${eyeY + 6}" width="1" height="8" fill="#DAA520"/>
+      `,
+      scarf: `
+        <rect x="${headX - 2}" y="${headY + 14}" width="${headW + 4}" height="4" fill="#DC143C"/>
+        <rect x="${headX}" y="${headY + 16}" width="${headW}" height="2" fill="#B22222"/>
+        <rect x="${headX + headW - 4}" y="${headY + 18}" width="6" height="12" fill="#DC143C"/>
+        <rect x="${headX + headW - 2}" y="${headY + 20}" width="4" height="8" fill="#B22222"/>
+      `,
+      shoulder_pet: `
+        <!-- Petit familier sur l'épaule -->
+        <rect x="${baseX - 6}" y="${torsoY - 4}" width="8" height="6" fill="#4169E1"/>
+        <rect x="${baseX - 4}" y="${torsoY - 2}" width="4" height="4" fill="#6495ED"/>
+        <rect x="${baseX - 5}" y="${torsoY - 3}" width="2" height="2" fill="#FFFFFF"/>
+        <rect x="${baseX - 2}" y="${torsoY - 5}" width="3" height="3" fill="#4169E1"/>
+      `,
+      warpaint: `
+        <rect x="${headX + 2}" y="${eyeY + 4}" width="4" height="2" fill="#DC143C"/>
+        <rect x="${headX + headW - 6}" y="${eyeY + 4}" width="4" height="2" fill="#DC143C"/>
+        <rect x="${headX + headW/2 - 2}" y="${headY + 2}" width="4" height="3" fill="#DC143C"/>
+      `
+    };
+    if (accStyles[accessory]) {
+      svgContent += accStyles[accessory];
+    }
+  }
+
+  // ===== MONTURE (sous le personnage) =====
+  if (mount !== 'none') {
+    const mountY = baseY + 52;
+    const mountColors = {
+      horse: { body: '#8B4513', mane: '#4a3728', accent: '#A0522D' },
+      war_horse: { body: '#2D2D2D', mane: '#1a1a1a', accent: '#4D4D4D', armor: '#C0C0C0' },
+      wolf: { body: '#808080', mane: '#606060', accent: '#A0A0A0' },
+      bear: { body: '#6B4423', mane: '#4a3728', accent: '#8B5A2B' },
+      boar: { body: '#6B4423', mane: '#3d2d1f', accent: '#8B5A2B' },
+      ram: { body: '#F5F5DC', mane: '#D4C4A8', accent: '#E8E8D0' },
+      raptor: { body: '#228B22', mane: '#155615', accent: '#32CD32' },
+      wyvern: { body: '#4B0082', mane: '#2E0854', accent: '#8A2BE2' },
+      griffin: { body: '#DAA520', mane: '#8B4513', accent: '#FFD700' },
+      unicorn: { body: '#FFFFFF', mane: '#FFB6C1', accent: '#F0F0F0' },
+      nightmare: { body: '#1a1a1a', mane: '#FF4500', accent: '#FF6B35' },
+      spider: { body: '#2D2D2D', mane: '#1a1a1a', accent: '#4D4D4D' },
+      skeletal_horse: { body: '#E8DCC8', mane: '#C4B8A4', accent: '#D4C4A8' }
+    };
+    const mc = mountColors[mount] || mountColors.horse;
+
+    // Corps de la monture (simplifié en pixel art)
+    svgContent += `
+      <!-- Monture -->
+      <rect x="${baseX - 10}" y="${mountY}" width="48" height="20" fill="${mc.body}"/>
+      <rect x="${baseX - 8}" y="${mountY + 2}" width="44" height="16" fill="${mc.accent}"/>
+      <!-- Tête -->
+      <rect x="${baseX - 20}" y="${mountY - 8}" width="16" height="14" fill="${mc.body}"/>
+      <rect x="${baseX - 18}" y="${mountY - 6}" width="12" height="10" fill="${mc.accent}"/>
+      <!-- Œil -->
+      <rect x="${baseX - 16}" y="${mountY - 4}" width="3" height="3" fill="#FFFFFF"/>
+      <rect x="${baseX - 15}" y="${mountY - 3}" width="2" height="2" fill="#000000"/>
+      <!-- Crinière -->
+      <rect x="${baseX - 8}" y="${mountY - 6}" width="12" height="8" fill="${mc.mane}"/>
+      <!-- Jambes -->
+      <rect x="${baseX - 6}" y="${mountY + 18}" width="6" height="12" fill="${mc.body}"/>
+      <rect x="${baseX + 28}" y="${mountY + 18}" width="6" height="12" fill="${mc.body}"/>
+    `;
+
+    // Éléments spéciaux selon la monture
+    if (mount === 'unicorn') {
+      svgContent += `<rect x="${baseX - 22}" y="${mountY - 14}" width="4" height="10" fill="#FFD700"/>`;
+    }
+    if (mount === 'war_horse') {
+      svgContent += `
+        <rect x="${baseX - 20}" y="${mountY - 6}" width="14" height="4" fill="${mc.armor}"/>
+        <rect x="${baseX - 8}" y="${mountY}" width="44" height="4" fill="${mc.armor}"/>
+      `;
+    }
+    if (mount === 'nightmare') {
+      svgContent += `
+        <rect x="${baseX - 6}" y="${mountY + 28}" width="4" height="4" fill="#FF4500"/>
+        <rect x="${baseX + 30}" y="${mountY + 28}" width="4" height="4" fill="#FF4500"/>
+      `;
+    }
+    if (mount === 'wyvern' || mount === 'griffin') {
+      svgContent += `
+        <!-- Ailes -->
+        <rect x="${baseX - 24}" y="${mountY - 10}" width="16" height="20" fill="${mc.mane}"/>
+        <rect x="${baseX + 36}" y="${mountY - 10}" width="16" height="20" fill="${mc.mane}"/>
+      `;
+    }
+  }
+
   return svgContent;
 };
 
@@ -958,7 +1357,7 @@ export const DetailedPixelAvatarPreview = ({
 
       {/* Avatar SVG */}
       <svg
-        viewBox="0 0 64 72"
+        viewBox="0 0 96 88"
         width={size}
         height={size}
         className="relative z-10"
@@ -1088,11 +1487,12 @@ export const DetailedPixelAvatarBuilder = ({
   }, [localConfig, onChange]);
 
   const categories = [
-    { id: 'race', name: 'Race', icon: User },
+    { id: 'identity', name: 'Identité', icon: Heart },
     { id: 'appearance', name: 'Apparence', icon: Eye },
-    { id: 'armor', name: 'Armure', icon: Shield },
-    { id: 'weapons', name: 'Armes', icon: Sword },
-    { id: 'accessories', name: 'Accessoires', icon: Crown },
+    { id: 'armor', name: 'Équipement', icon: Shirt },
+    { id: 'weapons', name: 'Combat', icon: Sword },
+    { id: 'accessories', name: 'Accessoires', icon: Gem },
+    { id: 'companions', name: 'Compagnons', icon: Cat },
     { id: 'background', name: 'Fond', icon: Sparkles }
   ];
 
@@ -1141,8 +1541,16 @@ export const DetailedPixelAvatarBuilder = ({
 
       {/* Options selon la catégorie */}
       <div className="space-y-3">
-        {activeCategory === 'race' && (
+        {activeCategory === 'identity' && (
           <>
+            <OptionSelector
+              title="Genre"
+              icon={Heart}
+              options={GENDERS}
+              value={localConfig.gender}
+              onChange={(v) => handleChange('gender', v)}
+              userStats={userStats}
+            />
             <OptionSelector
               title="Race"
               icon={User}
@@ -1259,6 +1667,35 @@ export const DetailedPixelAvatarBuilder = ({
               colorOptions={CAPE_COLORS}
               colorValue={localConfig.capeColor}
               onColorChange={(v) => handleChange('capeColor', v)}
+            />
+            <OptionSelector
+              title="Accessoire"
+              icon={Gem}
+              options={ACCESSORIES}
+              value={localConfig.accessory}
+              onChange={(v) => handleChange('accessory', v)}
+              userStats={userStats}
+            />
+          </>
+        )}
+
+        {activeCategory === 'companions' && (
+          <>
+            <OptionSelector
+              title="Monture"
+              icon={Cat}
+              options={MOUNTS}
+              value={localConfig.mount}
+              onChange={(v) => handleChange('mount', v)}
+              userStats={userStats}
+            />
+            <OptionSelector
+              title="Animal Totem"
+              icon={Bird}
+              options={TOTEM_ANIMALS}
+              value={localConfig.totemAnimal}
+              onChange={(v) => handleChange('totemAnimal', v)}
+              userStats={userStats}
             />
           </>
         )}
