@@ -37,6 +37,7 @@ import BannerSelector from '../components/customization/BannerSelector.jsx';
 import AvatarBuilder, { AvatarPreview } from '../components/customization/AvatarBuilder.jsx';
 import DiceBearAvatarBuilder, { DiceBearAvatarPreview, DEFAULT_DICEBEAR_CONFIG } from '../components/customization/DiceBearAvatar.jsx';
 import PixelArtAvatarBuilder, { PixelArtAvatarPreview, DEFAULT_PIXEL_CONFIG, PIXEL_CLASSES, PIXEL_PALETTES, PIXEL_POSES, PIXEL_BACKGROUNDS } from '../components/customization/PixelArtAvatar.jsx';
+import DetailedPixelAvatarBuilder, { DetailedPixelAvatarPreview, DEFAULT_DETAILED_CONFIG, RACES, ARMOR_TYPES, WEAPON_TYPES, HAIR_STYLES, BEARD_STYLES, HELMET_TYPES } from '../components/customization/DetailedPixelAvatar.jsx';
 import { useProfileCustomization } from '../shared/hooks/useProfileCustomization.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { profileCustomizationService, DEFAULT_AVATAR_CONFIG } from '../core/services/profileCustomizationService.js';
@@ -124,6 +125,7 @@ const ProfileCustomizationPage = () => {
   const [avatarBuilderConfig, setAvatarBuilderConfig] = useState(DEFAULT_AVATAR_CONFIG);
   const [diceBearConfig, setDiceBearConfig] = useState(DEFAULT_DICEBEAR_CONFIG);
   const [pixelArtConfig, setPixelArtConfig] = useState(DEFAULT_PIXEL_CONFIG);
+  const [detailedConfig, setDetailedConfig] = useState(DEFAULT_DETAILED_CONFIG);
   const [savingBuilder, setSavingBuilder] = useState(false);
   const [recommendedItems, setRecommendedItems] = useState([]);
 
@@ -163,6 +165,10 @@ const ProfileCustomizationPage = () => {
         // Config PixelArt RPG
         const pixelArt = await profileCustomizationService.getPixelArtConfig(user.uid);
         setPixelArtConfig(pixelArt || DEFAULT_PIXEL_CONFIG);
+
+        // Config Detailed Avatar RPG
+        const detailed = await profileCustomizationService.getDetailedAvatarConfig(user.uid);
+        setDetailedConfig(detailed || DEFAULT_DETAILED_CONFIG);
 
         // Charger les recommandations
         const normalizedStats = profileCustomizationService.normalizeUserStats(userStats);
@@ -252,6 +258,34 @@ const ProfileCustomizationPage = () => {
       }
     } catch (error) {
       console.error('Erreur sauvegarde PixelArt:', error);
+      alert('❌ Erreur lors de la sauvegarde');
+    } finally {
+      setSavingBuilder(false);
+    }
+  }, [user?.uid, userStats]);
+
+  // Sauvegarder la config Detailed Avatar RPG
+  const handleSaveDetailedAvatar = useCallback(async (config) => {
+    if (!user?.uid) return;
+
+    setSavingBuilder(true);
+    try {
+      const normalizedStats = profileCustomizationService.normalizeUserStats(userStats);
+      const result = await profileCustomizationService.saveDetailedAvatarConfig(
+        user.uid,
+        config,
+        normalizedStats
+      );
+
+      if (result.success) {
+        setDetailedConfig(config);
+        alert('✅ Avatar RPG sauvegardé !');
+      } else {
+        console.error('Erreur sauvegarde Detailed Avatar:', result.error);
+        alert('❌ Erreur lors de la sauvegarde');
+      }
+    } catch (error) {
+      console.error('Erreur sauvegarde Detailed Avatar:', error);
       alert('❌ Erreur lors de la sauvegarde');
     } finally {
       setSavingBuilder(false);
@@ -364,39 +398,35 @@ const ProfileCustomizationPage = () => {
               </div>
             </div>
 
-            {/* Stats Cards - Mobile: 3 columns, Desktop: 5 columns */}
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            {/* Stats Cards - Mobile: 3 columns, Desktop: 6 columns */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-3 border border-white/10"
               >
-                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1">
                     <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
                   </div>
-                  <div>
-                    <p className="text-base sm:text-xl font-bold text-white">N.{userStats.level}</p>
-                    <p className="text-[10px] sm:text-xs text-gray-400 hidden sm:block">{userStats.totalXp?.toLocaleString()} XP</p>
-                  </div>
+                  <p className="text-base sm:text-lg font-bold text-white">N.{userStats.level}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">Niveau</p>
                 </div>
               </motion.div>
 
-                {/* Stats Pixel Art RPG */}
+              {/* Stats Detailed Avatar RPG */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-3 border border-white/10"
               >
-                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                    <Sword className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1">
+                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                   </div>
-                  <div>
-                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_CLASSES).length}</p>
-                    <p className="text-[10px] sm:text-xs text-gray-400">Classes</p>
-                  </div>
+                  <p className="text-base sm:text-lg font-bold text-white">{Object.keys(RACES).length}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">Races</p>
                 </div>
               </motion.div>
 
@@ -404,16 +434,14 @@ const ProfileCustomizationPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-3 border border-white/10"
               >
-                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                    <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500/30 to-cyan-500/20 rounded-lg flex items-center justify-center mb-1">
+                    <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                   </div>
-                  <div>
-                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_PALETTES).length}</p>
-                    <p className="text-[10px] sm:text-xs text-gray-400">Couleurs</p>
-                  </div>
+                  <p className="text-base sm:text-lg font-bold text-white">{Object.keys(ARMOR_TYPES).length}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">Armures</p>
                 </div>
               </motion.div>
 
@@ -421,16 +449,14 @@ const ProfileCustomizationPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-3 border border-white/10"
               >
-                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1">
+                    <Sword className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                   </div>
-                  <div>
-                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_POSES).length}</p>
-                    <p className="text-[10px] sm:text-xs text-gray-400">Poses</p>
-                  </div>
+                  <p className="text-base sm:text-lg font-bold text-white">{Object.keys(WEAPON_TYPES).length}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">Armes</p>
                 </div>
               </motion.div>
 
@@ -438,30 +464,44 @@ const ProfileCustomizationPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-3 border border-white/10 hidden sm:block"
               >
-                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                    <Image className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1">
+                    <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                   </div>
-                  <div>
-                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_BACKGROUNDS).length}</p>
-                    <p className="text-[10px] sm:text-xs text-gray-400">Fonds</p>
+                  <p className="text-base sm:text-lg font-bold text-white">{Object.keys(HELMET_TYPES).length}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">Casques</p>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-3 border border-white/10 hidden sm:block"
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/30 to-yellow-500/20 rounded-lg flex items-center justify-center mb-1">
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                   </div>
+                  <p className="text-base sm:text-lg font-bold text-white">{Object.keys(HAIR_STYLES).length + Object.keys(BEARD_STYLES).length}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">Coiffures</p>
                 </div>
               </motion.div>
             </div>
           </div>
 
-          {/* Contenu principal - Mode RPG uniquement */}
+          {/* Contenu principal - Mode RPG Détaillé */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <PixelArtAvatarBuilder
-              initialConfig={pixelArtConfig}
+            <DetailedPixelAvatarBuilder
+              config={detailedConfig}
+              onChange={setDetailedConfig}
               userStats={profileCustomizationService.normalizeUserStats(userStats)}
-              onSave={handleSavePixelArt}
+              onSave={handleSaveDetailedAvatar}
               saving={savingBuilder}
             />
           </motion.div>
