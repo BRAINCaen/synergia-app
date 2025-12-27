@@ -313,6 +313,7 @@ const HRPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [initialEditMode, setInitialEditMode] = useState(false);
   const [showNewEmployeeModal, setShowNewEmployeeModal] = useState(false);
   const [showNewScheduleModal, setShowNewScheduleModal] = useState(false);
   const [showEmployeeDetailModal, setShowEmployeeDetailModal] = useState(false);
@@ -455,6 +456,13 @@ const HRPage = () => {
 
   const handleViewEmployee = (employee) => {
     setSelectedEmployee(employee);
+    setInitialEditMode(false);
+    setShowEmployeeDetailModal(true);
+  };
+
+  const handleEditEmployee = (employee) => {
+    setSelectedEmployee(employee);
+    setInitialEditMode(true);
     setShowEmployeeDetailModal(true);
   };
 
@@ -594,6 +602,7 @@ const HRPage = () => {
                 setSearchTerm={setSearchTerm}
                 onAddEmployee={handleAddEmployee}
                 onViewEmployee={handleViewEmployee}
+                onEditEmployee={handleEditEmployee}
                 onRefresh={handleRefresh}
               />
             )}
@@ -656,15 +665,18 @@ const HRPage = () => {
           )}
 
           {showEmployeeDetailModal && selectedEmployee && (
-            <EmployeeDetailModal 
+            <EmployeeDetailModal
               employee={selectedEmployee}
+              initialEditMode={initialEditMode}
               onClose={() => {
                 setShowEmployeeDetailModal(false);
                 setSelectedEmployee(null);
+                setInitialEditMode(false);
               }}
               onSuccess={() => {
                 setShowEmployeeDetailModal(false);
                 setSelectedEmployee(null);
+                setInitialEditMode(false);
                 handleRefresh();
               }}
             />
@@ -678,7 +690,7 @@ const HRPage = () => {
 // ==========================================
 // 👥 ONGLET SALARIÉS
 // ==========================================
-const EmployeesTab = ({ employees, searchTerm, setSearchTerm, onAddEmployee, onViewEmployee, onRefresh }) => {
+const EmployeesTab = ({ employees, searchTerm, setSearchTerm, onAddEmployee, onViewEmployee, onEditEmployee, onRefresh }) => {
   return (
     <motion.div
       key="employees"
@@ -738,11 +750,12 @@ const EmployeesTab = ({ employees, searchTerm, setSearchTerm, onAddEmployee, onV
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {employees.map(employee => (
-              <EmployeeCard 
-                key={employee.id} 
-                employee={employee} 
+              <EmployeeCard
+                key={employee.id}
+                employee={employee}
                 onViewEmployee={onViewEmployee}
-                onRefresh={onRefresh} 
+                onEditEmployee={onEditEmployee}
+                onRefresh={onRefresh}
               />
             ))}
           </div>
@@ -753,7 +766,7 @@ const EmployeesTab = ({ employees, searchTerm, setSearchTerm, onAddEmployee, onV
 };
 
 // 👤 CARTE SALARIÉ
-const EmployeeCard = ({ employee, onViewEmployee, onRefresh }) => {
+const EmployeeCard = ({ employee, onViewEmployee, onEditEmployee, onRefresh }) => {
   const statusColors = {
     active: 'bg-green-500/20 text-green-400 border-green-500/50',
     inactive: 'bg-gray-500/20 text-gray-400 border-gray-500/50',
@@ -813,7 +826,11 @@ const EmployeeCard = ({ employee, onViewEmployee, onRefresh }) => {
           <Eye className="w-4 h-4" />
           Voir détail
         </button>
-        <button className="bg-gray-600 hover:bg-gray-500 text-white p-2 rounded-lg transition-colors">
+        <button
+          onClick={() => onEditEmployee(employee)}
+          className="bg-gray-600 hover:bg-gray-500 text-white p-2 rounded-lg transition-colors"
+          title="Modifier la fiche"
+        >
           <Edit className="w-4 h-4" />
         </button>
       </div>
@@ -824,8 +841,8 @@ const EmployeeCard = ({ employee, onViewEmployee, onRefresh }) => {
 // ==========================================
 // 📋 MODAL DÉTAIL / ÉDITION SALARIÉ
 // ==========================================
-const EmployeeDetailModal = ({ employee, onClose, onSuccess }) => {
-  const [isEditing, setIsEditing] = useState(false);
+const EmployeeDetailModal = ({ employee, initialEditMode = false, onClose, onSuccess }) => {
+  const [isEditing, setIsEditing] = useState(initialEditMode);
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState('personal');
 
