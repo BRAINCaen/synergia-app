@@ -20,8 +20,6 @@ import Layout from '../components/layout/Layout.jsx';
 import UserAvatar from '../components/common/UserAvatar.jsx';
 import DetailedPixelAvatar, { DEFAULT_DETAILED_CONFIG } from '../components/customization/DetailedPixelAvatar.jsx';
 
-// 🚀 IMPORT DU SYSTÈME BOOST
-import { BoostButton } from '../components/boost';
 
 // 🔥 HOOKS ET SERVICES FIREBASE
 import { useAuthStore } from '../shared/stores/authStore.js';
@@ -970,31 +968,6 @@ const loadAllTeamMembers = async () => {
                           <Eye className="w-4 h-4" />
                           Voir toutes les quêtes ({member.questsTotal || 0})
                         </button>
-
-                        {/* 🚀 BOUTON BOOST - Ne s'affiche pas pour soi-même */}
-                        {!isCurrentUser && (
-                          <div className="mb-2">
-                            <BoostButton
-                              targetUser={{
-                                uid: member.id,
-                                displayName: member.name,
-                                email: member.email,
-                                photoURL: member.photoURL
-                              }}
-                              currentUser={{
-                                uid: user?.uid,
-                                displayName: user?.displayName || user?.email,
-                                email: user?.email,
-                                photoURL: user?.photoURL
-                              }}
-                              variant="small"
-                              className="w-full justify-center"
-                              onBoostSent={(result) => {
-                                showNotification(result.message, 'success');
-                              }}
-                            />
-                          </div>
-                        )}
 
                         <button
                           onClick={() => {
