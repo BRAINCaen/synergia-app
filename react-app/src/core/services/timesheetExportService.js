@@ -812,16 +812,31 @@ export async function exportPayrollComplete(year, month, options = {}) {
   // Calculer les semaines du mois
   const weeksInMonth = getWeeksInMonth(year, month);
 
-  // 1. CONTRATS STANDARDS - Feuille principale
-  if (includeContractSheet) {
-    await createContractsStandardSheet(workbook, employees, pointages, leaves, weeksInMonth, year, month, companyName);
+  // Séparer les cadres des non-cadres
+  const cadres = employees.filter(e => e.isCadre);
+  const nonCadres = employees.filter(e => !e.isCadre);
+
+  console.log(`👔 ${cadres.length} cadres, 👷 ${nonCadres.length} non-cadres`);
+
+  // 1. CONTRATS STANDARDS - Feuille pour non-cadres (compteur horaire)
+  if (includeContractSheet && nonCadres.length > 0) {
+    await createContractsStandardSheet(workbook, nonCadres, pointages, leaves, weeksInMonth, year, month, companyName);
+  }
+
+  // 1b. CADRES FORFAIT JOUR - Feuille pour cadres (compteur jours)
+  if (includeContractSheet && cadres.length > 0) {
+    await createCadresForfaitJourSheet(workbook, cadres, pointages, leaves, weeksInMonth, year, month, companyName);
   }
 
   // 2. Feuilles détaillées par employé
   for (const employee of employees) {
     const employeePointages = pointages.filter(p => p.userId === employee.id);
     const employeeLeaves = leaves.filter(l => l.userId === employee.id);
-    await createEmployeeDetailSheet(workbook, employee, employeePointages, employeeLeaves, weeksInMonth, year, month);
+    if (employee.isCadre) {
+      await createCadreDetailSheet(workbook, employee, employeePointages, employeeLeaves, weeksInMonth, year, month);
+    } else {
+      await createEmployeeDetailSheet(workbook, employee, employeePointages, employeeLeaves, weeksInMonth, year, month);
+    }
   }
 
   // 3. POINTAGES - Tous les pointages détaillés
@@ -882,6 +897,10 @@ async function getEmployeesWithContracts() {
       const firstName = data.profile?.firstName || data.firstName || data.displayName?.split(' ')[0] || '';
       const lastName = data.profile?.lastName || data.lastName || data.displayName?.split(' ').slice(1).join(' ') || '';
 
+      // Déterminer si c'est un cadre au forfait jour
+      const statutContrat = data.contractData?.status || '';
+      const isCadre = statutContrat.toLowerCase().includes('cadre');
+
       employees.push({
         id: doc.id,
         nom: lastName || 'Nom',
@@ -900,6 +919,10 @@ async function getEmployeesWithContracts() {
         tauxHoraireBrut: data.salaryData?.hourlyGrossRate || data.salaryData?.hourlyRate || 0,
         etablissement: data.contractData?.establishment || data.profile?.department || 'Principal',
         statut: data.isActive !== false ? 'Actif' : 'Inactif',
+        // Cadre au forfait jour
+        isCadre: isCadre,
+        statutContrat: statutContrat,
+        forfaitJours: data.contractData?.forfaitJours || 218, // Forfait jours annuel (défaut 218)
         // Compteurs
         compteurHeures: data.compteurHeures || 0,
         // Congés
@@ -1464,6 +1487,304 @@ async function createEmployeeDetailSheet(workbook, employee, pointages, leaves, 
 
   // Ajuster largeurs
   sheet.getColumn(1).width = 15;
+  for (let i = 2; i <= 9; i++) {
+    sheet.getColumn(i).width = 10;
+  }
+}
+
+/**
+ * CADRES FORFAIT JOUR - Feuille récapitulative pour les cadres
+ * Les cadres sont au forfait jour: 1 pointage = 1 journée travaillée
+ */
+async function createCadresForfaitJourSheet(workbook, cadres, pointages, leaves, weeks, year, month, companyName) {
+  const sheet = workbook.addWorksheet('CADRES FORFAIT JOUR', {
+    properties: { tabColor: { argb: '7C3AED' } }
+  });
+
+  let row = 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Titre
+  sheet.mergeCells(`A${row}:P${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `CADRES AU FORFAIT JOUR - ${MONTHS_FR[month].toUpperCase()} ${year}`;
+  titleCell.font = { size: 14, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '7C3AED' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getRow(row).height = 30;
+  row++;
+
+  // Sous-titre
+  sheet.mergeCells(`A${row}:P${row}`);
+  const subtitleCell = sheet.getCell(`A${row}`);
+  subtitleCell.value = `${companyName} - Suivi des jours travaillés (pas de compteur horaire)`;
+  subtitleCell.font = { size: 11, color: { argb: 'FFFFFF' } };
+  subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '8B5CF6' } };
+  subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  row++;
+  row++;
+
+  // En-têtes
+  const headers = [
+    'Nom', 'Prénom', 'Statut', 'Poste', 'Type Contrat',
+    'Forfait Annuel (j)', 'Date début', 'Date fin',
+    ...weeks.map(w => w.label),
+    'Total Jours Mois', 'Jours Congés', 'Jours Travaillés Net'
+  ];
+
+  headers.forEach((header, idx) => {
+    const cell = sheet.getCell(row, idx + 1);
+    cell.value = header;
+    cell.font = { bold: true, color: { argb: 'FFFFFF' }, size: 9 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6366F1' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+  });
+  sheet.getRow(row).height = 35;
+  row++;
+
+  // Données des cadres
+  for (const cadre of cadres) {
+    const cadrePointages = pointages.filter(p => p.userId === cadre.id);
+    const cadreLeaves = leaves.filter(l => l.userId === cadre.id);
+
+    // Calculer les jours par semaine (1 pointage = 1 jour)
+    const weeklyDays = weeks.map(week => {
+      return countDaysWorked(cadre.id, cadrePointages, week.start, week.end);
+    });
+
+    const totalDaysMonth = weeklyDays.reduce((sum, d) => sum + d, 0);
+
+    // Calculer les jours de congés
+    let leaveDays = 0;
+    cadreLeaves.forEach(leave => {
+      const start = new Date(leave.startDate);
+      const end = new Date(leave.endDate);
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 0);
+
+      // Intersection avec le mois
+      const effectiveStart = start < monthStart ? monthStart : start;
+      const effectiveEnd = end > monthEnd ? monthEnd : end;
+
+      if (effectiveStart <= effectiveEnd) {
+        leaveDays += Math.ceil((effectiveEnd - effectiveStart) / (1000 * 60 * 60 * 24)) + 1;
+      }
+    });
+
+    const netDays = totalDaysMonth;
+
+    const rowData = [
+      cadre.nom,
+      cadre.prenom,
+      cadre.statutContrat || 'Cadre',
+      cadre.poste,
+      cadre.typeContrat,
+      cadre.forfaitJours,
+      cadre.dateDebut ? new Date(cadre.dateDebut).toLocaleDateString('fr-FR') : '-',
+      cadre.dateFin ? new Date(cadre.dateFin).toLocaleDateString('fr-FR') : '-',
+      ...weeklyDays,
+      totalDaysMonth,
+      leaveDays,
+      netDays
+    ];
+
+    rowData.forEach((value, idx) => {
+      const cell = sheet.getCell(row, idx + 1);
+      cell.value = value;
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+      // Colorer les totaux
+      if (idx >= headers.length - 3) {
+        cell.font = { bold: true };
+        if (idx === headers.length - 1) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D1FAE5' } };
+        }
+      }
+    });
+
+    row++;
+  }
+
+  // Ajuster largeurs
+  sheet.getColumn(1).width = 15;
+  sheet.getColumn(2).width = 12;
+  sheet.getColumn(3).width = 10;
+  sheet.getColumn(4).width = 15;
+  sheet.getColumn(5).width = 10;
+  for (let i = 6; i <= headers.length; i++) {
+    sheet.getColumn(i).width = 10;
+  }
+}
+
+/**
+ * Compter les jours travaillés pour un cadre (1 pointage = 1 jour)
+ */
+function countDaysWorked(userId, pointages, startDate, endDate) {
+  const userPointages = pointages.filter(p =>
+    p.userId === userId &&
+    p.date >= startDate &&
+    p.date <= endDate
+  );
+
+  // Compter les jours uniques avec au moins 1 pointage
+  const uniqueDays = new Set();
+  userPointages.forEach(p => {
+    uniqueDays.add(p.date);
+  });
+
+  return uniqueDays.size;
+}
+
+/**
+ * Feuille détaillée pour un cadre (par jour, pas par heure)
+ */
+async function createCadreDetailSheet(workbook, cadre, pointages, leaves, weeks, year, month) {
+  const sheetName = `${cadre.nom.substring(0, 8)} ${cadre.prenom.substring(0, 8)} (Cadre)`.trim().substring(0, 31);
+  const sheet = workbook.addWorksheet(sheetName, {
+    properties: { tabColor: { argb: '7C3AED' } }
+  });
+
+  let row = 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Titre
+  sheet.mergeCells(`A${row}:H${row}`);
+  const titleCell = sheet.getCell(`A${row}`);
+  titleCell.value = `${cadre.nom.toUpperCase()} ${cadre.prenom} - CADRE FORFAIT JOUR`;
+  titleCell.font = { size: 12, bold: true, color: { argb: 'FFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '7C3AED' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  row++;
+
+  // Infos cadre
+  const infos = [
+    ['Statut:', cadre.statutContrat || 'Cadre', 'Poste:', cadre.poste],
+    ['Forfait annuel:', `${cadre.forfaitJours} jours`, 'Type contrat:', cadre.typeContrat]
+  ];
+
+  infos.forEach(infoRow => {
+    for (let i = 0; i < infoRow.length; i += 2) {
+      sheet.getCell(row, i + 1).value = infoRow[i];
+      sheet.getCell(row, i + 1).font = { bold: true };
+      sheet.getCell(row, i + 2).value = infoRow[i + 1];
+    }
+    row++;
+  });
+  row++;
+
+  // Tableau par semaine
+  for (const week of weeks) {
+    // En-tête semaine
+    sheet.mergeCells(`A${row}:H${row}`);
+    const weekHeader = sheet.getCell(`A${row}`);
+    weekHeader.value = `Semaine ${week.weekNum} (${new Date(week.start).toLocaleDateString('fr-FR')} - ${new Date(week.end).toLocaleDateString('fr-FR')})`;
+    weekHeader.font = { bold: true, color: { argb: 'FFFFFF' } };
+    weekHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '8B5CF6' } };
+    row++;
+
+    // En-têtes jours
+    const dayHeaders = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim', 'Total'];
+    dayHeaders.forEach((day, idx) => {
+      const cell = sheet.getCell(row, idx + 1);
+      cell.value = day;
+      cell.font = { bold: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E5E7EB' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+    row++;
+
+    // Calculer présence par jour (1 = présent, 0 = absent, "CP" = congé)
+    const weekStart = new Date(week.start);
+    let weekTotal = 0;
+    const dailyPresence = [];
+
+    for (let d = 0; d < 7; d++) {
+      const currentDate = new Date(weekStart);
+      currentDate.setDate(currentDate.getDate() + d);
+      const dateStr = currentDate.toISOString().split('T')[0];
+
+      // Vérifier si dans le mois
+      if (currentDate.getMonth() !== month) {
+        dailyPresence.push('-');
+        continue;
+      }
+
+      // Vérifier congé
+      const leave = leaves.find(l => dateStr >= l.startDate && dateStr <= l.endDate);
+      if (leave) {
+        dailyPresence.push('CP');
+        continue;
+      }
+
+      // Vérifier pointage (1 pointage = 1 jour)
+      const hasPointage = pointages.some(p => p.date === dateStr);
+      if (hasPointage) {
+        dailyPresence.push(1);
+        weekTotal += 1;
+      } else {
+        // Weekend = vide, jour ouvré sans pointage = 0
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          dailyPresence.push('-');
+        } else {
+          dailyPresence.push(0);
+        }
+      }
+    }
+
+    // Ligne présence
+    sheet.getCell(row, 1).value = 'Présence';
+    dailyPresence.forEach((presence, idx) => {
+      const cell = sheet.getCell(row, idx + 2);
+      cell.value = presence;
+      cell.alignment = { horizontal: 'center' };
+      if (presence === 1) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D1FAE5' } };
+        cell.font = { bold: true, color: { argb: '059669' } };
+      } else if (presence === 'CP') {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEF3C7' } };
+      } else if (presence === 0) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FECACA' } };
+      }
+    });
+    sheet.getCell(row, 9).value = `${weekTotal}j`;
+    sheet.getCell(row, 9).font = { bold: true };
+    row++;
+
+    row++; // Espace entre semaines
+  }
+
+  // Récap
+  row++;
+  sheet.mergeCells(`A${row}:H${row}`);
+  const recapHeader = sheet.getCell(`A${row}`);
+  recapHeader.value = 'RÉCAPITULATIF DU MOIS';
+  recapHeader.font = { bold: true, color: { argb: 'FFFFFF' } };
+  recapHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A5F' } };
+  row++;
+
+  const totalDays = countDaysWorked(cadre.id, pointages,
+    `${year}-${String(month + 1).padStart(2, '0')}-01`,
+    `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`
+  );
+
+  const stats = [
+    ['Total jours travaillés:', `${totalDays} jours`],
+    ['Forfait annuel:', `${cadre.forfaitJours} jours`],
+    ['Mode:', 'Forfait jour (pas de compteur horaire)']
+  ];
+
+  stats.forEach(([label, value]) => {
+    sheet.getCell(row, 1).value = label;
+    sheet.getCell(row, 1).font = { bold: true };
+    sheet.getCell(row, 2).value = value;
+    row++;
+  });
+
+  // Ajuster largeurs
+  sheet.getColumn(1).width = 20;
   for (let i = 2; i <= 9; i++) {
     sheet.getColumn(i).width = 10;
   }
