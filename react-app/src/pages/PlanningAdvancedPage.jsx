@@ -1073,22 +1073,29 @@ const PlanningAdvancedPage = () => {
   const exportWeeklyPDF = async () => {
     try {
       setExporting(true);
-      showNotification('📄 Génération PDF...', 'info');
+      showNotification('📄 Génération PDF officiel...', 'info');
 
       const weekStart = getWeekStart(currentWeek);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
 
+      // Données complètes pour export officiel
       const exportData = {
         employees,
         shifts,
         weekStart: weekStart.toISOString().split('T')[0],
         weekEnd: weekEnd.toISOString().split('T')[0],
-        stats
+        stats,
+        // Pointages par employé/jour pour affichage des heures réelles
+        pointages: dailyPointages,
+        // Anomalies par shift ID pour afficher les retards/absences
+        anomalies: shiftAnomalies,
+        // Utiliser les noms officiels (NOM Prénom) pour le document
+        useOfficialNames: true
       };
 
       await planningExportService.generateWeeklyPDF(exportData);
-      showNotification('✅ PDF généré !', 'success');
+      showNotification('✅ PDF officiel généré !', 'success');
     } catch (error) {
       console.error('❌ Erreur export:', error);
       showNotification('❌ Erreur export', 'error');

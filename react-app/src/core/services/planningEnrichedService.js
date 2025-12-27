@@ -304,13 +304,24 @@ class PlanningEnrichedService {
     try {
       const usersQuery = query(collection(db, this.usersCollection), orderBy('displayName', 'asc'));
       const snapshot = await getDocs(usersQuery);
-      
+
       const employees = [];
       snapshot.forEach((doc) => {
         const userData = doc.data();
+        // Extraire prénom et nom pour les documents officiels
+        const firstName = userData.profile?.firstName || userData.displayName?.split(' ')[0] || '';
+        const lastName = userData.profile?.lastName || userData.displayName?.split(' ').slice(1).join(' ') || '';
+        // Format officiel: NOM Prénom (si disponible)
+        const officialName = (firstName && lastName)
+          ? `${lastName.toUpperCase()} ${firstName}`
+          : userData.displayName || 'Sans nom';
+
         employees.push({
           id: doc.id,
           name: userData.displayName || 'Sans nom',
+          firstName,
+          lastName,
+          officialName, // NOM Prénom pour documents officiels
           email: userData.email || '',
           photoURL: userData.photoURL || null,
           position: userData.profile?.role || 'Employé',

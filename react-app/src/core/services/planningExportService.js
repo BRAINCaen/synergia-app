@@ -1,14 +1,16 @@
 // ==========================================
-// 📁 react-app/src/core/services/planningExportService.js
+// react-app/src/core/services/planningExportService.js
 // SERVICE EXPORT PLANNING (PDF, EXCEL, IMPRESSION)
+// Version améliorée avec pointages, corrections et noms officiels
 // ==========================================
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 /**
- * 📄 SERVICE D'EXPORT DU PLANNING
+ * SERVICE D'EXPORT DU PLANNING
  * Génère des PDF et Excel du planning avec rendu visuel
+ * Inclut les pointages, corrections et noms officiels
  */
 class PlanningExportService {
   constructor() {
@@ -25,15 +27,25 @@ class PlanningExportService {
   }
 
   // ==========================================
-  // 📄 EXPORT PDF HEBDOMADAIRE
+  // EXPORT PDF HEBDOMADAIRE COMPLET
   // ==========================================
 
   /**
-   * 📄 GÉNÉRER UN PDF HEBDOMADAIRE
+   * GÉNÉRER UN PDF HEBDOMADAIRE COMPLET
+   * Inclut: shifts, pointages, corrections, noms officiels
    */
   async generateWeeklyPDF(weekData) {
     try {
-      const { employees, shifts, weekStart, weekEnd, stats } = weekData;
+      const {
+        employees,
+        shifts,
+        weekStart,
+        weekEnd,
+        stats,
+        pointages = {},      // Pointages par employé/jour
+        anomalies = {},      // Anomalies par shiftId
+        useOfficialNames = true  // Utiliser les noms officiels
+      } = weekData;
 
       // Créer le document PDF
       const doc = new jsPDF({
@@ -42,23 +54,26 @@ class PlanningExportService {
         format: 'a4'
       });
 
-      // Ajouter l'en-tête
-      this.addHeader(doc, 'Planning Hebdomadaire', weekStart, weekEnd);
+      // Ajouter l'en-tête officiel
+      this.addOfficialHeader(doc, 'Planning Hebdomadaire - Document Officiel', weekStart, weekEnd);
 
       // Ajouter les statistiques
-      this.addWeeklyStats(doc, stats, 20);
+      this.addWeeklyStats(doc, stats, 22);
 
-      // Générer le tableau du planning
-      this.addWeeklyTable(doc, employees, shifts, weekStart, 40);
+      // Générer le tableau du planning avec pointages et corrections
+      const tableEndY = this.addWeeklyTableComplete(doc, employees, shifts, pointages, anomalies, weekStart, 42, useOfficialNames);
 
-      // Ajouter le pied de page
-      this.addFooter(doc);
+      // Ajouter la légende
+      this.addLegend(doc, tableEndY + 10);
+
+      // Ajouter le pied de page officiel
+      this.addOfficialFooter(doc);
 
       // Sauvegarder le PDF
       const fileName = `planning_semaine_${weekStart}_${weekEnd}.pdf`;
       doc.save(fileName);
 
-      console.log('✅ PDF hebdomadaire généré:', fileName);
+      console.log('✅ PDF hebdomadaire officiel généré:', fileName);
       return { success: true, fileName };
     } catch (error) {
       console.error('❌ Erreur génération PDF hebdomadaire:', error);
@@ -67,12 +82,12 @@ class PlanningExportService {
   }
 
   /**
-   * 📊 AJOUTER LES STATISTIQUES HEBDOMADAIRES
+   * AJOUTER LES STATISTIQUES HEBDOMADAIRES
    */
   addWeeklyStats(doc, stats, y) {
     const statsData = [
-      ['Total Heures', `${stats.totalHours}h`, 'Shifts Planifiés', stats.shiftsCount],
-      ['Employés Planifiés', stats.employeesScheduled, 'Taux de Couverture', `${stats.coverage}%`]
+      ['Total Heures', `${stats?.totalHours || 0}h`, 'Shifts Planifiés', stats?.shiftsCount || 0],
+      ['Employés Planifiés', stats?.employeesScheduled || 0, 'Taux de Couverture', `${stats?.coverage || 0}%`]
     ];
 
     doc.autoTable({
@@ -93,9 +108,10 @@ class PlanningExportService {
   }
 
   /**
-   * 📅 GÉNÉRER LE TABLEAU HEBDOMADAIRE
+   * GÉNÉRER LE TABLEAU HEBDOMADAIRE COMPLET
+   * Avec pointages, corrections et noms officiels
    */
-  addWeeklyTable(doc, employees, shifts, weekStart, startY) {
+  addWeeklyTableComplete(doc, employees, shifts, pointages, anomalies, weekStart, startY, useOfficialNames) {
     // Générer les dates de la semaine
     const weekDates = this.generateWeekDates(weekStart);
     const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -105,22 +121,91 @@ class PlanningExportService {
 
     // Corps du tableau
     const body = employees.map(employee => {
-      const row = [employee.name];
+      // Utiliser le nom officiel (NOM Prénom) ou le displayName
+      const displayName = useOfficialNames && employee.officialName
+        ? employee.officialName
+        : employee.name || 'Sans nom';
+
+      const row = [displayName];
 
       weekDates.forEach(date => {
         // Trouver les shifts de l'employé pour ce jour
-        const dayShifts = shifts.filter(s => 
+        const dayShifts = shifts.filter(s =>
           s.employeeId === employee.id && s.date === date
         );
 
+        // Récupérer les pointages du jour
+        const dayKey = new Date(date).toDateString();
+        const userPointages = pointages[employee.id];
+        const dayPointageData = userPointages?.[dayKey] || [];
+
+        // Construire le texte de la cellule
+        let cellContent = '';
+
         if (dayShifts.length > 0) {
-          const shiftText = dayShifts.map(s => 
-            `${s.startTime}-${s.endTime}\n${s.position || ''}`
-          ).join('\n');
-          row.push(shiftText);
+          // Afficher les shifts planifiés
+          dayShifts.forEach((shift, idx) => {
+            if (idx > 0) cellContent += '\n---\n';
+
+            // Shift planifié
+            cellContent += `📅 ${shift.startTime}-${shift.endTime}`;
+            if (shift.position) {
+              cellContent += `\n${shift.position}`;
+            }
+
+            // Vérifier s'il y a des anomalies
+            const shiftAnomaly = anomalies[shift.id];
+            if (shiftAnomaly) {
+              if (shiftAnomaly.type === 'late') {
+                cellContent += `\n⚠️ Retard: ${shiftAnomaly.lateMinutes}min`;
+              } else if (shiftAnomaly.type === 'early_departure') {
+                cellContent += `\n⚠️ Départ anticipé`;
+              } else if (shiftAnomaly.type === 'missing') {
+                cellContent += `\n❌ Absent`;
+              } else if (shiftAnomaly.type === 'overtime') {
+                cellContent += `\n⏰ Heures sup`;
+              }
+            }
+          });
+
+          // Ajouter les pointages réels si disponibles
+          if (dayPointageData.length > 0) {
+            const arrivals = dayPointageData.filter(p => p.type === 'arrival');
+            const departures = dayPointageData.filter(p => p.type === 'departure');
+
+            if (arrivals.length > 0 || departures.length > 0) {
+              cellContent += '\n──────────';
+              cellContent += '\n⏱️ Pointages:';
+
+              if (arrivals[0]?.timestamp) {
+                const arrTime = this.formatTime(arrivals[0].timestamp);
+                cellContent += `\n→ ${arrTime}`;
+              }
+              if (departures[departures.length - 1]?.timestamp) {
+                const depTime = this.formatTime(departures[departures.length - 1].timestamp);
+                cellContent += `\n← ${depTime}`;
+              }
+            }
+          }
+        } else if (dayPointageData.length > 0) {
+          // Pointages sans shift planifié (hors planning)
+          cellContent = '⚡ Hors planning';
+          const arrivals = dayPointageData.filter(p => p.type === 'arrival');
+          const departures = dayPointageData.filter(p => p.type === 'departure');
+
+          if (arrivals[0]?.timestamp) {
+            const arrTime = this.formatTime(arrivals[0].timestamp);
+            cellContent += `\n→ ${arrTime}`;
+          }
+          if (departures[departures.length - 1]?.timestamp) {
+            const depTime = this.formatTime(departures[departures.length - 1].timestamp);
+            cellContent += `\n← ${depTime}`;
+          }
         } else {
-          row.push('-');
+          cellContent = '-';
         }
+
+        row.push(cellContent);
       });
 
       return row;
@@ -133,29 +218,92 @@ class PlanningExportService {
       body,
       theme: 'striped',
       styles: {
-        fontSize: 8,
+        fontSize: 7,
         cellPadding: 2,
-        overflow: 'linebreak'
+        overflow: 'linebreak',
+        lineWidth: 0.1
       },
       headStyles: {
         fillColor: [139, 92, 246],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        halign: 'center'
+        halign: 'center',
+        fontSize: 8
       },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 30 }
+        0: { fontStyle: 'bold', cellWidth: 35, halign: 'left' },
+        1: { cellWidth: 32, halign: 'center' },
+        2: { cellWidth: 32, halign: 'center' },
+        3: { cellWidth: 32, halign: 'center' },
+        4: { cellWidth: 32, halign: 'center' },
+        5: { cellWidth: 32, halign: 'center' },
+        6: { cellWidth: 32, halign: 'center' },
+        7: { cellWidth: 32, halign: 'center' }
+      },
+      didParseCell: (data) => {
+        // Colorer les cellules selon le contenu
+        if (data.section === 'body' && data.column.index > 0) {
+          const text = data.cell.text.join(' ');
+          if (text.includes('❌')) {
+            data.cell.styles.fillColor = [254, 226, 226]; // Rouge clair
+          } else if (text.includes('⚠️')) {
+            data.cell.styles.fillColor = [254, 243, 199]; // Jaune clair
+          } else if (text.includes('⚡')) {
+            data.cell.styles.fillColor = [219, 234, 254]; // Bleu clair
+          }
+        }
       },
       margin: { left: 14, right: 14 }
+    });
+
+    return doc.lastAutoTable.finalY;
+  }
+
+  /**
+   * AJOUTER LA LÉGENDE
+   */
+  addLegend(doc, y) {
+    // Vérifier s'il y a assez de place, sinon nouvelle page
+    if (y > doc.internal.pageSize.height - 40) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Légende:', 14, y);
+
+    doc.setFont('helvetica', 'normal');
+    const legendItems = [
+      '📅 Shift planifié',
+      '⏱️ Pointages réels',
+      '→ Arrivée',
+      '← Départ',
+      '⚠️ Anomalie (retard/départ anticipé)',
+      '❌ Absence',
+      '⚡ Hors planning',
+      '⏰ Heures supplémentaires'
+    ];
+
+    let xPos = 14;
+    legendItems.forEach((item, idx) => {
+      if (xPos > doc.internal.pageSize.width - 50) {
+        xPos = 14;
+        y += 4;
+      }
+      doc.text(item, xPos, y + 5 + Math.floor(idx / 4) * 4);
+      xPos += 50;
+      if (idx % 4 === 3) xPos = 14;
     });
   }
 
   // ==========================================
-  // 📄 EXPORT PDF MENSUEL
+  // EXPORT PDF MENSUEL
   // ==========================================
 
   /**
-   * 📄 GÉNÉRER UN PDF MENSUEL
+   * GÉNÉRER UN PDF MENSUEL
    */
   async generateMonthlyPDF(monthData) {
     try {
@@ -170,16 +318,16 @@ class PlanningExportService {
 
       // Ajouter l'en-tête
       const monthName = new Date(monthStart).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-      this.addHeader(doc, `Planning Mensuel - ${monthName}`, monthStart, monthEnd);
+      this.addOfficialHeader(doc, `Planning Mensuel - ${monthName}`, monthStart, monthEnd);
 
       // Ajouter les statistiques mensuelles
-      this.addMonthlyStats(doc, stats, 20);
+      this.addMonthlyStats(doc, stats, 22);
 
       // Générer le calendrier mensuel
-      this.addMonthlyCalendar(doc, employees, shifts, monthStart, 40);
+      this.addMonthlyCalendar(doc, employees, shifts, monthStart, 42);
 
       // Ajouter le pied de page
-      this.addFooter(doc);
+      this.addOfficialFooter(doc);
 
       // Sauvegarder le PDF
       const fileName = `planning_mensuel_${monthStart}.pdf`;
@@ -194,12 +342,12 @@ class PlanningExportService {
   }
 
   /**
-   * 📊 AJOUTER LES STATISTIQUES MENSUELLES
+   * AJOUTER LES STATISTIQUES MENSUELLES
    */
   addMonthlyStats(doc, stats, y) {
     const statsData = [
-      ['Total Heures Mois', `${stats.totalHours}h`, 'Shifts Mensuels', stats.shiftsCount],
-      ['Moyenne/Jour', `${stats.avgDailyHours}h`, 'Employés Actifs', stats.activeEmployees]
+      ['Total Heures Mois', `${stats?.totalHours || 0}h`, 'Shifts Mensuels', stats?.shiftsCount || 0],
+      ['Moyenne/Jour', `${stats?.avgDailyHours || 0}h`, 'Employés Actifs', stats?.activeEmployees || 0]
     ];
 
     doc.autoTable({
@@ -220,12 +368,12 @@ class PlanningExportService {
   }
 
   /**
-   * 📅 GÉNÉRER LE CALENDRIER MENSUEL
+   * GÉNÉRER LE CALENDRIER MENSUEL
    */
   addMonthlyCalendar(doc, employees, shifts, monthStart, startY) {
     // Obtenir tous les jours du mois
     const monthDates = this.generateMonthDates(monthStart);
-    
+
     // Créer un résumé par jour
     const headers = ['Date', 'Jour', 'Employés Planifiés', 'Total Heures', 'Shifts'];
 
@@ -276,11 +424,11 @@ class PlanningExportService {
   }
 
   // ==========================================
-  // 📄 EXPORT COMPARAISON PLANNING/BADGES
+  // EXPORT COMPARAISON PLANNING/BADGES
   // ==========================================
 
   /**
-   * 📄 GÉNÉRER UN PDF DE COMPARAISON PLANNING/BADGES
+   * GÉNÉRER UN PDF DE COMPARAISON PLANNING/BADGES
    */
   async generateComparisonPDF(comparisonData) {
     try {
@@ -293,25 +441,28 @@ class PlanningExportService {
         format: 'a4'
       });
 
+      // Utiliser le nom officiel si disponible
+      const employeeName = employee.officialName || employee.name;
+
       // Ajouter l'en-tête
-      this.addHeader(
-        doc, 
-        `Comparaison Planning / Badges - ${employee.name}`, 
-        startDate, 
+      this.addOfficialHeader(
+        doc,
+        `Comparaison Planning / Pointages - ${employeeName}`,
+        startDate,
         endDate
       );
 
       // Ajouter le résumé
-      this.addComparisonSummary(doc, summary, 20);
+      this.addComparisonSummary(doc, summary, 22);
 
       // Ajouter le tableau détaillé
-      this.addComparisonTable(doc, days, 50);
+      this.addComparisonTable(doc, days, 52);
 
       // Ajouter le pied de page
-      this.addFooter(doc);
+      this.addOfficialFooter(doc);
 
       // Sauvegarder le PDF
-      const fileName = `comparaison_${employee.name}_${startDate}_${endDate}.pdf`;
+      const fileName = `comparaison_${employeeName.replace(/\s+/g, '_')}_${startDate}_${endDate}.pdf`;
       doc.save(fileName);
 
       console.log('✅ PDF comparaison généré:', fileName);
@@ -323,12 +474,12 @@ class PlanningExportService {
   }
 
   /**
-   * 📊 AJOUTER LE RÉSUMÉ DE COMPARAISON
+   * AJOUTER LE RÉSUMÉ DE COMPARAISON
    */
   addComparisonSummary(doc, summary, y) {
     const summaryData = [
-      ['Heures Planifiées', `${summary.totalPlanned}h`, 'Heures Travaillées', `${summary.totalWorked}h`],
-      ['Différence', `${summary.totalDifference >= 0 ? '+' : ''}${summary.totalDifference}h`, 'Jours Comparés', summary.daysCompared]
+      ['Heures Planifiées', `${summary?.totalPlanned || 0}h`, 'Heures Travaillées', `${summary?.totalWorked || 0}h`],
+      ['Différence', `${(summary?.totalDifference || 0) >= 0 ? '+' : ''}${summary?.totalDifference || 0}h`, 'Jours Comparés', summary?.daysCompared || 0]
     ];
 
     doc.autoTable({
@@ -349,15 +500,15 @@ class PlanningExportService {
   }
 
   /**
-   * 📅 AJOUTER LE TABLEAU DE COMPARAISON DÉTAILLÉ
+   * AJOUTER LE TABLEAU DE COMPARAISON DÉTAILLÉ
    */
   addComparisonTable(doc, days, startY) {
     const headers = ['Date', 'Heures Planifiées', 'Heures Travaillées', 'Différence', 'Statut'];
 
-    const body = days.map(day => {
+    const body = (days || []).map(day => {
       const dateFormatted = new Date(day.date).toLocaleDateString('fr-FR');
-      const difference = day.difference >= 0 ? `+${day.difference}h` : `${day.difference}h`;
-      
+      const difference = (day.difference || 0) >= 0 ? `+${day.difference || 0}h` : `${day.difference || 0}h`;
+
       const statusText = {
         'ok': 'OK ✓',
         'overtime': 'Heures Sup',
@@ -369,8 +520,8 @@ class PlanningExportService {
 
       return [
         dateFormatted,
-        `${day.plannedHours}h`,
-        `${day.workedHours}h`,
+        `${day.plannedHours || 0}h`,
+        `${day.workedHours || 0}h`,
         difference,
         statusText
       ];
@@ -400,7 +551,7 @@ class PlanningExportService {
       },
       didParseCell: (data) => {
         // Colorer les lignes selon le statut
-        if (data.section === 'body' && data.column.index === 4) {
+        if (data.section === 'body' && data.column.index === 4 && days && days[data.row.index]) {
           const status = days[data.row.index].status;
           if (status === 'ok') {
             data.cell.styles.textColor = [16, 185, 129]; // Vert
@@ -416,97 +567,121 @@ class PlanningExportService {
   }
 
   // ==========================================
-  // 🎨 ÉLÉMENTS COMMUNS
+  // ÉLÉMENTS COMMUNS
   // ==========================================
 
   /**
-   * 📋 AJOUTER L'EN-TÊTE
+   * AJOUTER L'EN-TÊTE OFFICIEL
    */
-  addHeader(doc, title, startDate, endDate) {
+  addOfficialHeader(doc, title, startDate, endDate) {
     // Logo / Titre entreprise
     doc.setFontSize(20);
     doc.setTextColor(139, 92, 246);
     doc.setFont('helvetica', 'bold');
-    doc.text(this.companyName, 14, 15);
+    doc.text(this.companyName, 14, 12);
 
     // Titre du document
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
-    doc.text(title, 14, 25);
+    doc.text(title, 14, 20);
 
     // Période
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(107, 114, 128);
-    const periodText = `Du ${new Date(startDate).toLocaleDateString('fr-FR')} au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
-    doc.text(periodText, 14, 31);
+    const periodText = `Période: du ${new Date(startDate).toLocaleDateString('fr-FR')} au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+    doc.text(periodText, 14, 26);
 
-    // Date de génération
+    // Date de génération (à droite)
     const genDate = `Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`;
     doc.setFontSize(8);
-    doc.text(genDate, doc.internal.pageSize.width - 14, 15, { align: 'right' });
+    doc.text(genDate, doc.internal.pageSize.width - 14, 12, { align: 'right' });
+
+    // Mention document officiel
+    doc.setFontSize(7);
+    doc.setTextColor(139, 92, 246);
+    doc.text('Document officiel - À conserver', doc.internal.pageSize.width - 14, 17, { align: 'right' });
 
     // Ligne de séparation
     doc.setDrawColor(139, 92, 246);
     doc.setLineWidth(0.5);
-    doc.line(14, 35, doc.internal.pageSize.width - 14, 35);
+    doc.line(14, 30, doc.internal.pageSize.width - 14, 30);
   }
 
   /**
-   * 📋 AJOUTER LE PIED DE PAGE
+   * AJOUTER LE PIED DE PAGE OFFICIEL
    */
-  addFooter(doc) {
+  addOfficialFooter(doc) {
     const pageCount = doc.internal.getNumberOfPages();
-    
+
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      
+
       // Ligne de séparation
       doc.setDrawColor(139, 92, 246);
       doc.setLineWidth(0.5);
       doc.line(14, doc.internal.pageSize.height - 15, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 15);
-      
+
       // Texte du pied de page
       doc.setFontSize(8);
       doc.setTextColor(107, 114, 128);
       doc.setFont('helvetica', 'normal');
       doc.text(
-        `${this.companyName} - Planning`, 
-        14, 
+        `${this.companyName} - Planning Officiel`,
+        14,
         doc.internal.pageSize.height - 10
       );
-      
+
+      // Mention confidentiel
+      doc.setFontSize(7);
       doc.text(
-        `Page ${i} sur ${pageCount}`, 
-        doc.internal.pageSize.width - 14, 
-        doc.internal.pageSize.height - 10, 
+        'Document confidentiel - Usage interne uniquement',
+        doc.internal.pageSize.width / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+
+      doc.setFontSize(8);
+      doc.text(
+        `Page ${i} sur ${pageCount}`,
+        doc.internal.pageSize.width - 14,
+        doc.internal.pageSize.height - 10,
         { align: 'right' }
       );
     }
   }
 
   // ==========================================
-  // 🛠️ UTILITAIRES
+  // UTILITAIRES
   // ==========================================
 
   /**
-   * 📅 GÉNÉRER LES DATES D'UNE SEMAINE
+   * FORMATER UNE HEURE
+   */
+  formatTime(timestamp) {
+    if (!timestamp) return '--:--';
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /**
+   * GÉNÉRER LES DATES D'UNE SEMAINE
    */
   generateWeekDates(startDate) {
     const dates = [];
     const start = new Date(startDate);
-    
+
     for (let i = 0; i < 7; i++) {
       const date = new Date(start);
       date.setDate(date.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
     }
-    
+
     return dates;
   }
 
   /**
-   * 📅 GÉNÉRER LES DATES D'UN MOIS
+   * GÉNÉRER LES DATES D'UN MOIS
    */
   generateMonthDates(monthStart) {
     const dates = [];
@@ -514,21 +689,21 @@ class PlanningExportService {
     const year = start.getFullYear();
     const month = start.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       dates.push(date.toISOString().split('T')[0]);
     }
-    
+
     return dates;
   }
 
   // ==========================================
-  // 📊 EXPORT EXCEL (À IMPLÉMENTER AVEC XLSX)
+  // EXPORT EXCEL (À IMPLÉMENTER AVEC XLSX)
   // ==========================================
 
   /**
-   * 📊 GÉNÉRER UN FICHIER EXCEL
+   * GÉNÉRER UN FICHIER EXCEL
    * Note: Nécessite la bibliothèque xlsx
    */
   async generateExcel(data) {
