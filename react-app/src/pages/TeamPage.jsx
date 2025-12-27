@@ -18,6 +18,7 @@ import Layout from '../components/layout/Layout.jsx';
 
 // 🖼️ IMPORT DU COMPOSANT AVATAR UNIVERSEL
 import UserAvatar from '../components/common/UserAvatar.jsx';
+import DetailedPixelAvatar, { DEFAULT_DETAILED_CONFIG } from '../components/customization/DetailedPixelAvatar.jsx';
 
 // 🚀 IMPORT DU SYSTÈME BOOST
 import { BoostButton } from '../components/boost';
@@ -879,18 +880,56 @@ const loadAllTeamMembers = async () => {
                         <span className="text-xs text-gray-400 capitalize">{member.status}</span>
                       </div>
 
-                      <div className="mt-6 text-center">
-                        <div className="relative inline-block mb-4">
-                          <UserAvatar
-                            user={member}
-                            size="xl"
-                            showBorder={true}
-                          />
+                      {/* 🎴 CARTE AVATAR RPG */}
+                      <div className="mt-6">
+                        {/* Zone avatar en format carte */}
+                        <div className="relative mx-auto mb-4 w-full max-w-[180px]">
+                          {/* Cadre de la carte RPG */}
+                          <div className="relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-purple-500/50 bg-gradient-to-b from-slate-800 via-slate-900 to-black shadow-lg shadow-purple-500/20">
+                            {/* Background effet magique */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-purple-900/50 via-transparent to-blue-900/30" />
+
+                            {/* Avatar complet */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              {member.avatarType === 'detailed' && member.detailedAvatar ? (
+                                <DetailedPixelAvatar
+                                  config={member.detailedAvatar}
+                                  size="100%"
+                                  showBackground={false}
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <UserAvatar
+                                  user={member}
+                                  size="3xl"
+                                  showBorder={false}
+                                />
+                              )}
+                            </div>
+
+                            {/* Badge niveau en haut à gauche */}
+                            <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                              Nv.{member.level}
+                            </div>
+
+                            {/* Effet brillant sur le cadre */}
+                            <div className="absolute inset-0 rounded-xl ring-1 ring-white/10" />
+                          </div>
+
+                          {/* Plaque du nom style RPG */}
+                          <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 w-[90%]">
+                            <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 border border-yellow-500/50 rounded-lg px-3 py-1.5 text-center shadow-lg">
+                              <h3 className="text-sm font-bold text-yellow-400 truncate">{member.name}</h3>
+                            </div>
+                          </div>
                         </div>
 
-                        <h3 className="text-lg font-semibold text-white mb-1">{member.name}</h3>
-                        <p className="text-gray-400 text-sm mb-2">{member.role}</p>
-                        <p className="text-gray-500 text-xs mb-3">{member.department}</p>
+                        {/* Info sous la carte */}
+                        <div className="text-center mt-6">
+                          <p className="text-purple-400 text-sm font-medium mb-1">{member.role}</p>
+                          <p className="text-gray-500 text-xs">{member.department}</p>
+                        </div>
+                      </div>
 
                         <div className="grid grid-cols-3 gap-2 mb-4 text-center">
                           <div>
