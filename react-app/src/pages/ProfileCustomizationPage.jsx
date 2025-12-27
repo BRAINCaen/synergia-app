@@ -345,50 +345,12 @@ const ProfileCustomizationPage = () => {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3">
-                {/* Toggle Mode */}
-                <div className="flex bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl p-1">
-                  <motion.button
-                    onClick={() => setMode('pixelart')}
-                    whileTap={{ scale: 0.95 }}
-                    className={`
-                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
-                      ${mode === 'pixelart'
-                        ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                      }
-                    `}
-                  >
+                {/* Mode Badge RPG */}
+                <div className="flex bg-gradient-to-r from-yellow-500 to-orange-500 backdrop-blur-xl border border-white/20 rounded-xl px-3 sm:px-4 py-1.5 sm:py-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-white text-xs sm:text-sm">
                     <Sword className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="font-medium">RPG</span>
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setMode('dicebear')}
-                    whileTap={{ scale: 0.95 }}
-                    className={`
-                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
-                      ${mode === 'dicebear'
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                      }
-                    `}
-                  >
-                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="font-medium">Avatar</span>
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setMode('simple')}
-                    whileTap={{ scale: 0.95 }}
-                    className={`
-                      flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all text-xs sm:text-sm
-                      ${mode === 'simple'
-                        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                      }
-                    `}
-                  >
-                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="font-medium">Simple</span>
-                  </motion.button>
+                    <span className="font-medium">Avatar RPG</span>
+                  </div>
                 </div>
 
                 <motion.button
@@ -420,341 +382,92 @@ const ProfileCustomizationPage = () => {
                 </div>
               </motion.div>
 
-              {mode === 'pixelart' ? (
-                // Stats Pixel Art RPG
-                <>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Sword className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_CLASSES).length}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Classes</p>
-                      </div>
-                    </div>
-                  </motion.div>
+                {/* Stats Pixel Art RPG */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+              >
+                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                    <Sword className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                  </div>
+                  <div>
+                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_CLASSES).length}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-400">Classes</p>
+                  </div>
+                </div>
+              </motion.div>
 
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_PALETTES).length}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Couleurs</p>
-                      </div>
-                    </div>
-                  </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+              >
+                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                    <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_PALETTES).length}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-400">Couleurs</p>
+                  </div>
+                </div>
+              </motion.div>
 
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_POSES).length}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Poses</p>
-                      </div>
-                    </div>
-                  </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
+              >
+                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_POSES).length}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-400">Poses</p>
+                  </div>
+                </div>
+              </motion.div>
 
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Image className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_BACKGROUNDS).length}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Fonds</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </>
-              ) : mode === 'dicebear' ? (
-                // Stats DiceBear
-                <>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">8</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Styles</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">18</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Coiffures</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">18</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Couleurs</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Image className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">13</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Fonds</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </>
-              ) : mode === 'builder' ? (
-                // Stats Avatar Builder
-                <>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Wand2 className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">
-                          {builderStats?.classes?.unlocked || 0}/{builderStats?.classes?.total || 0}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Classes</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Sword className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">
-                          {builderStats?.weapons?.unlocked || 0}/{builderStats?.weapons?.total || 0}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Armes</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">
-                          {builderStats?.companions?.unlocked || 0}/{builderStats?.companions?.total || 0}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Compagnons</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-500/30 to-blue-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">
-                          {builderStats?.effects?.unlocked || 0}/{builderStats?.effects?.total || 0}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Effets</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </>
-              ) : (
-                // Stats Mode Simple
-                <>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500/30 to-pink-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">
-                          {unlockStats?.avatars?.unlocked}/{unlockStats?.avatars?.total}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Avatars</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">
-                          {unlockStats?.titles?.unlocked}/{unlockStats?.titles?.total}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Titres</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500/30 to-cyan-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Image className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">
-                          {unlockStats?.banners?.unlocked}/{unlockStats?.banners?.total}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Bannieres</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
-                  >
-                    <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500/30 to-orange-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
-                        <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl font-bold text-white">{userStats.streak || 0}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400">Série</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </>
-              )}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-white/5 backdrop-blur-xl rounded-xl p-2.5 sm:p-4 border border-white/10 hidden sm:block"
+              >
+                <div className="flex flex-col sm:flex-row items-center sm:gap-3 text-center sm:text-left">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500/30 to-emerald-500/20 rounded-lg flex items-center justify-center mb-1 sm:mb-0">
+                    <Image className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-base sm:text-xl font-bold text-white">{Object.keys(PIXEL_BACKGROUNDS).length}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-400">Fonds</p>
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </div>
 
-          {/* Contenu principal */}
-          <AnimatePresence mode="wait">
-            {mode === 'pixelart' ? (
-              // MODE PIXEL ART RPG - VRAIS PERSONNAGES PIXEL ART
-              <motion.div
-                key="pixelart"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <PixelArtAvatarBuilder
-                  initialConfig={pixelArtConfig}
-                  userStats={profileCustomizationService.normalizeUserStats(userStats)}
-                  onSave={handleSavePixelArt}
-                  saving={savingBuilder}
-                />
-              </motion.div>
-            ) : mode === 'dicebear' ? (
-              // MODE DICEBEAR - AVATARS CARTOON
-              <motion.div
-                key="dicebear"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <DiceBearAvatarBuilder
-                  initialConfig={diceBearConfig}
-                  userStats={profileCustomizationService.normalizeUserStats(userStats)}
-                  onSave={handleSaveDiceBear}
-                  saving={savingBuilder}
-                />
-              </motion.div>
-            ) : (
+          {/* Contenu principal - Mode RPG uniquement */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <PixelArtAvatarBuilder
+              initialConfig={pixelArtConfig}
+              userStats={profileCustomizationService.normalizeUserStats(userStats)}
+              onSave={handleSavePixelArt}
+              saving={savingBuilder}
+            />
+          </motion.div>
+
+          {/* Section masquée - ancien mode simple (conservé pour référence mais non affiché) */}
+          {false && (
               // MODE SIMPLE (EXISTANT)
               <motion.div
                 key="simple"
@@ -1032,8 +745,7 @@ const ProfileCustomizationPage = () => {
                   </AnimatePresence>
                 </div>
               </motion.div>
-            )}
-          </AnimatePresence>
+          )}
         </div>
       </div>
     </Layout>
