@@ -929,9 +929,8 @@ const loadAllTeamMembers = async () => {
                           <p className="text-purple-400 text-sm font-medium mb-1">{member.role}</p>
                           <p className="text-gray-500 text-xs">{member.department}</p>
                         </div>
-                      </div>
 
-                        <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                        <div className="grid grid-cols-3 gap-2 mb-4 text-center mt-4">
                           <div>
                             <div className="text-lg font-bold text-yellow-400" title={`XP Total: ${member.totalXp}`}>
                               {member.totalXp.toLocaleString()}
