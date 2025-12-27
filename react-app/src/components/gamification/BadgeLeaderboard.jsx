@@ -52,6 +52,7 @@ const BadgeLeaderboard = ({
             photoURL: data.photoURL,
             // Données avatar personnalisé
             avatarType: data.avatarType || null,
+            detailedAvatar: data.detailedAvatar || null,
             pixelArtAvatar: data.pixelArtAvatar || null,
             diceBearAvatar: data.diceBearAvatar || null,
             customization: data.customization || null,

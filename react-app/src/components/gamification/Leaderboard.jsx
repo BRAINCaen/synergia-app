@@ -101,6 +101,7 @@ const Leaderboard = () => {
               photoURL: userDocData.photoURL || null,
               // Données avatar personnalisé
               avatarType: userDocData.avatarType || null,
+              detailedAvatar: userDocData.detailedAvatar || null,
               pixelArtAvatar: userDocData.pixelArtAvatar || null,
               diceBearAvatar: userDocData.diceBearAvatar || null,
               customization: userDocData.customization || null,
@@ -141,6 +142,7 @@ const Leaderboard = () => {
                 photoURL: currentUserData.photoURL || null,
                 // Données avatar personnalisé
                 avatarType: currentUserData.avatarType || null,
+                detailedAvatar: currentUserData.detailedAvatar || null,
                 pixelArtAvatar: currentUserData.pixelArtAvatar || null,
                 diceBearAvatar: currentUserData.diceBearAvatar || null,
                 customization: currentUserData.customization || null,

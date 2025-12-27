@@ -302,6 +302,7 @@ const loadAllTeamMembers = async () => {
             photoURL: userData.photoURL || null,
             // Données avatar personnalisé
             avatarType: userData.avatarType || null,
+            detailedAvatar: userData.detailedAvatar || null,
             pixelArtAvatar: userData.pixelArtAvatar || null,
             diceBearAvatar: userData.diceBearAvatar || null,
             customization: userData.customization || null,
