@@ -84,6 +84,7 @@ import {
 import Layout from '../components/layout/Layout.jsx';
 import UserAvatar from '../components/common/UserAvatar.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
+import leaveAccrualService from '../core/services/leaveAccrualService.js';
 
 // 🔥 FIREBASE
 import { 
@@ -1423,20 +1424,65 @@ const LeavesTab = ({ employees, onRefresh }) => {
     }
   };
 
-  // Mettre à jour le solde d'un employé
+  // Mettre à jour le solde d'un employé (avec audit)
   const updateEmployeeBalance = async (employeeId) => {
     try {
-      await updateDoc(doc(db, 'users', employeeId), {
-        leaveBalance: {
-          ...employeeBalances[employeeId],
-          ...balanceForm,
-          lastUpdated: new Date().toISOString()
-        }
-      });
+      const currentBalance = employeeBalances[employeeId] || {};
+
+      // Utiliser le service avec audit trail
+      await leaveAccrualService.adjustBalance(
+        employeeId,
+        {
+          paidLeaveDays: balanceForm.paidLeaveDays,
+          bonusOffDays: balanceForm.bonusOffDays,
+          rttDays: balanceForm.rttDays
+        },
+        'Modification manuelle par admin',
+        user?.uid
+      );
+
       setEditingBalance(null);
       loadEmployeeBalances();
     } catch (error) {
       console.error('Erreur mise à jour solde:', error);
+      alert(`Erreur: ${error.message}`);
+    }
+  };
+
+  // Lancer l'accumulation mensuelle pour tous les employés
+  const runMonthlyAccrual = async () => {
+    if (!confirm('Lancer l\'accumulation mensuelle de CP pour tous les employés ? (+2.08 jours/employé)')) {
+      return;
+    }
+
+    try {
+      const results = await leaveAccrualService.runMonthlyAccrual();
+      alert(`Accumulation terminée !\n${results.updated} employés mis à jour sur ${results.processed}`);
+      loadEmployeeBalances();
+    } catch (error) {
+      console.error('Erreur accumulation:', error);
+      alert(`Erreur: ${error.message}`);
+    }
+  };
+
+  // Accumuler CP pour un employé spécifique
+  const accrueForEmployee = async (employeeId, employeeName) => {
+    const amount = prompt(`Nombre de jours CP à ajouter pour ${employeeName} :`, '2.08');
+    if (!amount) return;
+
+    const days = parseFloat(amount);
+    if (isNaN(days) || days <= 0) {
+      alert('Veuillez entrer un nombre valide');
+      return;
+    }
+
+    try {
+      await leaveAccrualService.accrueForEmployee(employeeId, days, 'Accumulation manuelle');
+      alert(`${days} jours CP ajoutés pour ${employeeName}`);
+      loadEmployeeBalances();
+    } catch (error) {
+      console.error('Erreur accumulation:', error);
+      alert(`Erreur: ${error.message}`);
     }
   };
 
@@ -1459,25 +1505,69 @@ const LeavesTab = ({ employees, onRefresh }) => {
 
   const handleApprove = async (requestId) => {
     try {
+      // Récupérer la demande pour avoir les infos
+      const request = leaveRequests.find(r => r.id === requestId);
+      if (!request) {
+        console.error('Demande non trouvée');
+        return;
+      }
+
+      // Calculer le nombre de jours
+      const startDate = request.startDate?.toDate?.() || new Date(request.startDate);
+      const endDate = request.endDate?.toDate?.() || new Date(request.endDate);
+      const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+      // Déduire du solde via le service
+      await leaveAccrualService.deductLeaveOnApproval(
+        request.userId,
+        request.leaveType || request.type || 'paid_leave',
+        days,
+        requestId
+      );
+
+      // Mettre à jour le statut de la demande
       await updateDoc(doc(db, 'leave_requests', requestId), {
         status: 'approved',
-        approvedAt: serverTimestamp()
+        approvedAt: serverTimestamp(),
+        daysDeducted: days
       });
+
+      // Recharger les données
       loadLeaveRequests();
+      loadEmployeeBalances();
+
+      console.log(`✅ Congé approuvé: ${days} jours déduits`);
     } catch (error) {
       console.error('Erreur approbation:', error);
+      alert(`Erreur: ${error.message}`);
     }
   };
 
   const handleReject = async (requestId) => {
     try {
+      // Récupérer la demande
+      const request = leaveRequests.find(r => r.id === requestId);
+
+      // Si la demande était approuvée, restaurer les jours
+      if (request?.status === 'approved' && request.daysDeducted) {
+        await leaveAccrualService.restoreLeaveOnCancellation(
+          request.userId,
+          request.leaveType || request.type || 'paid_leave',
+          request.daysDeducted,
+          requestId
+        );
+      }
+
       await updateDoc(doc(db, 'leave_requests', requestId), {
         status: 'rejected',
         rejectedAt: serverTimestamp()
       });
+
       loadLeaveRequests();
+      loadEmployeeBalances();
     } catch (error) {
       console.error('Erreur rejet:', error);
+      alert(`Erreur: ${error.message}`);
     }
   };
 
@@ -1553,9 +1643,18 @@ const LeavesTab = ({ employees, onRefresh }) => {
       {/* Vue Compteurs */}
       {subTab === 'balances' && (
         <GlassCard>
-          <div className="mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Gestion des Compteurs</h2>
-            <p className="text-gray-400 text-sm">Gérez les soldes de congés de chaque employé</p>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Gestion des Compteurs</h2>
+              <p className="text-gray-400 text-sm">Gérez les soldes de congés de chaque employé</p>
+            </div>
+            <button
+              onClick={runMonthlyAccrual}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-all text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Accumulation mensuelle (+2.08j)
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -1647,6 +1746,13 @@ const LeavesTab = ({ employees, onRefresh }) => {
                             ⏰ RTT: <strong>{(balance.rttDays || 0) - (balance.usedRttDays || 0)}</strong>/{balance.rttDays || 0}
                           </span>
                         </div>
+                        <button
+                          onClick={() => accrueForEmployee(emp.id, emp.displayName || emp.email)}
+                          className="p-2 bg-green-600/30 hover:bg-green-600/50 rounded-lg transition-colors border border-green-500/30"
+                          title="Ajouter des CP"
+                        >
+                          <Plus className="w-4 h-4 text-green-400" />
+                        </button>
                         <button
                           onClick={() => {
                             setEditingBalance(emp.id);
