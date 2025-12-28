@@ -67,6 +67,7 @@ export function usePushNotifications() {
         const initErrorMessages = {
           'notifications_not_supported': 'Notifications non supportées par ce navigateur.',
           'sw_not_supported': 'Service Workers non supportés.',
+          'push_not_supported': 'Push API non supportée par ce navigateur.',
           'https_required': 'HTTPS requis pour les notifications push.',
           'sw_registration_failed': 'Erreur d\'enregistrement du service worker.',
           'fcm_not_supported': 'Firebase Cloud Messaging non disponible sur ce navigateur.',
