@@ -16,14 +16,14 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 // Configuration Firebase (valeurs publiques - pas de secrets)
-// TODO: Remplacez par vos vraies valeurs Firebase
+// ⚠️ apiKey et appId doivent être récupérés dans Firebase Console > Project Settings > Your apps
 firebase.initializeApp({
-  apiKey: "AIzaSyBxxxxxx", // Remplacez par votre API key
+  apiKey: "AIzaSyBxxxxxx", // TODO: Remplacez par votre API key
   authDomain: "synergia-app-f27e7.firebaseapp.com",
   projectId: "synergia-app-f27e7",
   storageBucket: "synergia-app-f27e7.firebasestorage.app",
-  messagingSenderId: "YOUR_SENDER_ID", // Remplacez par votre Sender ID
-  appId: "YOUR_APP_ID" // Remplacez par votre App ID
+  messagingSenderId: "201912738922",
+  appId: "YOUR_APP_ID" // TODO: Remplacez par votre App ID
 });
 
 const messaging = firebase.messaging();
