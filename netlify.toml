@@ -25,6 +25,15 @@
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 # Redirections pour SPA (Single Page Application)
+
+# 🚨 IMPORTANT: Service Worker Firebase - NE PAS REDIRIGER
+# Cette règle doit être AVANT le catch-all
+[[redirects]]
+  from = "/firebase-messaging-sw.js"
+  to = "/firebase-messaging-sw.js"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -121,6 +130,14 @@
   [headers.values]
     Content-Type = "application/javascript; charset=utf-8"
     Cache-Control = "no-cache, no-store, must-revalidate"
+
+# 🚨 Service Worker Firebase - MIME type correct
+[[headers]]
+  for = "/firebase-messaging-sw.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Service-Worker-Allowed = "/"
 
 # Cache pour manifest
 [[headers]]

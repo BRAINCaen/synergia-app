@@ -85,7 +85,12 @@ export function usePushNotifications() {
           'error': result.error?.message || 'Erreur inconnue.'
         };
 
-        const errorMsg = errorMessages[result.reason] || result.error?.message || 'Impossible d\'activer les notifications';
+        let errorMsg = errorMessages[result.reason] || result.error?.message || 'Impossible d\'activer les notifications';
+
+        // Ajouter le code technique pour le debug (visible dans l'UI)
+        const techCode = result.initError || result.reason || 'unknown';
+        errorMsg = `${errorMsg} [${techCode}]`;
+
         console.error('❌ [Push] Erreur activation:', result.reason, result.initError, result.error);
         setError(errorMsg);
         setPermission(Notification.permission);
