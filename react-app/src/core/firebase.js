@@ -53,36 +53,52 @@ export const getFCMToken = async () => {
     if (!messaging) {
       messaging = await initializeMessaging();
     }
-    if (!messaging) return null;
+    if (!messaging) {
+      console.error('❌ [FCM] Messaging non disponible');
+      throw new Error('FCM non supporté sur ce navigateur');
+    }
 
     // Clé VAPID pour l'authentification web push
     const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
     if (!vapidKey) {
       console.error('❌ [FCM] VITE_FIREBASE_VAPID_KEY non configuré');
-      return null;
+      console.error('❌ [FCM] Ajoutez cette variable dans Netlify > Site settings > Environment variables');
+      throw new Error('Clé VAPID non configurée. Contactez l\'administrateur.');
     }
 
+    console.log('🔑 [FCM] VAPID key présente:', vapidKey.substring(0, 10) + '...');
+
     // Attendre que le service worker Firebase soit enregistré
-    let swRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+    let swRegistration = await navigator.serviceWorker.getRegistration('/');
 
     if (!swRegistration) {
       // Enregistrer le service worker si pas encore fait
       console.log('📝 [FCM] Enregistrement du service worker...');
-      swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        scope: '/'
-      });
-
-      // Attendre que le service worker soit actif
-      if (swRegistration.installing) {
-        await new Promise((resolve) => {
-          swRegistration.installing.addEventListener('statechange', (e) => {
-            if (e.target.state === 'activated') {
-              resolve();
-            }
-          });
+      try {
+        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+          scope: '/'
         });
+        console.log('✅ [FCM] Service Worker enregistré');
+      } catch (swError) {
+        console.error('❌ [FCM] Erreur enregistrement SW:', swError);
+        throw new Error('Impossible d\'enregistrer le service worker');
       }
+    }
+
+    // Attendre que le service worker soit actif
+    if (swRegistration.installing || swRegistration.waiting) {
+      console.log('⏳ [FCM] Attente activation du service worker...');
+      await new Promise((resolve, reject) => {
+        const sw = swRegistration.installing || swRegistration.waiting;
+        const timeout = setTimeout(() => reject(new Error('Timeout activation SW')), 10000);
+        sw.addEventListener('statechange', (e) => {
+          if (e.target.state === 'activated') {
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
+      });
     }
 
     console.log('✅ [FCM] Service Worker prêt, récupération du token...');
@@ -96,12 +112,12 @@ export const getFCMToken = async () => {
       console.log('✅ [FCM] Token obtenu:', token.substring(0, 20) + '...');
       return token;
     } else {
-      console.log('ℹ️ [FCM] Pas de token disponible, permission refusée ?');
-      return null;
+      console.log('⚠️ [FCM] Pas de token - permission refusée ou erreur');
+      throw new Error('Token non obtenu. Vérifiez les permissions du navigateur.');
     }
   } catch (error) {
     console.error('❌ [FCM] Erreur obtention token:', error);
-    return null;
+    throw error;
   }
 };
 
