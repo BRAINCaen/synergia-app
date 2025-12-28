@@ -22,7 +22,7 @@ firebase.initializeApp({
   projectId: "synergia-app-f27e7",
   storageBucket: "synergia-app-f27e7.firebasestorage.app",
   messagingSenderId: "201912738922",
-  appId: "1:201912738922:web:2fcc1e49293bb632899613"
+  appId: "1:201912738922:web:96a9f0a6ffadf9cf899613"
 });
 
 const messaging = firebase.messaging();
