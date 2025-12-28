@@ -17,6 +17,9 @@ import { ThemeProvider } from './shared/providers/ThemeProvider.jsx';
 // 🎉 CELEBRATION EFFECTS PROVIDER
 import { CelebrationProvider } from './shared/providers/CelebrationProvider.jsx';
 
+// 🔔 PUSH NOTIFICATIONS PROMPT
+import PushNotificationPrompt from './components/notifications/PushNotificationPrompt.jsx';
+
 const App = () => {
   const [appReady, setAppReady] = useState(false);
   const [error, setError] = useState(null);
@@ -128,6 +131,9 @@ const App = () => {
       <ThemeProvider>
         {/* 🎉 CELEBRATION EFFECTS PROVIDER */}
         <CelebrationProvider>
+          {/* 🔔 PUSH NOTIFICATIONS PROMPT */}
+          <PushNotificationPrompt />
+
           <Suspense
             fallback={
               <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
