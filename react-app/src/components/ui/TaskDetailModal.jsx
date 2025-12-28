@@ -191,57 +191,78 @@ const CommentsSection = ({ task, currentUser }) => {
  */
 const SubmissionSection = ({ task, currentUser, onSubmissionSuccess }) => {
   const [comment, setComment] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
-  const [fileType, setFileType] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [filePreviews, setFilePreviews] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   const expectedXP = task?.xpReward || 25;
 
-  // Gérer la sélection de fichier
+  // Gérer la sélection de fichier (multi-fichiers)
   const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
-    // Vérifier la taille (max 50MB pour permettre vidéos)
-    if (file.size > 50 * 1024 * 1024) {
-      setError('Le fichier est trop volumineux (max 50MB)');
-      return;
-    }
+    // Filtrer et valider les fichiers
+    const validFiles = files.filter(file => {
+      // Vérifier la taille (max 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        setError('Un fichier est trop volumineux (max 50MB)');
+        return false;
+      }
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      return isImage || isVideo;
+    });
 
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    
-    if (!isImage && !isVideo) {
+    if (validFiles.length === 0) {
       setError('Seuls les images et vidéos sont acceptées');
       return;
     }
 
-    setSelectedFile(file);
-    setFileType(isImage ? 'image' : 'video');
+    // Créer des previews pour les images
+    validFiles.forEach((file, index) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setFilePreviews(prev => {
+            const updated = [...prev];
+            updated[selectedFiles.length + index] = {
+              type: 'image',
+              url: e.target.result,
+              name: file.name
+            };
+            return updated;
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setFilePreviews(prev => {
+          const updated = [...prev];
+          updated[selectedFiles.length + index] = {
+            type: 'video',
+            name: file.name
+          };
+          return updated;
+        });
+      }
+    });
+
+    setSelectedFiles(prev => [...prev, ...validFiles]);
     setError('');
 
-    // Prévisualisation pour les images
-    if (isImage) {
-      const reader = new FileReader();
-      reader.onload = (e) => setFilePreview(e.target.result);
-      reader.readAsDataURL(file);
-    } else {
-      setFilePreview(null);
-    }
+    // Reset l'input pour permettre de resélectionner le même fichier
+    event.target.value = '';
   };
 
-  // Supprimer le fichier
-  const handleFileRemove = () => {
-    setSelectedFile(null);
-    setFilePreview(null);
-    setFileType('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  // Supprimer un fichier
+  const handleFileRemove = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setFilePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   // Soumettre la validation
@@ -265,8 +286,12 @@ const SubmissionSection = ({ task, currentUser, onSubmissionSuccess }) => {
       console.log('📤 [SUBMISSION] Soumission validation:', {
         taskId: task.id,
         userId: currentUser.uid,
-        hasFile: !!selectedFile
+        filesCount: selectedFiles.length
       });
+
+      // Séparer images et vidéos
+      const imageFiles = selectedFiles.filter(f => f.type.startsWith('image/'));
+      const videoFiles = selectedFiles.filter(f => f.type.startsWith('video/'));
 
       // Préparer les données de validation
       const validationData = {
@@ -276,8 +301,11 @@ const SubmissionSection = ({ task, currentUser, onSubmissionSuccess }) => {
         projectId: task.projectId,
         difficulty: task.difficulty || 'normal',
         comment: comment.trim(),
-        photoFile: fileType === 'image' ? selectedFile : null,
-        videoFile: fileType === 'video' ? selectedFile : null
+        photoFile: imageFiles[0] || null,
+        videoFile: videoFiles[0] || null,
+        // Support multi-fichiers
+        photoFiles: imageFiles,
+        videoFiles: videoFiles
       };
 
       // Appeler le service de validation
@@ -372,67 +400,116 @@ const SubmissionSection = ({ task, currentUser, onSubmissionSuccess }) => {
               <Camera className="w-4 h-4" />
               Preuve (photo/vidéo) - optionnel
             </label>
-            
-            {!selectedFile ? (
-              <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  disabled={submitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mx-auto w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
-                  disabled={submitting}
-                >
-                  <Upload className="w-6 h-6 text-gray-400" />
-                </button>
-                <p className="mt-2 text-sm text-gray-400">
-                  Cliquez pour ajouter une photo ou vidéo
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Max 50MB • JPG, PNG, MP4, MOV, etc.
-                </p>
-              </div>
-            ) : (
-              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                {/* Prévisualisation image */}
-                {fileType === 'image' && filePreview && (
-                  <img
-                    src={filePreview}
-                    alt="Prévisualisation"
-                    className="w-full h-48 object-cover rounded-lg mb-3"
-                  />
-                )}
 
-                {/* Info vidéo */}
-                {fileType === 'video' && (
-                  <div className="flex items-center gap-3 mb-3 bg-gray-900 p-3 rounded-lg">
-                    <Play className="w-8 h-8 text-blue-400" />
+            {/* Inputs cachés */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={submitting}
+              multiple
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={submitting}
+            />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              capture="environment"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={submitting}
+            />
+
+            {/* Boutons Photo/Vidéo/Galerie */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={submitting}
+                className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-xl p-3 flex flex-col items-center gap-1 transition-all disabled:opacity-50"
+              >
+                <Camera className="w-5 h-5" />
+                <span className="text-xs font-medium">Photo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => videoInputRef.current?.click()}
+                disabled={submitting}
+                className="bg-gradient-to-br from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl p-3 flex flex-col items-center gap-1 transition-all disabled:opacity-50"
+              >
+                <Video className="w-5 h-5" />
+                <span className="text-xs font-medium">Vidéo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submitting}
+                className="bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white rounded-xl p-3 flex flex-col items-center gap-1 transition-all disabled:opacity-50"
+              >
+                <ImageIcon className="w-5 h-5" />
+                <span className="text-xs font-medium">Galerie</span>
+              </button>
+            </div>
+
+            {/* Liste des fichiers sélectionnés */}
+            {selectedFiles.length > 0 ? (
+              <div className="space-y-2">
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-2 bg-gray-800 border border-gray-700 rounded-lg"
+                  >
+                    {/* Preview */}
+                    {file.type.startsWith('image/') && filePreviews[index]?.url ? (
+                      <img
+                        src={filePreviews[index].url}
+                        alt={file.name}
+                        className="w-12 h-12 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        {file.type.startsWith('video/') ? (
+                          <Play className="w-6 h-6 text-blue-400" />
+                        ) : (
+                          <ImageIcon className="w-6 h-6 text-blue-400" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Info fichier */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium truncate">{selectedFile.name}</p>
-                      <p className="text-gray-400 text-sm">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      <p className="text-white text-sm font-medium truncate">{file.name}</p>
+                      <p className="text-gray-400 text-xs">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
-                  </div>
-                )}
 
-                {/* Bouton supprimer */}
-                <button
-                  type="button"
-                  onClick={handleFileRemove}
-                  className="flex items-center gap-2 px-3 py-2 bg-red-900/30 text-red-400 rounded-lg hover:bg-red-900/50 transition-colors"
-                  disabled={submitting}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Supprimer</span>
-                </button>
+                    {/* Bouton supprimer */}
+                    <button
+                      type="button"
+                      onClick={() => handleFileRemove(index)}
+                      className="p-2 text-red-400 hover:bg-red-900/30 rounded-lg transition-colors"
+                      disabled={submitting}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
+            ) : (
+              <p className="text-center text-gray-500 text-xs py-2">
+                Prenez une photo ou choisissez dans votre galerie
+              </p>
             )}
           </div>
 
