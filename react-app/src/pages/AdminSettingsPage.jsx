@@ -1,6 +1,6 @@
 // ==========================================
 // 📁 react-app/src/pages/AdminSettingsPage.jsx
-// PAGE PARAMÈTRES SYSTÈME v4.1.0 - TOUS LES MODULES
+// PAGE PARAMÈTRES SYSTÈME v5.0 - TOUS LES MODULES
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
@@ -82,7 +82,7 @@ const showNotification = (message, type = 'info') => {
 };
 
 /**
- * ⚙️ PAGE PARAMÈTRES SYSTÈME ADMINISTRATION v4.1.0
+ * ⚙️ PAGE PARAMÈTRES SYSTÈME ADMINISTRATION v5.0
  */
 const AdminSettingsPage = () => {
   const { user } = useAuthStore();
@@ -92,7 +92,7 @@ const AdminSettingsPage = () => {
     // 📱 APPLICATION
     app: {
       name: 'Synergia',
-      version: '4.1.0',
+      version: '5.0',
       description: 'Plateforme de Gamification RH et Engagement Collaborateur par SARL BOEHME',
       maintenanceMode: false,
       maxUsers: 1000,
@@ -334,7 +334,7 @@ const AdminSettingsPage = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      console.log('⚙️ Chargement des paramètres système v4.1.0...');
+      console.log('⚙️ Chargement des paramètres système v5.0...');
 
       const settingsRef = doc(db, 'systemSettings', 'main');
       const settingsDoc = await getDoc(settingsRef);
@@ -344,13 +344,13 @@ const AdminSettingsPage = () => {
         setSettings(prevSettings => ({
           ...prevSettings,
           ...savedSettings,
-          app: { ...prevSettings.app, ...savedSettings.app, version: '4.1.0' }
+          app: { ...prevSettings.app, ...savedSettings.app, version: '5.0' }
         }));
       } else {
         await saveSettings(settings);
       }
 
-      console.log('✅ Paramètres v4.1.0 chargés avec succès');
+      console.log('✅ Paramètres v5.0 chargés avec succès');
     } catch (error) {
       console.error('❌ Erreur chargement paramètres:', error);
       showNotification('Erreur lors du chargement des paramètres', 'error');
@@ -365,7 +365,7 @@ const AdminSettingsPage = () => {
   const saveSettings = async (settingsToSave = settings) => {
     try {
       setSaving(true);
-      console.log('💾 Sauvegarde des paramètres v4.1.0...');
+      console.log('💾 Sauvegarde des paramètres v5.0...');
 
       // Sauvegarder les paramètres principaux
       const settingsRef = doc(db, 'systemSettings', 'main');
@@ -1012,7 +1012,7 @@ const AdminSettingsPage = () => {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-400">Chargement des paramètres v4.1.0...</p>
+            <p className="text-gray-400">Chargement des paramètres v5.0...</p>
           </div>
         </div>
       </Layout>

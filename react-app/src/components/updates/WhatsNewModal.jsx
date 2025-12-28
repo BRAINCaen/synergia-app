@@ -17,10 +17,48 @@ import {
 
 export const CHANGELOG = [
   {
+    version: '5.0',
+    date: '23 Décembre 2024',
+    title: 'Signature Électronique, Skills & Planning Avancé',
+    isNew: true,
+    highlights: [
+      {
+        icon: '✍️',
+        title: 'Signature électronique',
+        description: 'Signez vos pointages mensuels directement dans l\'application. Système sécurisé avec horodatage.',
+        type: 'feature'
+      },
+      {
+        icon: '🌳',
+        title: 'Système de Skills',
+        description: 'Nouvel arbre de compétences avec choix de talents. Personnalisez votre progression !',
+        type: 'feature'
+      },
+      {
+        icon: '📅',
+        title: 'Planning avancé',
+        description: 'Visualisez vos heures pointées et planifiées dans un planning complet et détaillé.',
+        type: 'feature'
+      },
+      {
+        icon: '🔔',
+        title: 'Notifications push',
+        description: 'Recevez des alertes même quand l\'application est fermée sur mobile.',
+        type: 'feature'
+      },
+      {
+        icon: '🎓',
+        title: 'Module Alternance',
+        description: 'Section dédiée dans l\'Académie pour gérer les parcours d\'alternants.',
+        type: 'feature'
+      }
+    ]
+  },
+  {
     version: '4.1.0',
     date: '24 Décembre 2024',
     title: 'Module Alternance & Objectifs Personnalisables',
-    isNew: true,
+    isNew: false,
     highlights: [
       {
         icon: '🎓',
