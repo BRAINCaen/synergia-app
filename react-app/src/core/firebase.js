@@ -1,12 +1,13 @@
 // ==========================================
 // 📁 react-app/src/core/firebase.js
-// CONFIGURATION FIREBASE COMPLÈTE AVEC GOOGLEPROVIDER
+// CONFIGURATION FIREBASE COMPLÈTE AVEC GOOGLEPROVIDER + FCM
 // ==========================================
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -24,6 +25,72 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// 🔔 FIREBASE CLOUD MESSAGING (Push Notifications)
+let messaging = null;
+
+// Initialiser FCM seulement si supporté (pas en SSR, pas en incognito)
+export const initializeMessaging = async () => {
+  try {
+    const supported = await isSupported();
+    if (supported && typeof window !== 'undefined') {
+      messaging = getMessaging(app);
+      console.log('✅ [FCM] Firebase Cloud Messaging initialisé');
+      return messaging;
+    } else {
+      console.log('ℹ️ [FCM] Push notifications non supportées sur ce navigateur');
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ [FCM] Erreur initialisation:', error);
+    return null;
+  }
+};
+
+// Obtenir le token FCM pour les notifications push
+export const getFCMToken = async () => {
+  try {
+    if (!messaging) {
+      messaging = await initializeMessaging();
+    }
+    if (!messaging) return null;
+
+    // Clé VAPID pour l'authentification web push
+    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+
+    const token = await getToken(messaging, {
+      vapidKey: vapidKey,
+      serviceWorkerRegistration: await navigator.serviceWorker.getRegistration()
+    });
+
+    if (token) {
+      console.log('✅ [FCM] Token obtenu:', token.substring(0, 20) + '...');
+      return token;
+    } else {
+      console.log('ℹ️ [FCM] Pas de token disponible, permission refusée ?');
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ [FCM] Erreur obtention token:', error);
+    return null;
+  }
+};
+
+// Écouter les messages en premier plan (app ouverte)
+export const onForegroundMessage = (callback) => {
+  if (!messaging) {
+    console.log('ℹ️ [FCM] Messaging non initialisé pour onMessage');
+    return () => {};
+  }
+
+  return onMessage(messaging, (payload) => {
+    console.log('📬 [FCM] Message reçu en premier plan:', payload);
+    callback(payload);
+  });
+};
+
+// Export messaging pour usage direct si besoin
+export { messaging };
 
 // 🔑 GOOGLE AUTH PROVIDER CENTRALISÉ
 export const googleProvider = new GoogleAuthProvider();
