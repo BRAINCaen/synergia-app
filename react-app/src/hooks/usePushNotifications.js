@@ -74,8 +74,19 @@ export function usePushNotifications() {
         return false;
       }
     } catch (err) {
-      setError('Erreur lors de l\'activation');
       console.error('Erreur enableNotifications:', err);
+      // Messages d'erreur plus descriptifs
+      if (err.code === 'messaging/permission-blocked') {
+        setError('Notifications bloquées. Autorisez-les dans les paramètres de votre navigateur.');
+      } else if (err.code === 'messaging/unsupported-browser') {
+        setError('Navigateur non compatible avec les notifications push.');
+      } else if (err.code === 'messaging/failed-service-worker-registration') {
+        setError('Erreur d\'enregistrement du service worker.');
+      } else if (err.message?.includes('VAPID')) {
+        setError('Configuration VAPID manquante.');
+      } else {
+        setError(`Erreur: ${err.message || 'Impossible d\'activer les notifications'}`);
+      }
       return false;
     } finally {
       setIsLoading(false);

@@ -58,9 +58,38 @@ export const getFCMToken = async () => {
     // Clé VAPID pour l'authentification web push
     const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
+    if (!vapidKey) {
+      console.error('❌ [FCM] VITE_FIREBASE_VAPID_KEY non configuré');
+      return null;
+    }
+
+    // Attendre que le service worker Firebase soit enregistré
+    let swRegistration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+
+    if (!swRegistration) {
+      // Enregistrer le service worker si pas encore fait
+      console.log('📝 [FCM] Enregistrement du service worker...');
+      swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/'
+      });
+
+      // Attendre que le service worker soit actif
+      if (swRegistration.installing) {
+        await new Promise((resolve) => {
+          swRegistration.installing.addEventListener('statechange', (e) => {
+            if (e.target.state === 'activated') {
+              resolve();
+            }
+          });
+        });
+      }
+    }
+
+    console.log('✅ [FCM] Service Worker prêt, récupération du token...');
+
     const token = await getToken(messaging, {
       vapidKey: vapidKey,
-      serviceWorkerRegistration: await navigator.serviceWorker.getRegistration()
+      serviceWorkerRegistration: swRegistration
     });
 
     if (token) {
