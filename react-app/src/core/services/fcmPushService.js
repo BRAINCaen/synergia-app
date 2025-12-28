@@ -37,36 +37,44 @@ class FCMPushService {
 
   /**
    * Initialiser le service de notifications push
+   * @returns {Promise<{success: boolean, error?: string}>}
    */
   async initialize() {
     if (this.isInitialized) {
       console.log('ℹ️ [FCM] Service déjà initialisé');
-      return true;
+      return { success: true };
     }
 
     try {
       // Vérifier si le navigateur supporte les notifications
       if (!('Notification' in window)) {
         console.log('ℹ️ [FCM] Notifications non supportées par ce navigateur');
-        return false;
+        return { success: false, error: 'notifications_not_supported' };
       }
 
       // Vérifier si les service workers sont supportés
       if (!('serviceWorker' in navigator)) {
         console.log('ℹ️ [FCM] Service Workers non supportés');
-        return false;
+        return { success: false, error: 'sw_not_supported' };
+      }
+
+      // Vérifier le contexte sécurisé (HTTPS requis pour les notifications push)
+      if (typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        console.log('⚠️ [FCM] HTTPS requis pour les notifications push');
+        return { success: false, error: 'https_required' };
       }
 
       // Enregistrer le service worker Firebase
       const registration = await this.registerServiceWorker();
-      if (!registration) {
-        return false;
+      if (!registration.success) {
+        return { success: false, error: registration.error || 'sw_registration_failed' };
       }
 
       // Initialiser Firebase Messaging
       const messaging = await initializeMessaging();
       if (!messaging) {
-        return false;
+        console.log('⚠️ [FCM] Firebase Messaging non disponible sur ce navigateur');
+        return { success: false, error: 'fcm_not_supported' };
       }
 
       // Écouter les messages en premier plan
@@ -74,28 +82,85 @@ class FCMPushService {
 
       this.isInitialized = true;
       console.log('✅ [FCM] Service de notifications push initialisé');
-      return true;
+      return { success: true };
 
     } catch (error) {
       console.error('❌ [FCM] Erreur initialisation:', error);
-      return false;
+      return { success: false, error: error.message || 'init_exception' };
     }
   }
 
   /**
    * Enregistrer le service worker Firebase
+   * @returns {Promise<{success: boolean, registration?: ServiceWorkerRegistration, error?: string}>}
    */
   async registerServiceWorker() {
     try {
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      // Vérifier si un SW est déjà enregistré
+      let registration = await navigator.serviceWorker.getRegistration('/');
+
+      if (registration) {
+        console.log('✅ [FCM] Service Worker existant trouvé:', registration.scope);
+
+        // Attendre que le SW soit actif
+        if (registration.installing || registration.waiting) {
+          console.log('⏳ [FCM] Attente activation du Service Worker...');
+          await this.waitForServiceWorkerActive(registration);
+        }
+
+        return { success: true, registration };
+      }
+
+      // Enregistrer un nouveau SW
+      console.log('📝 [FCM] Enregistrement du Service Worker...');
+      registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
         scope: '/'
       });
+
       console.log('✅ [FCM] Service Worker enregistré:', registration.scope);
-      return registration;
+
+      // Attendre que le SW soit actif
+      if (registration.installing || registration.waiting) {
+        console.log('⏳ [FCM] Attente activation du Service Worker...');
+        await this.waitForServiceWorkerActive(registration);
+      }
+
+      return { success: true, registration };
     } catch (error) {
       console.error('❌ [FCM] Erreur enregistrement Service Worker:', error);
-      return null;
+      return { success: false, error: `sw_error: ${error.message}` };
     }
+  }
+
+  /**
+   * Attendre que le service worker soit actif
+   */
+  async waitForServiceWorkerActive(registration) {
+    return new Promise((resolve, reject) => {
+      const sw = registration.installing || registration.waiting;
+      if (!sw) {
+        resolve();
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout activation SW'));
+      }, 15000);
+
+      if (sw.state === 'activated') {
+        clearTimeout(timeout);
+        resolve();
+        return;
+      }
+
+      sw.addEventListener('statechange', (e) => {
+        if (e.target.state === 'activated') {
+          clearTimeout(timeout);
+          console.log('✅ [FCM] Service Worker activé');
+          resolve();
+        }
+      });
+    });
   }
 
   /**
@@ -186,9 +251,10 @@ class FCMPushService {
     try {
       // Initialiser si nécessaire
       if (!this.isInitialized) {
-        const initSuccess = await this.initialize();
-        if (!initSuccess) {
-          return { success: false, reason: 'init_failed', error: new Error('Initialisation FCM échouée') };
+        const initResult = await this.initialize();
+        if (!initResult.success) {
+          console.error('❌ [FCM] Initialisation échouée:', initResult.error);
+          return { success: false, reason: 'init_failed', error: new Error(initResult.error || 'Initialisation FCM échouée'), initError: initResult.error };
         }
       }
 

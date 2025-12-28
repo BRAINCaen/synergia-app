@@ -12,39 +12,31 @@
 // ==========================================
 
 // Import Firebase scripts
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+try {
+  importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+} catch (e) {
+  console.error('[SW] Erreur chargement Firebase scripts:', e);
+}
 
 // Configuration Firebase (valeurs publiques)
-firebase.initializeApp({
-  apiKey: "AIzaSyD7uBuAQaOhZO2owkZEuMKC5Vji6PrB2f8",
-  authDomain: "synergia-app-f27e7.firebaseapp.com",
-  projectId: "synergia-app-f27e7",
-  storageBucket: "synergia-app-f27e7.firebasestorage.app",
-  messagingSenderId: "201912738922",
-  appId: "1:201912738922:web:96a9f0a6ffadf9cf899613"
-});
+let messaging = null;
 
-const messaging = firebase.messaging();
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyD7uBuAQaOhZO2owkZEuMKC5Vji6PrB2f8",
+    authDomain: "synergia-app-f27e7.firebaseapp.com",
+    projectId: "synergia-app-f27e7",
+    storageBucket: "synergia-app-f27e7.firebasestorage.app",
+    messagingSenderId: "201912738922",
+    appId: "1:201912738922:web:96a9f0a6ffadf9cf899613"
+  });
 
-// Gestionnaire de messages en arrière-plan
-messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Message reçu en arrière-plan:', payload);
-
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Synergia';
-  const notificationOptions = {
-    body: payload.notification?.body || payload.data?.body || 'Nouvelle notification',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
-    tag: payload.data?.tag || 'synergia-notification',
-    data: payload.data || {},
-    vibrate: [100, 50, 100],
-    actions: getNotificationActions(payload.data?.type),
-    requireInteraction: payload.data?.priority === 'high'
-  };
-
-  return self.registration.showNotification(notificationTitle, notificationOptions);
-});
+  messaging = firebase.messaging();
+  console.log('[SW] Firebase Messaging initialisé');
+} catch (e) {
+  console.error('[SW] Erreur initialisation Firebase:', e);
+}
 
 // Actions selon le type de notification
 function getNotificationActions(type) {
@@ -75,6 +67,27 @@ function getNotificationActions(type) {
         { action: 'view', title: 'Voir' }
       ];
   }
+}
+
+// Gestionnaire de messages en arrière-plan
+if (messaging) {
+  messaging.onBackgroundMessage((payload) => {
+    console.log('[SW] Message reçu en arrière-plan:', payload);
+
+    const notificationTitle = payload.notification?.title || payload.data?.title || 'Synergia';
+    const notificationOptions = {
+      body: payload.notification?.body || payload.data?.body || 'Nouvelle notification',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      tag: payload.data?.tag || 'synergia-notification',
+      data: payload.data || {},
+      vibrate: [100, 50, 100],
+      actions: getNotificationActions(payload.data?.type),
+      requireInteraction: payload.data?.priority === 'high'
+    };
+
+    return self.registration.showNotification(notificationTitle, notificationOptions);
+  });
 }
 
 // Gestionnaire de clic sur notification
@@ -136,6 +149,40 @@ self.addEventListener('notificationclick', (event) => {
         }
       })
   );
+});
+
+// Gestionnaire de clic sur notification fermée (push event)
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push event reçu:', event);
+
+  // Si le message est traité par onBackgroundMessage, on ne fait rien ici
+  // Cet événement est un fallback au cas où onBackgroundMessage ne fonctionne pas
+  if (!event.data) {
+    console.log('[SW] Push sans données, ignoré');
+    return;
+  }
+
+  try {
+    const payload = event.data.json();
+    console.log('[SW] Push payload:', payload);
+
+    // Si messaging n'est pas disponible, afficher la notification manuellement
+    if (!messaging) {
+      const title = payload.notification?.title || 'Synergia';
+      const options = {
+        body: payload.notification?.body || '',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: payload.data || {}
+      };
+
+      event.waitUntil(
+        self.registration.showNotification(title, options)
+      );
+    }
+  } catch (e) {
+    console.error('[SW] Erreur traitement push:', e);
+  }
 });
 
 // Gestionnaire d'installation

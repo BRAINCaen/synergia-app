@@ -63,17 +63,30 @@ export function usePushNotifications() {
         setIsEnabled(true);
         return true;
       } else {
-        // Afficher un message d'erreur détaillé selon la raison
+        // Messages d'erreur détaillés selon la raison d'échec
+        const initErrorMessages = {
+          'notifications_not_supported': 'Notifications non supportées par ce navigateur.',
+          'sw_not_supported': 'Service Workers non supportés.',
+          'https_required': 'HTTPS requis pour les notifications push.',
+          'sw_registration_failed': 'Erreur d\'enregistrement du service worker.',
+          'fcm_not_supported': 'Firebase Cloud Messaging non disponible sur ce navigateur.',
+        };
+
         const errorMessages = {
           'denied': 'Notifications bloquées. Activez-les dans les paramètres de votre navigateur.',
           'rejected': 'Permission refusée par l\'utilisateur.',
           'no_token': 'Erreur de configuration FCM. Vérifiez la clé VAPID.',
           'token_error': result.error?.message || 'Erreur lors de l\'obtention du token.',
           'not_supported': 'Navigateur non compatible avec les notifications push.',
-          'init_failed': 'Initialisation du service de notifications échouée.',
+          'init_failed': result.initError
+            ? (initErrorMessages[result.initError] || `Erreur: ${result.initError}`)
+            : 'Initialisation du service de notifications échouée.',
           'error': result.error?.message || 'Erreur inconnue.'
         };
-        setError(errorMessages[result.reason] || result.error?.message || 'Impossible d\'activer les notifications');
+
+        const errorMsg = errorMessages[result.reason] || result.error?.message || 'Impossible d\'activer les notifications';
+        console.error('❌ [Push] Erreur activation:', result.reason, result.initError, result.error);
+        setError(errorMsg);
         setPermission(Notification.permission);
         return false;
       }
