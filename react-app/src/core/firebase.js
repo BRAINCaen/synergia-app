@@ -32,17 +32,29 @@ let messaging = null;
 // Initialiser FCM seulement si supporté (pas en SSR, pas en incognito)
 export const initializeMessaging = async () => {
   try {
+    // Diagnostics détaillés pour le debug mobile
+    console.log('🔍 [FCM] Vérification du support...');
+    console.log('  - window:', typeof window !== 'undefined' ? 'OK' : 'NON');
+    console.log('  - Notification API:', 'Notification' in window ? 'OK' : 'NON');
+    console.log('  - serviceWorker:', 'serviceWorker' in navigator ? 'OK' : 'NON');
+    console.log('  - PushManager:', 'PushManager' in window ? 'OK' : 'NON');
+
     const supported = await isSupported();
+    console.log('  - Firebase isSupported():', supported ? 'OK' : 'NON');
+
     if (supported && typeof window !== 'undefined') {
       messaging = getMessaging(app);
       console.log('✅ [FCM] Firebase Cloud Messaging initialisé');
       return messaging;
     } else {
       console.log('ℹ️ [FCM] Push notifications non supportées sur ce navigateur');
+      console.log('  Raison probable: ', !supported ? 'Firebase isSupported() = false' : 'window undefined');
       return null;
     }
   } catch (error) {
     console.error('❌ [FCM] Erreur initialisation:', error);
+    console.error('  Message:', error.message);
+    console.error('  Code:', error.code);
     return null;
   }
 };
