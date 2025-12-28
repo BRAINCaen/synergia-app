@@ -1,2 +1,5 @@
+# Service Worker Firebase - NE PAS rediriger
+/firebase-messaging-sw.js    /firebase-messaging-sw.js   200
+
 # Netlify redirects for React Router (SPA)
 /*    /index.html   200
