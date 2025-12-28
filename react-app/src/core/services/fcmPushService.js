@@ -45,35 +45,51 @@ class FCMPushService {
       return { success: true };
     }
 
+    console.log('🚀 [FCM] Début initialisation...');
+    console.log('  - User Agent:', navigator.userAgent);
+
     try {
       // Vérifier si le navigateur supporte les notifications
-      if (!('Notification' in window)) {
-        console.log('ℹ️ [FCM] Notifications non supportées par ce navigateur');
+      const hasNotification = 'Notification' in window;
+      console.log('  - Notification API:', hasNotification ? 'OK' : 'NON');
+      if (!hasNotification) {
         return { success: false, error: 'notifications_not_supported' };
       }
 
       // Vérifier si les service workers sont supportés
-      if (!('serviceWorker' in navigator)) {
-        console.log('ℹ️ [FCM] Service Workers non supportés');
+      const hasServiceWorker = 'serviceWorker' in navigator;
+      console.log('  - ServiceWorker API:', hasServiceWorker ? 'OK' : 'NON');
+      if (!hasServiceWorker) {
         return { success: false, error: 'sw_not_supported' };
       }
 
-      // Vérifier le contexte sécurisé (HTTPS requis pour les notifications push)
-      if (typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        console.log('⚠️ [FCM] HTTPS requis pour les notifications push');
+      // Vérifier PushManager
+      const hasPushManager = 'PushManager' in window;
+      console.log('  - PushManager API:', hasPushManager ? 'OK' : 'NON');
+      if (!hasPushManager) {
+        return { success: false, error: 'push_not_supported' };
+      }
+
+      // Vérifier le contexte sécurisé
+      const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+      console.log('  - HTTPS:', isSecure ? 'OK' : 'NON', `(${window.location.protocol})`);
+      if (!isSecure) {
         return { success: false, error: 'https_required' };
       }
 
       // Enregistrer le service worker Firebase
+      console.log('📝 [FCM] Enregistrement du Service Worker...');
       const registration = await this.registerServiceWorker();
+      console.log('  - SW Registration:', registration.success ? 'OK' : 'ÉCHEC', registration.error || '');
       if (!registration.success) {
         return { success: false, error: registration.error || 'sw_registration_failed' };
       }
 
       // Initialiser Firebase Messaging
+      console.log('🔥 [FCM] Initialisation Firebase Messaging...');
       const messaging = await initializeMessaging();
+      console.log('  - Firebase Messaging:', messaging ? 'OK' : 'NULL');
       if (!messaging) {
-        console.log('⚠️ [FCM] Firebase Messaging non disponible sur ce navigateur');
         return { success: false, error: 'fcm_not_supported' };
       }
 
@@ -81,12 +97,13 @@ class FCMPushService {
       this.setupForegroundListener();
 
       this.isInitialized = true;
-      console.log('✅ [FCM] Service de notifications push initialisé');
+      console.log('✅ [FCM] Service initialisé avec succès!');
       return { success: true };
 
     } catch (error) {
-      console.error('❌ [FCM] Erreur initialisation:', error);
-      return { success: false, error: error.message || 'init_exception' };
+      console.error('❌ [FCM] Exception initialisation:', error.message);
+      console.error('  - Stack:', error.stack);
+      return { success: false, error: `exception: ${error.message}` };
     }
   }
 
