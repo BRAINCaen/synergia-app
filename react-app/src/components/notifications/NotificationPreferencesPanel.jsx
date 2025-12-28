@@ -32,6 +32,7 @@ import externalNotificationService, {
   NOTIFICATION_CATEGORIES,
   getDefaultPreferences
 } from '../../core/services/externalNotificationService';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 // ==========================================
 // COMPOSANT TOGGLE SWITCH
@@ -175,13 +176,23 @@ const NotificationCategory = ({
 const NotificationPreferencesPanel = () => {
   const { user } = useAuthStore();
 
+  // Hook pour les notifications push FCM
+  const {
+    isSupported: pushSupported,
+    permission: pushPermission,
+    isEnabled: pushIsEnabled,
+    isLoading: pushLoading,
+    error: pushError,
+    enableNotifications,
+    disableNotifications,
+    testNotification
+  } = usePushNotifications();
+
   const [preferences, setPreferences] = useState(getDefaultPreferences());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
-  const [pushSupported, setPushSupported] = useState(true);
-  const [pushPermission, setPushPermission] = useState('default');
   const [showSaved, setShowSaved] = useState(false);
 
   // Charger les préférences
@@ -193,13 +204,6 @@ const NotificationPreferencesPanel = () => {
       try {
         const prefs = await externalNotificationService.getUserPreferences(user.uid);
         setPreferences(prefs);
-
-        // Vérifier le support des notifications push
-        if ('Notification' in window) {
-          setPushPermission(Notification.permission);
-        } else {
-          setPushSupported(false);
-        }
       } catch (error) {
         console.error('Erreur chargement préférences:', error);
       }
@@ -225,21 +229,26 @@ const NotificationPreferencesPanel = () => {
     setSaving(false);
   };
 
-  // Demander permission push
-  const requestPushPermission = async () => {
-    if (!('Notification' in window)) return;
-
-    try {
-      const permission = await Notification.requestPermission();
-      setPushPermission(permission);
-
-      if (permission === 'granted') {
-        // Ici on pourrait initialiser le service worker et récupérer le token FCM
-        updatePreference('pushEnabled', true);
-      }
-    } catch (error) {
-      console.error('Erreur demande permission:', error);
+  // Activer les notifications push via FCM
+  const handleEnablePush = async () => {
+    const success = await enableNotifications();
+    if (success) {
+      updatePreference('pushEnabled', true);
+      // Réinitialiser le flag localStorage pour permettre de réafficher le prompt si besoin
+      localStorage.removeItem('push_notification_asked');
     }
+  };
+
+  // Désactiver les notifications push
+  const handleDisablePush = async () => {
+    await disableNotifications();
+    updatePreference('pushEnabled', false);
+  };
+
+  // Réinitialiser pour permettre de réafficher le prompt
+  const resetPushPrompt = () => {
+    localStorage.removeItem('push_notification_asked');
+    alert('Le prompt de notifications s\'affichera au prochain rafraîchissement de la page.');
   };
 
   // Mise à jour d'une préférence
@@ -394,41 +403,83 @@ const NotificationPreferencesPanel = () => {
           </div>
 
           {/* Push notifications */}
-          <div className={`flex items-center justify-between p-4 bg-white/5 rounded-xl transition-opacity ${!preferences.enabled ? 'opacity-50' : ''}`}>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <Smartphone className="w-5 h-5 text-green-400" />
+          <div className={`p-4 bg-white/5 rounded-xl transition-opacity ${!preferences.enabled ? 'opacity-50' : ''}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${pushIsEnabled ? 'bg-green-500/20' : 'bg-gray-500/20'}`}>
+                  <Smartphone className={`w-5 h-5 ${pushIsEnabled ? 'text-green-400' : 'text-gray-400'}`} />
+                </div>
+                <div>
+                  <span className="text-white font-medium">Notifications push</span>
+                  <p className="text-gray-400 text-sm">
+                    {!pushSupported ? (
+                      'Non supporté par votre navigateur'
+                    ) : pushPermission === 'denied' ? (
+                      'Bloqué - Modifiez les permissions du navigateur'
+                    ) : pushIsEnabled ? (
+                      <span className="text-green-400">✓ Activées sur cet appareil</span>
+                    ) : (
+                      'Recevoir des alertes même quand l\'app est fermée'
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="text-white font-medium">Notifications push</span>
-                <p className="text-gray-400 text-sm">
-                  {!pushSupported ? (
-                    'Non supporté par votre navigateur'
-                  ) : pushPermission === 'denied' ? (
-                    'Bloqué - Modifiez les permissions du navigateur'
-                  ) : pushPermission === 'granted' ? (
-                    'Recevoir des notifications sur cet appareil'
+
+              {/* Bouton d'activation/désactivation */}
+              {!pushSupported ? null : pushPermission === 'denied' ? (
+                <span className="text-red-400 text-sm">Bloqué</span>
+              ) : pushIsEnabled ? (
+                <div className="flex items-center gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={testNotification}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg"
+                    title="Tester les notifications"
+                  >
+                    Test
+                  </motion.button>
+                  <ToggleSwitch
+                    enabled={true}
+                    onChange={handleDisablePush}
+                    disabled={pushLoading}
+                  />
+                </div>
+              ) : (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleEnablePush}
+                  disabled={pushLoading || !preferences.enabled}
+                  className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg disabled:opacity-50 flex items-center gap-2"
+                >
+                  {pushLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    'Cliquez pour activer les notifications push'
+                    <>
+                      <Bell className="w-4 h-4" />
+                      Activer
+                    </>
                   )}
-                </p>
-              </div>
+                </motion.button>
+              )}
             </div>
-            {pushPermission !== 'granted' && pushSupported && pushPermission !== 'denied' ? (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={requestPushPermission}
-                className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg"
+
+            {/* Message d'erreur */}
+            {pushError && (
+              <div className="mt-3 p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-red-400 text-sm">{pushError}</p>
+              </div>
+            )}
+
+            {/* Option pour réinitialiser le prompt */}
+            {pushSupported && !pushIsEnabled && pushPermission !== 'denied' && (
+              <button
+                onClick={resetPushPrompt}
+                className="mt-3 text-xs text-gray-500 hover:text-gray-400 underline"
               >
-                Activer
-              </motion.button>
-            ) : (
-              <ToggleSwitch
-                enabled={preferences.pushEnabled && pushPermission === 'granted'}
-                onChange={(val) => updatePreference('pushEnabled', val)}
-                disabled={!preferences.enabled || pushPermission !== 'granted'}
-              />
+                Réafficher le popup de demande de notifications
+              </button>
             )}
           </div>
         </div>
