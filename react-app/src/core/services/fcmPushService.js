@@ -186,7 +186,10 @@ class FCMPushService {
     try {
       // Initialiser si nécessaire
       if (!this.isInitialized) {
-        await this.initialize();
+        const initSuccess = await this.initialize();
+        if (!initSuccess) {
+          return { success: false, reason: 'init_failed', error: new Error('Initialisation FCM échouée') };
+        }
       }
 
       // Demander la permission si nécessaire
@@ -195,10 +198,17 @@ class FCMPushService {
         return { success: false, reason: permissionResult.reason };
       }
 
-      // Obtenir le token
-      const token = await getFCMToken();
+      // Obtenir le token (peut lever une exception avec message détaillé)
+      let token;
+      try {
+        token = await getFCMToken();
+      } catch (tokenError) {
+        console.error('❌ [FCM] Erreur token:', tokenError.message);
+        return { success: false, reason: 'token_error', error: tokenError };
+      }
+
       if (!token) {
-        return { success: false, reason: 'no_token' };
+        return { success: false, reason: 'no_token', error: new Error('Token vide retourné') };
       }
 
       this.currentToken = token;

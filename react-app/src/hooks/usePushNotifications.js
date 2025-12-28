@@ -63,13 +63,17 @@ export function usePushNotifications() {
         setIsEnabled(true);
         return true;
       } else {
-        if (result.reason === 'denied') {
-          setError('Notifications bloquées. Activez-les dans les paramètres de votre navigateur.');
-        } else if (result.reason === 'rejected') {
-          setError('Permission refusée');
-        } else {
-          setError('Impossible d\'activer les notifications');
-        }
+        // Afficher un message d'erreur détaillé selon la raison
+        const errorMessages = {
+          'denied': 'Notifications bloquées. Activez-les dans les paramètres de votre navigateur.',
+          'rejected': 'Permission refusée par l\'utilisateur.',
+          'no_token': 'Erreur de configuration FCM. Vérifiez la clé VAPID.',
+          'token_error': result.error?.message || 'Erreur lors de l\'obtention du token.',
+          'not_supported': 'Navigateur non compatible avec les notifications push.',
+          'init_failed': 'Initialisation du service de notifications échouée.',
+          'error': result.error?.message || 'Erreur inconnue.'
+        };
+        setError(errorMessages[result.reason] || result.error?.message || 'Impossible d\'activer les notifications');
         setPermission(Notification.permission);
         return false;
       }
