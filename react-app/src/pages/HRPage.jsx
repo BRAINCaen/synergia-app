@@ -77,7 +77,8 @@ import {
   MessageCircle,
   AlertOctagon,
   CheckSquare,
-  Square
+  Square,
+  Heart
 } from 'lucide-react';
 
 // 🎯 IMPORTS
@@ -85,6 +86,7 @@ import Layout from '../components/layout/Layout.jsx';
 import UserAvatar from '../components/common/UserAvatar.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import leaveAccrualService from '../core/services/leaveAccrualService.js';
+import WellbeingDashboard from '../components/wellbeing/WellbeingDashboard.jsx';
 
 // 🔥 FIREBASE
 import { 
@@ -476,6 +478,7 @@ const HRPage = () => {
     { id: 'employees', label: 'Salariés', icon: Users },
     { id: 'leaves', label: 'Congés', icon: Calendar },
     { id: 'timesheet', label: 'Pointage', icon: Clock },
+    { id: 'wellbeing', label: 'Bien-être', icon: Heart },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'payroll', label: 'Paie', icon: DollarSign },
     { id: 'settings', label: 'Paramètres', icon: Settings }
@@ -619,6 +622,16 @@ const HRPage = () => {
                 employees={employees}
                 onRefresh={handleRefresh}
               />
+            )}
+            {activeTab === 'wellbeing' && (
+              <motion.div
+                key="wellbeing"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <WellbeingDashboard />
+              </motion.div>
             )}
             {activeTab === 'documents' && (
               <DocumentsTab
