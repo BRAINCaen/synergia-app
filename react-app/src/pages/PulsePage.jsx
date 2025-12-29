@@ -57,6 +57,11 @@ import Layout from '../components/layout/Layout.jsx';
 import { usePulse } from '../shared/hooks/usePulse.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 
+// 🌟 BIEN-ÊTRE
+import ClockOutMoodModal from '../components/wellbeing/ClockOutMoodModal.jsx';
+import DailyChallenge from '../components/wellbeing/DailyChallenge.jsx';
+import wellbeingService from '../core/services/wellbeingService.js';
+
 // ==========================================
 // COMPOSANT CHECK-IN PULSE
 // ==========================================
@@ -498,6 +503,11 @@ const BadgeuseSection = ({ user }) => {
     thisWeekHours: 0
   });
 
+  // 🌟 BIEN-ÊTRE - États pour le modal de sortie
+  const [showMoodModal, setShowMoodModal] = useState(false);
+  const [pendingDepartureData, setPendingDepartureData] = useState(null);
+  const [isSubmittingMood, setIsSubmittingMood] = useState(false);
+
   // 📍 GÉOFENCING - États
   const [geofenceSettings, setGeofenceSettings] = useState({
     enabled: false,
@@ -870,7 +880,7 @@ const BadgeuseSection = ({ user }) => {
     }
   };
 
-  // 📍 Pointer le départ (avec vérification géofencing)
+  // 📍 Pointer le départ (avec vérification géofencing) - ÉTAPE 1: Vérifier géofencing puis afficher modal
   const handleDeparture = async () => {
     if (!user?.uid || !isCurrentlyWorking) return;
 
@@ -923,6 +933,28 @@ const BadgeuseSection = ({ user }) => {
         console.log('📍 Dépointage à distance autorisé:', remoteAuthReason || 'Déplacement');
       }
 
+      // 🌟 Stocker les données et afficher le modal de mood
+      setPendingDepartureData({ locationData });
+      setShowMoodModal(true);
+
+    } catch (error) {
+      console.error('Erreur préparation pointage depart:', error);
+      alert('Erreur lors du pointage');
+    }
+  };
+
+  // 🌟 ÉTAPE 2: Traiter la réponse du modal et finaliser le dépointage
+  const handleMoodSubmit = async (moodData) => {
+    setIsSubmittingMood(true);
+
+    try {
+      // Enregistrer le mood si fourni
+      if (moodData) {
+        await wellbeingService.recordExitMood(user.uid, moodData);
+        console.log('✅ Mood de sortie enregistré:', moodData.moodLabel);
+      }
+
+      // Finaliser le pointage de départ
       const now = new Date();
       const timestamp = Timestamp.fromDate(now);
 
@@ -933,15 +965,21 @@ const BadgeuseSection = ({ user }) => {
         date: timestamp,
         status: 'active',
         validated: false,
-        ...(locationData && { location: locationData }),
+        ...(pendingDepartureData?.locationData && { location: pendingDepartureData.locationData }),
+        ...(moodData && { exitMood: moodData.mood }),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
-      console.log('✅ Pointage départ enregistré', locationData ? `(${locationData.distanceFromWork}m du travail)` : '');
+      console.log('✅ Pointage départ enregistré', pendingDepartureData?.locationData ? `(${pendingDepartureData.locationData.distanceFromWork}m du travail)` : '');
+
     } catch (error) {
       console.error('Erreur pointage depart:', error);
       alert('Erreur lors du pointage');
+    } finally {
+      setIsSubmittingMood(false);
+      setShowMoodModal(false);
+      setPendingDepartureData(null);
     }
   };
 
@@ -1207,6 +1245,18 @@ const BadgeuseSection = ({ user }) => {
         </motion.div>
       )}
 
+      {/* 🌟 Modal Bien-être au dépointage */}
+      <ClockOutMoodModal
+        isOpen={showMoodModal}
+        onClose={() => {
+          setShowMoodModal(false);
+          setPendingDepartureData(null);
+        }}
+        onSubmit={handleMoodSubmit}
+        isLoading={isSubmittingMood}
+        userName={user?.displayName?.split(' ')[0] || ''}
+      />
+
     </div>
   );
 };
@@ -1340,6 +1390,9 @@ const PulsePage = () => {
 
               {/* Stats personnelles */}
               <UserPulseStats stats={userStats} />
+
+              {/* 🌟 Défi bien-être du jour */}
+              <DailyChallenge userId={user?.uid} />
             </div>
 
             {/* Colonne 3 - Stats Equipe */}
