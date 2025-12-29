@@ -2,7 +2,7 @@
 // react-app/src/pages/TutorialPage.jsx
 // PAGE TUTORIEL COMPLET SYNERGIA v5.0
 // Guide pédagogique exhaustif pour tous les utilisateurs
-// Mis à jour : 23/12/2024
+// Mis à jour : 29/12/2024
 // ==========================================
 
 import React, { useState } from 'react';
@@ -324,6 +324,35 @@ const TUTORIAL_SECTIONS = [
     ]
   },
   {
+    id: 'wellbeing',
+    title: 'Bien-être au Travail',
+    icon: '💚',
+    color: 'from-pink-500 to-rose-500',
+    description: 'Suivez et améliorez votre bien-être quotidien',
+    content: [
+      {
+        title: 'Question au dépointage',
+        text: 'Lorsque vous pointez votre départ, une question apparaît : "Comment s\'est passée ta journée ?". Choisissez parmi 5 niveaux d\'humeur (😫 à 😄). Cette information est anonymisée et aide l\'équipe à suivre le bien-être global.',
+        tips: ['5 niveaux de mood', 'Commentaire optionnel', 'Données anonymisées', 'Option "Passer" disponible']
+      },
+      {
+        title: 'Défi bien-être du jour',
+        text: 'Chaque jour, un mini-défi bien-être vous est proposé sur la page Poste de Garde. Ces défis sont concrets et simples : pause active, hydratation, respiration, rangement... Validez-les pour gagner de l\'XP bonus !',
+        tips: ['🚶 Pause active = 10 XP', '💧 Hydratation = 5 XP', '🧘 Respiration = 5 XP', '🧹 Bureau zen = 10 XP']
+      },
+      {
+        title: 'Types de défis',
+        text: 'Les défis couvrent différentes catégories : physique (marche, étirements, posture), santé (hydratation, pause écran), relaxation (respiration, vraie pause), organisation (priorités, rangement), et mental (gratitude).',
+        tips: ['Différent chaque jour', 'Adapté à votre profil', 'XP de 5 à 15 points', 'Un défi par jour']
+      },
+      {
+        title: 'Données personnelles',
+        text: 'Vos réponses de bien-être sont personnelles et anonymisées dans les statistiques d\'équipe. Seuls les managers voient les tendances globales, jamais les réponses individuelles identifiées.',
+        tips: ['Anonymat garanti', 'Aucun jugement', 'Aide à améliorer l\'ambiance', 'Contribue au bien-être collectif']
+      }
+    ]
+  },
+  {
     id: 'academie',
     title: 'Académie',
     icon: '🎓',
@@ -588,6 +617,36 @@ const ADMIN_SECTIONS = [
     ]
   },
   {
+    id: 'admin-wellbeing',
+    title: 'Dashboard Bien-être',
+    icon: '💚',
+    color: 'from-pink-600 to-rose-600',
+    description: 'Suivez le moral de votre équipe',
+    adminOnly: true,
+    content: [
+      {
+        title: 'Accéder au dashboard',
+        text: 'Dans le module RH, un nouvel onglet "Bien-être" affiche les statistiques de bien-être de l\'équipe. Ces données sont anonymisées : vous voyez des tendances, pas des noms.',
+        tips: ['Menu RH > Onglet Bien-être', 'Données anonymisées', 'Pas d\'identification individuelle']
+      },
+      {
+        title: 'Statistiques disponibles',
+        text: 'Le dashboard affiche : la moyenne de moral (1-5), le nombre de réponses collectées, la distribution des humeurs (graphique), et la tendance (hausse/baisse/stable).',
+        tips: ['Moyenne sur 5', 'Distribution par niveau', 'Tendance sur 7/14/30 jours']
+      },
+      {
+        title: 'Alertes bien-être',
+        text: 'Si la tendance est en baisse et la moyenne inférieure à 3, une alerte orange s\'affiche pour vous suggérer d\'agir (réunion d\'équipe, actions de soutien...).',
+        tips: ['Alerte si tendance négative', 'Suggestions d\'actions', 'Anticipez les problèmes']
+      },
+      {
+        title: 'Défis bien-être',
+        text: 'Les employés peuvent valider des mini-défis quotidiens (pause, hydratation, etc.). Cela encourage de bonnes habitudes et génère de l\'XP bonus.',
+        tips: ['10 défis différents', 'XP de 5 à 15 points', 'Encourage le bien-être actif']
+      }
+    ]
+  },
+  {
     id: 'admin-analytics',
     title: 'Analytics',
     icon: '📊',
@@ -818,7 +877,7 @@ const TutorialPage = () => {
               Apprenez à utiliser toutes les fonctionnalités de l'application pour devenir un maître de la guilde !
             </p>
             <div className="mt-2 inline-block px-3 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full">
-              Version 5.0 - Mise à jour 23/12/2024
+              Version 5.0 - Mise à jour 29/12/2024
             </div>
           </motion.div>
 
@@ -876,11 +935,12 @@ const TutorialPage = () => {
               <div>
                 <h3 className="font-bold text-white mb-1">🆕 Nouveautés v5.0</h3>
                 <ul className="text-sm text-gray-300 space-y-1">
+                  <li>💚 <strong>Bien-être au travail</strong> : question au dépointage + défis quotidiens</li>
+                  <li>📊 <strong>Dashboard bien-être</strong> pour les managers (données anonymisées)</li>
                   <li>✍️ <strong>Signature électronique</strong> des pointages mensuels</li>
                   <li>🌳 <strong>Système de Skills</strong> avec choix de talents</li>
-                  <li>📊 <strong>Planning amancé</strong> avec heures pointées/planifiées</li>
+                  <li>📅 <strong>Planning avancé</strong> avec heures pointées/planifiées</li>
                   <li>🔔 <strong>Notifications urgentes</strong> pour les rappels paie</li>
-                  <li>🎓 <strong>Module Alternance</strong> dans l'Académie</li>
                 </ul>
               </div>
             </div>
@@ -984,7 +1044,14 @@ const TutorialPage = () => {
               <Zap className="w-5 h-5 text-yellow-400" />
               Raccourcis rapides
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <button
+                onClick={() => { setSearchTerm(''); setExpandedSection('wellbeing'); }}
+                className="p-3 bg-pink-500/20 hover:bg-pink-500/30 rounded-lg text-center transition-colors"
+              >
+                <span className="text-xl">💚</span>
+                <p className="text-xs text-gray-300 mt-1">Bien-être</p>
+              </button>
               <button
                 onClick={() => { setSearchTerm(''); setExpandedSection('signature'); }}
                 className="p-3 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-center transition-colors"
@@ -1027,7 +1094,7 @@ const TutorialPage = () => {
               Besoin d'aide supplémentaire ? Contactez votre administrateur.
             </p>
             <p className="text-gray-600 text-xs mt-2">
-              Synergia v5.0 - Guide mis à jour le 23/12/2024
+              Synergia v5.0 - Guide mis à jour le 29/12/2024
             </p>
           </motion.div>
         </div>
