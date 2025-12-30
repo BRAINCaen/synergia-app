@@ -7,44 +7,52 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Shield, 
-  CheckCircle, 
-  X, 
-  Eye, 
-  User, 
-  Calendar, 
-  AlertCircle, 
-  BarChart3, 
-  RefreshCw, 
-  Gift, 
+import {
+  Shield,
+  CheckCircle,
+  X,
+  Eye,
+  User,
+  Calendar,
+  AlertCircle,
+  BarChart3,
+  RefreshCw,
+  Gift,
   Coins,
   Clock4,
   MessageSquare,
   Zap,
   Users,
   Crown,
-  Star
+  Star,
+  Package,
+  Plus,
+  Minus,
+  Infinity,
+  Edit,
+  Save
 } from 'lucide-react';
 import notificationService from '../core/services/notificationService.js';
+import { rewardsService } from '../core/services/rewardsService.js';
 
 // 🎯 IMPORT DU LAYOUT
 import Layout from '../components/layout/Layout.jsx';
 
 // Firebase imports
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
   getDoc,
   getDocs,
+  setDoc,
   increment,
-  serverTimestamp 
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 
@@ -56,54 +64,54 @@ import { useAuthStore } from '../shared/stores/authStore.js';
 // ==========================================
 
 const DEFAULT_INDIVIDUAL_REWARDS = [
-  // Mini-plaisirs (50-100 XP)
-  { id: 'snack', name: 'Goûter surprise', description: 'Un goûter de ton choix', xpCost: 50, icon: '🍪', category: 'Mini-plaisirs', type: 'individual' },
-  { id: 'coffee', name: 'Café premium', description: 'Un café de spécialité', xpCost: 75, icon: '☕', category: 'Mini-plaisirs', type: 'individual' },
-  { id: 'tea', name: 'Thé premium', description: 'Une sélection de thés fins', xpCost: 80, icon: '🍵', category: 'Mini-plaisirs', type: 'individual' },
-  
+  // Mini-plaisirs (50-100 XP) - Illimités par défaut
+  { id: 'snack', name: 'Goûter surprise', description: 'Un goûter de ton choix', xpCost: 50, icon: '🍪', category: 'Mini-plaisirs', type: 'individual', stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'coffee', name: 'Café premium', description: 'Un café de spécialité', xpCost: 75, icon: '☕', category: 'Mini-plaisirs', type: 'individual', stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'tea', name: 'Thé premium', description: 'Une sélection de thés fins', xpCost: 80, icon: '🍵', category: 'Mini-plaisirs', type: 'individual', stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+
   // Petits avantages (100-200 XP)
-  { id: 'earlyLeave', name: 'Sortie anticipée', description: 'Partir 30 min plus tôt', xpCost: 150, icon: '🏃', category: 'Petits avantages', type: 'individual' },
-  { id: 'parking', name: 'Place de parking', description: 'Place réservée pour une semaine', xpCost: 180, icon: '🅿️', category: 'Petits avantages', type: 'individual' },
-  
-  // Plaisirs utiles (200-400 XP)
-  { id: 'headphones', name: 'Écouteurs', description: 'Écouteurs sans fil', xpCost: 300, icon: '🎧', category: 'Plaisirs utiles', type: 'individual' },
-  { id: 'powerbank', name: 'Batterie externe', description: 'Power bank haute capacité', xpCost: 250, icon: '🔋', category: 'Plaisirs utiles', type: 'individual' },
-  
+  { id: 'earlyLeave', name: 'Sortie anticipée', description: 'Partir 30 min plus tôt', xpCost: 150, icon: '🏃', category: 'Petits avantages', type: 'individual', stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'parking', name: 'Place de parking', description: 'Place réservée pour une semaine', xpCost: 180, icon: '🅿️', category: 'Petits avantages', type: 'individual', stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+
+  // Plaisirs utiles (200-400 XP) - Limités (physiques)
+  { id: 'headphones', name: 'Écouteurs', description: 'Écouteurs sans fil', xpCost: 300, icon: '🎧', category: 'Plaisirs utiles', type: 'individual', stockType: 'limited', stockTotal: 3, stockRemaining: 3 },
+  { id: 'powerbank', name: 'Batterie externe', description: 'Power bank haute capacité', xpCost: 250, icon: '🔋', category: 'Plaisirs utiles', type: 'individual', stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+
   // Food & cadeaux (400-700 XP)
-  { id: 'restaurant', name: 'Restaurant', description: 'Bon pour un restaurant', xpCost: 500, icon: '🍽️', category: 'Food & cadeaux', type: 'individual' },
-  { id: 'giftCard', name: 'Carte cadeau 30€', description: 'Utilisable en magasin', xpCost: 600, icon: '🎁', category: 'Food & cadeaux', type: 'individual' },
-  
+  { id: 'restaurant', name: 'Restaurant', description: 'Bon pour un restaurant', xpCost: 500, icon: '🍽️', category: 'Food & cadeaux', type: 'individual', stockType: 'limited', stockTotal: 10, stockRemaining: 10 },
+  { id: 'giftCard', name: 'Carte cadeau 30€', description: 'Utilisable en magasin', xpCost: 600, icon: '🎁', category: 'Food & cadeaux', type: 'individual', stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+
   // Bien-être (700-1000 XP)
-  { id: 'massage', name: 'Massage', description: 'Séance de massage professionnel', xpCost: 800, icon: '💆', category: 'Bien-être', type: 'individual' },
-  { id: 'ergonomic', name: 'Accessoire ergonomique', description: 'Fauteuil ou coussin ergonomique', xpCost: 900, icon: '🪑', category: 'Bien-être', type: 'individual' },
-  
+  { id: 'massage', name: 'Massage', description: 'Séance de massage professionnel', xpCost: 800, icon: '💆', category: 'Bien-être', type: 'individual', stockType: 'limited', stockTotal: 3, stockRemaining: 3 },
+  { id: 'ergonomic', name: 'Accessoire ergonomique', description: 'Fauteuil ou coussin ergonomique', xpCost: 900, icon: '🪑', category: 'Bien-être', type: 'individual', stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+
   // Loisirs (1000-1500 XP)
-  { id: 'cinema', name: 'Pack cinéma', description: '2 places de cinéma + popcorn', xpCost: 1200, icon: '🎬', category: 'Loisirs', type: 'individual' },
-  { id: 'concert', name: 'Concert', description: 'Billet pour un concert', xpCost: 1400, icon: '🎵', category: 'Loisirs', type: 'individual' },
-  
+  { id: 'cinema', name: 'Pack cinéma', description: '2 places de cinéma + popcorn', xpCost: 1200, icon: '🎬', category: 'Loisirs', type: 'individual', stockType: 'limited', stockTotal: 10, stockRemaining: 10 },
+  { id: 'concert', name: 'Concert', description: 'Billet pour un concert', xpCost: 1400, icon: '🎵', category: 'Loisirs', type: 'individual', stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+
   // Lifestyle (1500-2500 XP)
-  { id: 'gadget', name: 'Gadget tech', description: 'Objet technologique au choix', xpCost: 2000, icon: '📺', category: 'Lifestyle', type: 'individual' },
-  { id: 'sport', name: 'Équipement sportif', description: 'Matériel pour ton sport préféré', xpCost: 2300, icon: '⚽', category: 'Lifestyle', type: 'individual' },
-  
-  // Temps offert (2500-4000 XP)
-  { id: 'halfDay', name: 'Demi-journée congé', description: 'Une demi-journée de repos supplémentaire', xpCost: 2800, icon: '🌅', category: 'Temps offert', type: 'individual' },
-  { id: 'fullDay', name: 'Jour de congé bonus', description: 'Un jour de congé supplémentaire', xpCost: 3500, icon: '🏖️', category: 'Temps offert', type: 'individual' },
-  
+  { id: 'gadget', name: 'Gadget tech', description: 'Objet technologique au choix', xpCost: 2000, icon: '📺', category: 'Lifestyle', type: 'individual', stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'sport', name: 'Équipement sportif', description: 'Matériel pour ton sport préféré', xpCost: 2300, icon: '⚽', category: 'Lifestyle', type: 'individual', stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+
+  // Temps offert (2500-4000 XP) - Limités
+  { id: 'halfDay', name: 'Demi-journée congé', description: 'Une demi-journée de repos supplémentaire', xpCost: 2800, icon: '🌅', category: 'Temps offert', type: 'individual', stockType: 'limited', stockTotal: 10, stockRemaining: 10 },
+  { id: 'fullDay', name: 'Jour de congé bonus', description: 'Un jour de congé supplémentaire', xpCost: 3500, icon: '🏖️', category: 'Temps offert', type: 'individual', stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+
   // Grands plaisirs (4000-6000 XP)
-  { id: 'weekend', name: 'Week-end découverte', description: 'Un week-end dans un lieu touristique', xpCost: 5000, icon: '🗺️', category: 'Grands plaisirs', type: 'individual' },
-  { id: 'spa', name: 'Journée spa', description: 'Une journée complète dans un spa', xpCost: 4500, icon: '🧖', category: 'Grands plaisirs', type: 'individual' },
-  
-  // Premium (6000+ XP)
-  { id: 'vacation', name: 'Semaine de vacances offerte', description: 'Une semaine de vacances payée', xpCost: 12500, icon: '✈️', category: 'Premium', type: 'individual' },
-  { id: 'laptop', name: 'Ordinateur portable', description: 'Un laptop pour usage personnel', xpCost: 15000, icon: '💻', category: 'Premium', type: 'individual' }
+  { id: 'weekend', name: 'Week-end découverte', description: 'Un week-end dans un lieu touristique', xpCost: 5000, icon: '🗺️', category: 'Grands plaisirs', type: 'individual', stockType: 'limited', stockTotal: 1, stockRemaining: 1 },
+  { id: 'spa', name: 'Journée spa', description: 'Une journée complète dans un spa', xpCost: 4500, icon: '🧖', category: 'Grands plaisirs', type: 'individual', stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+
+  // Premium (6000+ XP) - Très limités
+  { id: 'vacation', name: 'Semaine de vacances offerte', description: 'Une semaine de vacances payée', xpCost: 12500, icon: '✈️', category: 'Premium', type: 'individual', stockType: 'limited', stockTotal: 1, stockRemaining: 1 },
+  { id: 'laptop', name: 'Ordinateur portable', description: 'Un laptop pour usage personnel', xpCost: 15000, icon: '💻', category: 'Premium', type: 'individual', stockType: 'limited', stockTotal: 1, stockRemaining: 1 }
 ];
 
 const DEFAULT_TEAM_REWARDS = [
-  { id: 'teamSnack', name: 'Goûter d\'équipe', description: 'Goûter pour toute l\'équipe', xpCost: 500, icon: '🍰', category: 'Team', type: 'team' },
-  { id: 'teamLunch', name: 'Déjeuner d\'équipe', description: 'Restaurant pour l\'équipe', xpCost: 1500, icon: '🍴', category: 'Team', type: 'team' },
-  { id: 'teamActivity', name: 'Activité team building', description: 'Sortie ou activité collective', xpCost: 3000, icon: '🎯', category: 'Team', type: 'team' },
-  { id: 'teamOuting', name: 'Sortie d\'équipe', description: 'Journée découverte en équipe', xpCost: 5000, icon: '🚀', category: 'Team', type: 'team' },
-  { id: 'teamWeekend', name: 'Week-end d\'équipe', description: 'Week-end team building complet', xpCost: 10000, icon: '🏕️', category: 'Team', type: 'team' }
+  { id: 'teamSnack', name: 'Goûter d\'équipe', description: 'Goûter pour toute l\'équipe', xpCost: 500, icon: '🍰', category: 'Team', type: 'team', stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'teamLunch', name: 'Déjeuner d\'équipe', description: 'Restaurant pour l\'équipe', xpCost: 1500, icon: '🍴', category: 'Team', type: 'team', stockType: 'limited', stockTotal: 4, stockRemaining: 4 },
+  { id: 'teamActivity', name: 'Activité team building', description: 'Sortie ou activité collective', xpCost: 3000, icon: '🎯', category: 'Team', type: 'team', stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'teamOuting', name: 'Sortie d\'équipe', description: 'Journée découverte en équipe', xpCost: 5000, icon: '🚀', category: 'Team', type: 'team', stockType: 'limited', stockTotal: 1, stockRemaining: 1 },
+  { id: 'teamWeekend', name: 'Week-end d\'équipe', description: 'Week-end team building complet', xpCost: 10000, icon: '🏕️', category: 'Team', type: 'team', stockType: 'limited', stockTotal: 1, stockRemaining: 1 }
 ];
 
 /**
@@ -113,7 +121,7 @@ const DEFAULT_TEAM_REWARDS = [
  */
 const AdminRewardsPage = () => {
   const { user } = useAuthStore();
-  
+
   // États locaux
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +132,12 @@ const AdminRewardsPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [firebaseRewards, setFirebaseRewards] = useState([]);
   const [teamPoolXP, setTeamPoolXP] = useState(0); // ✅ XP DU POOL ÉQUIPE
+
+  // 📦 ÉTATS GESTION DES STOCKS
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [stockSettings, setStockSettings] = useState({}); // {rewardId: {stockType, stockTotal, stockRemaining}}
+  const [editingReward, setEditingReward] = useState(null);
+  const [activeStockTab, setActiveStockTab] = useState('individual'); // 'individual' | 'team'
 
   // Statistiques réelles
   const [stats, setStats] = useState({
@@ -158,7 +172,7 @@ const AdminRewardsPage = () => {
     return () => unsubscribe();
   }, []);
 
-  // 🔥 CHARGER LES RÉCOMPENSES FIREBASE
+  // 🔥 CHARGER LES RÉCOMPENSES FIREBASE + STOCKS
   useEffect(() => {
     const loadFirebaseRewards = async () => {
       try {
@@ -173,9 +187,90 @@ const AdminRewardsPage = () => {
         console.error('❌ Erreur chargement récompenses Firebase:', error);
       }
     };
-    
+
     loadFirebaseRewards();
   }, []);
+
+  // 📦 CHARGER LES PARAMÈTRES DE STOCK DEPUIS FIREBASE
+  useEffect(() => {
+    const loadStockSettings = async () => {
+      try {
+        const stockDoc = await getDoc(doc(db, 'rewardStockSettings', 'main'));
+        if (stockDoc.exists()) {
+          setStockSettings(stockDoc.data().settings || {});
+          console.log('✅ Paramètres de stock chargés');
+        } else {
+          // Initialiser avec les valeurs par défaut
+          const defaultSettings = {};
+          [...DEFAULT_INDIVIDUAL_REWARDS, ...DEFAULT_TEAM_REWARDS].forEach(reward => {
+            defaultSettings[reward.id] = {
+              stockType: reward.stockType,
+              stockTotal: reward.stockTotal,
+              stockRemaining: reward.stockRemaining
+            };
+          });
+          setStockSettings(defaultSettings);
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement stock settings:', error);
+      }
+    };
+
+    loadStockSettings();
+  }, []);
+
+  // 📦 SAUVEGARDER LES PARAMÈTRES DE STOCK
+  const saveStockSettings = async (newSettings) => {
+    try {
+      const stockRef = doc(db, 'rewardStockSettings', 'main');
+
+      // Utiliser setDoc avec merge pour créer ou mettre à jour
+      await setDoc(stockRef, {
+        settings: newSettings,
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.uid
+      }, { merge: true });
+
+      setStockSettings(newSettings);
+      console.log('✅ Paramètres de stock sauvegardés');
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde stock settings:', error);
+      return false;
+    }
+  };
+
+  // 📦 OBTENIR LE STOCK D'UNE RÉCOMPENSE
+  const getRewardStock = (rewardId) => {
+    // D'abord vérifier dans les settings Firebase
+    if (stockSettings[rewardId]) {
+      return stockSettings[rewardId];
+    }
+    // Sinon, utiliser les valeurs par défaut
+    const defaultReward = [...DEFAULT_INDIVIDUAL_REWARDS, ...DEFAULT_TEAM_REWARDS].find(r => r.id === rewardId);
+    if (defaultReward) {
+      return {
+        stockType: defaultReward.stockType,
+        stockTotal: defaultReward.stockTotal,
+        stockRemaining: defaultReward.stockRemaining
+      };
+    }
+    return { stockType: 'unlimited', stockTotal: null, stockRemaining: null };
+  };
+
+  // 📦 METTRE À JOUR LE STOCK D'UNE RÉCOMPENSE
+  const updateRewardStock = async (rewardId, newStock) => {
+    const newSettings = {
+      ...stockSettings,
+      [rewardId]: newStock
+    };
+    const success = await saveStockSettings(newSettings);
+    if (success) {
+      alert(`✅ Stock mis à jour pour ${rewardId}`);
+    } else {
+      alert('❌ Erreur lors de la mise à jour du stock');
+    }
+  };
 
   /**
    * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE
@@ -596,6 +691,15 @@ const AdminRewardsPage = () => {
                   <Gift className="w-4 h-4" />
                   <span className="hidden sm:inline">Page utilisateur</span>
                 </a>
+
+                {/* 📦 BOUTON GESTION DES STOCKS */}
+                <button
+                  onClick={() => setShowStockModal(true)}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Package className="w-4 h-4" />
+                  <span className="hidden sm:inline">Gérer les stocks</span>
+                </button>
               </div>
             </div>
 
@@ -960,6 +1064,223 @@ const AdminRewardsPage = () => {
                       </button>
                     )}
                   </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* 📦 MODAL GESTION DES STOCKS */}
+          {showStockModal && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+              <motion.div
+                className="bg-slate-800 border border-white/20 rounded-xl p-4 sm:p-6 max-w-4xl w-full max-h-[95vh] overflow-y-auto"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl">
+                      <Package className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl sm:text-2xl font-bold text-white">Gestion des stocks</h3>
+                      <p className="text-gray-400 text-sm">Définir les quantités disponibles par récompense</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowStockModal(false)} className="text-gray-400 hover:text-white p-2">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex gap-2 mb-6">
+                  <button
+                    onClick={() => setActiveStockTab('individual')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                      activeStockTab === 'individual'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    👤 Individuelles ({DEFAULT_INDIVIDUAL_REWARDS.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveStockTab('team')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                      activeStockTab === 'team'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-white/10 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    👥 Équipe ({DEFAULT_TEAM_REWARDS.length})
+                  </button>
+                </div>
+
+                {/* Liste des récompenses */}
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                  {(activeStockTab === 'individual' ? DEFAULT_INDIVIDUAL_REWARDS : DEFAULT_TEAM_REWARDS).map(reward => {
+                    const stock = getRewardStock(reward.id);
+                    const isEditing = editingReward === reward.id;
+
+                    return (
+                      <div
+                        key={reward.id}
+                        className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-white/20 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          {/* Info récompense */}
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <span className="text-2xl flex-shrink-0">{reward.icon}</span>
+                            <div className="min-w-0">
+                              <h4 className="font-semibold text-white truncate">{reward.name}</h4>
+                              <p className="text-sm text-gray-400">{reward.xpCost} XP • {reward.category}</p>
+                            </div>
+                          </div>
+
+                          {/* Stock controls */}
+                          <div className="flex items-center gap-3">
+                            {isEditing ? (
+                              // Mode édition
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={stock.stockType}
+                                  onChange={(e) => {
+                                    const newType = e.target.value;
+                                    const newStock = {
+                                      stockType: newType,
+                                      stockTotal: newType === 'unlimited' ? null : (stock.stockTotal || 5),
+                                      stockRemaining: newType === 'unlimited' ? null : (stock.stockRemaining || 5)
+                                    };
+                                    setStockSettings(prev => ({
+                                      ...prev,
+                                      [reward.id]: newStock
+                                    }));
+                                  }}
+                                  className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-sm text-white"
+                                >
+                                  <option value="unlimited">♾️ Illimité</option>
+                                  <option value="limited">📦 Limité</option>
+                                </select>
+
+                                {stock.stockType === 'limited' && (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => {
+                                        const newRemaining = Math.max(0, (stock.stockRemaining || 0) - 1);
+                                        setStockSettings(prev => ({
+                                          ...prev,
+                                          [reward.id]: { ...stock, stockRemaining: newRemaining }
+                                        }));
+                                      }}
+                                      className="p-1 bg-red-500/20 hover:bg-red-500/30 rounded text-red-400"
+                                    >
+                                      <Minus className="w-4 h-4" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={stock.stockRemaining || 0}
+                                      onChange={(e) => {
+                                        const newRemaining = Math.max(0, parseInt(e.target.value) || 0);
+                                        setStockSettings(prev => ({
+                                          ...prev,
+                                          [reward.id]: { ...stock, stockRemaining: newRemaining, stockTotal: Math.max(newRemaining, stock.stockTotal || 0) }
+                                        }));
+                                      }}
+                                      className="w-16 px-2 py-1 bg-white/10 border border-white/20 rounded text-center text-white text-sm"
+                                      min="0"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const newRemaining = (stock.stockRemaining || 0) + 1;
+                                        setStockSettings(prev => ({
+                                          ...prev,
+                                          [reward.id]: { ...stock, stockRemaining: newRemaining, stockTotal: Math.max(newRemaining, stock.stockTotal || 0) }
+                                        }));
+                                      }}
+                                      className="p-1 bg-green-500/20 hover:bg-green-500/30 rounded text-green-400"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                )}
+
+                                <button
+                                  onClick={async () => {
+                                    await saveStockSettings(stockSettings);
+                                    setEditingReward(null);
+                                  }}
+                                  className="p-2 bg-green-600 hover:bg-green-700 rounded-lg text-white"
+                                >
+                                  <Save className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              // Mode affichage
+                              <div className="flex items-center gap-3">
+                                {stock.stockType === 'unlimited' ? (
+                                  <div className="flex items-center gap-1 px-3 py-1 bg-green-500/20 rounded-full">
+                                    <Infinity className="w-4 h-4 text-green-400" />
+                                    <span className="text-green-400 text-sm font-medium">Illimité</span>
+                                  </div>
+                                ) : (
+                                  <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${
+                                    stock.stockRemaining > 0
+                                      ? 'bg-amber-500/20'
+                                      : 'bg-red-500/20'
+                                  }`}>
+                                    <Package className={`w-4 h-4 ${stock.stockRemaining > 0 ? 'text-amber-400' : 'text-red-400'}`} />
+                                    <span className={`text-sm font-medium ${stock.stockRemaining > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                                      {stock.stockRemaining || 0} restant{(stock.stockRemaining || 0) > 1 ? 's' : ''}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <button
+                                  onClick={() => setEditingReward(reward.id)}
+                                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Barre de progression si limité */}
+                        {stock.stockType === 'limited' && stock.stockTotal > 0 && (
+                          <div className="mt-3">
+                            <div className="flex justify-between text-xs text-gray-400 mb-1">
+                              <span>Stock utilisé</span>
+                              <span>{stock.stockTotal - (stock.stockRemaining || 0)} / {stock.stockTotal}</span>
+                            </div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 ${
+                                  stock.stockRemaining > 0 ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${((stock.stockTotal - (stock.stockRemaining || 0)) / stock.stockTotal) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer */}
+                <div className="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between gap-4">
+                  <div className="text-sm text-gray-400">
+                    <p>💡 Les stocks sont sauvegardés automatiquement.</p>
+                    <p>📦 "Limité" = quantité maximale disponible pour les demandes.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowStockModal(false)}
+                    className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                  >
+                    Fermer
+                  </button>
                 </div>
               </motion.div>
             </div>
