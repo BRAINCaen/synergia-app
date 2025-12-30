@@ -14,6 +14,7 @@ import {
   SlidersHorizontal, Lightbulb, Send, Sparkles
 } from 'lucide-react';
 import notificationService from '../core/services/notificationService.js';
+import { rewardsService } from '../core/services/rewardsService.js';
 
 import Layout from '../components/layout/Layout.jsx';
 import { RewardDetailModal, PurchaseSuccessAnimation, WishlistCard } from '../components/shop';
@@ -163,7 +164,7 @@ const FilterBottomSheet = ({ isOpen, onClose, filterCategory, setFilterCategory,
 );
 
 // Carte recompense responsive
-const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistReward, onOpenDetail, onSetWishlist, onRemoveWishlist, userIsAdmin, onEdit, onDelete, stockInfo }) => {
+const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistReward, onOpenDetail, onSetWishlist, onRemoveWishlist, userIsAdmin, onEdit, onDelete, stockInfo, userRedemptionInfo }) => {
   const getRewardColor = (r) => {
     if (r.type === 'team') return 'from-purple-600 to-indigo-600';
     const xp = r.xpCost;
@@ -183,19 +184,32 @@ const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistRe
   const isOutOfStock = stockInfo?.stockType === 'limited' && (stockInfo?.stockRemaining || 0) <= 0;
   const isLowStock = stockInfo?.stockType === 'limited' && stockInfo?.stockRemaining > 0 && stockInfo?.stockRemaining <= 3;
 
+  // 👤 Vérifier si l'utilisateur a déjà échangé cette récompense
+  const hasAlreadyRedeemed = userRedemptionInfo && !userRedemptionInfo.canRedeem;
+  const userRedemptionCount = userRedemptionInfo?.currentCount || 0;
+  const userRedemptionLimit = userRedemptionInfo?.limitPerUser || 1;
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className={`relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden transition-all ${
-        canAfford && !isOutOfStock ? 'hover:border-purple-500/50' : 'opacity-60'
+        canAfford && !isOutOfStock && !hasAlreadyRedeemed ? 'hover:border-purple-500/50' : 'opacity-60'
       }`}
     >
       {/* Header gradient */}
       <div className={`h-1.5 bg-gradient-to-r ${getRewardColor(reward)}`} />
 
+      {/* 👤 Badge déjà échangé */}
+      {hasAlreadyRedeemed && (
+        <div className="absolute top-3 left-3 bg-amber-500/90 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
+          <Check className="w-3 h-3" />
+          Déjà échangé
+        </div>
+      )}
+
       {/* 📦 Badge stock épuisé */}
-      {isOutOfStock && (
+      {isOutOfStock && !hasAlreadyRedeemed && (
         <div className="absolute top-3 left-3 bg-red-500/90 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
           <Package className="w-3 h-3" />
           Épuisé
@@ -273,17 +287,24 @@ const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistRe
 
           {/* Bouton principal - TOUJOURS VISIBLE */}
           <button
-            onClick={() => !isOutOfStock && onOpenDetail(reward)}
-            disabled={isOutOfStock}
+            onClick={() => !isOutOfStock && !hasAlreadyRedeemed && onOpenDetail(reward)}
+            disabled={isOutOfStock || hasAlreadyRedeemed}
             className={`w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-              isOutOfStock
-                ? 'bg-red-900/30 text-red-400 cursor-not-allowed'
-                : canAfford
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
-                  : 'bg-gray-700/50 text-gray-400'
+              hasAlreadyRedeemed
+                ? 'bg-amber-900/30 text-amber-400 cursor-not-allowed'
+                : isOutOfStock
+                  ? 'bg-red-900/30 text-red-400 cursor-not-allowed'
+                  : canAfford
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
+                    : 'bg-gray-700/50 text-gray-400'
             }`}
           >
-            {isOutOfStock ? (
+            {hasAlreadyRedeemed ? (
+              <>
+                <Check className="w-4 h-4" />
+                Déjà échangé ({userRedemptionCount}/{userRedemptionLimit})
+              </>
+            ) : isOutOfStock ? (
               <>
                 <Package className="w-4 h-4" />
                 Stock épuisé
@@ -376,6 +397,10 @@ const RewardsPage = () => {
   // 📦 Etats stock
   const [stockSettings, setStockSettings] = useState({});
 
+  // 👤 Etats limite par utilisateur
+  const [userRedemptions, setUserRedemptions] = useState({}); // { rewardId: { canRedeem, currentCount, limitPerUser } }
+  const [loadingRedemptions, setLoadingRedemptions] = useState(true);
+
   // Hook cagnotte
   const {
     stats: poolStats, loading: poolLoading, contributing,
@@ -424,6 +449,53 @@ const RewardsPage = () => {
     }
     return { stockType: 'unlimited', stockTotal: null, stockRemaining: null };
   }, [stockSettings]);
+
+  // 👤 Charger les limites d'échange par utilisateur
+  useEffect(() => {
+    const loadUserRedemptions = async () => {
+      if (!user?.uid) {
+        setLoadingRedemptions(false);
+        return;
+      }
+
+      try {
+        setLoadingRedemptions(true);
+        const allRewardIds = [
+          ...DEFAULT_INDIVIDUAL_REWARDS.map(r => r.id),
+          ...DEFAULT_TEAM_REWARDS.map(r => r.id)
+        ];
+
+        const redemptionsMap = {};
+        const limitSettings = await rewardsService.getUserLimitSettings();
+
+        // Vérifier chaque récompense
+        for (const rewardId of allRewardIds) {
+          const reward = [...DEFAULT_INDIVIDUAL_REWARDS, ...DEFAULT_TEAM_REWARDS].find(r => r.id === rewardId);
+          const defaultLimit = reward?.type === 'team'
+            ? limitSettings.defaultLimitTeam
+            : limitSettings.defaultLimitIndividual;
+          const limitPerUser = limitSettings.customLimits?.[rewardId] ?? defaultLimit;
+
+          const checkResult = await rewardsService.canUserRedeemReward(user.uid, rewardId, limitPerUser);
+          redemptionsMap[rewardId] = checkResult;
+        }
+
+        setUserRedemptions(redemptionsMap);
+        console.log('👤 Limites utilisateur chargées:', Object.keys(redemptionsMap).length);
+      } catch (error) {
+        console.error('❌ Erreur chargement limites utilisateur:', error);
+      } finally {
+        setLoadingRedemptions(false);
+      }
+    };
+
+    loadUserRedemptions();
+  }, [user?.uid]);
+
+  // Fonction pour obtenir l'info de limite utilisateur
+  const getUserRedemptionInfo = useCallback((rewardId) => {
+    return userRedemptions[rewardId] || { canRedeem: true, currentCount: 0, limitPerUser: 1, remaining: 1 };
+  }, [userRedemptions]);
 
   // Charger donnees
   useEffect(() => {
@@ -1168,6 +1240,7 @@ const RewardsPage = () => {
                   onEdit={handleEditReward}
                   onDelete={handleDeleteReward}
                   stockInfo={getStockInfo(reward.id)}
+                  userRedemptionInfo={getUserRedemptionInfo(reward.id)}
                 />
               );
             })}

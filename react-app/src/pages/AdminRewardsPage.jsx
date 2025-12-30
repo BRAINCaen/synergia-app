@@ -30,7 +30,11 @@ import {
   Minus,
   Infinity,
   Edit,
-  Save
+  Save,
+  RotateCcw,
+  UserCheck,
+  UserX,
+  Search
 } from 'lucide-react';
 import notificationService from '../core/services/notificationService.js';
 import { rewardsService } from '../core/services/rewardsService.js';
@@ -138,6 +142,14 @@ const AdminRewardsPage = () => {
   const [stockSettings, setStockSettings] = useState({}); // {rewardId: {stockType, stockTotal, stockRemaining}}
   const [editingReward, setEditingReward] = useState(null);
   const [activeStockTab, setActiveStockTab] = useState('individual'); // 'individual' | 'team'
+
+  // 👤 ÉTATS GESTION PAR UTILISATEUR
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [selectedRewardForUsers, setSelectedRewardForUsers] = useState(null);
+  const [usersWhoRedeemed, setUsersWhoRedeemed] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [resettingUser, setResettingUser] = useState(null);
+  const [customRewards, setCustomRewards] = useState([]); // Récompenses personnalisées de Firebase
 
   // Statistiques réelles
   const [stats, setStats] = useState({
@@ -271,6 +283,76 @@ const AdminRewardsPage = () => {
       alert('❌ Erreur lors de la mise à jour du stock');
     }
   };
+
+  // ==========================================
+  // 👤 GESTION PAR UTILISATEUR
+  // ==========================================
+
+  // Obtenir toutes les récompenses (défaut + personnalisées)
+  const getAllRewards = () => {
+    const allRewards = [
+      ...DEFAULT_INDIVIDUAL_REWARDS.map(r => ({ ...r, isDefault: true })),
+      ...DEFAULT_TEAM_REWARDS.map(r => ({ ...r, isDefault: true })),
+      ...customRewards.map(r => ({ ...r, isDefault: false, isCustom: true }))
+    ];
+    return allRewards;
+  };
+
+  // Charger les utilisateurs qui ont échangé une récompense
+  const loadUsersWhoRedeemed = async (reward) => {
+    if (!user?.uid) return;
+
+    setLoadingUsers(true);
+    setSelectedRewardForUsers(reward);
+    setShowUserModal(true);
+
+    try {
+      const users = await rewardsService.getUsersWhoRedeemed(user.uid, reward.id);
+      setUsersWhoRedeemed(users);
+      console.log('👥 Utilisateurs chargés:', users.length);
+    } catch (error) {
+      console.error('❌ Erreur chargement utilisateurs:', error);
+      setUsersWhoRedeemed([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Réinitialiser l'échange d'un utilisateur
+  const resetUserRedemption = async (userId, rewardId) => {
+    if (!user?.uid) return;
+
+    setResettingUser(userId);
+
+    try {
+      const result = await rewardsService.resetUserRedemption(user.uid, userId, rewardId);
+      alert(`✅ ${result.message}`);
+
+      // Recharger la liste
+      const users = await rewardsService.getUsersWhoRedeemed(user.uid, rewardId);
+      setUsersWhoRedeemed(users);
+    } catch (error) {
+      console.error('❌ Erreur reset:', error);
+      alert('❌ Erreur lors de la réinitialisation');
+    } finally {
+      setResettingUser(null);
+    }
+  };
+
+  // Charger les récompenses personnalisées
+  useEffect(() => {
+    const loadCustomRewards = async () => {
+      if (!user?.uid) return;
+      try {
+        const rewards = await rewardsService.getAllRewardsForAdmin(user.uid);
+        setCustomRewards(rewards);
+        console.log('📦 Récompenses personnalisées chargées:', rewards.length);
+      } catch (error) {
+        console.error('❌ Erreur chargement récompenses personnalisées:', error);
+      }
+    };
+    loadCustomRewards();
+  }, [user?.uid]);
 
   /**
    * 🎁 OBTENIR LES DÉTAILS D'UNE RÉCOMPENSE
@@ -1103,7 +1185,7 @@ const AdminRewardsPage = () => {
                         : 'bg-white/10 text-gray-400 hover:text-white'
                     }`}
                   >
-                    👤 Individuelles ({DEFAULT_INDIVIDUAL_REWARDS.length})
+                    👤 Individuelles ({DEFAULT_INDIVIDUAL_REWARDS.length + customRewards.filter(r => r.type === 'individual').length})
                   </button>
                   <button
                     onClick={() => setActiveStockTab('team')}
@@ -1113,13 +1195,24 @@ const AdminRewardsPage = () => {
                         : 'bg-white/10 text-gray-400 hover:text-white'
                     }`}
                   >
-                    👥 Équipe ({DEFAULT_TEAM_REWARDS.length})
+                    👥 Équipe ({DEFAULT_TEAM_REWARDS.length + customRewards.filter(r => r.type === 'team').length})
                   </button>
+                </div>
+
+                {/* Note limite par utilisateur */}
+                <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <p className="text-sm text-blue-300">
+                    ℹ️ <strong>Limite par défaut :</strong> Chaque utilisateur ne peut échanger chaque récompense qu'<strong>1 fois</strong>.
+                    Cliquez sur <Users className="w-4 h-4 inline mx-1" /> pour voir qui a échangé et remettre à disposition.
+                  </p>
                 </div>
 
                 {/* Liste des récompenses */}
                 <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-                  {(activeStockTab === 'individual' ? DEFAULT_INDIVIDUAL_REWARDS : DEFAULT_TEAM_REWARDS).map(reward => {
+                  {[
+                    ...(activeStockTab === 'individual' ? DEFAULT_INDIVIDUAL_REWARDS : DEFAULT_TEAM_REWARDS),
+                    ...customRewards.filter(r => r.type === activeStockTab || (activeStockTab === 'individual' && r.type !== 'team'))
+                  ].map(reward => {
                     const stock = getRewardStock(reward.id);
                     const isEditing = editingReward === reward.id;
 
@@ -1239,13 +1332,32 @@ const AdminRewardsPage = () => {
                                 <button
                                   onClick={() => setEditingReward(reward.id)}
                                   className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                  title="Modifier le stock"
                                 >
                                   <Edit className="w-4 h-4" />
+                                </button>
+
+                                {/* Bouton voir les utilisateurs */}
+                                <button
+                                  onClick={() => loadUsersWhoRedeemed(reward)}
+                                  className="p-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-purple-400 hover:text-purple-300 transition-colors"
+                                  title="Voir qui a échangé"
+                                >
+                                  <Users className="w-4 h-4" />
                                 </button>
                               </div>
                             )}
                           </div>
                         </div>
+
+                        {/* Badge récompense personnalisée */}
+                        {reward.isCustom && (
+                          <div className="mt-2">
+                            <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full">
+                              ✨ Personnalisée
+                            </span>
+                          </div>
+                        )}
 
                         {/* Barre de progression si limité */}
                         {stock.stockType === 'limited' && stock.stockTotal > 0 && (
@@ -1277,6 +1389,168 @@ const AdminRewardsPage = () => {
                   </div>
                   <button
                     onClick={() => setShowStockModal(false)}
+                    className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* 👤 MODAL GESTION PAR UTILISATEUR */}
+          {showUserModal && selectedRewardForUsers && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+              <motion.div
+                className="bg-slate-800 border border-white/20 rounded-xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{selectedRewardForUsers.icon}</span>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">{selectedRewardForUsers.name}</h3>
+                      <p className="text-gray-400 text-sm">Utilisateurs ayant échangé cette récompense</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowUserModal(false);
+                      setSelectedRewardForUsers(null);
+                      setUsersWhoRedeemed([]);
+                    }}
+                    className="text-gray-400 hover:text-white p-2"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {/* Info limite */}
+                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-sm text-amber-300">
+                    🔒 <strong>Limite :</strong> 1 échange par utilisateur. Cliquez sur <RotateCcw className="w-4 h-4 inline mx-1" /> pour remettre la récompense à disposition.
+                  </p>
+                </div>
+
+                {/* Contenu */}
+                {loadingUsers ? (
+                  <div className="flex items-center justify-center py-12">
+                    <RefreshCw className="w-8 h-8 text-purple-400 animate-spin" />
+                    <span className="ml-3 text-gray-400">Chargement...</span>
+                  </div>
+                ) : usersWhoRedeemed.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">Aucun utilisateur n'a encore échangé cette récompense</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {usersWhoRedeemed.map((userInfo) => (
+                      <div
+                        key={userInfo.userId}
+                        className={`bg-white/5 border rounded-xl p-4 ${
+                          userInfo.canRedeem
+                            ? 'border-green-500/30'
+                            : 'border-amber-500/30'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              userInfo.canRedeem
+                                ? 'bg-green-500/20'
+                                : 'bg-amber-500/20'
+                            }`}>
+                              {userInfo.canRedeem ? (
+                                <UserCheck className="w-5 h-5 text-green-400" />
+                              ) : (
+                                <UserX className="w-5 h-5 text-amber-400" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-white">{userInfo.userName}</p>
+                              <p className="text-sm text-gray-400">{userInfo.userEmail}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className={`text-sm font-medium ${
+                                userInfo.canRedeem ? 'text-green-400' : 'text-amber-400'
+                              }`}>
+                                {userInfo.canRedeem ? '✅ Peut échanger' : `⚠️ ${userInfo.totalRedemptions}/1 échangé`}
+                              </p>
+                              {userInfo.redemptions.length > 0 && (
+                                <p className="text-xs text-gray-500">
+                                  Dernier : {userInfo.redemptions[0]?.requestedAt
+                                    ? new Date(userInfo.redemptions[0].requestedAt).toLocaleDateString('fr-FR')
+                                    : '-'}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Bouton reset si l'utilisateur a atteint sa limite */}
+                            {!userInfo.canRedeem && (
+                              <button
+                                onClick={() => resetUserRedemption(userInfo.userId, selectedRewardForUsers.id)}
+                                disabled={resettingUser === userInfo.userId}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  resettingUser === userInfo.userId
+                                    ? 'bg-gray-600 cursor-wait'
+                                    : 'bg-green-600 hover:bg-green-700'
+                                }`}
+                                title="Remettre à disposition"
+                              >
+                                {resettingUser === userInfo.userId ? (
+                                  <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-5 h-5 text-white" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Historique des échanges */}
+                        {userInfo.redemptions.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <p className="text-xs text-gray-500 mb-2">Historique :</p>
+                            <div className="flex flex-wrap gap-2">
+                              {userInfo.redemptions.map((r, idx) => (
+                                <span
+                                  key={idx}
+                                  className={`text-xs px-2 py-1 rounded-full ${
+                                    r.resetByAdmin
+                                      ? 'bg-gray-500/20 text-gray-400 line-through'
+                                      : r.status === 'approved'
+                                        ? 'bg-green-500/20 text-green-400'
+                                        : r.status === 'pending'
+                                          ? 'bg-amber-500/20 text-amber-400'
+                                          : 'bg-red-500/20 text-red-400'
+                                  }`}
+                                >
+                                  {r.status === 'approved' ? '✓' : r.status === 'pending' ? '⏳' : '✗'}
+                                  {r.resetByAdmin && ' (reset)'}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="mt-6 pt-4 border-t border-white/10 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowUserModal(false);
+                      setSelectedRewardForUsers(null);
+                      setUsersWhoRedeemed([]);
+                    }}
                     className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
                   >
                     Fermer
