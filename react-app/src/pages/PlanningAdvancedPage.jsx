@@ -596,6 +596,75 @@ const PlanningAdvancedPage = () => {
     setCurrentWeek(new Date());
   };
 
+  // ==========================================
+  // 🚀 MISES À JOUR OPTIMISTES (PERFORMANCE)
+  // ==========================================
+
+  // Calculer la durée d'un shift localement
+  const calculateShiftDuration = (startTime, endTime) => {
+    try {
+      const start = new Date(`2000-01-01T${startTime}`);
+      const end = new Date(`2000-01-01T${endTime}`);
+      const hours = (end - start) / (1000 * 60 * 60);
+      return parseFloat(hours.toFixed(2));
+    } catch {
+      return 0;
+    }
+  };
+
+  // Mettre à jour les stats localement après un changement
+  const updateLocalStats = (newShifts) => {
+    const totalHours = newShifts.reduce((sum, s) => sum + (s.duration || 0), 0);
+    const uniqueEmployees = new Set(newShifts.map(s => s.employeeId));
+
+    setStats(prev => ({
+      ...prev,
+      totalHours: Math.round(totalHours * 10) / 10,
+      shiftsCount: newShifts.length,
+      employeesScheduled: uniqueEmployees.size
+    }));
+  };
+
+  // Ajouter un shift localement (optimiste)
+  const addShiftLocally = (shiftData, shiftId) => {
+    const newShift = {
+      id: shiftId,
+      ...shiftData,
+      duration: calculateShiftDuration(shiftData.startTime, shiftData.endTime),
+      status: 'scheduled',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const newShifts = [...shifts, newShift];
+    setShifts(newShifts);
+    updateLocalStats(newShifts);
+    return newShift;
+  };
+
+  // Modifier un shift localement (optimiste)
+  const updateShiftLocally = (shiftId, updateData) => {
+    const newShifts = shifts.map(s => {
+      if (s.id === shiftId) {
+        const duration = (updateData.startTime && updateData.endTime)
+          ? calculateShiftDuration(updateData.startTime, updateData.endTime)
+          : s.duration;
+        return { ...s, ...updateData, duration, updatedAt: new Date() };
+      }
+      return s;
+    });
+
+    setShifts(newShifts);
+    updateLocalStats(newShifts);
+  };
+
+  // Supprimer un shift localement (optimiste)
+  const removeShiftLocally = (shiftId) => {
+    const newShifts = shifts.filter(s => s.id !== shiftId);
+    setShifts(newShifts);
+    updateLocalStats(newShifts);
+  };
+
   const formatWeekRange = () => {
     const start = getWeekStart(currentWeek);
     const end = new Date(start);
@@ -881,10 +950,12 @@ const PlanningAdvancedPage = () => {
         createdBy: user.uid
       };
 
-      await planningEnrichedService.createShift(shiftData);
+      // 🚀 Créer en BDD et mise à jour optimiste locale
+      const result = await planningEnrichedService.createShift(shiftData);
+      addShiftLocally(shiftData, result.id);
+
       showNotification('✅ Shift créé', 'success');
       closeAddShiftModal();
-      await loadPlanningData();
     } catch (error) {
       console.error('❌ Erreur création:', error);
       showNotification('❌ Erreur création', 'error');
@@ -940,10 +1011,12 @@ const PlanningAdvancedPage = () => {
         isAbsence: newShift.isAbsence
       };
 
+      // 🚀 Modifier en BDD et mise à jour optimiste locale
       await planningEnrichedService.updateShift(editingShift.id, updateData);
+      updateShiftLocally(editingShift.id, updateData);
+
       showNotification('✅ Shift modifié', 'success');
       closeEditShiftModal();
-      await loadPlanningData();
     } catch (error) {
       console.error('❌ Erreur modification:', error);
       showNotification('❌ Erreur modification', 'error');
@@ -1007,22 +1080,37 @@ const PlanningAdvancedPage = () => {
     e.preventDefault();
     setDragOverCell(null);
     setIsDragging(false);
-    
+
     if (!draggedShift) return;
     if (draggedShift.employeeId === employeeId && draggedShift.date === date) {
       setDraggedShift(null);
       return;
     }
-    
+
     try {
-      await planningEnrichedService.copyShift(draggedShift.id, employeeId, date);
+      // 🚀 Copier en BDD et mise à jour optimiste locale
+      const result = await planningEnrichedService.copyShift(draggedShift.id, employeeId, date);
+
+      // Créer le nouveau shift localement avec les données du shift copié
+      const copiedShiftData = {
+        employeeId,
+        date,
+        startTime: draggedShift.startTime,
+        endTime: draggedShift.endTime,
+        position: draggedShift.position,
+        color: draggedShift.color,
+        notes: draggedShift.notes,
+        isAbsence: draggedShift.isAbsence,
+        createdBy: user.uid
+      };
+      addShiftLocally(copiedShiftData, result.id);
+
       showNotification('✅ Shift copié', 'success');
-      await loadPlanningData();
     } catch (error) {
       console.error('❌ Erreur copie:', error);
       showNotification('❌ Erreur copie', 'error');
     }
-    
+
     setDraggedShift(null);
   };
 
@@ -1040,11 +1128,25 @@ const PlanningAdvancedPage = () => {
       showNotification('⚠️ Aucun shift copié', 'warning');
       return;
     }
-    
+
     try {
-      await planningEnrichedService.copyShift(copiedShift.id, employeeId, date);
+      // 🚀 Coller en BDD et mise à jour optimiste locale
+      const result = await planningEnrichedService.copyShift(copiedShift.id, employeeId, date);
+
+      const pastedShiftData = {
+        employeeId,
+        date,
+        startTime: copiedShift.startTime,
+        endTime: copiedShift.endTime,
+        position: copiedShift.position,
+        color: copiedShift.color,
+        notes: copiedShift.notes,
+        isAbsence: copiedShift.isAbsence,
+        createdBy: user.uid
+      };
+      addShiftLocally(pastedShiftData, result.id);
+
       showNotification('✅ Shift collé', 'success');
-      await loadPlanningData();
     } catch (error) {
       console.error('❌ Erreur copie:', error);
       showNotification('❌ Erreur copie', 'error');
@@ -1057,9 +1159,11 @@ const PlanningAdvancedPage = () => {
 
   const deleteShift = async (shiftId) => {
     try {
+      // 🚀 Supprimer en BDD et mise à jour optimiste locale
       await planningEnrichedService.deleteShift(shiftId);
+      removeShiftLocally(shiftId);
+
       showNotification('✅ Shift supprimé', 'success');
-      await loadPlanningData();
     } catch (error) {
       console.error('❌ Erreur suppression:', error);
       showNotification('❌ Erreur suppression', 'error');
