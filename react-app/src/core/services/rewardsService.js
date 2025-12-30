@@ -313,6 +313,18 @@ class RewardsService {
         }
       }
 
+      // 👤 VÉRIFIER LA LIMITE PAR UTILISATEUR (1 par défaut pour individuelles)
+      const limitSettings = await this.getUserLimitSettings();
+      const defaultLimit = reward.type === 'team'
+        ? limitSettings.defaultLimitTeam
+        : limitSettings.defaultLimitIndividual;
+      const limitPerUser = limitSettings.customLimits?.[rewardId] ?? defaultLimit;
+
+      const userRedemptionCheck = await this.canUserRedeemReward(userId, rewardId, limitPerUser);
+      if (!userRedemptionCheck.canRedeem) {
+        throw new Error(`Limite atteinte ! Tu as déjà échangé cette récompense ${userRedemptionCheck.currentCount}/${limitPerUser} fois.`);
+      }
+
       // Vérifier les points de l'utilisateur
       if (userPoints < reward.cost) {
         throw new Error(`Points insuffisants. Requis: ${reward.cost}, Disponible: ${userPoints}`);
@@ -712,6 +724,276 @@ class RewardsService {
     } catch (error) {
       console.error('❌ Erreur getRewardStockInfo:', error);
       return null;
+    }
+  }
+
+  // ==========================================
+  // 👤 GESTION LIMITES PAR UTILISATEUR
+  // ==========================================
+
+  /**
+   * 🔢 Compter combien de fois un utilisateur a échangé une récompense
+   */
+  async getUserRedemptionCount(userId, rewardId) {
+    try {
+      // Vérifier les échanges approuvés ou en attente (pas les rejetés)
+      const redemptionsQuery = query(
+        collection(db, 'reward_redemptions'),
+        where('userId', '==', userId),
+        where('rewardId', '==', rewardId)
+      );
+
+      const snapshot = await getDocs(redemptionsQuery);
+
+      // Compter seulement les non-rejetés et non-réinitialisés
+      let count = 0;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        // Compter si approved ou pending ET pas réinitialisé
+        if ((data.status === 'approved' || data.status === 'pending') && !data.resetByAdmin) {
+          count++;
+        }
+      });
+
+      return count;
+    } catch (error) {
+      console.error('❌ Erreur getUserRedemptionCount:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * ✅ Vérifier si un utilisateur peut échanger une récompense (limite par user)
+   */
+  async canUserRedeemReward(userId, rewardId, limitPerUser = 1) {
+    try {
+      const currentCount = await this.getUserRedemptionCount(userId, rewardId);
+      return {
+        canRedeem: currentCount < limitPerUser,
+        currentCount,
+        limitPerUser,
+        remaining: Math.max(0, limitPerUser - currentCount)
+      };
+    } catch (error) {
+      console.error('❌ Erreur canUserRedeemReward:', error);
+      return { canRedeem: false, currentCount: 0, limitPerUser, remaining: 0 };
+    }
+  }
+
+  /**
+   * 👥 Obtenir tous les utilisateurs qui ont échangé une récompense (ADMIN)
+   */
+  async getUsersWhoRedeemed(adminId, rewardId) {
+    try {
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      const redemptionsQuery = query(
+        collection(db, 'reward_redemptions'),
+        where('rewardId', '==', rewardId),
+        orderBy('requestedAt', 'desc')
+      );
+
+      const snapshot = await getDocs(redemptionsQuery);
+      const usersMap = new Map();
+
+      for (const docSnapshot of snapshot.docs) {
+        const data = docSnapshot.data();
+        const userId = data.userId;
+
+        if (!usersMap.has(userId)) {
+          // Récupérer les infos utilisateur
+          let userName = 'Utilisateur inconnu';
+          let userEmail = '';
+          try {
+            const userDoc = await getDoc(doc(db, 'users', userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              userName = userData.displayName || userData.firstName || userData.email || 'Utilisateur';
+              userEmail = userData.email || '';
+            }
+          } catch (e) {
+            console.warn('Erreur récup user:', e);
+          }
+
+          usersMap.set(userId, {
+            userId,
+            userName,
+            userEmail,
+            redemptions: [],
+            totalRedemptions: 0,
+            canRedeem: true
+          });
+        }
+
+        const userEntry = usersMap.get(userId);
+        userEntry.redemptions.push({
+          redemptionId: docSnapshot.id,
+          status: data.status,
+          requestedAt: data.requestedAt?.toDate?.() || data.requestedAt,
+          resetByAdmin: data.resetByAdmin || false
+        });
+
+        // Compter seulement les non-rejetés et non-réinitialisés
+        if ((data.status === 'approved' || data.status === 'pending') && !data.resetByAdmin) {
+          userEntry.totalRedemptions++;
+        }
+      }
+
+      // Déterminer qui peut encore échanger (limite 1 par défaut)
+      const result = Array.from(usersMap.values()).map(user => ({
+        ...user,
+        canRedeem: user.totalRedemptions < 1
+      }));
+
+      return result;
+
+    } catch (error) {
+      console.error('❌ Erreur getUsersWhoRedeemed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 🔄 Réinitialiser l'échange d'un utilisateur pour une récompense (ADMIN)
+   * Permet à l'utilisateur d'échanger à nouveau
+   */
+  async resetUserRedemption(adminId, userId, rewardId) {
+    try {
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      // Trouver tous les échanges approuvés de cet utilisateur pour cette récompense
+      const redemptionsQuery = query(
+        collection(db, 'reward_redemptions'),
+        where('userId', '==', userId),
+        where('rewardId', '==', rewardId)
+      );
+
+      const snapshot = await getDocs(redemptionsQuery);
+      const batch = writeBatch(db);
+      let resetCount = 0;
+
+      snapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        // Marquer comme réinitialisé si approuvé ou pending
+        if ((data.status === 'approved' || data.status === 'pending') && !data.resetByAdmin) {
+          batch.update(doc(db, 'reward_redemptions', docSnapshot.id), {
+            resetByAdmin: true,
+            resetAt: serverTimestamp(),
+            resetBy: adminId
+          });
+          resetCount++;
+        }
+      });
+
+      if (resetCount > 0) {
+        await batch.commit();
+        console.log(`✅ ${resetCount} échange(s) réinitialisé(s) pour user ${userId}, reward ${rewardId}`);
+      }
+
+      return {
+        success: true,
+        message: `${resetCount} échange(s) réinitialisé(s). L'utilisateur peut à nouveau échanger.`,
+        resetCount
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur resetUserRedemption:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📋 Obtenir toutes les récompenses (Firebase + paramètres par défaut)
+   */
+  async getAllRewardsForAdmin(adminId) {
+    try {
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      // Récupérer les récompenses personnalisées de Firebase
+      const rewardsSnapshot = await getDocs(collection(db, 'rewards'));
+      const customRewards = [];
+
+      rewardsSnapshot.forEach((docSnapshot) => {
+        customRewards.push({
+          id: docSnapshot.id,
+          ...docSnapshot.data(),
+          isCustom: true
+        });
+      });
+
+      console.log('📋 Récompenses personnalisées récupérées:', customRewards.length);
+
+      return customRewards;
+
+    } catch (error) {
+      console.error('❌ Erreur getAllRewardsForAdmin:', error);
+      return [];
+    }
+  }
+
+  /**
+   * ⚙️ Sauvegarder les paramètres de limite par utilisateur
+   */
+  async saveUserLimitSettings(adminId, settings) {
+    try {
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      const settingsRef = doc(db, 'rewardSettings', 'userLimits');
+      const { setDoc } = await import('firebase/firestore');
+
+      await setDoc(settingsRef, {
+        ...settings,
+        updatedAt: serverTimestamp(),
+        updatedBy: adminId
+      }, { merge: true });
+
+      console.log('✅ Paramètres de limites utilisateur sauvegardés');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Erreur saveUserLimitSettings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📖 Récupérer les paramètres de limite par utilisateur
+   */
+  async getUserLimitSettings() {
+    try {
+      const settingsRef = doc(db, 'rewardSettings', 'userLimits');
+      const settingsDoc = await getDoc(settingsRef);
+
+      if (settingsDoc.exists()) {
+        return settingsDoc.data();
+      }
+
+      // Valeurs par défaut : limite 1 pour toutes les récompenses individuelles
+      return {
+        defaultLimitIndividual: 1,
+        defaultLimitTeam: 5,
+        customLimits: {} // { rewardId: limitPerUser }
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur getUserLimitSettings:', error);
+      return {
+        defaultLimitIndividual: 1,
+        defaultLimitTeam: 5,
+        customLimits: {}
+      };
     }
   }
 }
