@@ -66,6 +66,7 @@ import teamPoolService from '../core/services/teamPoolService.js';
 
 // 🌳 IMPORT DU SERVICE SKILLS POUR DISTRIBUTION XP COMPÉTENCES
 import skillService from '../core/services/skillService.js';
+import xpHistoryService from '../core/services/xpHistoryService.js';
 
 /**
  * 🎨 COMPOSANT CARTE GLASSMORPHISM
@@ -387,6 +388,21 @@ const AdminTaskValidationPage = () => {
           
           console.log(`💎 ${xpToAdd} XP attribués à ${odot} (totalXp + spendableXp)`);
           console.log(`✅ Nouveau total: ${newTotalXP} XP prestige, ${newSpendableXP} XP dépensables (Niveau ${newLevel})`);
+
+          // 📊 ENREGISTRER DANS L'HISTORIQUE XP (pour stats dashboard)
+          await xpHistoryService.logXPEvent({
+            userId: odot,
+            type: 'quest_completed',
+            amount: xpToAdd,
+            balance: newTotalXP,
+            source: 'task_validation',
+            description: `Quête validée: ${selectedQuest.title || selectedQuest.questTitle || 'Sans titre'}`,
+            metadata: {
+              taskId: selectedQuest.id,
+              taskTitle: selectedQuest.title || selectedQuest.questTitle,
+              validatedBy: user.uid
+            }
+          });
         }
       }
       
@@ -646,7 +662,22 @@ const AdminTaskValidationPage = () => {
           xpForcedBy: user.uid,
           xpForcedAmount: xpToAdd
         });
-        
+
+        // 📊 ENREGISTRER DANS L'HISTORIQUE XP (pour stats dashboard)
+        await xpHistoryService.logXPEvent({
+          userId: odot,
+          type: 'admin_bonus',
+          amount: xpToAdd,
+          balance: newTotalXP,
+          source: 'admin_force_xp',
+          description: `XP forcés pour: ${selectedQuest.title || selectedQuest.questTitle || 'Sans titre'}`,
+          metadata: {
+            taskId: selectedQuest.id,
+            taskTitle: selectedQuest.title || selectedQuest.questTitle,
+            forcedBy: user.uid
+          }
+        });
+
         // ✅ CRÉER L'ENTRÉE DANS task_validations
         try {
           await addDoc(collection(db, 'task_validations'), {
