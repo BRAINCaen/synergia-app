@@ -87,10 +87,15 @@ class RewardsService {
 
       // Valider les données
       const { name, description, type, value, cost, icon, requirements } = rewardData;
-      
+
       if (!name || !description || !type || !cost) {
         throw new Error('Données incomplètes pour créer la récompense');
       }
+
+      // 📦 GESTION DES STOCKS
+      const stockType = rewardData.stockType || 'unlimited'; // 'unlimited' | 'limited'
+      const stockTotal = stockType === 'limited' ? parseInt(rewardData.stockTotal) || 0 : null;
+      const stockRemaining = stockType === 'limited' ? stockTotal : null;
 
       // Créer la récompense
       const reward = {
@@ -106,6 +111,10 @@ class RewardsService {
         createdBy: adminId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        // 📦 CHAMPS STOCK
+        stockType, // 'unlimited' | 'limited'
+        stockTotal, // Quantité totale (null si illimité)
+        stockRemaining, // Quantité restante (null si illimité)
         // Statistiques
         timesRedeemed: 0,
         usersRedeemedCount: 0,
@@ -113,9 +122,9 @@ class RewardsService {
       };
 
       const docRef = await addDoc(collection(db, 'rewards'), reward);
-      
-      console.log('✅ Récompense créée:', docRef.id);
-      
+
+      console.log('✅ Récompense créée:', docRef.id, '| Stock:', stockType === 'limited' ? `${stockTotal} unités` : 'illimité');
+
       return {
         success: true,
         rewardId: docRef.id,
@@ -297,9 +306,31 @@ class RewardsService {
         throw new Error('Récompense non disponible');
       }
 
+      // 📦 VÉRIFIER LE STOCK
+      if (reward.stockType === 'limited') {
+        if (reward.stockRemaining <= 0) {
+          throw new Error('Stock épuisé ! Cette récompense n\'est plus disponible.');
+        }
+      }
+
       // Vérifier les points de l'utilisateur
       if (userPoints < reward.cost) {
         throw new Error(`Points insuffisants. Requis: ${reward.cost}, Disponible: ${userPoints}`);
+      }
+
+      // 📦 PRÉPARER LES UPDATES (avec décrémentation stock si limité)
+      const rewardUpdates = {
+        timesRedeemed: (reward.timesRedeemed || 0) + 1,
+        lastRedeemedAt: serverTimestamp()
+      };
+
+      // Décrémenter le stock si limité
+      if (reward.stockType === 'limited') {
+        rewardUpdates.stockRemaining = reward.stockRemaining - 1;
+        // Désactiver automatiquement si stock épuisé après cette demande
+        if (reward.stockRemaining - 1 <= 0) {
+          rewardUpdates.isAvailable = false;
+        }
       }
 
       // Créer la demande d'échange
@@ -318,11 +349,10 @@ class RewardsService {
 
       const redemptionRef = await addDoc(collection(db, 'reward_redemptions'), redemptionData);
 
-      // Mettre à jour les statistiques de la récompense
-      await updateDoc(rewardRef, {
-        timesRedeemed: (reward.timesRedeemed || 0) + 1,
-        lastRedeemedAt: serverTimestamp()
-      });
+      // Mettre à jour les statistiques et le stock de la récompense
+      await updateDoc(rewardRef, rewardUpdates);
+
+      console.log('✅ Stock après demande:', reward.stockType === 'limited' ? `${reward.stockRemaining - 1} restants` : 'illimité');
 
       console.log('✅ Échange de récompense créé:', redemptionRef.id);
 
@@ -505,6 +535,22 @@ class RewardsService {
         throw new Error('Cet échange a déjà été traité');
       }
 
+      // 📦 RESTAURER LE STOCK SI REJETÉ
+      const rewardRef = doc(db, 'rewards', redemption.rewardId);
+      const rewardDoc = await getDoc(rewardRef);
+
+      if (rewardDoc.exists()) {
+        const reward = rewardDoc.data();
+        if (reward.stockType === 'limited') {
+          await updateDoc(rewardRef, {
+            stockRemaining: (reward.stockRemaining || 0) + 1,
+            isAvailable: true, // Réactiver si le stock était épuisé
+            updatedAt: serverTimestamp()
+          });
+          console.log('📦 Stock restauré pour:', reward.name);
+        }
+      }
+
       // Mettre à jour le statut
       await updateDoc(redemptionRef, {
         status: 'rejected',
@@ -563,6 +609,109 @@ class RewardsService {
     } catch (error) {
       console.error('❌ Erreur getAllRedemptions:', error);
       return [];
+    }
+  }
+
+  /**
+   * 📦 METTRE À JOUR LE STOCK D'UNE RÉCOMPENSE (ADMIN)
+   */
+  async updateRewardStock(adminId, rewardId, stockData) {
+    try {
+      // Vérifier les permissions admin
+      const hasPermission = await this.checkAdminPermissions(adminId);
+      if (!hasPermission) {
+        throw new Error('Permissions administrateur requises');
+      }
+
+      const rewardRef = doc(db, 'rewards', rewardId);
+      const rewardDoc = await getDoc(rewardRef);
+
+      if (!rewardDoc.exists()) {
+        throw new Error('Récompense introuvable');
+      }
+
+      const { stockType, stockTotal, addStock } = stockData;
+      const currentReward = rewardDoc.data();
+
+      const updates = {
+        updatedAt: serverTimestamp(),
+        updatedBy: adminId
+      };
+
+      // Mode: changer le type de stock
+      if (stockType !== undefined) {
+        updates.stockType = stockType;
+
+        if (stockType === 'unlimited') {
+          updates.stockTotal = null;
+          updates.stockRemaining = null;
+          updates.isAvailable = true;
+        } else if (stockType === 'limited' && stockTotal !== undefined) {
+          updates.stockTotal = parseInt(stockTotal);
+          updates.stockRemaining = parseInt(stockTotal);
+          updates.isAvailable = parseInt(stockTotal) > 0;
+        }
+      }
+
+      // Mode: ajouter du stock (réapprovisionner)
+      if (addStock !== undefined && currentReward.stockType === 'limited') {
+        const additional = parseInt(addStock);
+        updates.stockTotal = (currentReward.stockTotal || 0) + additional;
+        updates.stockRemaining = (currentReward.stockRemaining || 0) + additional;
+        updates.isAvailable = true;
+      }
+
+      // Mode: définir un stock total précis
+      if (stockTotal !== undefined && stockType === undefined) {
+        const newTotal = parseInt(stockTotal);
+        const currentRemaining = currentReward.stockRemaining || 0;
+        const currentTotal = currentReward.stockTotal || 0;
+        const diff = newTotal - currentTotal;
+
+        updates.stockTotal = newTotal;
+        updates.stockRemaining = Math.max(0, currentRemaining + diff);
+        updates.isAvailable = updates.stockRemaining > 0;
+      }
+
+      await updateDoc(rewardRef, updates);
+
+      console.log('📦 Stock mis à jour pour:', rewardId, updates);
+
+      return { success: true, message: 'Stock mis à jour' };
+
+    } catch (error) {
+      console.error('❌ Erreur updateRewardStock:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📊 OBTENIR LES INFOS DE STOCK D'UNE RÉCOMPENSE
+   */
+  async getRewardStockInfo(rewardId) {
+    try {
+      const rewardRef = doc(db, 'rewards', rewardId);
+      const rewardDoc = await getDoc(rewardRef);
+
+      if (!rewardDoc.exists()) {
+        return null;
+      }
+
+      const reward = rewardDoc.data();
+
+      return {
+        stockType: reward.stockType || 'unlimited',
+        stockTotal: reward.stockTotal,
+        stockRemaining: reward.stockRemaining,
+        isAvailable: reward.isAvailable,
+        percentageRemaining: reward.stockType === 'limited' && reward.stockTotal > 0
+          ? Math.round((reward.stockRemaining / reward.stockTotal) * 100)
+          : null
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur getRewardStockInfo:', error);
+      return null;
     }
   }
 }

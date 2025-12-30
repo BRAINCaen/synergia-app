@@ -32,35 +32,35 @@ import { db } from '../core/firebase.js';
 // ==========================================
 
 const DEFAULT_INDIVIDUAL_REWARDS = [
-  { id: 'snack', name: 'Gouter surprise', description: 'Un gouter de ton choix', xpCost: 50, icon: '🍪', category: 'Mini-plaisirs', type: 'individual', isDefault: true },
-  { id: 'coffee', name: 'Cafe premium', description: 'Un cafe de specialite', xpCost: 75, icon: '☕', category: 'Mini-plaisirs', type: 'individual', isDefault: true },
-  { id: 'tea', name: 'The premium', description: 'Une selection de thes fins', xpCost: 80, icon: '🍵', category: 'Mini-plaisirs', type: 'individual', isDefault: true },
-  { id: 'earlyLeave', name: 'Sortie anticipee', description: 'Partir 30 min plus tot', xpCost: 150, icon: '🏃', category: 'Petits avantages', type: 'individual', isDefault: true },
-  { id: 'parking', name: 'Place de parking', description: 'Place reservee pour une semaine', xpCost: 180, icon: '🅿️', category: 'Petits avantages', type: 'individual', isDefault: true },
-  { id: 'headphones', name: 'Ecouteurs', description: 'Ecouteurs sans fil', xpCost: 300, icon: '🎧', category: 'Plaisirs utiles', type: 'individual', isDefault: true },
-  { id: 'powerbank', name: 'Batterie externe', description: 'Power bank haute capacite', xpCost: 250, icon: '🔋', category: 'Plaisirs utiles', type: 'individual', isDefault: true },
-  { id: 'restaurant', name: 'Restaurant', description: 'Bon pour un restaurant', xpCost: 500, icon: '🍽️', category: 'Food & cadeaux', type: 'individual', isDefault: true },
-  { id: 'giftCard', name: 'Carte cadeau 30€', description: 'Utilisable en magasin', xpCost: 600, icon: '🎁', category: 'Food & cadeaux', type: 'individual', isDefault: true },
-  { id: 'massage', name: 'Massage', description: 'Seance de massage professionnel', xpCost: 800, icon: '💆', category: 'Bien-etre', type: 'individual', isDefault: true },
-  { id: 'ergonomic', name: 'Accessoire ergonomique', description: 'Fauteuil ou coussin ergonomique', xpCost: 900, icon: '🪑', category: 'Bien-etre', type: 'individual', isDefault: true },
-  { id: 'cinema', name: 'Pack cinema', description: '2 places de cinema + popcorn', xpCost: 1200, icon: '🎬', category: 'Loisirs', type: 'individual', isDefault: true },
-  { id: 'concert', name: 'Concert', description: 'Billet pour un concert', xpCost: 1400, icon: '🎵', category: 'Loisirs', type: 'individual', isDefault: true },
-  { id: 'gadget', name: 'Gadget tech', description: 'Objet technologique au choix', xpCost: 2000, icon: '📺', category: 'Lifestyle', type: 'individual', isDefault: true },
-  { id: 'sport', name: 'Equipement sportif', description: 'Materiel pour ton sport prefere', xpCost: 2300, icon: '⚽', category: 'Lifestyle', type: 'individual', isDefault: true },
-  { id: 'halfDay', name: 'Demi-journee conge', description: 'Une demi-journee de repos supplementaire', xpCost: 2800, icon: '🌅', category: 'Temps offert', type: 'individual', isDefault: true },
-  { id: 'fullDay', name: 'Jour de conge bonus', description: 'Un jour de conge supplementaire', xpCost: 3500, icon: '🏖️', category: 'Temps offert', type: 'individual', isDefault: true },
-  { id: 'weekend', name: 'Week-end decouverte', description: 'Un week-end dans un lieu touristique', xpCost: 5000, icon: '🗺️', category: 'Grands plaisirs', type: 'individual', isDefault: true },
-  { id: 'spa', name: 'Journee spa', description: 'Une journee complete dans un spa', xpCost: 4500, icon: '🧖', category: 'Grands plaisirs', type: 'individual', isDefault: true },
-  { id: 'vacation', name: 'Semaine de vacances offerte', description: 'Une semaine de vacances payee', xpCost: 12500, icon: '✈️', category: 'Premium', type: 'individual', isDefault: true },
-  { id: 'laptop', name: 'Ordinateur portable', description: 'Un laptop pour usage personnel', xpCost: 15000, icon: '💻', category: 'Premium', type: 'individual', isDefault: true }
+  { id: 'snack', name: 'Gouter surprise', description: 'Un gouter de ton choix', xpCost: 50, icon: '🍪', category: 'Mini-plaisirs', type: 'individual', isDefault: true, stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'coffee', name: 'Cafe premium', description: 'Un cafe de specialite', xpCost: 75, icon: '☕', category: 'Mini-plaisirs', type: 'individual', isDefault: true, stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'tea', name: 'The premium', description: 'Une selection de thes fins', xpCost: 80, icon: '🍵', category: 'Mini-plaisirs', type: 'individual', isDefault: true, stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'earlyLeave', name: 'Sortie anticipee', description: 'Partir 30 min plus tot', xpCost: 150, icon: '🏃', category: 'Petits avantages', type: 'individual', isDefault: true, stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'parking', name: 'Place de parking', description: 'Place reservee pour une semaine', xpCost: 180, icon: '🅿️', category: 'Petits avantages', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+  { id: 'headphones', name: 'Ecouteurs', description: 'Ecouteurs sans fil', xpCost: 300, icon: '🎧', category: 'Plaisirs utiles', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 3, stockRemaining: 3 },
+  { id: 'powerbank', name: 'Batterie externe', description: 'Power bank haute capacite', xpCost: 250, icon: '🔋', category: 'Plaisirs utiles', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+  { id: 'restaurant', name: 'Restaurant', description: 'Bon pour un restaurant', xpCost: 500, icon: '🍽️', category: 'Food & cadeaux', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 10, stockRemaining: 10 },
+  { id: 'giftCard', name: 'Carte cadeau 30€', description: 'Utilisable en magasin', xpCost: 600, icon: '🎁', category: 'Food & cadeaux', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+  { id: 'massage', name: 'Massage', description: 'Seance de massage professionnel', xpCost: 800, icon: '💆', category: 'Bien-etre', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 3, stockRemaining: 3 },
+  { id: 'ergonomic', name: 'Accessoire ergonomique', description: 'Fauteuil ou coussin ergonomique', xpCost: 900, icon: '🪑', category: 'Bien-etre', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'cinema', name: 'Pack cinema', description: '2 places de cinema + popcorn', xpCost: 1200, icon: '🎬', category: 'Loisirs', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 10, stockRemaining: 10 },
+  { id: 'concert', name: 'Concert', description: 'Billet pour un concert', xpCost: 1400, icon: '🎵', category: 'Loisirs', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'gadget', name: 'Gadget tech', description: 'Objet technologique au choix', xpCost: 2000, icon: '📺', category: 'Lifestyle', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'sport', name: 'Equipement sportif', description: 'Materiel pour ton sport prefere', xpCost: 2300, icon: '⚽', category: 'Lifestyle', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'halfDay', name: 'Demi-journee conge', description: 'Une demi-journee de repos supplementaire', xpCost: 2800, icon: '🌅', category: 'Temps offert', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 10, stockRemaining: 10 },
+  { id: 'fullDay', name: 'Jour de conge bonus', description: 'Un jour de conge supplementaire', xpCost: 3500, icon: '🏖️', category: 'Temps offert', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 5, stockRemaining: 5 },
+  { id: 'weekend', name: 'Week-end decouverte', description: 'Un week-end dans un lieu touristique', xpCost: 5000, icon: '🗺️', category: 'Grands plaisirs', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 1, stockRemaining: 1 },
+  { id: 'spa', name: 'Journee spa', description: 'Une journee complete dans un spa', xpCost: 4500, icon: '🧖', category: 'Grands plaisirs', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'vacation', name: 'Semaine de vacances offerte', description: 'Une semaine de vacances payee', xpCost: 12500, icon: '✈️', category: 'Premium', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 1, stockRemaining: 1 },
+  { id: 'laptop', name: 'Ordinateur portable', description: 'Un laptop pour usage personnel', xpCost: 15000, icon: '💻', category: 'Premium', type: 'individual', isDefault: true, stockType: 'limited', stockTotal: 1, stockRemaining: 1 }
 ];
 
 const DEFAULT_TEAM_REWARDS = [
-  { id: 'teamSnack', name: 'Gouter d\'equipe', description: 'Gouter pour toute l\'equipe', xpCost: 500, icon: '🍰', category: 'Team', type: 'team', isDefault: true },
-  { id: 'teamLunch', name: 'Dejeuner d\'equipe', description: 'Restaurant pour l\'equipe', xpCost: 1500, icon: '🍴', category: 'Team', type: 'team', isDefault: true },
-  { id: 'teamActivity', name: 'Activite team building', description: 'Sortie ou activite collective', xpCost: 3000, icon: '🎯', category: 'Team', type: 'team', isDefault: true },
-  { id: 'teamOuting', name: 'Sortie d\'equipe', description: 'Journee decouverte en equipe', xpCost: 5000, icon: '🚀', category: 'Team', type: 'team', isDefault: true },
-  { id: 'teamWeekend', name: 'Week-end d\'equipe', description: 'Week-end team building complet', xpCost: 10000, icon: '🏕️', category: 'Team', type: 'team', isDefault: true }
+  { id: 'teamSnack', name: 'Gouter d\'equipe', description: 'Gouter pour toute l\'equipe', xpCost: 500, icon: '🍰', category: 'Team', type: 'team', isDefault: true, stockType: 'unlimited', stockTotal: null, stockRemaining: null },
+  { id: 'teamLunch', name: 'Dejeuner d\'equipe', description: 'Restaurant pour l\'equipe', xpCost: 1500, icon: '🍴', category: 'Team', type: 'team', isDefault: true, stockType: 'limited', stockTotal: 4, stockRemaining: 4 },
+  { id: 'teamActivity', name: 'Activite team building', description: 'Sortie ou activite collective', xpCost: 3000, icon: '🎯', category: 'Team', type: 'team', isDefault: true, stockType: 'limited', stockTotal: 2, stockRemaining: 2 },
+  { id: 'teamOuting', name: 'Sortie d\'equipe', description: 'Journee decouverte en equipe', xpCost: 5000, icon: '🚀', category: 'Team', type: 'team', isDefault: true, stockType: 'limited', stockTotal: 1, stockRemaining: 1 },
+  { id: 'teamWeekend', name: 'Week-end d\'equipe', description: 'Week-end team building complet', xpCost: 10000, icon: '🏕️', category: 'Team', type: 'team', isDefault: true, stockType: 'limited', stockTotal: 1, stockRemaining: 1 }
 ];
 
 // ==========================================
@@ -163,7 +163,7 @@ const FilterBottomSheet = ({ isOpen, onClose, filterCategory, setFilterCategory,
 );
 
 // Carte recompense responsive
-const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistReward, onOpenDetail, onSetWishlist, onRemoveWishlist, userIsAdmin, onEdit, onDelete }) => {
+const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistReward, onOpenDetail, onSetWishlist, onRemoveWishlist, userIsAdmin, onEdit, onDelete, stockInfo }) => {
   const getRewardColor = (r) => {
     if (r.type === 'team') return 'from-purple-600 to-indigo-600';
     const xp = r.xpCost;
@@ -179,16 +179,28 @@ const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistRe
     return 'from-yellow-500 to-amber-500';
   };
 
+  // 📦 Vérifier si le stock est épuisé
+  const isOutOfStock = stockInfo?.stockType === 'limited' && (stockInfo?.stockRemaining || 0) <= 0;
+  const isLowStock = stockInfo?.stockType === 'limited' && stockInfo?.stockRemaining > 0 && stockInfo?.stockRemaining <= 3;
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className={`relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden transition-all ${
-        canAfford ? 'hover:border-purple-500/50' : 'opacity-60'
+        canAfford && !isOutOfStock ? 'hover:border-purple-500/50' : 'opacity-60'
       }`}
     >
       {/* Header gradient */}
       <div className={`h-1.5 bg-gradient-to-r ${getRewardColor(reward)}`} />
+
+      {/* 📦 Badge stock épuisé */}
+      {isOutOfStock && (
+        <div className="absolute top-3 left-3 bg-red-500/90 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
+          <Package className="w-3 h-3" />
+          Épuisé
+        </div>
+      )}
 
       {/* Badge wishlist */}
       {wishlistReward?.id === reward.id && (
@@ -242,17 +254,46 @@ const RewardCard = ({ reward, canAfford, userSpendableXP, teamPoolXP, wishlistRe
             )}
           </div>
 
+          {/* 📦 Indicateur de stock */}
+          {stockInfo?.stockType === 'limited' && (
+            <div className={`flex items-center justify-between text-xs px-3 py-2 rounded-lg ${
+              isOutOfStock
+                ? 'bg-red-500/10 text-red-400'
+                : isLowStock
+                  ? 'bg-amber-500/10 text-amber-400'
+                  : 'bg-white/5 text-gray-400'
+            }`}>
+              <span className="flex items-center gap-1">
+                <Package className="w-3 h-3" />
+                {isOutOfStock ? 'Stock épuisé' : `${stockInfo.stockRemaining} disponible${stockInfo.stockRemaining > 1 ? 's' : ''}`}
+              </span>
+              {isLowStock && !isOutOfStock && <span className="text-[10px]">⚠️ Limité</span>}
+            </div>
+          )}
+
           {/* Bouton principal - TOUJOURS VISIBLE */}
           <button
-            onClick={() => onOpenDetail(reward)}
+            onClick={() => !isOutOfStock && onOpenDetail(reward)}
+            disabled={isOutOfStock}
             className={`w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-              canAfford
-                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
-                : 'bg-gray-700/50 text-gray-400'
+              isOutOfStock
+                ? 'bg-red-900/30 text-red-400 cursor-not-allowed'
+                : canAfford
+                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
+                  : 'bg-gray-700/50 text-gray-400'
             }`}
           >
-            <Eye className="w-4 h-4" />
-            {canAfford ? 'Voir & Demander' : 'XP insuffisants'}
+            {isOutOfStock ? (
+              <>
+                <Package className="w-4 h-4" />
+                Stock épuisé
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" />
+                {canAfford ? 'Voir & Demander' : 'XP insuffisants'}
+              </>
+            )}
           </button>
 
           {/* Actions admin */}
@@ -332,6 +373,9 @@ const RewardsPage = () => {
   const [submittingSuggestion, setSubmittingSuggestion] = useState(false);
   const [recentSuggestions, setRecentSuggestions] = useState([]);
 
+  // 📦 Etats stock
+  const [stockSettings, setStockSettings] = useState({});
+
   // Hook cagnotte
   const {
     stats: poolStats, loading: poolLoading, contributing,
@@ -350,6 +394,36 @@ const RewardsPage = () => {
     }, () => setTeamPoolXP(0));
     return () => unsubscribe();
   }, []);
+
+  // 📦 Ecouter les paramètres de stock en temps réel
+  useEffect(() => {
+    const stockRef = doc(db, 'rewardStockSettings', 'main');
+    const unsubscribe = onSnapshot(stockRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        setStockSettings(docSnapshot.data().settings || {});
+      }
+    }, (error) => {
+      console.log('Pas de paramètres de stock encore');
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 📦 Obtenir le stock d'une récompense
+  const getStockInfo = useCallback((rewardId) => {
+    if (stockSettings[rewardId]) {
+      return stockSettings[rewardId];
+    }
+    // Valeurs par défaut
+    const defaultReward = [...DEFAULT_INDIVIDUAL_REWARDS, ...DEFAULT_TEAM_REWARDS].find(r => r.id === rewardId);
+    if (defaultReward?.stockType) {
+      return {
+        stockType: defaultReward.stockType || 'unlimited',
+        stockTotal: defaultReward.stockTotal,
+        stockRemaining: defaultReward.stockRemaining
+      };
+    }
+    return { stockType: 'unlimited', stockTotal: null, stockRemaining: null };
+  }, [stockSettings]);
 
   // Charger donnees
   useEffect(() => {
@@ -1093,6 +1167,7 @@ const RewardsPage = () => {
                   userIsAdmin={userIsAdmin}
                   onEdit={handleEditReward}
                   onDelete={handleDeleteReward}
+                  stockInfo={getStockInfo(reward.id)}
                 />
               );
             })}
