@@ -76,6 +76,8 @@ const AdminAnalyticsPage = () => {
       newToday: 0,
       newThisWeek: 0,
       newThisMonth: 0,
+      activeToday: 0,
+      activeThisWeek: 0,
       retention: 0,
       byRole: {},
       list: []
@@ -159,22 +161,37 @@ const AdminAnalyticsPage = () => {
       let newToday = 0;
       let newThisWeek = 0;
       let newThisMonth = 0;
+      let activeToday = 0;
+      let activeThisWeek = 0;
       const roleDistribution = {};
       const usersList = [];
 
       usersSnapshot.forEach(doc => {
         const userData = doc.data();
-        const userId = doc.id;
+        const oderId = doc.id;
         const createdAt = userData.createdAt?.toDate?.() || new Date();
-        const lastActivity = userData.lastActivity?.toDate?.() || null;
+        const lastActivity = userData.lastActivity?.toDate?.() ||
+                           userData.gamification?.lastActivityAt?.toDate?.() ||
+                           userData.updatedAt?.toDate?.() || null;
 
         totalUsers++;
 
-        // Statut d'activité
-        if (userData.status === 'active' || !userData.status) {
+        // Statut d'activité basé sur la dernière activité (actif si activité dans les 7 derniers jours)
+        const isRecentlyActive = lastActivity && (now.getTime() - lastActivity.getTime() < 7 * 24 * 60 * 60 * 1000);
+        if (isRecentlyActive) {
           activeUsers++;
         } else {
           inactiveUsers++;
+        }
+
+        // Activité aujourd'hui
+        if (lastActivity && lastActivity >= todayStart) {
+          activeToday++;
+        }
+
+        // Activité cette semaine
+        if (lastActivity && lastActivity >= weekAgo) {
+          activeThisWeek++;
         }
 
         // Nouveaux utilisateurs
@@ -197,16 +214,21 @@ const AdminAnalyticsPage = () => {
         const userTotalXp = userData.gamification?.totalXp || userData.totalXp || userData.xp || 0;
         const userLevel = calculateLevel(userTotalXp);
 
+        // Compter les badges depuis gamification.badges (tableau) ou badgesUnlocked (nombre)
+        const userBadgeCount = Array.isArray(userData.gamification?.badges)
+          ? userData.gamification.badges.length
+          : (userData.gamification?.badgesUnlocked || userData.gamification?.badgesEarned || 0);
+
         usersList.push({
-          id: userId,
+          id: oderId,
           name: userData.displayName || 'Sans nom',
           email: userData.email,
           level: userLevel,
           xp: userTotalXp,
           tasksCompleted: userData.gamification?.tasksCompleted || userData.tasksCompleted || 0,
-          badges: userData.gamification?.badgesEarned || userData.badges?.length || 0,
+          badges: userBadgeCount,
           roles: userRoles,
-          status: userData.status || 'active',
+          status: isRecentlyActive ? 'active' : 'inactive',
           createdAt,
           lastActivity
         });
@@ -304,45 +326,87 @@ const AdminAnalyticsPage = () => {
       // 🏆 ANALYSE COMPLÈTE DES BADGES
       // ==========================================
       console.log('🏆 Analyse des badges...');
+
+      // 1. Charger les définitions de badges
       const badgesRef = collection(db, 'badges');
       const badgesSnapshot = await getDocs(badgesRef);
 
       let totalBadges = 0;
-      let totalAwarded = 0;
       const badgesByRarity = {};
-      const badgePopularity = [];
-      const badgesByUser = {};
-      const recentBadges = [];
+      const badgeDefinitions = {};
 
       badgesSnapshot.forEach(doc => {
         const badgeData = doc.data();
         totalBadges++;
-
-        const earnedCount = badgeData.earnedCount || 0;
-        totalAwarded += earnedCount;
+        badgeDefinitions[doc.id] = badgeData;
 
         // Par rareté
         const rarity = badgeData.rarity || 'common';
         badgesByRarity[rarity] = (badgesByRarity[rarity] || 0) + 1;
+      });
 
-        // Popularité
-        if (earnedCount > 0) {
-          badgePopularity.push({
-            id: doc.id,
-            name: badgeData.name,
-            icon: badgeData.icon,
-            rarity,
-            earnedCount,
-            category: badgeData.category || 'general'
+      // 2. Charger les badges attribués depuis user_badges
+      const userBadgesRef = collection(db, 'user_badges');
+      const userBadgesSnapshot = await getDocs(userBadgesRef);
+
+      let totalAwarded = 0;
+      const badgePopularity = {};
+      const badgesByUser = {};
+      const recentBadges = [];
+
+      userBadgesSnapshot.forEach(doc => {
+        const ubData = doc.data();
+        const oderId = ubData.oderId || ubData.userId;
+        const badgeId = ubData.badgeId;
+        const earnedAt = ubData.earnedAt?.toDate?.() || ubData.createdAt?.toDate?.();
+
+        totalAwarded++;
+
+        // Compter par badge pour la popularité
+        if (!badgePopularity[badgeId]) {
+          const def = badgeDefinitions[badgeId] || {};
+          badgePopularity[badgeId] = {
+            id: badgeId,
+            name: def.name || ubData.badgeName || badgeId,
+            icon: def.icon || ubData.icon || '🏆',
+            rarity: def.rarity || 'common',
+            earnedCount: 0,
+            category: def.category || 'general'
+          };
+        }
+        badgePopularity[badgeId].earnedCount++;
+
+        // Compter par utilisateur
+        if (oderId) {
+          badgesByUser[oderId] = (badgesByUser[oderId] || 0) + 1;
+        }
+
+        // Badges récents (derniers 7 jours)
+        if (earnedAt && earnedAt >= weekAgo) {
+          recentBadges.push({
+            oderId,
+            badgeId,
+            badgeName: badgePopularity[badgeId].name,
+            icon: badgePopularity[badgeId].icon,
+            earnedAt
           });
         }
       });
 
-      // Trier par popularité
-      badgePopularity.sort((a, b) => b.earnedCount - a.earnedCount);
+      // 3. Mettre à jour les compteurs de badges des utilisateurs
+      usersList.forEach(user => {
+        if (badgesByUser[user.id]) {
+          user.badges = badgesByUser[user.id];
+        }
+      });
 
-      // Badges récents (simulation - à améliorer avec vraies données)
-      const topRecentBadges = badgePopularity.slice(0, 5);
+      // Convertir et trier par popularité
+      const badgePopularityList = Object.values(badgePopularity)
+        .sort((a, b) => b.earnedCount - a.earnedCount);
+
+      // Trier badges récents par date
+      recentBadges.sort((a, b) => b.earnedAt - a.earnedAt);
+      const topRecentBadges = recentBadges.slice(0, 5);
 
       // ==========================================
       // 📁 ANALYSE COMPLÈTE DES PROJETS
@@ -441,6 +505,8 @@ const AdminAnalyticsPage = () => {
           newToday,
           newThisWeek,
           newThisMonth,
+          activeToday,
+          activeThisWeek,
           retention,
           byRole: roleDistribution,
           list: usersList
@@ -473,7 +539,7 @@ const AdminAnalyticsPage = () => {
           awarded: totalAwarded,
           byUser: Object.entries(badgesByUser),
           byRarity: badgesByRarity,
-          popular: badgePopularity.slice(0, 10),
+          popular: badgePopularityList.slice(0, 10),
           recent: topRecentBadges
         },
         projects: {
@@ -752,12 +818,12 @@ const AdminAnalyticsPage = () => {
 
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
                   <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
-                    <p className="text-gray-400 text-xs sm:text-sm">Aujourd'hui</p>
-                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.users.newToday}</p>
+                    <p className="text-gray-400 text-xs sm:text-sm">Actifs aujourd'hui</p>
+                    <p className="text-lg sm:text-2xl font-bold text-green-400">{analytics.users.activeToday || 0}</p>
                   </div>
                   <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
-                    <p className="text-gray-400 text-xs sm:text-sm">Semaine</p>
-                    <p className="text-lg sm:text-2xl font-bold text-white">{analytics.users.newThisWeek}</p>
+                    <p className="text-gray-400 text-xs sm:text-sm">Actifs cette semaine</p>
+                    <p className="text-lg sm:text-2xl font-bold text-blue-400">{analytics.users.activeThisWeek || 0}</p>
                   </div>
                   <div className="bg-gray-700/30 rounded-lg p-2 sm:p-4">
                     <p className="text-gray-400 text-xs sm:text-sm">Rétention</p>
