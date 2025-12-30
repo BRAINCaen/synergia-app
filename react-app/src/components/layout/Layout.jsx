@@ -13,13 +13,17 @@ import { NotificationCenter, NotificationToast } from '../notifications';
 import { useTheme } from '../../shared/hooks/useTheme.js';
 import { hasAdminMenuAccess } from '../../core/services/modulePermissionsService.js';
 
+// 📢 SERVICES POUR BADGES MENU
+import infosService from '../../core/services/infosService.js';
+import { ideaService } from '../../core/services/ideaService.js';
+
 // 🤖 ASSISTANT IA NOVA
 import AIAssistant from '../ai/AIAssistant.jsx';
 
 
-// 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD
-const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin }) => {
-  console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen);
+// 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD + BADGES
+const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {} }) => {
+  console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen, 'badges:', menuBadges);
 
   if (!isOpen) return null;
 
@@ -29,11 +33,17 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
   // 🔐 Vérifier si l'utilisateur a des droits admin
   const hasAdminAccess = userIsAdmin || isGodMode;
 
+  // 🔔 Fonction pour obtenir le badge d'un item
+  const getBadgeCount = (path) => {
+    if (path === '/infos') return menuBadges.infos || 0;
+    return 0;
+  };
+
   const menuItems = [
     { section: 'PRINCIPAL', items: [
       { path: '/pulse', label: 'Poste de Garde', icon: '🛡️' },
       { path: '/dashboard', label: 'Mon Aventure', icon: '🚀' },
-      { path: '/infos', label: 'Le Crieur', icon: '📢' },
+      { path: '/infos', label: 'Le Crieur', icon: '📢', hasBadge: true },
       { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
       { path: '/projects', label: 'Conquêtes', icon: '👑' }
     ]},
@@ -242,65 +252,92 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
 
               {/* Section Items */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {section.items.map((item, itemIndex) => (
-                  <button
-                    key={itemIndex}
-                    onClick={() => handleNavigation(item.path)}
-                    style={{
-                      padding: '14px 16px',
-                      background: item.isGodMode 
-                        ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)'
-                        : 'rgba(31, 41, 55, 0.5)',
-                      border: item.isGodMode
-                        ? '1px solid rgba(251, 191, 36, 0.3)'
-                        : '1px solid rgba(75, 85, 99, 0.3)',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      color: item.isGodMode ? '#fbbf24' : 'rgba(229, 231, 235, 1)',
-                      textAlign: 'left',
-                      width: '100%'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (item.isGodMode) {
-                        e.target.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%)';
-                        e.target.style.borderColor = 'rgba(251, 191, 36, 0.5)';
-                        e.target.style.transform = 'translateX(8px)';
-                      } else {
-                        e.target.style.background = 'rgba(55, 65, 81, 0.8)';
-                        e.target.style.borderColor = 'rgba(96, 165, 250, 0.5)';
-                        e.target.style.transform = 'translateX(8px)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (item.isGodMode) {
-                        e.target.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)';
-                        e.target.style.borderColor = 'rgba(251, 191, 36, 0.3)';
-                      } else {
-                        e.target.style.background = 'rgba(31, 41, 55, 0.5)';
-                        e.target.style.borderColor = 'rgba(75, 85, 99, 0.3)';
-                      }
-                      e.target.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    <span style={{ 
-                      fontSize: '20px',
-                      width: '28px',
-                      textAlign: 'center'
-                    }}>
-                      {item.icon}
-                    </span>
-                    <span style={{ 
-                      fontSize: '15px',
-                      fontWeight: '500'
-                    }}>
-                      {item.label}
-                    </span>
-                  </button>
-                ))}
+                {section.items.map((item, itemIndex) => {
+                  const badgeCount = item.hasBadge ? getBadgeCount(item.path) : 0;
+
+                  return (
+                    <button
+                      key={itemIndex}
+                      onClick={() => handleNavigation(item.path)}
+                      style={{
+                        padding: '14px 16px',
+                        background: item.isGodMode
+                          ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)'
+                          : 'rgba(31, 41, 55, 0.5)',
+                        border: item.isGodMode
+                          ? '1px solid rgba(251, 191, 36, 0.3)'
+                          : '1px solid rgba(75, 85, 99, 0.3)',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        color: item.isGodMode ? '#fbbf24' : 'rgba(229, 231, 235, 1)',
+                        textAlign: 'left',
+                        width: '100%',
+                        position: 'relative'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (item.isGodMode) {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%)';
+                          e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+                          e.currentTarget.style.transform = 'translateX(8px)';
+                        } else {
+                          e.currentTarget.style.background = 'rgba(55, 65, 81, 0.8)';
+                          e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.5)';
+                          e.currentTarget.style.transform = 'translateX(8px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (item.isGodMode) {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)';
+                          e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+                        } else {
+                          e.currentTarget.style.background = 'rgba(31, 41, 55, 0.5)';
+                          e.currentTarget.style.borderColor = 'rgba(75, 85, 99, 0.3)';
+                        }
+                        e.currentTarget.style.transform = 'translateX(0)';
+                      }}
+                    >
+                      <span style={{
+                        fontSize: '20px',
+                        width: '28px',
+                        textAlign: 'center'
+                      }}>
+                        {item.icon}
+                      </span>
+                      <span style={{
+                        fontSize: '15px',
+                        fontWeight: '500',
+                        flex: 1
+                      }}>
+                        {item.label}
+                      </span>
+
+                      {/* 🔔 BADGE DE NOTIFICATION */}
+                      {badgeCount > 0 && (
+                        <span style={{
+                          minWidth: '22px',
+                          height: '22px',
+                          background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
+                          borderRadius: '11px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: 'white',
+                          padding: '0 6px',
+                          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)',
+                          animation: 'pulse 2s infinite'
+                        }}>
+                          {badgeCount > 99 ? '99+' : badgeCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -332,6 +369,10 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
             from { transform: translateX(-100%); }
             to { transform: translateX(0); }
           }
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+          }
           div::-webkit-scrollbar {
             width: 6px;
           }
@@ -356,12 +397,45 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
 const Layout = memo(({ children }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [menuBadges, setMenuBadges] = useState({ infos: 0, ideas: 0 });
   const menuOpenRef = useRef(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
   // 🎨 MODULE 16: Theme hook
   const { isDark, toggleTheme } = useTheme();
+
+  // 🔔 CHARGER LES COMPTEURS DE BADGES MENU (infos non lues, idées non votées)
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const loadBadgeCounts = async () => {
+      try {
+        // Charger en parallèle les compteurs
+        const [infosCount, ideasCount] = await Promise.all([
+          infosService.getUnvalidatedCount(user.uid),
+          ideaService.getUnvotedCount(user.uid)
+        ]);
+
+        setMenuBadges({
+          infos: infosCount + ideasCount, // Total combiné pour "Le Crieur" (infos + idées)
+          ideas: ideasCount
+        });
+
+        console.log('🔔 [LAYOUT] Badges menu chargés:', { infos: infosCount, ideas: ideasCount });
+      } catch (error) {
+        console.error('❌ [LAYOUT] Erreur chargement badges:', error);
+      }
+    };
+
+    // Charger immédiatement
+    loadBadgeCounts();
+
+    // Recharger toutes les 60 secondes pour garder les compteurs à jour
+    const interval = setInterval(loadBadgeCounts, 60000);
+
+    return () => clearInterval(interval);
+  }, [user?.uid]);
 
   // 🔔 MODULE 6: Hook de notifications avec toasts
   const {
@@ -538,13 +612,14 @@ const Layout = memo(({ children }) => {
         )}
       </button>
 
-      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE + GODMOD */}
+      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE + GODMOD + BADGES */}
       <HamburgerMenuStable
         isOpen={menuOpen}
         onClose={closeMenu}
         navigateFunction={navigateFunction}
         userEmail={user?.email}
         userIsAdmin={hasAdminMenuAccess(user)}
+        menuBadges={menuBadges}
       />
 
       {/* 🔔 MODULE 6: CENTRE DE NOTIFICATIONS AMÉLIORÉ */}
