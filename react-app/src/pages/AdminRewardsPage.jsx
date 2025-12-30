@@ -345,8 +345,22 @@ const AdminRewardsPage = () => {
       if (!user?.uid) return;
       try {
         const rewards = await rewardsService.getAllRewardsForAdmin(user.uid);
-        setCustomRewards(rewards);
-        console.log('📦 Récompenses personnalisées chargées:', rewards.length);
+
+        // 🔧 Filtrer les récompenses valides et actives uniquement
+        const defaultIds = [...DEFAULT_INDIVIDUAL_REWARDS, ...DEFAULT_TEAM_REWARDS].map(r => r.id);
+
+        const validRewards = rewards.filter(r => {
+          // Exclure si c'est un ID de récompense par défaut (éviter doublons)
+          if (defaultIds.includes(r.id)) return false;
+          // Exclure si inactive ou supprimée
+          if (r.isActive === false || r.isDeleted === true) return false;
+          // Exclure si données manquantes (nom vide ou pas de coût)
+          if (!r.name || r.name.trim() === '' || !r.xpCost) return false;
+          return true;
+        });
+
+        setCustomRewards(validRewards);
+        console.log('📦 Récompenses personnalisées valides:', validRewards.length, '/', rewards.length);
       } catch (error) {
         console.error('❌ Erreur chargement récompenses personnalisées:', error);
       }
