@@ -34,7 +34,10 @@ import {
   RotateCcw,
   UserCheck,
   UserX,
-  Search
+  Search,
+  ToggleLeft,
+  ToggleRight,
+  EyeOff
 } from 'lucide-react';
 import notificationService from '../core/services/notificationService.js';
 import { rewardsService } from '../core/services/rewardsService.js';
@@ -264,10 +267,32 @@ const AdminRewardsPage = () => {
       return {
         stockType: defaultReward.stockType,
         stockTotal: defaultReward.stockTotal,
-        stockRemaining: defaultReward.stockRemaining
+        stockRemaining: defaultReward.stockRemaining,
+        isDisabled: false // Par défaut, activé
       };
     }
-    return { stockType: 'unlimited', stockTotal: null, stockRemaining: null };
+    return { stockType: 'unlimited', stockTotal: null, stockRemaining: null, isDisabled: false };
+  };
+
+  // 🔴 Vérifier si une récompense est désactivée
+  const isRewardDisabled = (rewardId) => {
+    return stockSettings[rewardId]?.isDisabled === true;
+  };
+
+  // 🔄 Activer/Désactiver une récompense
+  const toggleRewardDisabled = async (rewardId) => {
+    const currentStock = getRewardStock(rewardId);
+    const newSettings = {
+      ...stockSettings,
+      [rewardId]: {
+        ...currentStock,
+        isDisabled: !currentStock.isDisabled
+      }
+    };
+    const success = await saveStockSettings(newSettings);
+    if (success) {
+      console.log(`✅ Récompense ${rewardId} ${!currentStock.isDisabled ? 'désactivée' : 'activée'}`);
+    }
   };
 
   // 📦 METTRE À JOUR LE STOCK D'UNE RÉCOMPENSE
@@ -1229,18 +1254,39 @@ const AdminRewardsPage = () => {
                   ].map(reward => {
                     const stock = getRewardStock(reward.id);
                     const isEditing = editingReward === reward.id;
+                    const disabled = isRewardDisabled(reward.id);
 
                     return (
                       <div
                         key={reward.id}
-                        className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-white/20 transition-colors"
+                        className={`border rounded-xl p-4 transition-colors ${
+                          disabled
+                            ? 'bg-red-900/10 border-red-500/30 opacity-60'
+                            : 'bg-white/5 border-white/10 hover:border-white/20'
+                        }`}
                       >
                         <div className="flex items-center justify-between">
+                          {/* Toggle activer/désactiver */}
+                          <button
+                            onClick={() => toggleRewardDisabled(reward.id)}
+                            className={`p-2 rounded-lg transition-colors mr-3 flex-shrink-0 ${
+                              disabled
+                                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                            }`}
+                            title={disabled ? 'Activer cette récompense' : 'Désactiver cette récompense'}
+                          >
+                            {disabled ? <ToggleLeft className="w-5 h-5" /> : <ToggleRight className="w-5 h-5" />}
+                          </button>
+
                           {/* Info récompense */}
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`flex items-center gap-3 flex-1 min-w-0 ${disabled ? 'opacity-50' : ''}`}>
                             <span className="text-2xl flex-shrink-0">{reward.icon}</span>
                             <div className="min-w-0">
-                              <h4 className="font-semibold text-white truncate">{reward.name}</h4>
+                              <h4 className={`font-semibold truncate ${disabled ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                {reward.name}
+                                {disabled && <span className="ml-2 text-xs text-red-400">(désactivée)</span>}
+                              </h4>
                               <p className="text-sm text-gray-400">{reward.xpCost} XP • {reward.category}</p>
                             </div>
                           </div>

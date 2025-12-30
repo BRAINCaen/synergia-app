@@ -444,10 +444,16 @@ const RewardsPage = () => {
       return {
         stockType: defaultReward.stockType || 'unlimited',
         stockTotal: defaultReward.stockTotal,
-        stockRemaining: defaultReward.stockRemaining
+        stockRemaining: defaultReward.stockRemaining,
+        isDisabled: false
       };
     }
-    return { stockType: 'unlimited', stockTotal: null, stockRemaining: null };
+    return { stockType: 'unlimited', stockTotal: null, stockRemaining: null, isDisabled: false };
+  }, [stockSettings]);
+
+  // 🔴 Vérifier si une récompense est désactivée
+  const isRewardDisabled = useCallback((rewardId) => {
+    return stockSettings[rewardId]?.isDisabled === true;
   }, [stockSettings]);
 
   // 👤 Charger les limites d'échange par utilisateur
@@ -816,6 +822,10 @@ const RewardsPage = () => {
   // Filtrage
   const filteredRewards = useMemo(() => {
     let rewards = allRewards.filter(r => r.type === activeTab);
+
+    // 🔴 Exclure les récompenses désactivées par l'admin
+    rewards = rewards.filter(r => !isRewardDisabled(r.id));
+
     if (searchTerm) {
       rewards = rewards.filter(r =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -826,7 +836,7 @@ const RewardsPage = () => {
       rewards = rewards.filter(r => r.category === filterCategory);
     }
     return rewards;
-  }, [allRewards, searchTerm, filterCategory, activeTab]);
+  }, [allRewards, searchTerm, filterCategory, activeTab, isRewardDisabled]);
 
   // Valeurs calculees
   const userTotalXP = userProfile?.gamification?.totalXp || 0;
