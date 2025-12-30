@@ -589,6 +589,31 @@ export const ideaService = {
   },
 
   /**
+   * 🔔 Compter les idées non votées par l'utilisateur
+   * (Idées en attente de votes que l'utilisateur n'a pas encore votées)
+   */
+  async getUnvotedCount(userId) {
+    try {
+      const ideas = await this.getAllIdeas();
+      // Filtrer les idées votables (pending ou popular) que l'utilisateur n'a pas votées
+      // et dont il n'est pas l'auteur
+      const unvoted = ideas.filter(idea => {
+        // Exclure les idées de l'utilisateur (il ne peut pas voter pour lui-même)
+        if (idea.authorId === userId) return false;
+        // Seulement les idées en attente ou populaires (votables)
+        if (![IDEA_STATUS.PENDING, IDEA_STATUS.POPULAR].includes(idea.status)) return false;
+        // Vérifier si l'utilisateur a déjà voté
+        const hasVoted = idea.votes?.some(v => v.oderId === userId);
+        return !hasVoted;
+      });
+      return unvoted.length;
+    } catch (error) {
+      console.error('❌ [IDEAS] Erreur comptage non votées:', error);
+      return 0;
+    }
+  },
+
+  /**
    * 📊 Statistiques des idées
    */
   async getIdeaStats() {
