@@ -550,22 +550,43 @@ const RewardsPage = () => {
 
   const loadTopContributors = async () => {
     try {
-      const q = query(collection(db, 'teamContributions'), orderBy('amount', 'desc'), limit(10));
+      const q = query(collection(db, 'teamContributions'), orderBy('amount', 'desc'), limit(20));
       const snapshot = await getDocs(q);
       const contributorMap = new Map();
+      const challengeContributions = []; // Pour les défis d'équipe
+
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
+
+        // 🏆 Si c'est une contribution de défi d'équipe (pas de userId)
+        if (data.type === 'team_challenge_reward' || !data.userId) {
+          challengeContributions.push({
+            id: docSnap.id,
+            total: data.amount,
+            description: data.description || 'Défi d\'équipe',
+            isChallenge: true,
+            createdAt: data.createdAt
+          });
+          return;
+        }
+
+        // Contributions utilisateur normales
         const existing = contributorMap.get(data.userId) || { total: 0, count: 0, email: data.userEmail };
         existing.total += data.amount;
         existing.count += 1;
         contributorMap.set(data.userId, existing);
       });
-      setTopContributors(
-        Array.from(contributorMap.entries())
-          .map(([userId, data]) => ({ userId, ...data }))
-          .sort((a, b) => b.total - a.total)
-          .slice(0, 5)
-      );
+
+      // Combiner les contributions utilisateurs et défis
+      const userContributions = Array.from(contributorMap.entries())
+        .map(([oderId, data]) => ({ oderId: oderId, email: data.email, total: data.total, count: data.count, isChallenge: false }));
+
+      // Fusionner et trier par montant total
+      const allContributions = [...userContributions, ...challengeContributions]
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+      setTopContributors(allContributions);
     } catch (err) {
       console.error('Erreur contributeurs:', err);
     }
@@ -1165,11 +1186,13 @@ const RewardsPage = () => {
                       <p className="text-gray-400 text-xs sm:text-sm">Aucun contributeur</p>
                     ) : (
                       topContributors.slice(0, 3).map((c, i) => (
-                        <div key={c.userId} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                        <div key={c.oderId || c.id || i} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                           <div className="flex items-center gap-2">
-                            <span>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                            <span className="text-gray-300 text-xs sm:text-sm truncate max-w-[100px]">
-                              {c.email?.split('@')[0] || 'Anonyme'}
+                            <span>{c.isChallenge ? '🏆' : (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉')}</span>
+                            <span className="text-gray-300 text-xs sm:text-sm truncate max-w-[120px]" title={c.isChallenge ? c.description : c.email}>
+                              {c.isChallenge
+                                ? (c.description?.replace('Defi d\'equipe accompli: ', '') || 'Défi d\'équipe')
+                                : (c.email?.split('@')[0] || 'Contributeur')}
                             </span>
                           </div>
                           <span className="text-green-400 font-semibold text-xs sm:text-sm">
