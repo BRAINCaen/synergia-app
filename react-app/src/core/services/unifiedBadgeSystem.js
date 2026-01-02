@@ -2053,16 +2053,14 @@ class UnifiedBadgeService {
         lastSync: new Date().toISOString()
       };
 
+      // ✅ CORRECTION: Utiliser la notation par points pour ne PAS écraser les autres champs (boostsSent, etc.)
       await setDoc(userRef, {
-        gamification: {
-          ...userData.gamification,
-          tasksCreated,
-          tasksCompleted,
-          activeDays,
-          stats: {
-            ...(userData.gamification?.stats || {}),
-            ...updatedStats
-          }
+        'gamification.tasksCreated': tasksCreated,
+        'gamification.tasksCompleted': tasksCompleted,
+        'gamification.activeDays': activeDays,
+        'gamification.stats': {
+          ...(userData.gamification?.stats || {}),
+          ...updatedStats
         },
         updatedAt: new Date().toISOString()
       }, { merge: true });
