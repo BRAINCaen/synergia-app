@@ -2061,6 +2061,47 @@ class UnifiedBadgeService {
         console.log('⚠️ [SYNC] Erreur comptage boosts:', e.message);
       }
 
+      // 2c. Compter les campagnes DIRECTEMENT depuis la collection 'projects'
+      let campaignsJoined = 0;
+      let campaignsCompleted = 0;
+      let campaignsLed = 0;
+      try {
+        const allProjectsSnapshot = await getDocs(collection(db, 'projects'));
+
+        allProjectsSnapshot.forEach(doc => {
+          const project = doc.data();
+          const members = project.members || [];
+
+          // Vérifier si l'utilisateur est membre
+          const isMember = members.some(m => {
+            if (!m) return false;
+            const mStr = String(m).toLowerCase();
+            return mStr === userId.toLowerCase() ||
+                   mStr === userEmail ||
+                   mStr === userName;
+          });
+
+          if (isMember) {
+            campaignsJoined++;
+
+            // Campagne terminée avec succès
+            if (project.status === 'completed' || project.status === 'terminated') {
+              campaignsCompleted++;
+
+              // Vérifier si l'utilisateur est le créateur (leader)
+              const createdBy = project.createdBy || '';
+              if (createdBy === userId) {
+                campaignsLed++;
+              }
+            }
+          }
+        });
+
+        console.log(`📊 [SYNC] Campagnes: ${campaignsJoined} rejointes, ${campaignsCompleted} terminées, ${campaignsLed} menées`);
+      } catch (e) {
+        console.log('⚠️ [SYNC] Erreur comptage campagnes:', e.message);
+      }
+
       // 3. Calculer les jours actifs depuis la création du compte
       const createdAt = userData.createdAt?.toDate?.() || new Date();
       const daysSinceCreation = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
@@ -2077,13 +2118,16 @@ class UnifiedBadgeService {
       };
 
       // ✅ CORRECTION: Utiliser la notation par points pour ne PAS écraser les autres champs
-      // ET sauvegarder boostsSent/boostsReceived comptés directement
+      // ET sauvegarder boostsSent/boostsReceived/campagnes comptés directement
       await setDoc(userRef, {
         'gamification.tasksCreated': tasksCreated,
         'gamification.tasksCompleted': tasksCompleted,
         'gamification.activeDays': activeDays,
         'gamification.boostsSent': boostsSent,
         'gamification.boostsReceived': boostsReceived,
+        'gamification.campaignsJoined': campaignsJoined,
+        'gamification.campaignsCompleted': campaignsCompleted,
+        'gamification.campaignsLed': campaignsLed,
         'gamification.stats': {
           ...(userData.gamification?.stats || {}),
           ...updatedStats
@@ -2106,16 +2150,21 @@ class UnifiedBadgeService {
           boostsReceived: boostsReceived,
           tasksCreated: tasksCreated,
           tasksCompleted: tasksCompleted,
-          activeDays: activeDays
+          activeDays: activeDays,
+          campaignsJoined: campaignsJoined,
+          campaignsCompleted: campaignsCompleted,
+          campaignsLed: campaignsLed
         }
       };
 
-      // Debug: afficher les stats boost pour vérifier
+      // Debug: afficher les stats pour vérifier
       console.log('📊 [SYNC] Stats pour badges:', {
         boostsSent: updatedUserData.gamification?.boostsSent,
         boostsReceived: updatedUserData.gamification?.boostsReceived,
         tasksCompleted: updatedUserData.gamification?.tasksCompleted,
-        messagesSent: updatedUserData.gamification?.messagesSent
+        campaignsJoined: updatedUserData.gamification?.campaignsJoined,
+        campaignsCompleted: updatedUserData.gamification?.campaignsCompleted,
+        campaignsLed: updatedUserData.gamification?.campaignsLed
       });
 
       const currentBadges = updatedUserData.gamification?.badges || [];
@@ -2385,6 +2434,65 @@ class UnifiedBadgeService {
         }
       } catch (e) {
         console.log('⚠️ [RETRO] Collection mentoring_sessions non trouvée ou vide');
+      }
+
+      // ⚔️ CAMPAGNES: Compter les campagnes depuis la collection 'projects'
+      try {
+        const allProjectsSnapshot = await getDocs(collection(db, 'projects'));
+
+        let campaignsJoined = 0;
+        let campaignsCompleted = 0;
+        let campaignsLed = 0;
+
+        allProjectsSnapshot.forEach(doc => {
+          const project = doc.data();
+
+          // Vérifier si l'utilisateur est membre (par uid, email ou nom)
+          const members = project.members || [];
+          const isMember = members.some(m => {
+            if (!m) return false;
+            const mStr = String(m).toLowerCase();
+            return mStr === userId.toLowerCase() ||
+                   mStr === userEmail ||
+                   mStr === userName;
+          });
+
+          if (isMember) {
+            campaignsJoined++;
+
+            // Campagne terminée avec succès
+            if (project.status === 'completed' || project.status === 'terminated') {
+              campaignsCompleted++;
+
+              // Vérifier si l'utilisateur est le créateur (leader)
+              const createdBy = project.createdBy || '';
+              const isLeader = createdBy.toLowerCase() === userId.toLowerCase() ||
+                              createdBy.toLowerCase() === userEmail ||
+                              createdBy.toLowerCase() === userName;
+
+              if (isLeader) {
+                campaignsLed++;
+              }
+            }
+          }
+        });
+
+        if (campaignsJoined > (gamification.campaignsJoined || 0)) {
+          updates['gamification.campaignsJoined'] = campaignsJoined;
+          console.log(`📊 [RETRO] Campagnes rejointes: ${campaignsJoined}`);
+        }
+
+        if (campaignsCompleted > (gamification.campaignsCompleted || 0)) {
+          updates['gamification.campaignsCompleted'] = campaignsCompleted;
+          console.log(`📊 [RETRO] Campagnes terminées: ${campaignsCompleted}`);
+        }
+
+        if (campaignsLed > (gamification.campaignsLed || 0)) {
+          updates['gamification.campaignsLed'] = campaignsLed;
+          console.log(`📊 [RETRO] Campagnes menées: ${campaignsLed}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection projects non trouvée ou vide');
       }
 
       // 🎨 AVATAR: Vérifier si l'avatar a été personnalisé
