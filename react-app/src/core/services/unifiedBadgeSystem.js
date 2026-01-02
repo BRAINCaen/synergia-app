@@ -1238,18 +1238,6 @@ export const UNIFIED_BADGE_DEFINITIONS = {
     trigger: 'daily_login'
   },
 
-  holiday_spirit: {
-    id: 'holiday_spirit',
-    name: 'Esprit de Fête',
-    description: 'Se connecter pendant les fêtes de fin d\'année',
-    icon: '🎄',
-    rarity: 'uncommon',
-    category: BADGE_CATEGORIES.SPECIAL,
-    xpReward: 50,
-    autoCheck: (userData) => userData.gamification?.holidaySpirit === true,
-    trigger: 'seasonal'
-  },
-
   night_warrior: {
     id: 'night_warrior',
     name: 'Guerrier Nocturne',
