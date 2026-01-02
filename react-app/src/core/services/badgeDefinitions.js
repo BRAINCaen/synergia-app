@@ -352,45 +352,6 @@ export const BADGE_DEFINITIONS = {
   },
 
   // 🎮 BADGES SPÉCIAUX & ÉVÉNEMENTS
-  beta_tester: {
-    id: 'beta_tester',
-    name: 'Testeur Bêta',
-    description: 'Participer à la phase bêta de Synergia',
-    icon: '🧪',
-    rarity: 'rare',
-    category: 'special',
-    xpReward: 250,
-    condition: (stats) => {
-      return stats.betaTester === true;
-    }
-  },
-
-  bug_hunter: {
-    id: 'bug_hunter',
-    name: 'Chasseur de Bugs',
-    description: 'Signaler 5 bugs critiques',
-    icon: '🐛',
-    rarity: 'uncommon',
-    category: 'special',
-    xpReward: 100,
-    condition: (stats) => {
-      return stats.bugsReported >= 5;
-    }
-  },
-
-  feature_suggester: {
-    id: 'feature_suggester',
-    name: 'Suggéreur de Fonctionnalités',
-    description: 'Proposer 3 améliorations adoptées',
-    icon: '💡',
-    rarity: 'rare',
-    category: 'special',
-    xpReward: 200,
-    condition: (stats) => {
-      return stats.featuresAdopted >= 3;
-    }
-  },
-
   anniversary_year_one: {
     id: 'anniversary_year_one',
     name: 'Un An avec Synergia',
