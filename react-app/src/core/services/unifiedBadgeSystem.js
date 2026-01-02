@@ -2038,6 +2038,29 @@ class UnifiedBadgeService {
 
       console.log(`📊 [SYNC] Quêtes trouvées pour ${userId}: ${tasksCreated} total, ${tasksCompleted} complétées (email: ${userEmail}, nom: ${userName})`);
 
+      // 2b. Compter les boosts DIRECTEMENT depuis la collection 'boosts'
+      let boostsSent = 0;
+      let boostsReceived = 0;
+      try {
+        const boostsSentQuery = query(
+          collection(db, 'boosts'),
+          where('fromUserId', '==', userId)
+        );
+        const boostsSentSnapshot = await getDocs(boostsSentQuery);
+        boostsSent = boostsSentSnapshot.size;
+
+        const boostsReceivedQuery = query(
+          collection(db, 'boosts'),
+          where('toUserId', '==', userId)
+        );
+        const boostsReceivedSnapshot = await getDocs(boostsReceivedQuery);
+        boostsReceived = boostsReceivedSnapshot.size;
+
+        console.log(`📊 [SYNC] Boosts: ${boostsSent} envoyés, ${boostsReceived} reçus`);
+      } catch (e) {
+        console.log('⚠️ [SYNC] Erreur comptage boosts:', e.message);
+      }
+
       // 3. Calculer les jours actifs depuis la création du compte
       const createdAt = userData.createdAt?.toDate?.() || new Date();
       const daysSinceCreation = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
@@ -2053,11 +2076,14 @@ class UnifiedBadgeService {
         lastSync: new Date().toISOString()
       };
 
-      // ✅ CORRECTION: Utiliser la notation par points pour ne PAS écraser les autres champs (boostsSent, etc.)
+      // ✅ CORRECTION: Utiliser la notation par points pour ne PAS écraser les autres champs
+      // ET sauvegarder boostsSent/boostsReceived comptés directement
       await setDoc(userRef, {
         'gamification.tasksCreated': tasksCreated,
         'gamification.tasksCompleted': tasksCompleted,
         'gamification.activeDays': activeDays,
+        'gamification.boostsSent': boostsSent,
+        'gamification.boostsReceived': boostsReceived,
         'gamification.stats': {
           ...(userData.gamification?.stats || {}),
           ...updatedStats
@@ -2069,7 +2095,20 @@ class UnifiedBadgeService {
 
       // 5. Vérifier et attribuer les badges
       const updatedUserSnap = await getDoc(userRef);
-      const updatedUserData = updatedUserSnap.data();
+      const rawUserData = updatedUserSnap.data();
+
+      // ✅ IMPORTANT: Fusionner les valeurs fraîchement comptées pour éviter les problèmes de cache Firestore
+      const updatedUserData = {
+        ...rawUserData,
+        gamification: {
+          ...rawUserData.gamification,
+          boostsSent: boostsSent,
+          boostsReceived: boostsReceived,
+          tasksCreated: tasksCreated,
+          tasksCompleted: tasksCompleted,
+          activeDays: activeDays
+        }
+      };
 
       // Debug: afficher les stats boost pour vérifier
       console.log('📊 [SYNC] Stats pour badges:', {
