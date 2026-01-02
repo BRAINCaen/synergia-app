@@ -371,42 +371,48 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   },
 
   // ==========================================
-  // 🔥 BADGES ENGAGEMENT (8 badges)
+  // 🔥 BADGES ENGAGEMENT ÉQUILIBRÉ - QVCT (8 badges)
   // ==========================================
 
-  daily_user: {
-    id: 'daily_user',
-    name: 'Utilisateur Quotidien',
-    description: 'Se connecter 7 jours consécutifs',
-    icon: '📅',
+  balanced_month: {
+    id: 'balanced_month',
+    name: 'Mois Équilibré',
+    description: 'Se connecter au moins 4 jours par semaine pendant 1 mois',
+    icon: '🌟',
     rarity: 'uncommon',
     category: BADGE_CATEGORIES.ENGAGEMENT,
     xpReward: 60,
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 7,
+    autoCheck: (userData) => (userData.gamification?.monthlyActiveDays || 0) >= 16,
     trigger: 'daily_login'
   },
 
-  streak_champion: {
-    id: 'streak_champion',
-    name: 'Champion de Série',
-    description: 'Se connecter 30 jours consécutifs',
-    icon: '🔥',
+  regular_analyst: {
+    id: 'regular_analyst',
+    name: 'Analyste Régulier',
+    description: 'Consulter ses statistiques chaque semaine pendant 2 mois',
+    icon: '📊',
     rarity: 'rare',
     category: BADGE_CATEGORIES.ENGAGEMENT,
     xpReward: 200,
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 30,
-    trigger: 'daily_login'
+    autoCheck: (userData) => (userData.gamification?.weeklyStatsChecks || 0) >= 8,
+    trigger: 'stats_viewed'
   },
 
-  dedication_master: {
-    id: 'dedication_master',
-    name: 'Maître du Dévouement',
-    description: 'Se connecter 100 jours consécutifs',
-    icon: '💪',
+  six_months_veteran: {
+    id: 'six_months_veteran',
+    name: 'Vétéran 6 Mois',
+    description: '6 mois d\'ancienneté sur Synergia',
+    icon: '🏅',
     rarity: 'epic',
     category: BADGE_CATEGORIES.ENGAGEMENT,
-    xpReward: 500,
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 100,
+    xpReward: 250,
+    autoCheck: (userData) => {
+      if (!userData.createdAt) return false;
+      const joinDate = userData.createdAt?.toDate ? userData.createdAt.toDate() : new Date(userData.createdAt);
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      return joinDate <= sixMonthsAgo;
+    },
     trigger: 'daily_login'
   },
 
@@ -423,20 +429,8 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   },
 
   // ==========================================
-  // 👥 BADGES COLLABORATION (8 badges)
+  // 👥 BADGES COLLABORATION (7 badges)
   // ==========================================
-
-  team_player: {
-    id: 'team_player',
-    name: 'Joueur d\'Équipe',
-    description: 'Rejoindre sa première équipe',
-    icon: '🤝',
-    rarity: 'common',
-    category: BADGE_CATEGORIES.COLLABORATION,
-    xpReward: 30,
-    autoCheck: (userData) => (userData.gamification?.teamsJoined || 0) >= 1,
-    trigger: 'team_joined'
-  },
 
   collaborator: {
     id: 'collaborator',
@@ -1242,18 +1236,6 @@ export const UNIFIED_BADGE_DEFINITIONS = {
       return joinDate <= oneYearAgo;
     },
     trigger: 'daily_login'
-  },
-
-  holiday_spirit: {
-    id: 'holiday_spirit',
-    name: 'Esprit de Fête',
-    description: 'Se connecter pendant les fêtes de fin d\'année',
-    icon: '🎄',
-    rarity: 'uncommon',
-    category: BADGE_CATEGORIES.SPECIAL,
-    xpReward: 50,
-    autoCheck: (userData) => userData.gamification?.holidaySpirit === true,
-    trigger: 'seasonal'
   },
 
   night_warrior: {

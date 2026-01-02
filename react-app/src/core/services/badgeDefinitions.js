@@ -186,20 +186,7 @@ export const BADGE_DEFINITIONS = {
     }
   },
 
-  // 👥 BADGES COLLABORATION & ÉQUIPE
-  team_player: {
-    id: 'team_player',
-    name: 'Joueur d\'Équipe',
-    description: 'Rejoindre sa première équipe',
-    icon: '🤝',
-    rarity: 'common',
-    category: 'collaboration',
-    xpReward: 30,
-    condition: (stats) => {
-      return stats.teamsJoined >= 1;
-    }
-  },
-
+  // 👥 BADGES COLLABORATION
   collaborator: {
     id: 'collaborator',
     name: 'Collaborateur',
@@ -266,43 +253,48 @@ export const BADGE_DEFINITIONS = {
     }
   },
 
-  // 🔥 BADGES ENGAGEMENT & ASSIDUITÉ
-  daily_user: {
-    id: 'daily_user',
-    name: 'Utilisateur Quotidien',
-    description: 'Se connecter 7 jours consécutifs',
-    icon: '📅',
+  // 🔥 BADGES ENGAGEMENT ÉQUILIBRÉ (QVCT)
+  balanced_month: {
+    id: 'balanced_month',
+    name: 'Mois Équilibré',
+    description: 'Se connecter au moins 4 jours par semaine pendant 1 mois',
+    icon: '🌟',
     rarity: 'uncommon',
     category: 'engagement',
     xpReward: 60,
     condition: (stats) => {
-      return stats.consecutiveDays >= 7;
+      // 4 jours/semaine x 4 semaines = 16 jours minimum sur le mois
+      return (stats.monthlyActiveDays || 0) >= 16;
     }
   },
 
-  streak_champion: {
-    id: 'streak_champion',
-    name: 'Champion de Série',
-    description: 'Se connecter 30 jours consécutifs',
-    icon: '🔥',
+  regular_analyst: {
+    id: 'regular_analyst',
+    name: 'Analyste Régulier',
+    description: 'Consulter ses statistiques chaque semaine pendant 2 mois',
+    icon: '📊',
     rarity: 'rare',
     category: 'engagement',
     xpReward: 200,
     condition: (stats) => {
-      return stats.consecutiveDays >= 30;
+      // 8 semaines consécutives de consultation des stats
+      return (stats.weeklyStatsChecks || 0) >= 8;
     }
   },
 
-  dedication_master: {
-    id: 'dedication_master',
-    name: 'Maître du Dévouement',
-    description: 'Se connecter 100 jours consécutifs',
-    icon: '💪',
+  six_months_veteran: {
+    id: 'six_months_veteran',
+    name: 'Vétéran 6 Mois',
+    description: '6 mois d\'ancienneté sur Synergia',
+    icon: '🏅',
     rarity: 'epic',
     category: 'engagement',
-    xpReward: 500,
+    xpReward: 250,
     condition: (stats) => {
-      return stats.consecutiveDays >= 100;
+      if (!stats.joinedAt) return false;
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      return new Date(stats.joinedAt) <= sixMonthsAgo;
     }
   },
 

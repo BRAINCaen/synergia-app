@@ -218,7 +218,13 @@ class AuthService {
           maxStreak: 1,
           lastLoginDate: now.split('T')[0],
           lastActivityDate: now,
-          
+
+          // 🌟 Engagement équilibré QVCT
+          monthlyActiveDays: 1,
+          monthlyActiveDaysMonth: new Date().getMonth(),
+          weeklyStatsChecks: 0,
+          lastStatsCheckWeek: null,
+
           // Historique
           xpHistory: []
         }
@@ -231,6 +237,59 @@ class AuthService {
     } catch (error) {
       console.error('❌ Erreur création profil:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 🌟 TRACKER LES JOURS ACTIFS MENSUELS (Badge QVCT "Mois Équilibré")
+   * Incrémente monthlyActiveDays si c'est le premier login du jour
+   */
+  static async trackMonthlyActiveDay(uid) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) return { success: false };
+
+      const data = userSnap.data();
+      const gamification = data.gamification || {};
+
+      const now = new Date();
+      const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const currentMonth = now.getMonth();
+
+      const lastLoginDate = gamification.lastLoginDate || '';
+      const monthlyActiveDaysMonth = gamification.monthlyActiveDaysMonth ?? -1;
+      let monthlyActiveDays = gamification.monthlyActiveDays || 0;
+
+      // Si nouveau mois, réinitialiser le compteur
+      if (monthlyActiveDaysMonth !== currentMonth) {
+        console.log('🌟 [QVCT] Nouveau mois détecté, reset du compteur de jours actifs');
+        monthlyActiveDays = 0;
+      }
+
+      // Si premier login du jour, incrémenter
+      if (lastLoginDate !== today) {
+        monthlyActiveDays += 1;
+        console.log(`🌟 [QVCT] Jour actif enregistré: ${monthlyActiveDays} jours ce mois`);
+
+        // Mettre à jour Firestore
+        const { updateDoc } = await import('firebase/firestore');
+        await updateDoc(userRef, {
+          'gamification.monthlyActiveDays': monthlyActiveDays,
+          'gamification.monthlyActiveDaysMonth': currentMonth,
+          'gamification.lastLoginDate': today
+        });
+
+        return { success: true, monthlyActiveDays, isNewDay: true };
+      }
+
+      console.log(`🌟 [QVCT] Déjà connecté aujourd'hui (${monthlyActiveDays} jours actifs)`);
+      return { success: true, monthlyActiveDays, isNewDay: false };
+
+    } catch (error) {
+      console.error('❌ [QVCT] Erreur tracking jour actif:', error);
+      return { success: false, error: error.message };
     }
   }
 
