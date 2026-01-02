@@ -429,20 +429,8 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   },
 
   // ==========================================
-  // 👥 BADGES COLLABORATION (8 badges)
+  // 👥 BADGES COLLABORATION (7 badges)
   // ==========================================
-
-  team_player: {
-    id: 'team_player',
-    name: 'Joueur d\'Équipe',
-    description: 'Rejoindre sa première équipe',
-    icon: '🤝',
-    rarity: 'common',
-    category: BADGE_CATEGORIES.COLLABORATION,
-    xpReward: 30,
-    autoCheck: (userData) => (userData.gamification?.teamsJoined || 0) >= 1,
-    trigger: 'team_joined'
-  },
 
   collaborator: {
     id: 'collaborator',

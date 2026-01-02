@@ -190,24 +190,6 @@ const SYNERGIA_BADGE_DEFINITIONS = {
   },
 
   // 🤝 BADGES DE COLLABORATION
-  team_player: {
-    id: 'team_player',
-    name: 'Esprit d\'Équipe',
-    description: 'Collaboration exemplaire et support aux collègues',
-    icon: '🤝',
-    rarity: 'uncommon',
-    xpReward: 60,
-    category: 'collaboration',
-    requirements: {
-      collaborations: 20,
-      helpProvided: 15
-    },
-    checkCondition: (userStats) => {
-      return (userStats.collaborations || 0) >= 20 && 
-             (userStats.helpProvided || 0) >= 15;
-    }
-  },
-
   mentor: {
     id: 'mentor',
     name: 'Mentor',

@@ -186,20 +186,7 @@ export const BADGE_DEFINITIONS = {
     }
   },
 
-  // 👥 BADGES COLLABORATION & ÉQUIPE
-  team_player: {
-    id: 'team_player',
-    name: 'Joueur d\'Équipe',
-    description: 'Rejoindre sa première équipe',
-    icon: '🤝',
-    rarity: 'common',
-    category: 'collaboration',
-    xpReward: 30,
-    condition: (stats) => {
-      return stats.teamsJoined >= 1;
-    }
-  },
-
+  // 👥 BADGES COLLABORATION
   collaborator: {
     id: 'collaborator',
     name: 'Collaborateur',

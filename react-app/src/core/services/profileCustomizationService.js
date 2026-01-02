@@ -226,15 +226,6 @@ export const UNLOCKABLE_AVATARS = {
     category: 'special',
     unlockCondition: { type: 'streak', value: 30 },
     unlockDescription: 'Serie de 30 jours consecutifs'
-  },
-  team_player: {
-    id: 'team_player',
-    name: 'Esprit d\'Equipe',
-    emoji: '🤝',
-    gradient: 'from-blue-500 to-indigo-600',
-    category: 'special',
-    unlockCondition: { type: 'teamContributions', value: 10 },
-    unlockDescription: '10 contributions aux defis equipe'
   }
 };
 

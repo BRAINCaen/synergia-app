@@ -149,7 +149,7 @@ const useGameStore = create(
 
       getAvailableBadges: () => {
         // Retourne les badges possibles
-        return ['welcome', 'first_quest', 'team_player', 'streak_7', 'streak_30', 'level_10', 'level_25', 'level_50'];
+        return ['welcome', 'first_quest', 'streak_7', 'streak_30', 'level_10', 'level_25', 'level_50'];
       },
 
       // 📊 INSIGHTS
