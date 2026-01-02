@@ -1986,10 +1986,17 @@ class UnifiedBadgeService {
       const userEmail = (userData.email || '').toLowerCase();
       const userName = (userData.displayName || '').toLowerCase();
 
+ claude/fix-main-branch-issues-a5RTs
+      // 2. Compter les quêtes depuis la collection 'tasks' (pas 'quests' !)
+      // ✅ CORRECTION: TeamPage vérifie userId OU email OU userName dans assignedTo
+      // Firestore ne supporte pas les requêtes OR sur array-contains, donc on charge toutes les quêtes et filtre côté client
+      const allQuestsSnapshot = await getDocs(collection(db, 'tasks'));
+
       // 2. Compter les quêtes depuis la collection quests
       // ✅ CORRECTION: TeamPage vérifie userId OU email OU userName dans assignedTo
       // Firestore ne supporte pas les requêtes OR sur array-contains, donc on charge toutes les quêtes et filtre côté client
       const allQuestsSnapshot = await getDocs(collection(db, 'quests'));
+ main
 
       let tasksCreated = 0;
       let tasksCompleted = 0;
