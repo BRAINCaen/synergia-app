@@ -35,7 +35,11 @@ import {
   CalendarDays,
   CheckCircle,
   XCircle,
-  Send
+  Send,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+  Settings2
 } from 'lucide-react';
 
 // Layout
@@ -186,6 +190,10 @@ const PlanningAdvancedPage = () => {
   const [editingNoteText, setEditingNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
+  // 🔄 ORDRE DES EMPLOYÉS (persistant)
+  const [employeeOrder, setEmployeeOrder] = useState([]);
+  const [showEmployeeOrderModal, setShowEmployeeOrderModal] = useState(false);
+
   // ==========================================
   // CHARGEMENT INITIAL
   // ==========================================
@@ -319,6 +327,87 @@ const PlanningAdvancedPage = () => {
     }
   };
 
+  // ==========================================
+  // 🔄 GESTION ORDRE DES EMPLOYÉS
+  // ==========================================
+
+  const EMPLOYEE_ORDER_KEY = 'synergia_employee_order';
+
+  // Charger l'ordre sauvegardé depuis localStorage
+  const loadEmployeeOrder = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(EMPLOYEE_ORDER_KEY);
+      if (saved) {
+        const order = JSON.parse(saved);
+        console.log('🔄 Ordre des employés chargé:', order.length, 'employés');
+        return order;
+      }
+    } catch (error) {
+      console.warn('⚠️ Erreur chargement ordre employés:', error);
+    }
+    return [];
+  }, []);
+
+  // Sauvegarder l'ordre dans localStorage
+  const saveEmployeeOrder = useCallback((order) => {
+    try {
+      localStorage.setItem(EMPLOYEE_ORDER_KEY, JSON.stringify(order));
+      setEmployeeOrder(order);
+      console.log('💾 Ordre des employés sauvegardé:', order.length, 'employés');
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde ordre employés:', error);
+    }
+  }, []);
+
+  // Trier les employés selon l'ordre sauvegardé
+  const sortEmployeesByOrder = useCallback((employeesList, order) => {
+    if (!order || order.length === 0) {
+      return employeesList;
+    }
+
+    // Créer une map des positions
+    const orderMap = new Map(order.map((id, index) => [id, index]));
+
+    // Trier: les employés avec un ordre défini en premier, les autres à la fin
+    return [...employeesList].sort((a, b) => {
+      const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+      const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+      return indexA - indexB;
+    });
+  }, []);
+
+  // Déplacer un employé vers le haut
+  const moveEmployeeUp = useCallback((employeeId) => {
+    const currentOrder = employeeOrder.length > 0 ? [...employeeOrder] : employees.map(e => e.id);
+    const index = currentOrder.indexOf(employeeId);
+    if (index > 0) {
+      [currentOrder[index - 1], currentOrder[index]] = [currentOrder[index], currentOrder[index - 1]];
+      saveEmployeeOrder(currentOrder);
+      // Réorganiser l'affichage immédiatement
+      setEmployees(prev => sortEmployeesByOrder(prev, currentOrder));
+    }
+  }, [employeeOrder, employees, saveEmployeeOrder, sortEmployeesByOrder]);
+
+  // Déplacer un employé vers le bas
+  const moveEmployeeDown = useCallback((employeeId) => {
+    const currentOrder = employeeOrder.length > 0 ? [...employeeOrder] : employees.map(e => e.id);
+    const index = currentOrder.indexOf(employeeId);
+    if (index < currentOrder.length - 1) {
+      [currentOrder[index], currentOrder[index + 1]] = [currentOrder[index + 1], currentOrder[index]];
+      saveEmployeeOrder(currentOrder);
+      // Réorganiser l'affichage immédiatement
+      setEmployees(prev => sortEmployeesByOrder(prev, currentOrder));
+    }
+  }, [employeeOrder, employees, saveEmployeeOrder, sortEmployeesByOrder]);
+
+  // Charger l'ordre au démarrage
+  useEffect(() => {
+    const savedOrder = loadEmployeeOrder();
+    if (savedOrder.length > 0) {
+      setEmployeeOrder(savedOrder);
+    }
+  }, [loadEmployeeOrder]);
+
   const loadPlanningData = async () => {
     try {
       setLoading(true);
@@ -334,7 +423,15 @@ const PlanningAdvancedPage = () => {
       setWeekAnalysis(analysis);
 
       const employeesList = await planningEnrichedService.getAllEmployees();
-      setEmployees(employeesList);
+      // 🔄 Trier selon l'ordre sauvegardé
+      const savedOrder = loadEmployeeOrder();
+      const sortedEmployees = sortEmployeesByOrder(employeesList, savedOrder);
+      setEmployees(sortedEmployees);
+      // Mettre à jour l'ordre si nouveaux employés
+      if (savedOrder.length === 0 || employeesList.length !== savedOrder.length) {
+        const newOrder = sortedEmployees.map(e => e.id);
+        setEmployeeOrder(newOrder);
+      }
 
       const shiftsList = await planningEnrichedService.getShifts({
         startDate: weekStart.toISOString().split('T')[0],
@@ -2788,8 +2885,27 @@ const PlanningAdvancedPage = () => {
                 <thead>
                   <tr className="border-b border-gray-700">
                     <th className="text-left p-2 sm:p-4 text-gray-400 font-semibold sticky left-0 bg-gray-800/95 backdrop-blur-xl z-10 min-w-[120px] sm:min-w-[200px]">
-                      <span className="hidden sm:inline">Employé</span>
-                      <span className="sm:hidden text-xs">Employé</span>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <span className="hidden sm:inline">Employé</span>
+                        <span className="sm:hidden text-xs">Employé</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => loadPlanningData()}
+                            disabled={loading}
+                            className="p-1 sm:p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors text-gray-400 hover:text-green-400"
+                            title="Actualiser"
+                          >
+                            <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+                          </button>
+                          <button
+                            onClick={() => setShowEmployeeOrderModal(true)}
+                            className="p-1 sm:p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors text-gray-400 hover:text-purple-400"
+                            title="Réorganiser les employés"
+                          >
+                            <Settings2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
+                      </div>
                     </th>
                     {weekDates.map((date) => {
                       const dateAnalysis = getDateAnalysis(date);
@@ -3465,6 +3581,113 @@ const PlanningAdvancedPage = () => {
                       className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition-colors"
                     >
                       Fermer
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 🔄 MODAL RÉORGANISER LES EMPLOYÉS */}
+          <AnimatePresence>
+            {showEmployeeOrderModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                onClick={() => setShowEmployeeOrderModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-md max-h-[80vh] overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-500/20 rounded-lg">
+                        <GripVertical className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Ordre des employés</h3>
+                        <p className="text-xs text-gray-400">Réorganisez l'affichage du planning</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowEmployeeOrderModal(false)}
+                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {/* Liste des employés */}
+                  <div className="p-4 overflow-y-auto max-h-[50vh]">
+                    <div className="space-y-2">
+                      {employees.map((employee, index) => (
+                        <div
+                          key={employee.id}
+                          className="flex items-center gap-3 p-3 bg-gray-700/50 rounded-xl border border-gray-600/50"
+                        >
+                          {/* Boutons de déplacement */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              onClick={() => moveEmployeeUp(employee.id)}
+                              disabled={index === 0}
+                              className={`p-1 rounded transition-colors ${
+                                index === 0
+                                  ? 'text-gray-600 cursor-not-allowed'
+                                  : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/20'
+                              }`}
+                              title="Monter"
+                            >
+                              <ArrowUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => moveEmployeeDown(employee.id)}
+                              disabled={index === employees.length - 1}
+                              className={`p-1 rounded transition-colors ${
+                                index === employees.length - 1
+                                  ? 'text-gray-600 cursor-not-allowed'
+                                  : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/20'
+                              }`}
+                              title="Descendre"
+                            >
+                              <ArrowDown className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Avatar et nom */}
+                          <div className="flex items-center gap-3 flex-1">
+                            <UserAvatar user={employee} size="sm" showBorder />
+                            <div className="min-w-0">
+                              <p className="text-white font-medium truncate">{employee.name}</p>
+                              <p className="text-gray-400 text-xs truncate">{employee.position || 'Employé'}</p>
+                            </div>
+                          </div>
+
+                          {/* Position */}
+                          <div className="text-gray-500 text-sm font-mono">
+                            #{index + 1}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-4 border-t border-gray-700 bg-gray-800/50">
+                    <p className="text-xs text-gray-500 text-center mb-3">
+                      L'ordre est sauvegardé automatiquement et conservé pour toutes les semaines
+                    </p>
+                    <button
+                      onClick={() => setShowEmployeeOrderModal(false)}
+                      className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-colors"
+                    >
+                      Terminé
                     </button>
                   </div>
                 </motion.div>
