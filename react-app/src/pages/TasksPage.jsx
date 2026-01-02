@@ -503,11 +503,25 @@ const TasksPage = () => {
           if (!userId?.trim()) continue;
 
           try {
-            // Incrémenter tasksCompleted dans gamification
-            await updateDoc(doc(db, 'users', userId), {
+            // Vérifier l'heure pour les badges Lève-tôt et Oiseau de Nuit
+            const currentHour = new Date().getHours();
+            const updateData = {
               'gamification.tasksCompleted': increment(1),
               'gamification.lastActivityAt': serverTimestamp()
-            });
+            };
+
+            // Badge Lève-tôt : compléter avant 13h
+            if (currentHour < 13) {
+              updateData['gamification.earlyBirdUnlocked'] = true;
+            }
+
+            // Badge Oiseau de Nuit : compléter après 22h
+            if (currentHour >= 22) {
+              updateData['gamification.nightOwlUnlocked'] = true;
+            }
+
+            // Incrémenter tasksCompleted et mettre à jour les flags
+            await updateDoc(doc(db, 'users', userId), updateData);
 
             // Vérifier et débloquer les badges
             await unifiedBadgeService.checkAndUnlockBadges(userId, 'task_completed');

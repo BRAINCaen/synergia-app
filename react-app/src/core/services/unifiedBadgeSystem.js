@@ -214,7 +214,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   early_bird: {
     id: 'early_bird',
     name: 'Lève-tôt',
-    description: 'Compléter une quête avant 8h',
+    description: 'Compléter une quête avant 13h',
     icon: '🌅',
     rarity: 'uncommon',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
