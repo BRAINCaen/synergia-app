@@ -137,6 +137,16 @@ const useNotificationToast = (userId, options = {}) => {
     dismissToast(notificationId);
   }, [dismissToast]);
 
+  // Supprimer toutes les notifications
+  const deleteAllNotifications = useCallback(async () => {
+    if (userId) {
+      await notificationService.deleteAllNotifications(userId);
+      dismissAllToasts();
+      // Réinitialiser le ref des IDs précédents
+      previousNotifIdsRef.current.clear();
+    }
+  }, [userId, dismissAllToasts]);
+
   // Créer un toast manuel (pour les notifications locales)
   const showToast = useCallback((notification) => {
     const toast = {
@@ -208,7 +218,8 @@ const useNotificationToast = (userId, options = {}) => {
     // Actions notifications
     markAsRead,
     markAllAsRead,
-    deleteNotification
+    deleteNotification,
+    deleteAllNotifications
   };
 };
 

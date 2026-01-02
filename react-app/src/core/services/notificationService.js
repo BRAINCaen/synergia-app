@@ -310,6 +310,36 @@ class NotificationService {
   }
 
   /**
+   * 🗑️ SUPPRIMER TOUTES LES NOTIFICATIONS D'UN UTILISATEUR
+   */
+  async deleteAllNotifications(userId) {
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where('userId', '==', userId)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        return { success: true, count: 0 };
+      }
+
+      const deletePromises = snapshot.docs.map(docSnap =>
+        deleteDoc(doc(db, this.COLLECTION_NAME, docSnap.id))
+      );
+
+      await Promise.all(deletePromises);
+      console.log(`🗑️ [NOTIF] ${snapshot.size} notifications supprimées pour l'utilisateur ${userId}`);
+
+      return { success: true, count: snapshot.size };
+    } catch (error) {
+      console.error('❌ [NOTIF] Erreur suppression toutes notifications:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * 🔢 COMPTER LES NOTIFICATIONS NON LUES
    */
   async getUnreadCount(userId) {

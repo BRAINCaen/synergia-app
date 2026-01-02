@@ -445,7 +445,8 @@ const Layout = memo(({ children }) => {
     dismissToast,
     markAsRead,
     markAllAsRead,
-    deleteNotification
+    deleteNotification,
+    deleteAllNotifications
   } = useNotificationToast(user?.uid, {
     maxToasts: 3,
     soundEnabled: true
@@ -630,6 +631,7 @@ const Layout = memo(({ children }) => {
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}
         onDelete={deleteNotification}
+        onDeleteAll={deleteAllNotifications}
         onNavigate={navigateFunction}
       />
 

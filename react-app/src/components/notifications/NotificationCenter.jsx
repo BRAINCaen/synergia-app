@@ -168,6 +168,7 @@ const NotificationCenter = ({
   onMarkAsRead,
   onMarkAllAsRead,
   onDelete,
+  onDeleteAll,
   onNavigate
 }) => {
   const [activeFilter, setActiveFilter] = useState('all');
@@ -255,6 +256,21 @@ const NotificationCenter = ({
                   >
                     <CheckCheck className="w-3.5 h-3.5" />
                     Tout lire
+                  </motion.button>
+                )}
+                {notifications.length > 0 && onDeleteAll && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      if (window.confirm(`Supprimer les ${notifications.length} notification${notifications.length > 1 ? 's' : ''} ?`)) {
+                        onDeleteAll();
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Tout effacer
                   </motion.button>
                 )}
                 <motion.button
