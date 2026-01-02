@@ -2080,8 +2080,17 @@ class UnifiedBadgeService {
       const updatedUserSnap = await getDoc(userRef);
       const updatedUserData = updatedUserSnap.data();
 
+      // Debug: afficher les stats boost pour vérifier
+      console.log('📊 [SYNC] Stats pour badges:', {
+        boostsSent: updatedUserData.gamification?.boostsSent,
+        boostsReceived: updatedUserData.gamification?.boostsReceived,
+        tasksCompleted: updatedUserData.gamification?.tasksCompleted,
+        messagesSent: updatedUserData.gamification?.messagesSent
+      });
+
       const currentBadges = updatedUserData.gamification?.badges || [];
       const currentBadgeIds = currentBadges.map(b => b.id);
+      console.log('📊 [SYNC] Badges déjà obtenus:', currentBadgeIds.length, 'badges');
 
       const newlyUnlocked = [];
 
