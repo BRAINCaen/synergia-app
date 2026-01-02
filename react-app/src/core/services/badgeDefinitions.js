@@ -657,6 +657,315 @@ export const BADGE_DEFINITIONS = {
     condition: (stats) => {
       return stats.campaignsLed >= 10;
     }
+  },
+
+  // 🌡️ BADGES PULSE / BIEN-ÊTRE
+  pulse_first: {
+    id: 'pulse_first',
+    name: 'Premier Check-in',
+    description: 'Faire son premier check-in Pulse',
+    icon: '🌡️',
+    rarity: 'common',
+    category: 'engagement',
+    xpReward: 15,
+    condition: (stats) => stats.pulseCheckins >= 1
+  },
+
+  pulse_regular: {
+    id: 'pulse_regular',
+    name: 'Humeur Partagée',
+    description: '10 check-ins Pulse effectués',
+    icon: '📊',
+    rarity: 'uncommon',
+    category: 'engagement',
+    xpReward: 40,
+    condition: (stats) => stats.pulseCheckins >= 10
+  },
+
+  pulse_master: {
+    id: 'pulse_master',
+    name: 'Baromètre Vivant',
+    description: '50 check-ins Pulse effectués',
+    icon: '🎯',
+    rarity: 'rare',
+    category: 'engagement',
+    xpReward: 100,
+    condition: (stats) => stats.pulseCheckins >= 50
+  },
+
+  mood_positive: {
+    id: 'mood_positive',
+    name: 'Rayon de Soleil',
+    description: 'Avoir une humeur positive 10 jours de suite',
+    icon: '☀️',
+    rarity: 'uncommon',
+    category: 'engagement',
+    xpReward: 60,
+    condition: (stats) => stats.positiveMoodStreak >= 10
+  },
+
+  energy_boost: {
+    id: 'energy_boost',
+    name: 'Plein d\'Énergie',
+    description: 'Reporter une énergie maximale 5 fois',
+    icon: '⚡',
+    rarity: 'uncommon',
+    category: 'engagement',
+    xpReward: 50,
+    condition: (stats) => stats.maxEnergyCount >= 5
+  },
+
+  // ⏰ BADGES POINTAGE
+  timetrack_first: {
+    id: 'timetrack_first',
+    name: 'Premier Pointage',
+    description: 'Effectuer son premier pointage',
+    icon: '⏰',
+    rarity: 'common',
+    category: 'engagement',
+    xpReward: 10,
+    condition: (stats) => stats.timetrackCount >= 1
+  },
+
+  timetrack_punctual: {
+    id: 'timetrack_punctual',
+    name: 'Ponctuel',
+    description: '20 pointages à l\'heure',
+    icon: '✅',
+    rarity: 'uncommon',
+    category: 'engagement',
+    xpReward: 50,
+    condition: (stats) => stats.punctualCheckins >= 20
+  },
+
+  timetrack_month: {
+    id: 'timetrack_month',
+    name: 'Mois Complet',
+    description: 'Tous les pointages du mois effectués',
+    icon: '📅',
+    rarity: 'rare',
+    category: 'engagement',
+    xpReward: 80,
+    condition: (stats) => stats.perfectMonthTimetrack === true
+  },
+
+  // 👨‍🏫 BADGES MENTORAT
+  mentoring_first: {
+    id: 'mentoring_first',
+    name: 'Première Session',
+    description: 'Participer à sa première session de mentorat',
+    icon: '🎓',
+    rarity: 'common',
+    category: 'collaboration',
+    xpReward: 20,
+    condition: (stats) => stats.mentoringSessions >= 1
+  },
+
+  mentoring_hours_10: {
+    id: 'mentoring_hours_10',
+    name: 'Guide Dévoué',
+    description: '10 heures de mentorat cumulées',
+    icon: '📚',
+    rarity: 'rare',
+    category: 'collaboration',
+    xpReward: 120,
+    condition: (stats) => stats.mentoringHours >= 10
+  },
+
+  mentoring_sessions_20: {
+    id: 'mentoring_sessions_20',
+    name: 'Maître Mentor',
+    description: '20 sessions de mentorat animées',
+    icon: '👨‍🏫',
+    rarity: 'epic',
+    category: 'collaboration',
+    xpReward: 200,
+    condition: (stats) => stats.mentoringSessions >= 20
+  },
+
+  // 💬 BADGES TAVERNE
+  tavern_first: {
+    id: 'tavern_first',
+    name: 'Première Conversation',
+    description: 'Envoyer son premier message',
+    icon: '💬',
+    rarity: 'common',
+    category: 'collaboration',
+    xpReward: 10,
+    condition: (stats) => stats.messagesSent >= 1
+  },
+
+  tavern_social: {
+    id: 'tavern_social',
+    name: 'Bavard',
+    description: '50 messages envoyés',
+    icon: '🗣️',
+    rarity: 'uncommon',
+    category: 'collaboration',
+    xpReward: 40,
+    condition: (stats) => stats.messagesSent >= 50
+  },
+
+  tavern_connector: {
+    id: 'tavern_connector',
+    name: 'Connecteur',
+    description: 'Avoir conversé avec tous les collègues de Synergia',
+    icon: '🤝',
+    rarity: 'rare',
+    category: 'collaboration',
+    xpReward: 80,
+    condition: (stats, context) => {
+      const totalUsers = context?.totalUsers || 10;
+      return stats.uniqueConversations >= Math.max(1, Math.floor((totalUsers - 1) * 0.8));
+    }
+  },
+
+  // 🎁 BADGES BOUTIQUE
+  shop_first: {
+    id: 'shop_first',
+    name: 'Premier Achat',
+    description: 'Acheter sa première récompense',
+    icon: '🎁',
+    rarity: 'common',
+    category: 'progression',
+    xpReward: 15,
+    condition: (stats) => stats.rewardsPurchased >= 1
+  },
+
+  shop_collector: {
+    id: 'shop_collector',
+    name: 'Collectionneur',
+    description: '5 récompenses achetées',
+    icon: '🛍️',
+    rarity: 'uncommon',
+    category: 'progression',
+    xpReward: 50,
+    condition: (stats) => stats.rewardsPurchased >= 5
+  },
+
+  shop_vip: {
+    id: 'shop_vip',
+    name: 'Client VIP',
+    description: '10 récompenses achetées',
+    icon: '👑',
+    rarity: 'rare',
+    category: 'progression',
+    xpReward: 100,
+    condition: (stats) => stats.rewardsPurchased >= 10
+  },
+
+  // 🎨 BADGES PERSONNALISATION
+  avatar_custom: {
+    id: 'avatar_custom',
+    name: 'Relooking',
+    description: 'Personnaliser son avatar pour la première fois',
+    icon: '🎨',
+    rarity: 'common',
+    category: 'general',
+    xpReward: 20,
+    condition: (stats) => stats.avatarCustomized === true
+  },
+
+  profile_complete_plus: {
+    id: 'profile_complete_plus',
+    name: 'Profil Premium',
+    description: 'Avatar + Titre + Bannière personnalisés',
+    icon: '✨',
+    rarity: 'uncommon',
+    category: 'general',
+    xpReward: 50,
+    condition: (stats) => stats.avatarCustomized && stats.hasCustomTitle && stats.hasCustomBanner
+  },
+
+  // 🏆 BADGES CAGNOTTE ÉQUIPE
+  pool_contributor: {
+    id: 'pool_contributor',
+    name: 'Contributeur',
+    description: 'Contribuer à la cagnotte d\'équipe',
+    icon: '💰',
+    rarity: 'common',
+    category: 'collaboration',
+    xpReward: 20,
+    condition: (stats) => stats.poolContributions >= 1
+  },
+
+  pool_generous: {
+    id: 'pool_generous',
+    name: 'Généreux',
+    description: '500 XP versés à la cagnotte',
+    icon: '💎',
+    rarity: 'uncommon',
+    category: 'collaboration',
+    xpReward: 60,
+    condition: (stats) => stats.totalPoolXp >= 500
+  },
+
+  pool_whale: {
+    id: 'pool_whale',
+    name: 'Mécène',
+    description: '2000 XP versés à la cagnotte',
+    icon: '🐋',
+    rarity: 'rare',
+    category: 'collaboration',
+    xpReward: 150,
+    condition: (stats) => stats.totalPoolXp >= 2000
+  },
+
+  // 🌳 BADGES COMPÉTENCES
+  skill_first: {
+    id: 'skill_first',
+    name: 'Première Compétence',
+    description: 'Débloquer sa première compétence',
+    icon: '🌱',
+    rarity: 'common',
+    category: 'progression',
+    xpReward: 25,
+    condition: (stats) => stats.skillsUnlocked >= 1
+  },
+
+  skill_branch_master: {
+    id: 'skill_branch_master',
+    name: 'Spécialiste',
+    description: 'Maîtriser une branche de compétences complète',
+    icon: '🌲',
+    rarity: 'rare',
+    category: 'progression',
+    xpReward: 150,
+    condition: (stats) => stats.branchMastered === true
+  },
+
+  skill_polyvalent: {
+    id: 'skill_polyvalent',
+    name: 'Polyvalent',
+    description: 'Avoir au moins niveau 3 dans 5 branches différentes',
+    icon: '🌟',
+    rarity: 'epic',
+    category: 'progression',
+    xpReward: 250,
+    condition: (stats) => stats.branchesLevel3 >= 5
+  },
+
+  // 📅 BADGES PLANNING
+  planning_consulted: {
+    id: 'planning_consulted',
+    name: 'Organisé',
+    description: 'Consulter le planning 20 fois',
+    icon: '📅',
+    rarity: 'uncommon',
+    category: 'engagement',
+    xpReward: 30,
+    condition: (stats) => stats.planningViews >= 20
+  },
+
+  shift_swap: {
+    id: 'shift_swap',
+    name: 'Entraide',
+    description: 'Effectuer un échange de shift avec un collègue',
+    icon: '🔄',
+    rarity: 'uncommon',
+    category: 'collaboration',
+    xpReward: 40,
+    condition: (stats) => stats.shiftSwaps >= 1
   }
 };
 

@@ -1212,6 +1212,376 @@ export const UNIFIED_BADGE_DEFINITIONS = {
     xpReward: 100,
     autoCheck: (userData) => (userData.gamification?.nightTasks || 0) >= 10,
     trigger: 'task_completed'
+  },
+
+  // ==========================================
+  // 🌡️ BADGES PULSE / BIEN-ÊTRE (5 badges)
+  // ==========================================
+
+  pulse_first: {
+    id: 'pulse_first',
+    name: 'Premier Check-in',
+    description: 'Faire son premier check-in Pulse',
+    icon: '🌡️',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 15,
+    autoCheck: (userData) => (userData.gamification?.pulseCheckins || 0) >= 1,
+    trigger: 'pulse_checkin'
+  },
+
+  pulse_regular: {
+    id: 'pulse_regular',
+    name: 'Humeur Partagée',
+    description: '10 check-ins Pulse effectués',
+    icon: '📊',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 40,
+    autoCheck: (userData) => (userData.gamification?.pulseCheckins || 0) >= 10,
+    trigger: 'pulse_checkin'
+  },
+
+  pulse_master: {
+    id: 'pulse_master',
+    name: 'Baromètre Vivant',
+    description: '50 check-ins Pulse effectués',
+    icon: '🎯',
+    rarity: 'rare',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 100,
+    autoCheck: (userData) => (userData.gamification?.pulseCheckins || 0) >= 50,
+    trigger: 'pulse_checkin'
+  },
+
+  mood_positive: {
+    id: 'mood_positive',
+    name: 'Rayon de Soleil',
+    description: 'Avoir une humeur positive 10 jours de suite',
+    icon: '☀️',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 60,
+    autoCheck: (userData) => (userData.gamification?.positiveMoodStreak || 0) >= 10,
+    trigger: 'pulse_checkin'
+  },
+
+  energy_boost: {
+    id: 'energy_boost',
+    name: 'Plein d\'Énergie',
+    description: 'Reporter une énergie maximale 5 fois',
+    icon: '⚡',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 50,
+    autoCheck: (userData) => (userData.gamification?.maxEnergyCount || 0) >= 5,
+    trigger: 'pulse_checkin'
+  },
+
+  // ==========================================
+  // ⏰ BADGES POINTAGE (3 badges)
+  // ==========================================
+
+  timetrack_first: {
+    id: 'timetrack_first',
+    name: 'Premier Pointage',
+    description: 'Effectuer son premier pointage',
+    icon: '⏰',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 10,
+    autoCheck: (userData) => (userData.gamification?.timetrackCount || 0) >= 1,
+    trigger: 'timetrack'
+  },
+
+  timetrack_punctual: {
+    id: 'timetrack_punctual',
+    name: 'Ponctuel',
+    description: '20 pointages à l\'heure',
+    icon: '✅',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 50,
+    autoCheck: (userData) => (userData.gamification?.punctualCheckins || 0) >= 20,
+    trigger: 'timetrack'
+  },
+
+  timetrack_month: {
+    id: 'timetrack_month',
+    name: 'Mois Complet',
+    description: 'Tous les pointages du mois effectués',
+    icon: '📅',
+    rarity: 'rare',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 80,
+    autoCheck: (userData) => userData.gamification?.perfectMonthTimetrack === true,
+    trigger: 'timetrack'
+  },
+
+  // ==========================================
+  // 👨‍🏫 BADGES MENTORAT (3 badges)
+  // ==========================================
+
+  mentoring_first: {
+    id: 'mentoring_first',
+    name: 'Première Session',
+    description: 'Participer à sa première session de mentorat',
+    icon: '🎓',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 20,
+    autoCheck: (userData) => (userData.gamification?.mentoringSessions || 0) >= 1,
+    trigger: 'mentoring_session'
+  },
+
+  mentoring_hours_10: {
+    id: 'mentoring_hours_10',
+    name: 'Guide Dévoué',
+    description: '10 heures de mentorat cumulées',
+    icon: '📚',
+    rarity: 'rare',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 120,
+    autoCheck: (userData) => (userData.gamification?.mentoringHours || 0) >= 10,
+    trigger: 'mentoring_session'
+  },
+
+  mentoring_sessions_20: {
+    id: 'mentoring_sessions_20',
+    name: 'Maître Mentor',
+    description: '20 sessions de mentorat animées',
+    icon: '👨‍🏫',
+    rarity: 'epic',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 200,
+    autoCheck: (userData) => (userData.gamification?.mentoringSessions || 0) >= 20,
+    trigger: 'mentoring_session'
+  },
+
+  // ==========================================
+  // 💬 BADGES TAVERNE (3 badges)
+  // ==========================================
+
+  tavern_first: {
+    id: 'tavern_first',
+    name: 'Première Conversation',
+    description: 'Envoyer son premier message',
+    icon: '💬',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 10,
+    autoCheck: (userData) => (userData.gamification?.messagesSent || 0) >= 1,
+    trigger: 'message_sent'
+  },
+
+  tavern_social: {
+    id: 'tavern_social',
+    name: 'Bavard',
+    description: '50 messages envoyés',
+    icon: '🗣️',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 40,
+    autoCheck: (userData) => (userData.gamification?.messagesSent || 0) >= 50,
+    trigger: 'message_sent'
+  },
+
+  tavern_connector: {
+    id: 'tavern_connector',
+    name: 'Connecteur',
+    description: 'Avoir conversé avec tous les collègues de Synergia',
+    icon: '🤝',
+    rarity: 'rare',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 80,
+    autoCheck: (userData, context) => {
+      const uniqueConversations = userData.gamification?.uniqueConversations || 0;
+      const totalUsers = context?.totalUsers || 10;
+      // Badge si on a parlé avec au moins 80% des utilisateurs (hors soi-même)
+      return uniqueConversations >= Math.max(1, Math.floor((totalUsers - 1) * 0.8));
+    },
+    trigger: 'message_sent'
+  },
+
+  // ==========================================
+  // 🎁 BADGES BOUTIQUE (3 badges)
+  // ==========================================
+
+  shop_first: {
+    id: 'shop_first',
+    name: 'Premier Achat',
+    description: 'Acheter sa première récompense',
+    icon: '🎁',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.PROGRESSION,
+    xpReward: 15,
+    autoCheck: (userData) => (userData.gamification?.rewardsPurchased || 0) >= 1,
+    trigger: 'reward_purchased'
+  },
+
+  shop_collector: {
+    id: 'shop_collector',
+    name: 'Collectionneur',
+    description: '5 récompenses achetées',
+    icon: '🛍️',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.PROGRESSION,
+    xpReward: 50,
+    autoCheck: (userData) => (userData.gamification?.rewardsPurchased || 0) >= 5,
+    trigger: 'reward_purchased'
+  },
+
+  shop_vip: {
+    id: 'shop_vip',
+    name: 'Client VIP',
+    description: '10 récompenses achetées',
+    icon: '👑',
+    rarity: 'rare',
+    category: BADGE_CATEGORIES.PROGRESSION,
+    xpReward: 100,
+    autoCheck: (userData) => (userData.gamification?.rewardsPurchased || 0) >= 10,
+    trigger: 'reward_purchased'
+  },
+
+  // ==========================================
+  // 🎨 BADGES PERSONNALISATION (2 badges)
+  // ==========================================
+
+  avatar_custom: {
+    id: 'avatar_custom',
+    name: 'Relooking',
+    description: 'Personnaliser son avatar pour la première fois',
+    icon: '🎨',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.ONBOARDING,
+    xpReward: 20,
+    autoCheck: (userData) => userData.gamification?.avatarCustomized === true,
+    trigger: 'profile_update'
+  },
+
+  profile_complete_plus: {
+    id: 'profile_complete_plus',
+    name: 'Profil Premium',
+    description: 'Avatar + Titre + Bannière personnalisés',
+    icon: '✨',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.ONBOARDING,
+    xpReward: 50,
+    autoCheck: (userData) => {
+      const hasAvatar = userData.gamification?.avatarCustomized === true;
+      const hasTitle = !!(userData.customTitle || userData.profile?.customTitle);
+      const hasBanner = !!(userData.customBanner || userData.profile?.customBanner);
+      return hasAvatar && hasTitle && hasBanner;
+    },
+    trigger: 'profile_update'
+  },
+
+  // ==========================================
+  // 🏆 BADGES CAGNOTTE ÉQUIPE (3 badges)
+  // ==========================================
+
+  pool_contributor: {
+    id: 'pool_contributor',
+    name: 'Contributeur',
+    description: 'Contribuer à la cagnotte d\'équipe',
+    icon: '💰',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 20,
+    autoCheck: (userData) => (userData.gamification?.poolContributions || 0) >= 1,
+    trigger: 'pool_contribution'
+  },
+
+  pool_generous: {
+    id: 'pool_generous',
+    name: 'Généreux',
+    description: '500 XP versés à la cagnotte',
+    icon: '💎',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 60,
+    autoCheck: (userData) => (userData.gamification?.totalPoolXp || 0) >= 500,
+    trigger: 'pool_contribution'
+  },
+
+  pool_whale: {
+    id: 'pool_whale',
+    name: 'Mécène',
+    description: '2000 XP versés à la cagnotte',
+    icon: '🐋',
+    rarity: 'rare',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 150,
+    autoCheck: (userData) => (userData.gamification?.totalPoolXp || 0) >= 2000,
+    trigger: 'pool_contribution'
+  },
+
+  // ==========================================
+  // 🌳 BADGES COMPÉTENCES (3 badges)
+  // ==========================================
+
+  skill_first: {
+    id: 'skill_first',
+    name: 'Première Compétence',
+    description: 'Débloquer sa première compétence',
+    icon: '🌱',
+    rarity: 'common',
+    category: BADGE_CATEGORIES.PROGRESSION,
+    xpReward: 25,
+    autoCheck: (userData) => (userData.gamification?.skillsUnlocked || 0) >= 1,
+    trigger: 'skill_unlocked'
+  },
+
+  skill_branch_master: {
+    id: 'skill_branch_master',
+    name: 'Spécialiste',
+    description: 'Maîtriser une branche de compétences complète',
+    icon: '🌲',
+    rarity: 'rare',
+    category: BADGE_CATEGORIES.PROGRESSION,
+    xpReward: 150,
+    autoCheck: (userData) => userData.gamification?.branchMastered === true,
+    trigger: 'skill_unlocked'
+  },
+
+  skill_polyvalent: {
+    id: 'skill_polyvalent',
+    name: 'Polyvalent',
+    description: 'Avoir au moins niveau 3 dans 5 branches différentes',
+    icon: '🌟',
+    rarity: 'epic',
+    category: BADGE_CATEGORIES.PROGRESSION,
+    xpReward: 250,
+    autoCheck: (userData) => (userData.gamification?.branchesLevel3 || 0) >= 5,
+    trigger: 'skill_unlocked'
+  },
+
+  // ==========================================
+  // 📅 BADGES PLANNING (2 badges)
+  // ==========================================
+
+  planning_consulted: {
+    id: 'planning_consulted',
+    name: 'Organisé',
+    description: 'Consulter le planning 20 fois',
+    icon: '📅',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    xpReward: 30,
+    autoCheck: (userData) => (userData.gamification?.planningViews || 0) >= 20,
+    trigger: 'planning_viewed'
+  },
+
+  shift_swap: {
+    id: 'shift_swap',
+    name: 'Entraide',
+    description: 'Effectuer un échange de shift avec un collègue',
+    icon: '🔄',
+    rarity: 'uncommon',
+    category: BADGE_CATEGORIES.COLLABORATION,
+    xpReward: 40,
+    autoCheck: (userData) => (userData.gamification?.shiftSwaps || 0) >= 1,
+    trigger: 'shift_swapped'
   }
 };
 
@@ -1754,6 +2124,217 @@ class UnifiedBadgeService {
       return { success: false, error: error.message };
     }
   }
+
+  /**
+   * 🔄 RÉGULARISATION DES NOUVEAUX BADGES
+   * Calcule les données depuis les collections Firebase et attribue les badges mérités
+   */
+  async retroactiveBadgeCheck(userId) {
+    try {
+      console.log('🔄 [RETRO] Vérification rétroactive des badges pour:', userId);
+
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        return { success: false, message: 'Utilisateur non trouvé' };
+      }
+
+      const userData = userSnap.data();
+      const gamification = userData.gamification || {};
+      const updates = {};
+
+      // 🌡️ PULSE: Compter les check-ins depuis la collection pulse_checkins
+      try {
+        const pulseQuery = query(
+          collection(db, 'pulse_checkins'),
+          where('userId', '==', userId)
+        );
+        const pulseSnapshot = await getDocs(pulseQuery);
+        const pulseCount = pulseSnapshot.size;
+
+        if (pulseCount > (gamification.pulseCheckins || 0)) {
+          updates['gamification.pulseCheckins'] = pulseCount;
+          console.log(`📊 [RETRO] Pulse check-ins: ${pulseCount}`);
+        }
+
+        // Compter les énergies max (niveau 5)
+        let maxEnergyCount = 0;
+        pulseSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.energy >= 5 || data.energyLevel >= 5) maxEnergyCount++;
+        });
+        if (maxEnergyCount > (gamification.maxEnergyCount || 0)) {
+          updates['gamification.maxEnergyCount'] = maxEnergyCount;
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection pulse_checkins non trouvée ou vide');
+      }
+
+      // ⏰ POINTAGE: Compter les pointages
+      try {
+        const timetrackQuery = query(
+          collection(db, 'timetracking'),
+          where('userId', '==', userId)
+        );
+        const timetrackSnapshot = await getDocs(timetrackQuery);
+        const timetrackCount = timetrackSnapshot.size;
+
+        if (timetrackCount > (gamification.timetrackCount || 0)) {
+          updates['gamification.timetrackCount'] = timetrackCount;
+          console.log(`📊 [RETRO] Pointages: ${timetrackCount}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection timetracking non trouvée ou vide');
+      }
+
+      // 💬 TAVERNE: Compter les messages envoyés
+      try {
+        const messagesQuery = query(
+          collection(db, 'messages'),
+          where('senderId', '==', userId)
+        );
+        const messagesSnapshot = await getDocs(messagesQuery);
+        const messageCount = messagesSnapshot.size;
+
+        if (messageCount > (gamification.messagesSent || 0)) {
+          updates['gamification.messagesSent'] = messageCount;
+          console.log(`📊 [RETRO] Messages envoyés: ${messageCount}`);
+        }
+
+        // Compter les conversations uniques
+        const uniqueRecipients = new Set();
+        messagesSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.recipientId) uniqueRecipients.add(data.recipientId);
+          if (data.receiverId) uniqueRecipients.add(data.receiverId);
+        });
+        const uniqueConversations = uniqueRecipients.size;
+        if (uniqueConversations > (gamification.uniqueConversations || 0)) {
+          updates['gamification.uniqueConversations'] = uniqueConversations;
+          updates['gamification.conversationPartners'] = Array.from(uniqueRecipients);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection messages non trouvée ou vide');
+      }
+
+      // 🎁 BOUTIQUE: Compter les récompenses achetées
+      try {
+        const rewardsQuery = query(
+          collection(db, 'reward_requests'),
+          where('userId', '==', userId),
+          where('status', '==', 'approved')
+        );
+        const rewardsSnapshot = await getDocs(rewardsQuery);
+        const rewardsCount = rewardsSnapshot.size;
+
+        if (rewardsCount > (gamification.rewardsPurchased || 0)) {
+          updates['gamification.rewardsPurchased'] = rewardsCount;
+          console.log(`📊 [RETRO] Récompenses achetées: ${rewardsCount}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection reward_requests non trouvée ou vide');
+      }
+
+      // 👨‍🏫 MENTORAT: Compter les sessions
+      try {
+        const mentoringQuery = query(
+          collection(db, 'mentoring_sessions'),
+          where('participants', 'array-contains', userId)
+        );
+        const mentoringSnapshot = await getDocs(mentoringQuery);
+        const sessionCount = mentoringSnapshot.size;
+
+        if (sessionCount > (gamification.mentoringSessions || 0)) {
+          updates['gamification.mentoringSessions'] = sessionCount;
+          console.log(`📊 [RETRO] Sessions mentorat: ${sessionCount}`);
+        }
+
+        // Calculer les heures de mentorat
+        let totalHours = 0;
+        mentoringSnapshot.forEach(doc => {
+          const data = doc.data();
+          totalHours += (data.duration || 60) / 60; // en heures
+        });
+        if (totalHours > (gamification.mentoringHours || 0)) {
+          updates['gamification.mentoringHours'] = Math.round(totalHours * 10) / 10;
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection mentoring_sessions non trouvée ou vide');
+      }
+
+      // 🎨 AVATAR: Vérifier si l'avatar a été personnalisé
+      if (userData.avatar || userData.profile?.avatar || userData.photoURL !== userData.defaultPhotoURL) {
+        if (!gamification.avatarCustomized) {
+          updates['gamification.avatarCustomized'] = true;
+          console.log(`📊 [RETRO] Avatar personnalisé: true`);
+        }
+      }
+
+      // 📅 PLANNING: On ne peut pas compter rétroactivement les vues, mais on initialise
+      if (!gamification.planningViews) {
+        updates['gamification.planningViews'] = 0;
+      }
+
+      // Appliquer les mises à jour si nécessaire
+      if (Object.keys(updates).length > 0) {
+        await setDoc(userRef, updates, { merge: true });
+        console.log(`✅ [RETRO] ${Object.keys(updates).length} champs mis à jour`);
+      }
+
+      // Maintenant vérifier et attribuer les badges
+      const syncResult = await this.syncUserBadges(userId);
+
+      return {
+        success: true,
+        updatedFields: Object.keys(updates),
+        ...syncResult
+      };
+
+    } catch (error) {
+      console.error('❌ [RETRO] Erreur:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * 🔄 RÉGULARISATION POUR TOUS LES UTILISATEURS
+   */
+  async retroactiveBadgeCheckAll() {
+    try {
+      console.log('🔄 [RETRO-ALL] Début régularisation pour tous les utilisateurs...');
+
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const results = [];
+
+      for (const userDoc of usersSnapshot.docs) {
+        console.log(`🔄 [RETRO-ALL] Traitement: ${userDoc.data().displayName || userDoc.id}`);
+        const result = await this.retroactiveBadgeCheck(userDoc.id);
+        results.push({
+          userId: userDoc.id,
+          displayName: userDoc.data().displayName,
+          ...result
+        });
+      }
+
+      const totalNewBadges = results.reduce((sum, r) => sum + (r.newBadges?.length || 0), 0);
+      const totalFieldsUpdated = results.reduce((sum, r) => sum + (r.updatedFields?.length || 0), 0);
+
+      console.log(`✅ [RETRO-ALL] ${results.length} utilisateurs traités, ${totalNewBadges} badges attribués, ${totalFieldsUpdated} champs mis à jour`);
+
+      return {
+        success: true,
+        usersProcessed: results.length,
+        totalNewBadges,
+        totalFieldsUpdated,
+        details: results
+      };
+
+    } catch (error) {
+      console.error('❌ [RETRO-ALL] Erreur:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 // ==========================================
@@ -1794,7 +2375,36 @@ if (typeof window !== 'undefined') {
     return await unifiedBadgeService.syncAllUsersBadges();
   };
 
-  console.log('💡 Tapez syncMyBadges() dans la console pour synchroniser vos badges !');
+  // 🔄 Fonction de régularisation rétroactive (recalcule depuis les collections Firebase)
+  window.retroBadgeCheck = async () => {
+    const user = window.synergia?.auth?.currentUser;
+    if (!user) {
+      console.error('❌ Vous devez être connecté');
+      return;
+    }
+    console.log('🔄 Régularisation rétroactive de vos badges en cours...');
+    const result = await unifiedBadgeService.retroactiveBadgeCheck(user.uid);
+    console.log('✅ Résultat:', result);
+    if (result.newBadges?.length > 0) {
+      alert(`🎉 ${result.newBadges.length} nouveaux badges débloqués !\n\n${result.newBadges.map(b => `${b.icon} ${b.name}`).join('\n')}`);
+    }
+    return result;
+  };
+
+  // 🔄 Régularisation pour TOUS les utilisateurs (admin seulement)
+  window.retroBadgeCheckAll = async () => {
+    console.log('🔄 Régularisation rétroactive pour TOUS les utilisateurs...');
+    console.log('⚠️ Cela peut prendre du temps...');
+    const result = await unifiedBadgeService.retroactiveBadgeCheckAll();
+    console.log('✅ Régularisation terminée:', result);
+    alert(`✅ Régularisation terminée !\n\n${result.usersProcessed} utilisateurs traités\n${result.totalNewBadges} badges attribués\n${result.totalFieldsUpdated} champs mis à jour`);
+    return result;
+  };
+
+  console.log('💡 Commandes disponibles:');
+  console.log('   syncMyBadges() - Synchroniser vos badges');
+  console.log('   retroBadgeCheck() - Régularisation rétroactive de vos badges');
+  console.log('   retroBadgeCheckAll() - Régularisation pour TOUS les utilisateurs (admin)');
 }
 
 export default unifiedBadgeService;

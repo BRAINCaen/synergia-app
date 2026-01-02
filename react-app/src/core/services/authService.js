@@ -225,6 +225,45 @@ class AuthService {
           weeklyStatsChecks: 0,
           lastStatsCheckWeek: null,
 
+          // 🌡️ Pulse / Bien-être
+          pulseCheckins: 0,
+          positiveMoodStreak: 0,
+          maxEnergyCount: 0,
+          lastMoodDate: null,
+
+          // ⏰ Pointage
+          timetrackCount: 0,
+          punctualCheckins: 0,
+          perfectMonthTimetrack: false,
+
+          // 👨‍🏫 Mentorat
+          mentoringSessions: 0,
+          mentoringHours: 0,
+
+          // 💬 Taverne / Messages
+          messagesSent: 0,
+          uniqueConversations: 0,
+          conversationPartners: [],
+
+          // 🎁 Boutique
+          rewardsPurchased: 0,
+
+          // 🎨 Personnalisation
+          avatarCustomized: false,
+
+          // 🏆 Cagnotte équipe
+          poolContributions: 0,
+          totalPoolXp: 0,
+
+          // 🌳 Compétences
+          skillsUnlocked: 0,
+          branchMastered: false,
+          branchesLevel3: 0,
+
+          // 📅 Planning
+          planningViews: 0,
+          shiftSwaps: 0,
+
           // Historique
           xpHistory: []
         }
