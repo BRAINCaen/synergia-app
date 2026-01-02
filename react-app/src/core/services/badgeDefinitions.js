@@ -31,7 +31,13 @@ export const BADGE_DEFINITIONS = {
     category: 'general',
     xpReward: 25,
     condition: (stats) => {
-      return stats.profile?.completeness >= 80;
+      // Vérifier les champs essentiels du profil (structure réelle Firebase)
+      const hasDisplayName = !!(stats.displayName && stats.displayName.trim());
+      const hasEmail = !!(stats.email && stats.email.trim());
+      const hasBioOrCompany = !!(stats.bio?.trim() || stats.profile?.bio?.trim() || stats.company?.trim());
+      const hasContactInfo = !!(stats.phone?.trim() || stats.location?.trim());
+
+      return hasDisplayName && hasEmail && hasBioOrCompany && hasContactInfo;
     }
   },
 

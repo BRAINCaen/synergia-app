@@ -75,8 +75,14 @@ export const UNIFIED_BADGE_DEFINITIONS = {
     category: BADGE_CATEGORIES.ONBOARDING,
     xpReward: 25,
     autoCheck: (userData) => {
-      const profile = userData.profile || {};
-      return profile.firstName && profile.lastName && profile.department;
+      // Vérifier les champs essentiels du profil (structure réelle Firebase)
+      const hasDisplayName = !!(userData.displayName && userData.displayName.trim());
+      const hasEmail = !!(userData.email && userData.email.trim());
+      const hasBioOrCompany = !!(userData.bio?.trim() || userData.profile?.bio?.trim() || userData.company?.trim());
+      const hasContactInfo = !!(userData.phone?.trim() || userData.location?.trim());
+
+      // Profil complet = nom + email + (bio ou entreprise) + (téléphone ou localisation)
+      return hasDisplayName && hasEmail && hasBioOrCompany && hasContactInfo;
     },
     trigger: 'profile_update'
   },

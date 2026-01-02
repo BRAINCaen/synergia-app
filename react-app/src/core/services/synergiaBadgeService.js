@@ -46,10 +46,19 @@ const SYNERGIA_BADGE_DEFINITIONS = {
     xpReward: 25,
     category: 'onboarding',
     requirements: {
-      profileCompletion: 100
+      displayName: true,
+      email: true,
+      bioOrCompany: true,
+      contactInfo: true
     },
     checkCondition: (userStats) => {
-      return (userStats.profileCompletion || 0) >= 100;
+      // Vérifier les champs essentiels du profil (structure réelle Firebase)
+      const hasDisplayName = !!(userStats.displayName && userStats.displayName.trim());
+      const hasEmail = !!(userStats.email && userStats.email.trim());
+      const hasBioOrCompany = !!(userStats.bio?.trim() || userStats.profile?.bio?.trim() || userStats.company?.trim());
+      const hasContactInfo = !!(userStats.phone?.trim() || userStats.location?.trim());
+
+      return hasDisplayName && hasEmail && hasBioOrCompany && hasContactInfo;
     }
   },
 
