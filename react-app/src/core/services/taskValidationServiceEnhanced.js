@@ -28,6 +28,7 @@ import {
 } from 'firebase/storage';
 import { db, storage } from '../firebase.js';
 import { taskAssignmentService } from './taskAssignmentService.js';
+import xpHistoryService from './xpHistoryService.js';
 import { taskHistoryService } from './taskHistoryService.js';
 
 /**
@@ -418,6 +419,17 @@ class TaskValidationServiceEnhanced {
 
       // Effectuer la mise à jour
       await updateDoc(userRef, updates);
+
+      // 📊 ENREGISTRER DANS L'HISTORIQUE XP
+      await xpHistoryService.logXPEvent({
+        userId,
+        type: 'quest_completed',
+        amount: xpAmount,
+        balance: newXP,
+        source: 'task',
+        description: `Quête validée: ${taskTitle}`,
+        metadata: { taskId, taskTitle }
+      });
 
       console.log('✅ [XP-SYNC] XP attribués avec synchronisation complète (2 compteurs):', {
         userId,

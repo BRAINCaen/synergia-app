@@ -22,6 +22,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import notificationService from './notificationService.js';
+import xpHistoryService from './xpHistoryService.js';
 
 // 📊 CONSTANTES XP
 export const IDEA_XP = {
@@ -723,10 +724,24 @@ export const ideaService = {
   async awardXpToUser(userId, xpAmount, reason) {
     try {
       const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      const currentXp = userSnap.exists() ? (userSnap.data().gamification?.totalXp || 0) : 0;
+
       await updateDoc(userRef, {
         'gamification.totalXp': increment(xpAmount),
         updatedAt: serverTimestamp()
       });
+
+      // 📊 ENREGISTRER DANS L'HISTORIQUE XP
+      await xpHistoryService.logXPEvent({
+        userId,
+        type: 'other',
+        amount: xpAmount,
+        balance: currentXp + xpAmount,
+        source: 'idea',
+        description: reason
+      });
+
       console.log(`💰 [IDEAS] +${xpAmount} XP pour ${userId}: ${reason}`);
     } catch (error) {
       console.error('❌ [IDEAS] Erreur attribution XP:', error);
