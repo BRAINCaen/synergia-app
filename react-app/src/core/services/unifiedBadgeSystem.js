@@ -1985,9 +1985,10 @@ class UnifiedBadgeService {
       const userData = userSnap.data();
 
       // 2. Compter les quêtes depuis la collection quests
+      // ✅ CORRECTION: Utiliser assignedTo (array) au lieu de userId
       const questsQuery = query(
         collection(db, 'quests'),
-        where('userId', '==', userId)
+        where('assignedTo', 'array-contains', userId)
       );
       const questsSnapshot = await getDocs(questsQuery);
 
@@ -2014,6 +2015,8 @@ class UnifiedBadgeService {
           }
         }
       });
+
+      console.log(`📊 [SYNC] Quêtes trouvées pour ${userId}: ${tasksCreated} total, ${tasksCompleted} complétées`);
 
       // 3. Calculer les jours actifs depuis la création du compte
       const createdAt = userData.createdAt?.toDate?.() || new Date();
