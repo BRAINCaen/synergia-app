@@ -15,6 +15,7 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import xpHistoryService from './xpHistoryService.js';
 
 // ==========================================
 // 🏆 DÉFINITIONS COMPLÈTES DES BADGES
@@ -1710,6 +1711,19 @@ class UnifiedBadgeService {
         },
         updatedAt: new Date().toISOString()
       }, { merge: true });
+
+      // 📊 ENREGISTRER DANS L'HISTORIQUE XP
+      for (const badge of newBadges) {
+        await xpHistoryService.logXPEvent({
+          userId,
+          type: 'badge_earned',
+          amount: badge.xpReward || 0,
+          balance: currentTotalXp + totalXpFromNewBadges,
+          source: 'badge',
+          description: `Badge débloqué: ${badge.name}`,
+          metadata: { badgeId: badge.id, badgeName: badge.name }
+        });
+      }
 
       // Déclencher les notifications
       newBadges.forEach(badge => {

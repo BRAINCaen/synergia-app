@@ -21,6 +21,7 @@ import {
 import { db } from '../firebase.js';
 import { notificationService } from './notificationService.js';
 import { calculateLevel } from './levelService.js';
+import xpHistoryService from './xpHistoryService.js';
 
 // Types de Boost disponibles
 export const BOOST_TYPES = {
@@ -480,6 +481,16 @@ class BoostService {
         'gamification.lastXpReason': reason,
         'boostStats.xpFromBoosts': increment(amount),
         lastActivity: serverTimestamp()
+      });
+
+      // 📊 ENREGISTRER DANS L'HISTORIQUE XP
+      await xpHistoryService.logXPEvent({
+        userId,
+        type: reason.includes('recu') ? 'boost_received' : 'boost_sent',
+        amount,
+        balance: newTotalXp,
+        source: 'boost',
+        description: reason
       });
 
       console.log(`+${amount} XP pour ${reason} (Niveau: ${newLevel})`);
