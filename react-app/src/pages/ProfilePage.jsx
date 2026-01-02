@@ -87,6 +87,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
 import { uploadUserAvatar } from '../core/services/storageService.js';
+import unifiedBadgeService from '../core/services/unifiedBadgeSystem.js';
 
 /**
  * ⚙️ COMPOSANT SELECT PERSONNALISÉ
@@ -447,7 +448,18 @@ const ProfilePage = () => {
       setUserProfile(formData);
       setShowEditModal(false);
       showSuccessNotification('✅ Profil mis à jour avec succès !', 'success');
-      
+
+      // 🏆 Vérifier et débloquer les badges après mise à jour du profil
+      try {
+        const badgeResult = await unifiedBadgeService.checkAndUnlockBadges(user.uid, 'profile_update');
+        if (badgeResult.success && badgeResult.newBadges?.length > 0) {
+          console.log('🏆 [PROFILE] Nouveaux badges débloqués:', badgeResult.newBadges.map(b => b.name));
+          showSuccessNotification(`🏆 Badge débloqué: ${badgeResult.newBadges.map(b => b.name).join(', ')}`, 'success');
+        }
+      } catch (badgeError) {
+        console.warn('⚠️ [PROFILE] Erreur vérification badges:', badgeError);
+      }
+
     } catch (error) {
       console.error('❌ [PROFILE] Erreur sauvegarde:', error);
       showSuccessNotification('❌ Erreur lors de la sauvegarde', 'error');
