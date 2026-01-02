@@ -371,42 +371,48 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   },
 
   // ==========================================
-  // 🔥 BADGES ENGAGEMENT (8 badges)
+  // 🔥 BADGES ENGAGEMENT ÉQUILIBRÉ - QVCT (8 badges)
   // ==========================================
 
-  daily_user: {
-    id: 'daily_user',
-    name: 'Utilisateur Quotidien',
-    description: 'Se connecter 7 jours consécutifs',
-    icon: '📅',
+  balanced_month: {
+    id: 'balanced_month',
+    name: 'Mois Équilibré',
+    description: 'Se connecter au moins 4 jours par semaine pendant 1 mois',
+    icon: '🌟',
     rarity: 'uncommon',
     category: BADGE_CATEGORIES.ENGAGEMENT,
     xpReward: 60,
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 7,
+    autoCheck: (userData) => (userData.gamification?.monthlyActiveDays || 0) >= 16,
     trigger: 'daily_login'
   },
 
-  streak_champion: {
-    id: 'streak_champion',
-    name: 'Champion de Série',
-    description: 'Se connecter 30 jours consécutifs',
-    icon: '🔥',
+  regular_analyst: {
+    id: 'regular_analyst',
+    name: 'Analyste Régulier',
+    description: 'Consulter ses statistiques chaque semaine pendant 2 mois',
+    icon: '📊',
     rarity: 'rare',
     category: BADGE_CATEGORIES.ENGAGEMENT,
     xpReward: 200,
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 30,
-    trigger: 'daily_login'
+    autoCheck: (userData) => (userData.gamification?.weeklyStatsChecks || 0) >= 8,
+    trigger: 'stats_viewed'
   },
 
-  dedication_master: {
-    id: 'dedication_master',
-    name: 'Maître du Dévouement',
-    description: 'Se connecter 100 jours consécutifs',
-    icon: '💪',
+  six_months_veteran: {
+    id: 'six_months_veteran',
+    name: 'Vétéran 6 Mois',
+    description: '6 mois d\'ancienneté sur Synergia',
+    icon: '🏅',
     rarity: 'epic',
     category: BADGE_CATEGORIES.ENGAGEMENT,
-    xpReward: 500,
-    autoCheck: (userData) => (userData.gamification?.loginStreak || 0) >= 100,
+    xpReward: 250,
+    autoCheck: (userData) => {
+      if (!userData.createdAt) return false;
+      const joinDate = userData.createdAt?.toDate ? userData.createdAt.toDate() : new Date(userData.createdAt);
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      return joinDate <= sixMonthsAgo;
+    },
     trigger: 'daily_login'
   },
 

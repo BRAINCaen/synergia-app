@@ -119,6 +119,9 @@ export const useAuthStore = create(
           );
           console.log('📊 [TRACKING] Connexion Google trackée');
 
+          // 🌟 TRACKER JOUR ACTIF MENSUEL (Badge QVCT "Mois Équilibré")
+          await AuthService.trackMonthlyActiveDay(user.uid);
+
           // 🔑 RÉCUPÉRER LES DONNÉES ADMIN DEPUIS FIRESTORE
           const firestoreData = await fetchUserFirestoreData(user.uid);
           console.log('🔑 [AUTH] Données Firestore chargées:', firestoreData);
@@ -190,6 +193,9 @@ export const useAuthStore = create(
             user.email
           );
           console.log('📊 [TRACKING] Connexion email trackée');
+
+          // 🌟 TRACKER JOUR ACTIF MENSUEL (Badge QVCT "Mois Équilibré")
+          await AuthService.trackMonthlyActiveDay(user.uid);
 
           // 🔑 RÉCUPÉRER LES DONNÉES ADMIN DEPUIS FIRESTORE
           const firestoreData = await fetchUserFirestoreData(user.uid);

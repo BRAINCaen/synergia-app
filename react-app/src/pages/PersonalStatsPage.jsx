@@ -20,8 +20,18 @@ import xpHistoryService from '../core/services/xpHistoryService.js';
 import { calculateLevel, getXPProgress, getRankForLevel } from '../core/services/levelService.js';
 
 // Firebase pour données en temps réel
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
+
+/**
+ * 🌟 HELPER: Obtenir le numéro de semaine ISO de l'année
+ */
+const getWeekNumber = (date = new Date()) => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+};
 
 /**
  * 📊 PAGE STATISTIQUES PERSONNELLES
@@ -67,6 +77,39 @@ const PersonalStatsPage = () => {
 
     loadStats();
   }, [user?.uid]);
+
+  // 🌟 TRACKER CONSULTATION STATS HEBDOMADAIRE (Badge QVCT "Analyste Régulier")
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const trackWeeklyStatsView = async () => {
+      try {
+        const currentWeek = `${new Date().getFullYear()}-W${getWeekNumber()}`;
+        const lastStatsCheckWeek = gamificationData.lastStatsCheckWeek || '';
+
+        // Si c'est une nouvelle semaine, incrémenter le compteur
+        if (currentWeek !== lastStatsCheckWeek) {
+          const newCount = (gamificationData.weeklyStatsChecks || 0) + 1;
+          console.log(`📊 [QVCT] Consultation stats semaine ${currentWeek}: ${newCount} semaines consécutives`);
+
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, {
+            'gamification.weeklyStatsChecks': newCount,
+            'gamification.lastStatsCheckWeek': currentWeek
+          });
+        } else {
+          console.log(`📊 [QVCT] Stats déjà consultées cette semaine (${currentWeek})`);
+        }
+      } catch (error) {
+        console.error('❌ [QVCT] Erreur tracking stats view:', error);
+      }
+    };
+
+    // Attendre que les données soient chargées
+    if (gamificationData && Object.keys(gamificationData).length > 0) {
+      trackWeeklyStatsView();
+    }
+  }, [user?.uid, gamificationData.lastStatsCheckWeek]);
 
   // Rafraîchir les données
   const handleRefresh = async () => {
