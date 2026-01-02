@@ -3001,11 +3001,12 @@ const PlanningAdvancedPage = () => {
                                   draggable
                                   onDragStart={(e) => handleDragStart(e, shift)}
                                   onDragEnd={handleDragEnd}
+                                  onClick={() => !isDragging && openEditShiftModal(shift)}
                                   style={{
                                     backgroundColor: shift.color || '#8B5CF6',
                                     borderLeft: `4px solid rgba(0,0,0,0.3)`
                                   }}
-                                  className="rounded-lg p-1.5 sm:p-3 cursor-move hover:opacity-90 transition-all group relative min-h-[60px] sm:min-h-[80px] shadow-lg"
+                                  className="rounded-lg p-1.5 sm:p-3 cursor-pointer hover:opacity-90 transition-all group relative min-h-[60px] sm:min-h-[80px] shadow-lg"
                                 >
                                   {/* Overlay sombre pour améliorer la lisibilité */}
                                   <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 rounded-lg pointer-events-none" />
