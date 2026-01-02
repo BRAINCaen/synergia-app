@@ -2235,6 +2235,47 @@ class UnifiedBadgeService {
         console.log('⚠️ [RETRO] Collection messages non trouvée ou vide');
       }
 
+      // 💖 BOOSTS: Compter les boosts envoyés et reçus
+      try {
+        // Boosts envoyés
+        const boostsSentQuery = query(
+          collection(db, 'boosts'),
+          where('fromUserId', '==', userId)
+        );
+        const boostsSentSnapshot = await getDocs(boostsSentQuery);
+        const boostsSentCount = boostsSentSnapshot.size;
+
+        if (boostsSentCount > (gamification.boostsSent || 0)) {
+          updates['gamification.boostsSent'] = boostsSentCount;
+          console.log(`📊 [RETRO] Boosts envoyés: ${boostsSentCount}`);
+        }
+
+        // Boosts reçus
+        const boostsReceivedQuery = query(
+          collection(db, 'boosts'),
+          where('toUserId', '==', userId)
+        );
+        const boostsReceivedSnapshot = await getDocs(boostsReceivedQuery);
+        const boostsReceivedCount = boostsReceivedSnapshot.size;
+
+        if (boostsReceivedCount > (gamification.boostsReceived || 0)) {
+          updates['gamification.boostsReceived'] = boostsReceivedCount;
+          console.log(`📊 [RETRO] Boosts reçus: ${boostsReceivedCount}`);
+        }
+
+        // Compter les personnes différentes boostées
+        const uniqueBoostRecipients = new Set();
+        boostsSentSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.toUserId) uniqueBoostRecipients.add(data.toUserId);
+        });
+        if (uniqueBoostRecipients.size > (gamification.uniqueBoostRecipients || 0)) {
+          updates['gamification.uniqueBoostRecipients'] = uniqueBoostRecipients.size;
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection boosts non trouvée ou vide');
+      }
+
       // 🎁 BOUTIQUE: Compter les récompenses achetées
       try {
         const rewardsQuery = query(
