@@ -389,8 +389,21 @@ class PlanningEnrichedService {
         endDate: weekEnd.toISOString().split('T')[0]
       });
 
-      // Calculer les heures planifiées
+      // 🔄 Calculer les heures planifiées avec logique spéciale pour absences
       const plannedHours = shifts.reduce((total, shift) => {
+        const positionLower = (shift.position || '').toLowerCase();
+
+        // 🚫 REPOS : ne compte PAS dans les heures
+        if (positionLower.includes('repos') || positionLower === 'off' || positionLower === 'rtt') {
+          return total;
+        }
+
+        // 📚 CFA / École : compte comme 7h par défaut
+        if (positionLower.includes('cfa') || positionLower.includes('école') || positionLower.includes('ecole') || positionLower.includes('formation')) {
+          return total + 7;
+        }
+
+        // ✅ Autres shifts : durée normale
         return total + (shift.duration || 0);
       }, 0);
 
@@ -659,8 +672,20 @@ class PlanningEnrichedService {
       const shifts = await this.getShifts({ startDate, endDate });
       const employees = await this.getAllEmployees();
 
-      // Calculer les heures totales
+      // 🔄 Calculer les heures totales avec logique spéciale pour absences
       const totalHours = shifts.reduce((acc, shift) => {
+        const positionLower = (shift.position || '').toLowerCase();
+
+        // 🚫 REPOS : ne compte PAS dans les heures
+        if (positionLower.includes('repos') || positionLower === 'off' || positionLower === 'rtt') {
+          return acc;
+        }
+
+        // 📚 CFA / École : compte comme 7h par défaut
+        if (positionLower.includes('cfa') || positionLower.includes('école') || positionLower.includes('ecole') || positionLower.includes('formation')) {
+          return acc + 7;
+        }
+
         return acc + (shift.duration || 0);
       }, 0);
 
@@ -704,8 +729,20 @@ class PlanningEnrichedService {
         endDate
       });
 
-      // Calculer les heures travaillées
+      // 🔄 Calculer les heures travaillées avec logique spéciale
       const totalHours = shifts.reduce((acc, shift) => {
+        const positionLower = (shift.position || '').toLowerCase();
+
+        // 🚫 REPOS : ne compte PAS
+        if (positionLower.includes('repos') || positionLower === 'off' || positionLower === 'rtt') {
+          return acc;
+        }
+
+        // 📚 CFA / École : 7h
+        if (positionLower.includes('cfa') || positionLower.includes('école') || positionLower.includes('ecole') || positionLower.includes('formation')) {
+          return acc + 7;
+        }
+
         return acc + (shift.duration || 0);
       }, 0);
 
