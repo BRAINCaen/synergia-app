@@ -2495,6 +2495,238 @@ class UnifiedBadgeService {
         console.log('⚠️ [RETRO] Collection projects non trouvée ou vide');
       }
 
+      // 🎯 DÉFIS PERSONNELS: Compter depuis 'personal_challenges'
+      try {
+        const personalChallengesSnapshot = await getDocs(
+          query(collection(db, 'personal_challenges'), where('userId', '==', userId))
+        );
+
+        let challengesCreated = 0;
+        let challengesCompleted = 0;
+        let hardChallengesCompleted = 0;
+
+        personalChallengesSnapshot.forEach(doc => {
+          const challenge = doc.data();
+          challengesCreated++;
+
+          if (challenge.status === 'completed') {
+            challengesCompleted++;
+            if (challenge.difficulty === 'hard' || challenge.difficulty === 'extreme') {
+              hardChallengesCompleted++;
+            }
+          }
+        });
+
+        if (challengesCreated > (gamification.challengesCreated || 0)) {
+          updates['gamification.challengesCreated'] = challengesCreated;
+          console.log(`📊 [RETRO] Défis créés: ${challengesCreated}`);
+        }
+        if (challengesCompleted > (gamification.challengesCompleted || 0)) {
+          updates['gamification.challengesCompleted'] = challengesCompleted;
+          console.log(`📊 [RETRO] Défis complétés: ${challengesCompleted}`);
+        }
+        if (hardChallengesCompleted > (gamification.hardChallengesCompleted || 0)) {
+          updates['gamification.hardChallengesCompleted'] = hardChallengesCompleted;
+          console.log(`📊 [RETRO] Défis difficiles complétés: ${hardChallengesCompleted}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection personal_challenges non trouvée ou vide');
+      }
+
+      // 🎯 DÉFIS D'ÉQUIPE: Compter les contributions depuis 'team_challenges'
+      try {
+        const teamChallengesSnapshot = await getDocs(collection(db, 'team_challenges'));
+
+        let teamChallengeContributions = 0;
+
+        teamChallengesSnapshot.forEach(doc => {
+          const challenge = doc.data();
+          const contributions = challenge.contributions || [];
+
+          // Compter les contributions de cet utilisateur
+          contributions.forEach(contrib => {
+            if (contrib.userId === userId) {
+              teamChallengeContributions++;
+            }
+          });
+        });
+
+        if (teamChallengeContributions > (gamification.teamChallengeContributions || 0)) {
+          updates['gamification.teamChallengeContributions'] = teamChallengeContributions;
+          console.log(`📊 [RETRO] Contributions défis équipe: ${teamChallengeContributions}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection team_challenges non trouvée ou vide');
+      }
+
+      // 🔄 RÉTROSPECTIVES: Compter depuis 'retrospectives'
+      try {
+        const retrospectivesSnapshot = await getDocs(collection(db, 'retrospectives'));
+
+        let retroParticipations = 0;
+        let retrosAnimated = 0;
+        let retroItemsAdded = 0;
+        let retroActionsCompleted = 0;
+        let retroScribeCount = 0;
+        let retroTimekeeperCount = 0;
+
+        retrospectivesSnapshot.forEach(doc => {
+          const retro = doc.data();
+
+          // Participation (dans les participants ou roles)
+          const participants = retro.participants || [];
+          const isParticipant = participants.some(p =>
+            p === userId || p?.odai === userId || p?.id === userId
+          );
+
+          // Vérifier les rôles
+          const roles = retro.roles || {};
+          const isAnimator = roles.animator === userId;
+          const isScribe = roles.scribe === userId;
+          const isTimekeeper = roles.timekeeper === userId;
+
+          if (isParticipant || isAnimator || isScribe || isTimekeeper) {
+            retroParticipations++;
+          }
+
+          if (isAnimator) retrosAnimated++;
+          if (isScribe) retroScribeCount++;
+          if (isTimekeeper) retroTimekeeperCount++;
+
+          // Compter les items ajoutés par l'utilisateur
+          const items = retro.items || [];
+          items.forEach(item => {
+            if (item.createdBy === userId || item.authorId === userId) {
+              retroItemsAdded++;
+            }
+          });
+
+          // Compter les actions complétées
+          const actions = retro.actions || [];
+          actions.forEach(action => {
+            if ((action.assignedTo === userId || action.ownerId === userId) &&
+                (action.status === 'completed' || action.completed)) {
+              retroActionsCompleted++;
+            }
+          });
+        });
+
+        if (retroParticipations > (gamification.retroParticipations || 0)) {
+          updates['gamification.retroParticipations'] = retroParticipations;
+          console.log(`📊 [RETRO] Participations rétros: ${retroParticipations}`);
+        }
+        if (retrosAnimated > (gamification.retrosAnimated || 0)) {
+          updates['gamification.retrosAnimated'] = retrosAnimated;
+          console.log(`📊 [RETRO] Rétros animées: ${retrosAnimated}`);
+        }
+        if (retroItemsAdded > (gamification.retroItemsAdded || 0)) {
+          updates['gamification.retroItemsAdded'] = retroItemsAdded;
+          console.log(`📊 [RETRO] Items rétro ajoutés: ${retroItemsAdded}`);
+        }
+        if (retroActionsCompleted > (gamification.retroActionsCompleted || 0)) {
+          updates['gamification.retroActionsCompleted'] = retroActionsCompleted;
+          console.log(`📊 [RETRO] Actions rétro complétées: ${retroActionsCompleted}`);
+        }
+        if (retroScribeCount > (gamification.retroScribeCount || 0)) {
+          updates['gamification.retroScribeCount'] = retroScribeCount;
+          console.log(`📊 [RETRO] Rôle scribe: ${retroScribeCount}`);
+        }
+        if (retroTimekeeperCount > (gamification.retroTimekeeperCount || 0)) {
+          updates['gamification.retroTimekeeperCount'] = retroTimekeeperCount;
+          console.log(`📊 [RETRO] Rôle timekeeper: ${retroTimekeeperCount}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection retrospectives non trouvée ou vide');
+      }
+
+      // 💡 IDÉES: Compter depuis 'ideas'
+      try {
+        const ideasSnapshot = await getDocs(collection(db, 'ideas'));
+
+        let ideasSubmitted = 0;
+        let ideasAdopted = 0;
+        let ideasImplemented = 0;
+        let ideaVotes = 0;
+        let maxIdeaVotes = 0;
+        let ideaComments = 0;
+
+        ideasSnapshot.forEach(doc => {
+          const idea = doc.data();
+
+          // Idées soumises par l'utilisateur
+          if (idea.authorId === userId || idea.createdBy === userId) {
+            ideasSubmitted++;
+
+            // Statut de l'idée
+            if (idea.status === 'adopted' || idea.status === 'approved') {
+              ideasAdopted++;
+            }
+            if (idea.status === 'implemented' || idea.status === 'completed') {
+              ideasImplemented++;
+            }
+
+            // Votes reçus sur mes idées
+            const voteCount = idea.voteCount || idea.votes?.length || 0;
+            if (voteCount > maxIdeaVotes) {
+              maxIdeaVotes = voteCount;
+            }
+          }
+
+          // Votes donnés par l'utilisateur
+          const votes = idea.votes || [];
+          if (votes.includes(userId) || votes.some(v => v?.odai === userId || v?.userId === userId)) {
+            ideaVotes++;
+          }
+
+          // Commentaires de l'utilisateur
+          const comments = idea.comments || [];
+          comments.forEach(comment => {
+            if (comment.authorId === userId || comment.userId === userId) {
+              ideaComments++;
+            }
+          });
+        });
+
+        if (ideasSubmitted > (gamification.ideasSubmitted || 0)) {
+          updates['gamification.ideasSubmitted'] = ideasSubmitted;
+          console.log(`📊 [RETRO] Idées soumises: ${ideasSubmitted}`);
+        }
+        if (ideasAdopted > (gamification.ideasAdopted || 0)) {
+          updates['gamification.ideasAdopted'] = ideasAdopted;
+          console.log(`📊 [RETRO] Idées adoptées: ${ideasAdopted}`);
+        }
+        if (ideasImplemented > (gamification.ideasImplemented || 0)) {
+          updates['gamification.ideasImplemented'] = ideasImplemented;
+          console.log(`📊 [RETRO] Idées implémentées: ${ideasImplemented}`);
+        }
+        if (ideaVotes > (gamification.ideaVotes || 0)) {
+          updates['gamification.ideaVotes'] = ideaVotes;
+          console.log(`📊 [RETRO] Votes donnés: ${ideaVotes}`);
+        }
+        if (maxIdeaVotes > (gamification.maxIdeaVotes || 0)) {
+          updates['gamification.maxIdeaVotes'] = maxIdeaVotes;
+          console.log(`📊 [RETRO] Max votes sur une idée: ${maxIdeaVotes}`);
+        }
+        if (ideaComments > (gamification.ideaComments || 0)) {
+          updates['gamification.ideaComments'] = ideaComments;
+          console.log(`📊 [RETRO] Commentaires idées: ${ideaComments}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Collection ideas non trouvée ou vide');
+      }
+
+      // 📊 LEVEL & XP: Récupérer depuis gamification existant
+      const currentLevel = gamification.level || 1;
+      const totalXp = gamification.totalXp || gamification.xp || 0;
+
+      // S'assurer que le level est bien défini
+      if (!gamification.level && totalXp > 0) {
+        // Calculer le niveau basé sur l'XP (100 XP par niveau approximativement)
+        const calculatedLevel = Math.floor(totalXp / 100) + 1;
+        updates['gamification.level'] = calculatedLevel;
+        console.log(`📊 [RETRO] Niveau calculé: ${calculatedLevel}`);
+      }
+
       // 🎨 AVATAR: Vérifier si l'avatar a été personnalisé
       if (userData.avatar || userData.profile?.avatar || userData.photoURL !== userData.defaultPhotoURL) {
         if (!gamification.avatarCustomized) {
