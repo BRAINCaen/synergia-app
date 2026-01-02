@@ -1181,44 +1181,8 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   },
 
   // ==========================================
-  // 🎮 BADGES SPÉCIAUX (6 badges)
+  // 🎮 BADGES SPÉCIAUX (3 badges)
   // ==========================================
-
-  beta_tester: {
-    id: 'beta_tester',
-    name: 'Testeur Bêta',
-    description: 'Participer à la phase bêta de Synergia',
-    icon: '🧪',
-    rarity: 'rare',
-    category: BADGE_CATEGORIES.SPECIAL,
-    xpReward: 250,
-    autoCheck: (userData) => userData.gamification?.betaTester === true,
-    trigger: 'manual'
-  },
-
-  bug_hunter: {
-    id: 'bug_hunter',
-    name: 'Chasseur de Bugs',
-    description: 'Signaler 5 bugs critiques',
-    icon: '🐛',
-    rarity: 'uncommon',
-    category: BADGE_CATEGORIES.SPECIAL,
-    xpReward: 100,
-    autoCheck: (userData) => (userData.gamification?.bugsReported || 0) >= 5,
-    trigger: 'bug_reported'
-  },
-
-  feature_suggester: {
-    id: 'feature_suggester',
-    name: 'Suggéreur de Fonctionnalités',
-    description: 'Proposer 3 améliorations adoptées',
-    icon: '💡',
-    rarity: 'rare',
-    category: BADGE_CATEGORIES.SPECIAL,
-    xpReward: 200,
-    autoCheck: (userData) => (userData.gamification?.featuresAdopted || 0) >= 3,
-    trigger: 'feature_adopted'
-  },
 
   anniversary_year_one: {
     id: 'anniversary_year_one',
