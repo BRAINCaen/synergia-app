@@ -41,11 +41,11 @@ export const BADGE_DEFINITIONS = {
     }
   },
 
-  // 🚀 BADGES PRODUCTIVITÉ & TÂCHES
+  // 🚀 BADGES PRODUCTIVITÉ & QUÊTES
   first_task: {
     id: 'first_task',
     name: 'Premier Pas',
-    description: 'Première tâche créée',
+    description: 'Première quête créée',
     icon: '✅',
     rarity: 'common',
     category: 'productivity',
@@ -58,7 +58,7 @@ export const BADGE_DEFINITIONS = {
   task_completer: {
     id: 'task_completer',
     name: 'Finisseur',
-    description: 'Première tâche complétée',
+    description: 'Première quête complétée',
     icon: '🎯',
     rarity: 'common',
     category: 'productivity',
@@ -84,7 +84,7 @@ export const BADGE_DEFINITIONS = {
   task_enthusiast: {
     id: 'task_enthusiast',
     name: 'Enthousiaste',
-    description: 'Compléter 5 tâches',
+    description: 'Compléter 5 quêtes',
     icon: '🔥',
     rarity: 'uncommon',
     category: 'productivity',
@@ -97,7 +97,7 @@ export const BADGE_DEFINITIONS = {
   task_expert: {
     id: 'task_expert',
     name: 'Expert',
-    description: 'Compléter 25 tâches',
+    description: 'Compléter 25 quêtes',
     icon: '⚡',
     rarity: 'rare',
     category: 'productivity',
@@ -109,8 +109,8 @@ export const BADGE_DEFINITIONS = {
 
   task_master: {
     id: 'task_master',
-    name: 'Maître des Tâches',
-    description: 'Compléter 100 tâches',
+    name: 'Maître des Quêtes',
+    description: 'Compléter 100 quêtes',
     icon: '👑',
     rarity: 'epic',
     category: 'productivity',
@@ -123,7 +123,7 @@ export const BADGE_DEFINITIONS = {
   productivity_legend: {
     id: 'productivity_legend',
     name: 'Légende de Productivité',
-    description: 'Compléter 500 tâches',
+    description: 'Compléter 500 quêtes',
     icon: '🏆',
     rarity: 'legendary',
     category: 'productivity',
@@ -418,7 +418,7 @@ export const BADGE_DEFINITIONS = {
   perfectionist: {
     id: 'perfectionist',
     name: 'Perfectionniste',
-    description: 'Maintenir un score de qualité de 95%+ sur 50 tâches',
+    description: 'Maintenir un score de qualité de 95%+ sur 50 quêtes',
     icon: '✨',
     rarity: 'legendary',
     category: 'excellence',

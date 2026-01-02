@@ -81,8 +81,8 @@ const SYNERGIA_BADGE_DEFINITIONS = {
   // 🎯 BADGES DE PRODUCTIVITÉ
   task_master: {
     id: 'task_master',
-    name: 'Maître des Tâches',
-    description: 'Excellente gestion et finalisation des tâches assignées',
+    name: 'Maître des Quêtes',
+    description: 'Excellente gestion et finalisation des quêtes assignées',
     icon: '✅',
     rarity: 'uncommon',
     xpReward: 75,

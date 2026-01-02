@@ -134,7 +134,7 @@ const BADGES_DATA = [
   },
   {
     id: "org_004", role: "Organisation Interne", icon: "🗓️",
-    name: "Multi-tâches", description: "Gérer 5 projets simultanément",
+    name: "Multi-quêtes", description: "Gérer 5 projets simultanément",
     condition: "simultaneous_projects", triggerValue: 5, xpReward: 120
   },
   {
@@ -303,12 +303,12 @@ const GENERIC_BADGES = [
   },
   {
     id: "gen_005", role: "Général", icon: "🏃",
-    name: "Speed Demon", description: "Compléter une tâche en moins de 30min",
+    name: "Speed Demon", description: "Compléter une quête en moins de 30min",
     condition: "quick_task", triggerValue: 1, xpReward: 50
   },
   {
     id: "gen_006", role: "Général", icon: "🎖️",
-    name: "Task Destroyer", description: "25 tâches complétées",
+    name: "Quest Destroyer", description: "25 quêtes complétées",
     condition: "tasks_completed", triggerValue: 25, xpReward: 150
   },
   {

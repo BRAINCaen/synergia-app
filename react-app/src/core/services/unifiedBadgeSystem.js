@@ -118,7 +118,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   first_task: {
     id: 'first_task',
     name: 'Premier Pas',
-    description: 'Première tâche créée',
+    description: 'Première quête créée',
     icon: '✅',
     rarity: 'common',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -130,7 +130,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   task_completer: {
     id: 'task_completer',
     name: 'Finisseur',
-    description: 'Première tâche complétée',
+    description: 'Première quête complétée',
     icon: '🎯',
     rarity: 'common',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -154,7 +154,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   task_enthusiast: {
     id: 'task_enthusiast',
     name: 'Enthousiaste',
-    description: 'Compléter 10 tâches',
+    description: 'Compléter 10 quêtes',
     icon: '🔥',
     rarity: 'uncommon',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -166,7 +166,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   task_expert: {
     id: 'task_expert',
     name: 'Expert',
-    description: 'Compléter 50 tâches',
+    description: 'Compléter 50 quêtes',
     icon: '⚡',
     rarity: 'rare',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -177,8 +177,8 @@ export const UNIFIED_BADGE_DEFINITIONS = {
 
   task_master: {
     id: 'task_master',
-    name: 'Maître des Tâches',
-    description: 'Compléter 100 tâches',
+    name: 'Maître des Quêtes',
+    description: 'Compléter 100 quêtes',
     icon: '👑',
     rarity: 'epic',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -190,7 +190,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   productivity_legend: {
     id: 'productivity_legend',
     name: 'Légende de Productivité',
-    description: 'Compléter 500 tâches',
+    description: 'Compléter 500 quêtes',
     icon: '🏆',
     rarity: 'legendary',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -202,7 +202,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   speed_demon: {
     id: 'speed_demon',
     name: 'Démon de Vitesse',
-    description: 'Compléter 5 tâches en une journée',
+    description: 'Compléter 5 quêtes en une journée',
     icon: '💨',
     rarity: 'uncommon',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -214,7 +214,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   early_bird: {
     id: 'early_bird',
     name: 'Lève-tôt',
-    description: 'Compléter une tâche avant 8h',
+    description: 'Compléter une quête avant 8h',
     icon: '🌅',
     rarity: 'uncommon',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -226,7 +226,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   night_owl: {
     id: 'night_owl',
     name: 'Oiseau de Nuit',
-    description: 'Compléter une tâche après 22h',
+    description: 'Compléter une quête après 22h',
     icon: '🦉',
     rarity: 'uncommon',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -238,7 +238,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   deadline_champion: {
     id: 'deadline_champion',
     name: 'Champion des Délais',
-    description: 'Compléter 25 tâches avant leur deadline',
+    description: 'Compléter 25 quêtes avant leur deadline',
     icon: '⏰',
     rarity: 'rare',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -250,7 +250,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   perfectionist: {
     id: 'perfectionist',
     name: 'Perfectionniste',
-    description: 'Maintenir un taux de validation de 95%+ sur 50 tâches',
+    description: 'Maintenir un taux de validation de 95%+ sur 50 quêtes',
     icon: '✨',
     rarity: 'legendary',
     category: BADGE_CATEGORIES.PRODUCTIVITY,
@@ -753,7 +753,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   campaign_contributor: {
     id: 'campaign_contributor',
     name: 'Contributeur Assidu',
-    description: 'Compléter 50 tâches dans les campagnes',
+    description: 'Compléter 50 quêtes dans les campagnes',
     icon: '🎯',
     rarity: 'rare',
     category: BADGE_CATEGORIES.CAMPAIGNS,
@@ -1259,7 +1259,7 @@ export const UNIFIED_BADGE_DEFINITIONS = {
   night_warrior: {
     id: 'night_warrior',
     name: 'Guerrier Nocturne',
-    description: 'Compléter 10 tâches après 20h',
+    description: 'Compléter 10 quêtes après 20h',
     icon: '🌙',
     rarity: 'rare',
     category: BADGE_CATEGORIES.SPECIAL,
