@@ -1983,14 +1983,13 @@ class UnifiedBadgeService {
       }
 
       const userData = userSnap.data();
+      const userEmail = (userData.email || '').toLowerCase();
+      const userName = (userData.displayName || '').toLowerCase();
 
       // 2. Compter les quêtes depuis la collection quests
-      // ✅ CORRECTION: Utiliser assignedTo (array) au lieu de userId
-      const questsQuery = query(
-        collection(db, 'quests'),
-        where('assignedTo', 'array-contains', userId)
-      );
-      const questsSnapshot = await getDocs(questsQuery);
+      // ✅ CORRECTION: TeamPage vérifie userId OU email OU userName dans assignedTo
+      // Firestore ne supporte pas les requêtes OR sur array-contains, donc on charge toutes les quêtes et filtre côté client
+      const allQuestsSnapshot = await getDocs(collection(db, 'quests'));
 
       let tasksCreated = 0;
       let tasksCompleted = 0;
@@ -2001,8 +2000,29 @@ class UnifiedBadgeService {
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      questsSnapshot.forEach(doc => {
+      allQuestsSnapshot.forEach(doc => {
         const quest = doc.data();
+        const assignedTo = quest.assignedTo;
+
+        // Vérifier si l'utilisateur est assigné (comme TeamPage.jsx)
+        let isAssigned = false;
+        if (Array.isArray(assignedTo)) {
+          isAssigned = assignedTo.some(item => {
+            if (!item) return false;
+            const itemStr = String(item).toLowerCase();
+            return itemStr === userId.toLowerCase() ||
+                   itemStr === userEmail ||
+                   itemStr === userName;
+          });
+        } else if (assignedTo) {
+          const assignedStr = String(assignedTo).toLowerCase();
+          isAssigned = assignedStr === userId.toLowerCase() ||
+                      assignedStr === userEmail ||
+                      assignedStr === userName;
+        }
+
+        if (!isAssigned) return;
+
         tasksCreated++;
 
         if (quest.status === 'completed' || quest.status === 'approved' || quest.status === 'validated') {
@@ -2016,7 +2036,7 @@ class UnifiedBadgeService {
         }
       });
 
-      console.log(`📊 [SYNC] Quêtes trouvées pour ${userId}: ${tasksCreated} total, ${tasksCompleted} complétées`);
+      console.log(`📊 [SYNC] Quêtes trouvées pour ${userId}: ${tasksCreated} total, ${tasksCompleted} complétées (email: ${userEmail}, nom: ${userName})`);
 
       // 3. Calculer les jours actifs depuis la création du compte
       const createdAt = userData.createdAt?.toDate?.() || new Date();
