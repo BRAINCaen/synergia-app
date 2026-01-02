@@ -5,6 +5,7 @@
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Beer, MessageCircle, Zap, Send, Inbox, Users, TrendingUp, Clock,
@@ -38,9 +39,18 @@ import { db } from '../core/firebase.js';
  */
 const TavernePage = () => {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
 
   // Onglet principal
   const [activeSection, setActiveSection] = useState('messages'); // 'messages' | 'boosts' | 'activity'
+
+  // 🔗 Gérer le paramètre URL ?tab=
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['messages', 'boosts', 'activity'].includes(tabParam)) {
+      setActiveSection(tabParam);
+    }
+  }, [searchParams]);
 
   // États messagerie
   const [messages, setMessages] = useState([]);

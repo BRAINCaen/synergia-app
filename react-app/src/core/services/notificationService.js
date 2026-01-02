@@ -629,7 +629,7 @@ class NotificationService {
         title: `${boostEmoji} Boost reçu !`,
         message: `${fromUserName} vous a envoyé un Boost ${boostLabel}${message ? ` : "${message}"` : ''} (+${xpAmount} XP)`,
         icon: boostEmoji || '⚡',
-        link: '/boosts',
+        link: '/taverne?tab=boosts',
         data: {
           boostId,
           boostType,
