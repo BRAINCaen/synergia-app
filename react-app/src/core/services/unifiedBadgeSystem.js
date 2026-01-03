@@ -2727,6 +2727,184 @@ class UnifiedBadgeService {
         console.log(`📊 [RETRO] Niveau calculé: ${calculatedLevel}`);
       }
 
+      // 💨 PRODUCTIVITY AVANCÉE: Analyser les tâches pour badges spéciaux
+      try {
+        const userTasksSnapshot = await getDocs(
+          query(collection(db, 'tasks'))
+        );
+
+        // Grouper les tâches par jour pour dailyTasksRecord
+        const tasksByDay = {};
+        let earlyBirdUnlocked = false;
+        let nightOwlUnlocked = false;
+        let onTimeDeliveries = 0;
+
+        userTasksSnapshot.forEach(doc => {
+          const task = doc.data();
+
+          // Vérifier si cette tâche appartient à l'utilisateur
+          const assignedTo = task.assignedTo || [];
+          const isAssigned = Array.isArray(assignedTo)
+            ? assignedTo.some(a => {
+                if (!a) return false;
+                const aStr = String(a).toLowerCase();
+                return aStr === userId.toLowerCase() || aStr === userEmail || aStr === userName;
+              })
+            : String(assignedTo).toLowerCase() === userId.toLowerCase();
+
+          if (!isAssigned) return;
+
+          // Vérifier si la tâche est complétée
+          if (task.status !== 'completed' && task.status !== 'validated' && task.status !== 'approved') return;
+
+          // Obtenir la date de complétion
+          const completedAt = task.completedAt?.toDate?.() || task.updatedAt?.toDate?.() || task.approvedAt?.toDate?.();
+          if (!completedAt) return;
+
+          // Grouper par jour pour dailyTasksRecord
+          const dayKey = `${completedAt.getFullYear()}-${completedAt.getMonth()}-${completedAt.getDate()}`;
+          tasksByDay[dayKey] = (tasksByDay[dayKey] || 0) + 1;
+
+          // Vérifier early bird (avant 13h)
+          const hours = completedAt.getHours();
+          if (hours < 13) {
+            earlyBirdUnlocked = true;
+          }
+
+          // Vérifier night owl (après 22h)
+          if (hours >= 22) {
+            nightOwlUnlocked = true;
+          }
+
+          // Vérifier on-time delivery (complété avant dueDate)
+          const dueDate = task.dueDate?.toDate?.() || (task.dueDate ? new Date(task.dueDate) : null);
+          if (dueDate && completedAt <= dueDate) {
+            onTimeDeliveries++;
+          }
+        });
+
+        // Calculer le record de tâches par jour
+        const dailyTasksRecord = Math.max(...Object.values(tasksByDay), 0);
+
+        if (dailyTasksRecord > (gamification.dailyTasksRecord || 0)) {
+          updates['gamification.dailyTasksRecord'] = dailyTasksRecord;
+          console.log(`📊 [RETRO] Record tâches/jour: ${dailyTasksRecord}`);
+        }
+
+        if (earlyBirdUnlocked && !gamification.earlyBirdUnlocked) {
+          updates['gamification.earlyBirdUnlocked'] = true;
+          console.log(`📊 [RETRO] Early bird débloqué!`);
+        }
+
+        if (nightOwlUnlocked && !gamification.nightOwlUnlocked) {
+          updates['gamification.nightOwlUnlocked'] = true;
+          console.log(`📊 [RETRO] Night owl débloqué!`);
+        }
+
+        if (onTimeDeliveries > (gamification.onTimeDeliveries || 0)) {
+          updates['gamification.onTimeDeliveries'] = onTimeDeliveries;
+          console.log(`📊 [RETRO] Livraisons à temps: ${onTimeDeliveries}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Erreur analyse tâches avancée:', e.message);
+      }
+
+      // ⏰ POINTAGES PONCTUELS: Analyser la ponctualité des pointages
+      try {
+        const timetrackSnapshot = await getDocs(
+          query(collection(db, 'timetracking'), where('userId', '==', userId))
+        );
+
+        let punctualCheckins = 0;
+
+        timetrackSnapshot.forEach(doc => {
+          const entry = doc.data();
+
+          // Un pointage est ponctuel s'il est fait dans les 15 minutes de l'heure prévue
+          // ou s'il a un flag isPunctual
+          if (entry.isPunctual === true) {
+            punctualCheckins++;
+          } else if (entry.scheduledTime && entry.actualTime) {
+            const scheduled = entry.scheduledTime?.toDate?.() || new Date(entry.scheduledTime);
+            const actual = entry.actualTime?.toDate?.() || new Date(entry.actualTime);
+            const diffMinutes = Math.abs((actual - scheduled) / (1000 * 60));
+            if (diffMinutes <= 15) {
+              punctualCheckins++;
+            }
+          } else {
+            // Par défaut, compter tous les pointages comme ponctuels s'il n'y a pas d'info de retard
+            if (!entry.isLate && entry.type === 'check_in') {
+              punctualCheckins++;
+            }
+          }
+        });
+
+        if (punctualCheckins > (gamification.punctualCheckins || 0)) {
+          updates['gamification.punctualCheckins'] = punctualCheckins;
+          console.log(`📊 [RETRO] Pointages ponctuels: ${punctualCheckins}`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Erreur analyse pointages:', e.message);
+      }
+
+      // ✓ CHECKPOINTS: Utiliser pulse_checkins comme checkpoints quotidiens
+      try {
+        const pulseSnapshot = await getDocs(
+          query(collection(db, 'pulse_checkins'), where('userId', '==', userId))
+        );
+
+        let checkpointsCompleted = pulseSnapshot.size;
+
+        // Calculer le streak de checkpoints (jours consécutifs)
+        const checkpointDates = [];
+        pulseSnapshot.forEach(doc => {
+          const data = doc.data();
+          const date = data.createdAt?.toDate?.() || data.date?.toDate?.();
+          if (date) {
+            checkpointDates.push(date);
+          }
+        });
+
+        // Trier les dates et calculer le streak
+        checkpointDates.sort((a, b) => b - a); // Plus récent en premier
+        let checkpointStreak = 0;
+        let currentStreak = 0;
+        let lastDate = null;
+
+        for (const date of checkpointDates) {
+          const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+
+          if (!lastDate) {
+            currentStreak = 1;
+          } else {
+            const lastDayKey = `${lastDate.getFullYear()}-${lastDate.getMonth()}-${lastDate.getDate()}`;
+            if (dayKey !== lastDayKey) {
+              const diffDays = Math.round((lastDate - date) / (1000 * 60 * 60 * 24));
+              if (diffDays === 1) {
+                currentStreak++;
+              } else {
+                checkpointStreak = Math.max(checkpointStreak, currentStreak);
+                currentStreak = 1;
+              }
+            }
+          }
+          lastDate = date;
+        }
+        checkpointStreak = Math.max(checkpointStreak, currentStreak);
+
+        if (checkpointsCompleted > (gamification.checkpointsCompleted || 0)) {
+          updates['gamification.checkpointsCompleted'] = checkpointsCompleted;
+          console.log(`📊 [RETRO] Checkpoints complétés: ${checkpointsCompleted}`);
+        }
+
+        if (checkpointStreak > (gamification.checkpointStreak || 0)) {
+          updates['gamification.checkpointStreak'] = checkpointStreak;
+          console.log(`📊 [RETRO] Streak checkpoints: ${checkpointStreak} jours`);
+        }
+      } catch (e) {
+        console.log('⚠️ [RETRO] Erreur analyse checkpoints:', e.message);
+      }
+
       // 🎨 AVATAR: Vérifier si l'avatar a été personnalisé
       if (userData.avatar || userData.profile?.avatar || userData.photoURL !== userData.defaultPhotoURL) {
         if (!gamification.avatarCustomized) {
