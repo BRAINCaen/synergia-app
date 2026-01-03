@@ -705,8 +705,8 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
         </div>
 
         {/* Contenu scrollable */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="p-6 space-y-5 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
           {/* Sujet de l'entretien */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
