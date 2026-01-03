@@ -341,33 +341,79 @@ const Dashboard = () => {
                   })()}
                 </div>
 
-                {/* Graphique barres */}
-                <div className="flex items-end gap-1 sm:gap-2 h-24 sm:h-32 mb-4">
-                  {xpStats.last7Days.map((item, index) => {
-                    const maxValue = Math.max(...xpStats.last7Days.map(d => d.xpGained || 0), 1);
-                    const percentage = ((item.xpGained || 0) / maxValue) * 100;
-                    const isToday = index === xpStats.last7Days.length - 1;
-
-                    return (
-                      <div key={index} className="flex-1 flex flex-col items-center gap-1 sm:gap-2">
-                        <span className="text-[10px] sm:text-xs text-gray-500">{item.xpGained || 0}</span>
-                        <motion.div
-                          className={`w-full rounded-t-md ${
-                            isToday
-                              ? 'bg-gradient-to-t from-yellow-500 to-amber-400'
-                              : 'bg-gradient-to-t from-blue-600 to-purple-500'
-                          }`}
-                          style={{ minHeight: 4 }}
-                          initial={{ height: 0 }}
-                          animate={{ height: `${Math.max(percentage, 3)}%` }}
-                          transition={{ duration: 0.5, delay: index * 0.05 }}
-                        />
-                        <span className={`text-[10px] sm:text-xs ${isToday ? 'text-yellow-400 font-bold' : 'text-gray-500'}`}>
-                          {item.dayName}
-                        </span>
+                {/* Graphique barres amélioré */}
+                <div className="relative h-40 sm:h-48 mb-4 bg-white/5 rounded-xl p-3 sm:p-4">
+                  {/* Lignes de grille horizontales */}
+                  <div className="absolute inset-x-3 sm:inset-x-4 top-3 sm:top-4 bottom-8 sm:bottom-10 flex flex-col justify-between pointer-events-none">
+                    {[100, 75, 50, 25, 0].map((percent) => (
+                      <div key={percent} className="flex items-center gap-2">
+                        <div className="w-full border-t border-white/10" />
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+
+                  {/* Barres du graphique */}
+                  <div className="relative h-full flex items-end gap-2 sm:gap-3 pb-6 sm:pb-8">
+                    {xpStats.last7Days.map((item, index) => {
+                      const maxValue = Math.max(...xpStats.last7Days.map(d => d.xpGained || 0), 100);
+                      const percentage = ((item.xpGained || 0) / maxValue) * 100;
+                      const isToday = index === xpStats.last7Days.length - 1;
+                      const hasXP = (item.xpGained || 0) > 0;
+
+                      return (
+                        <div key={index} className="flex-1 flex flex-col items-center h-full relative group">
+                          {/* Tooltip au survol */}
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                            {item.xpGained || 0} XP
+                          </div>
+
+                          {/* Container de la barre */}
+                          <div className="flex-1 w-full flex flex-col justify-end items-center">
+                            {/* Valeur au-dessus de la barre */}
+                            {hasXP && (
+                              <span className={`text-[10px] sm:text-xs font-bold mb-1 ${
+                                isToday ? 'text-yellow-400' : 'text-blue-400'
+                              }`}>
+                                {item.xpGained}
+                              </span>
+                            )}
+
+                            {/* Barre */}
+                            <motion.div
+                              className={`w-full max-w-[40px] sm:max-w-[50px] rounded-t-lg shadow-lg ${
+                                hasXP
+                                  ? isToday
+                                    ? 'bg-gradient-to-t from-yellow-600 via-yellow-500 to-amber-400 shadow-yellow-500/30'
+                                    : 'bg-gradient-to-t from-blue-700 via-blue-500 to-purple-400 shadow-blue-500/30'
+                                  : 'bg-gray-700/50'
+                              }`}
+                              initial={{ height: 0 }}
+                              animate={{
+                                height: hasXP ? `${Math.max(percentage, 8)}%` : '4px'
+                              }}
+                              transition={{
+                                duration: 0.6,
+                                delay: index * 0.08,
+                                ease: "easeOut"
+                              }}
+                              style={{ minHeight: hasXP ? '20px' : '4px' }}
+                            />
+                          </div>
+
+                          {/* Jour de la semaine */}
+                          <span className={`text-[10px] sm:text-xs mt-2 font-medium ${
+                            isToday
+                              ? 'text-yellow-400'
+                              : hasXP
+                                ? 'text-blue-400'
+                                : 'text-gray-500'
+                          }`}>
+                            {item.dayName}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Résumé */}
