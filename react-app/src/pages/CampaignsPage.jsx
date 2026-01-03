@@ -938,30 +938,32 @@ const CampaignsPage = () => {
           {/* 📁 GRILLE DES CAMPAGNES */}
           {filteredCampaigns.length === 0 ? (
             <motion.div
-              className="text-center py-12 sm:py-20"
-              initial={{ opacity: 0, y: 20 }}
+              className="text-center py-6 sm:py-8"
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.3 }}
             >
-              <div className="text-6xl sm:text-8xl mb-4 sm:mb-6">⚔️</div>
-              <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">
-                {searchTerm ? 'Aucune campagne trouvée' : 'Aucune campagne créée'}
-              </h3>
-              <p className="text-gray-400 text-sm sm:text-lg mb-6 sm:mb-8 max-w-md mx-auto px-4">
+              {/* État vide compact et contextuel */}
+              <div className="text-3xl sm:text-4xl mb-2 sm:mb-3">⚔️</div>
+              <p className="text-gray-400 text-sm sm:text-base mb-3">
                 {searchTerm
-                  ? 'Essayez d\'autres mots-clés.'
-                  : 'Créez votre première campagne pour organiser vos quêtes !'
+                  ? `Aucune campagne trouvée pour "${searchTerm}"`
+                  : statusFilter === 'active'
+                    ? 'Aucune campagne en cours'
+                    : statusFilter === 'completed'
+                      ? 'Aucune campagne terminée'
+                      : 'Aucune campagne créée'
                 }
               </p>
-              {!searchTerm && (
+              {!searchTerm && campaigns.length === 0 && (
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowCampaignForm(true)}
-                  className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base"
+                  className="px-4 sm:px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 inline-flex items-center gap-2"
                 >
-                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Créer ma première campagne
+                  <Plus className="h-4 w-4" />
+                  Créer une campagne
                 </motion.button>
               )}
             </motion.div>
@@ -1045,13 +1047,17 @@ const CampaignsPage = () => {
                 <RefreshCw className="h-8 w-8 animate-spin text-purple-400" />
               </div>
             ) : filteredChallenges.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 text-lg mb-2">Aucun défi trouvé</p>
-                <p className="text-gray-500 text-sm">
-                  {challenges.length === 0
-                    ? "Créez votre premier défi d'équipe !"
-                    : "Essayez un autre filtre"}
+              <div className="text-center py-6">
+                <Users className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-400 text-sm">
+                  {challengeFilter === 'active'
+                    ? 'Aucun défi en cours'
+                    : challengeFilter === 'completed'
+                      ? 'Aucun défi terminé'
+                      : challenges.length === 0
+                        ? "Créez votre premier défi d'équipe !"
+                        : 'Aucun défi trouvé'
+                  }
                 </p>
               </div>
             ) : (
