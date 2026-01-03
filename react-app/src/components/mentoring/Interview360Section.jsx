@@ -685,11 +685,10 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden"
-        style={{ maxHeight: 'calc(100vh - 2rem)' }}
+        className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
       >
         {/* Header fixe */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-cyan-500/20 rounded-xl">
               <Users className="w-5 h-5 text-cyan-400" />
@@ -704,8 +703,8 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
           </button>
         </div>
 
-        {/* Contenu scrollable */}
-        <div className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 16rem)' }}>
+        {/* Contenu scrollable - flex-1 pour prendre l'espace disponible */}
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           {/* Sujet de l'entretien */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -845,7 +844,7 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
         </div>
 
         {/* Footer avec boutons - toujours visible en bas */}
-        <div className="p-6 border-t border-white/10 flex justify-end gap-3 bg-gray-900">
+        <div className="p-4 sm:p-6 border-t border-white/10 flex justify-end gap-3 bg-gray-900 shrink-0">
           <button
             type="button"
             onClick={onClose}
