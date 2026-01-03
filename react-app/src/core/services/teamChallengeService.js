@@ -10,6 +10,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  setDoc,
   collection,
   query,
   orderBy,
@@ -427,10 +428,12 @@ class TeamChallengeService {
           lastContribution: serverTimestamp()
         });
       } else {
-        // Creer le pool s'il n'existe pas
-        await updateDoc(poolRef, {
+        // Creer le pool s'il n'existe pas avec setDoc
+        await setDoc(poolRef, {
           totalXP: xpAmount,
-          lastContribution: serverTimestamp()
+          currentLevel: 'BRONZE',
+          lastContribution: serverTimestamp(),
+          createdAt: serverTimestamp()
         });
       }
 
