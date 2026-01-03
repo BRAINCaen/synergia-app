@@ -113,16 +113,14 @@ const Interview360Section = ({ user, allUsers = [] }) => {
     try {
       setLoading(true);
       const interviewsRef = collection(db, 'interviews_360');
-      const q = query(
-        interviewsRef,
-        orderBy('scheduledDate', 'desc')
-      );
-
-      const snapshot = await getDocs(q);
+      // Requête simple sans orderBy pour éviter les problèmes d'index
+      const snapshot = await getDocs(interviewsRef);
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      console.log('📋 Entretiens 360 chargés:', data.length, data);
 
       // Filtrer : entretiens où l'utilisateur est concerné
       const userInterviews = data.filter(interview =>
@@ -130,6 +128,15 @@ const Interview360Section = ({ user, allUsers = [] }) => {
         interview.createdBy === user.uid ||
         interview.feedbackRequests?.some(fr => fr.reviewerId === user.uid)
       );
+
+      console.log('📋 Entretiens pour cet utilisateur:', userInterviews.length);
+
+      // Trier par date (plus récent en premier)
+      userInterviews.sort((a, b) => {
+        const dateA = a.scheduledDate?.toDate?.() || new Date(a.scheduledDate);
+        const dateB = b.scheduledDate?.toDate?.() || new Date(b.scheduledDate);
+        return dateB - dateA;
+      });
 
       setInterviews(userInterviews);
     } catch (error) {
@@ -142,6 +149,7 @@ const Interview360Section = ({ user, allUsers = [] }) => {
   // Filtrer par statut
   const filteredInterviews = useMemo(() => {
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Début de journée pour inclure aujourd'hui
 
     return interviews.filter(interview => {
       const scheduledDate = interview.scheduledDate?.toDate?.() || new Date(interview.scheduledDate);
@@ -152,7 +160,8 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
       switch (activeTab) {
         case 'upcoming':
-          return !isCompleted && scheduledDate >= now;
+          // Tous les entretiens non complétés (aujourd'hui et futurs)
+          return !isCompleted;
         case 'pending':
           return hasPendingFeedback;
         case 'completed':
@@ -165,17 +174,16 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
   // Stats
   const stats = useMemo(() => {
-    const now = new Date();
     const pendingFeedbacks = interviews.filter(i =>
       i.feedbackRequests?.some(fr => fr.reviewerId === user?.uid && !fr.completed)
     ).length;
 
-    const myInterviews = interviews.filter(i => i.subjectId === user?.uid);
-    const upcomingCount = myInterviews.filter(i => {
-      const date = i.scheduledDate?.toDate?.() || new Date(i.scheduledDate);
-      return date >= now && i.status !== 'completed';
-    }).length;
+    // Tous les entretiens concernant l'utilisateur (créateur ou sujet)
+    const myInterviews = interviews.filter(i =>
+      i.subjectId === user?.uid || i.createdBy === user?.uid
+    );
 
+    const upcomingCount = myInterviews.filter(i => i.status !== 'completed').length;
     const completedCount = myInterviews.filter(i => i.status === 'completed').length;
 
     // Moyenne des scores reçus
