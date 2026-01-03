@@ -443,15 +443,20 @@ const CentralHub = ({ stats, onClick }) => {
       </svg>
 
       {/* Cercle central */}
-      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-2 border-white/20 flex flex-col items-center justify-center shadow-2xl">
+      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-2 border-white/20 flex flex-col items-center justify-center shadow-2xl group">
         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-white/10 flex items-center justify-center">
           <Sparkles className="w-8 h-8 text-purple-400" />
         </div>
         <div className="mt-2 text-center">
-          <div className="text-xs text-gray-400">Compétences</div>
+          <div className="text-xs text-gray-400">Talents</div>
           <div className="text-sm font-bold text-white">
             {stats.totalTalents}/{stats.maxTalents}
           </div>
+        </div>
+        {/* Tooltip explicatif */}
+        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 border border-white/20 rounded-lg px-3 py-2 text-xs text-center whitespace-nowrap z-50 pointer-events-none">
+          <div className="text-white font-medium">28 skills × 3 tiers = 84 talents</div>
+          <div className="text-gray-400">Gagnez de l'XP pour débloquer des talents</div>
         </div>
       </div>
     </motion.div>
@@ -1257,51 +1262,71 @@ const SkillTreePage = () => {
               </div>
             </motion.div>
 
-            {/* Stats rapides */}
+            {/* Stats rapides avec tooltips explicatifs */}
             <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-4">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center"
+                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center group relative"
+                title="Points d'expérience gagnés dans vos compétences"
               >
                 <div className="text-lg sm:text-2xl font-bold text-purple-400">{globalStats.totalXP}</div>
-                <div className="text-[10px] sm:text-xs text-gray-400">XP Total</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">XP Compétences</div>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-center whitespace-nowrap z-50 pointer-events-none hidden sm:block">
+                  XP gagnés via les quêtes
+                </div>
               </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center"
+                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center group relative"
+                title="Talents débloqués / Total des talents possibles"
               >
                 <div className="text-lg sm:text-2xl font-bold text-emerald-400">
                   {globalStats.totalTalents}/{globalStats.maxTalents}
                 </div>
-                <div className="text-[10px] sm:text-xs text-gray-400">Talents</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Talents choisis</div>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-center whitespace-nowrap z-50 pointer-events-none hidden sm:block">
+                  28 skills × 3 niveaux = 84 talents
+                </div>
               </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center"
+                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center group relative"
+                title="Skills avec de l'XP / Total des skills disponibles"
               >
                 <div className="text-lg sm:text-2xl font-bold text-blue-400">
                   {globalStats.skillsStarted}/{globalStats.totalSkills}
                 </div>
-                <div className="text-[10px] sm:text-xs text-gray-400">Skills</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Skills démarrés</div>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-center whitespace-nowrap z-50 pointer-events-none hidden sm:block">
+                  7 branches × 3-5 skills chacune
+                </div>
               </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center"
+                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-2 sm:p-3 text-center group relative"
+                title="Bonus cumulés de vos talents actifs"
               >
                 <div className="text-lg sm:text-2xl font-bold text-amber-400">
                   +{Object.values(activeBonus).reduce((a, b) => a + b, 0)}%
                 </div>
-                <div className="text-[10px] sm:text-xs text-gray-400">Bonus</div>
+                <div className="text-[10px] sm:text-xs text-gray-400">Bonus actifs</div>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 border border-white/20 rounded-lg px-2 py-1 text-[10px] text-center whitespace-nowrap z-50 pointer-events-none hidden sm:block">
+                  Bonus XP des talents choisis
+                </div>
               </motion.div>
             </div>
 
