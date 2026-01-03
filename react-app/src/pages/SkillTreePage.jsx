@@ -1084,8 +1084,10 @@ const SkillTreePage = () => {
   } = useSkillTree();
 
   // Récupérer les données de gamification pour le rang
-  const { totalXP, userStats } = useGamification();
-  const userTotalXP = userStats?.totalXp || totalXP || 0;
+  // On utilise globalStats.totalXP (des skills) comme source principale d'XP
+  const { userStats } = useGamification();
+  // Prioriser les XP des skills (globalStats.totalXP) car ils sont synchronisés avec Firebase
+  const userTotalXP = globalStats.totalXP || userStats?.totalXp || 0;
 
   const containerRef = useRef(null);
   const [selectedSkill, setSelectedSkill] = useState(null);
