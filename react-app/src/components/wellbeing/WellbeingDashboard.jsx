@@ -18,7 +18,9 @@ import {
   Smile,
   Frown,
   Meh,
-  Info
+  Info,
+  Clock,
+  LogOut
 } from 'lucide-react';
 
 import wellbeingService from '../../core/services/wellbeingService.js';
@@ -114,6 +116,67 @@ const MoodDistribution = ({ distribution, total }) => {
 };
 
 /**
+ * 🚪 Affichage des moods au dépointage du jour
+ */
+const TodayExitMoods = ({ exitMoods }) => {
+  if (!exitMoods || exitMoods.length === 0) {
+    return (
+      <div className="text-center py-6 text-gray-500">
+        <LogOut className="w-10 h-10 mx-auto mb-2 opacity-50" />
+        <p className="text-sm">Aucun dépointage aujourd'hui</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* En-tête avec compteur */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-gray-400">
+          {exitMoods.length} dépointage{exitMoods.length > 1 ? 's' : ''} aujourd'hui
+        </span>
+        <Clock className="w-4 h-4 text-gray-500" />
+      </div>
+
+      {/* Liste visuelle des moods (emojis anonymes) */}
+      <div className="flex flex-wrap gap-2">
+        {exitMoods.map((entry, index) => {
+          const moodInfo = MOOD_INFO[entry.mood];
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              className={`text-2xl p-2 rounded-lg ${moodInfo?.bgColor || 'bg-gray-500/20'}`}
+              title={moodInfo?.label || 'Mood inconnu'}
+            >
+              {moodInfo?.emoji || '😐'}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Résumé rapide */}
+      <div className="pt-2 border-t border-white/10">
+        <div className="flex items-center justify-around text-xs">
+          {[5, 4, 3, 2, 1].map(mood => {
+            const count = exitMoods.filter(e => e.mood === mood).length;
+            const moodInfo = MOOD_INFO[mood];
+            return (
+              <div key={mood} className="text-center">
+                <span className="text-lg">{moodInfo?.emoji}</span>
+                <p className={`font-medium ${moodInfo?.textColor || 'text-gray-400'}`}>{count}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * 📈 Graphique des moyennes quotidiennes
  */
 const DailyAveragesChart = ({ dailyAverages }) => {
@@ -165,12 +228,27 @@ const WellbeingDashboard = ({ compact = false }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState(7);
+  const [selectedPeriod, setSelectedPeriod] = useState(1); // Par défaut: aujourd'hui seulement
+  const [todayExitMoods, setTodayExitMoods] = useState([]);
 
   // Charger les statistiques
   useEffect(() => {
     loadStats();
   }, [selectedPeriod]);
+
+  // Charger les moods au dépointage d'aujourd'hui
+  useEffect(() => {
+    loadTodayExitMoods();
+  }, []);
+
+  const loadTodayExitMoods = async () => {
+    try {
+      const moods = await wellbeingService.getTodayExitMoods();
+      setTodayExitMoods(moods);
+    } catch (err) {
+      console.error('❌ Erreur chargement moods dépointage:', err);
+    }
+  };
 
   const loadStats = async () => {
     setLoading(true);
@@ -179,6 +257,10 @@ const WellbeingDashboard = ({ compact = false }) => {
     try {
       const moodStats = await wellbeingService.getTeamMoodStats(selectedPeriod);
       setStats(moodStats);
+      // Recharger aussi les moods du jour
+      if (selectedPeriod === 1) {
+        loadTodayExitMoods();
+      }
     } catch (err) {
       console.error('❌ Erreur chargement stats bien-être:', err);
       setError('Impossible de charger les données');
@@ -286,7 +368,11 @@ const WellbeingDashboard = ({ compact = false }) => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">Bien-être de l'équipe</h2>
-            <p className="text-gray-400 text-sm">Données anonymisées des derniers {selectedPeriod} jours</p>
+            <p className="text-gray-400 text-sm">
+              {selectedPeriod === 1
+                ? "Données anonymisées d'aujourd'hui"
+                : `Données anonymisées des derniers ${selectedPeriod} jours`}
+            </p>
           </div>
         </div>
 
@@ -297,6 +383,7 @@ const WellbeingDashboard = ({ compact = false }) => {
             onChange={(e) => setSelectedPeriod(parseInt(e.target.value))}
             className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
+            <option value={1}>Aujourd'hui</option>
             <option value={7}>7 jours</option>
             <option value={14}>14 jours</option>
             <option value={30}>30 jours</option>
@@ -326,18 +413,33 @@ const WellbeingDashboard = ({ compact = false }) => {
 
       {/* Pas de données */}
       {(!stats || stats.totalResponses === 0) && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center"
-        >
-          <Heart className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">Pas encore de données</h3>
-          <p className="text-gray-400 max-w-md mx-auto">
-            Les employés pourront indiquer leur humeur lors du dépointage.
-            Les premières statistiques apparaîtront dès les premières réponses.
-          </p>
-        </motion.div>
+        <>
+          {/* Section Mood au dépointage même sans stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 rounded-2xl p-5"
+          >
+            <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+              <LogOut className="w-4 h-4 text-indigo-400" />
+              Mood au dépointage - Aujourd'hui
+            </h3>
+            <TodayExitMoods exitMoods={todayExitMoods} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center"
+          >
+            <Heart className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-white mb-2">Pas encore de données pour cette période</h3>
+            <p className="text-gray-400 max-w-md mx-auto">
+              Les employés pourront indiquer leur humeur lors du dépointage.
+              Les premières statistiques apparaîtront dès les premières réponses.
+            </p>
+          </motion.div>
+        </>
       )}
 
       {/* Statistiques principales */}
@@ -355,7 +457,7 @@ const WellbeingDashboard = ({ compact = false }) => {
             <StatCard
               title="Réponses collectées"
               value={stats.totalResponses}
-              subtitle={`Sur ${selectedPeriod} jours`}
+              subtitle={selectedPeriod === 1 ? "Aujourd'hui" : `Sur ${selectedPeriod} jours`}
               icon={Users}
               color="text-purple-400"
             />
@@ -368,13 +470,27 @@ const WellbeingDashboard = ({ compact = false }) => {
             />
           </div>
 
+          {/* Section Mood au dépointage (toujours visible) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 rounded-2xl p-5"
+          >
+            <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+              <LogOut className="w-4 h-4 text-indigo-400" />
+              Mood au dépointage - Aujourd'hui
+            </h3>
+            <TodayExitMoods exitMoods={todayExitMoods} />
+          </motion.div>
+
           {/* Graphiques */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Distribution des moods */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+              transition={{ delay: 0.15 }}
               className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5"
             >
               <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
@@ -387,19 +503,21 @@ const WellbeingDashboard = ({ compact = false }) => {
               />
             </motion.div>
 
-            {/* Évolution quotidienne */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5"
-            >
-              <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-green-400" />
-                Évolution (7 derniers jours)
-              </h3>
-              <DailyAveragesChart dailyAverages={stats.dailyAverages} />
-            </motion.div>
+            {/* Évolution quotidienne - Masqué si on est sur "Aujourd'hui" */}
+            {selectedPeriod > 1 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-5"
+              >
+                <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-green-400" />
+                  Évolution ({selectedPeriod} derniers jours)
+                </h3>
+                <DailyAveragesChart dailyAverages={stats.dailyAverages} />
+              </motion.div>
+            )}
           </div>
 
           {/* Alerte si tendance négative */}
