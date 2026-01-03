@@ -320,6 +320,32 @@ class WellbeingService {
     }
   }
 
+  /**
+   * Récupérer les moods au dépointage d'aujourd'hui (anonymisés)
+   * Retourne une liste des valeurs de mood sans info utilisateur
+   */
+  async getTodayExitMoods() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      const q = query(
+        collection(db, this.collectionsName.exitMoods),
+        where('date', '==', today),
+        orderBy('timestamp', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      // Retourne uniquement les valeurs de mood (anonymisé)
+      return snapshot.docs.map(doc => ({
+        mood: doc.data().mood,
+        moodLabel: doc.data().moodLabel
+      }));
+    } catch (error) {
+      console.error('❌ [Wellbeing] Erreur récupération moods du jour:', error);
+      return [];
+    }
+  }
+
   // ==========================================
   // QUESTIONS HEBDOMADAIRES
   // ==========================================
