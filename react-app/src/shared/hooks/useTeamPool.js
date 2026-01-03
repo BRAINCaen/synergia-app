@@ -30,6 +30,7 @@ export const useTeamPool = (options = {}) => {
   // 📈 DONNÉES CALCULÉES
   const [stats, setStats] = useState({
     totalXP: 0,
+    currentXP: 0, // Alias pour compatibilité
     currentLevel: 'BRONZE',
     nextLevel: 'SILVER',
     progressToNext: { progress: 0, xpNeeded: 1000, nextThreshold: 1000 },
@@ -80,8 +81,10 @@ export const useTeamPool = (options = {}) => {
    * 📊 METTRE À JOUR LES STATISTIQUES
    */
   const updateStats = useCallback((data) => {
+    const totalXP = data.totalXP || 0;
     setStats({
-      totalXP: data.totalXP || 0,
+      totalXP: totalXP,
+      currentXP: totalXP, // Alias pour compatibilité
       currentLevel: data.currentLevel || 'BRONZE',
       nextLevel: data.nextLevel,
       progressToNext: data.progressToNext || { progress: 0, xpNeeded: 1000, nextThreshold: 1000 },

@@ -209,7 +209,7 @@ const CampaignsPage = () => {
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active'); // Par défaut: campagnes en cours
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sortBy, setSortBy] = useState('updatedAt');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -247,7 +247,7 @@ const CampaignsPage = () => {
 
   // 🎯 ÉTATS DÉFIS
   const [showChallengeModal, setShowChallengeModal] = useState(false);
-  const [challengeFilter, setChallengeFilter] = useState('all');
+  const [challengeFilter, setChallengeFilter] = useState('active'); // Par défaut: défis en cours
   const [challengeSearchTerm, setChallengeSearchTerm] = useState('');
 
   // 📊 CHARGEMENT DES CAMPAGNES DEPUIS FIREBASE
