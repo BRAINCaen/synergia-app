@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import SponsorshipSection from '../components/mentoring/SponsorshipSection.jsx';
+import Interview360Section from '../components/mentoring/Interview360Section.jsx';
 import { useMentoring } from '../shared/hooks/useMentoring.js';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import {
@@ -2962,6 +2963,16 @@ const MentoringPage = () => {
               </div>
             )}
           </motion.div>
+
+          {/* ==========================================
+              🔄 SECTION ENTRETIENS 360°
+              ========================================== */}
+          <div className="mt-8 sm:mt-10">
+            <Interview360Section
+              user={user}
+              allUsers={availableUsers}
+            />
+          </div>
 
           {/* ==========================================
               🎓 SECTION ALTERNANCE - PARCOURS SCOLAIRE
