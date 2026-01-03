@@ -661,8 +661,7 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!form.subjectId || !form.scheduledDate || form.reviewers.length === 0) return;
 
     setSaving(true);
@@ -686,10 +685,11 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+        className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden"
+        style={{ maxHeight: 'calc(100vh - 2rem)' }}
       >
         {/* Header fixe */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-cyan-500/20 rounded-xl">
               <Users className="w-5 h-5 text-cyan-400" />
@@ -705,8 +705,7 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
         </div>
 
         {/* Contenu scrollable */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
+        <div className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 16rem)' }}>
           {/* Sujet de l'entretien */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -843,27 +842,27 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
               Ajoutez au moins une personne pour chaque type de feedback souhaité
             </p>
           </div>
-          </div>
+        </div>
 
-          {/* Footer avec boutons - toujours visible */}
-          <div className="p-6 border-t border-white/10 flex justify-end gap-3 flex-shrink-0 bg-gray-900/95">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !form.subjectId || !form.scheduledDate || form.reviewers.length === 0}
-              className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {saving && <RefreshCw className="w-4 h-4 animate-spin" />}
-              Programmer l'entretien
-            </button>
-          </div>
-        </form>
+        {/* Footer avec boutons - toujours visible en bas */}
+        <div className="p-6 border-t border-white/10 flex justify-end gap-3 bg-gray-900">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving || !form.subjectId || !form.scheduledDate || form.reviewers.length === 0}
+            className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {saving && <RefreshCw className="w-4 h-4 animate-spin" />}
+            Programmer l'entretien
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   );
