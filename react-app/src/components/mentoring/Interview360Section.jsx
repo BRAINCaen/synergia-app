@@ -113,23 +113,34 @@ const Interview360Section = ({ user, allUsers = [] }) => {
     try {
       setLoading(true);
       const interviewsRef = collection(db, 'interviews_360');
-      const q = query(
-        interviewsRef,
-        orderBy('scheduledDate', 'desc')
-      );
-
-      const snapshot = await getDocs(q);
+      // Requête simple sans orderBy pour éviter les problèmes d'index
+      const snapshot = await getDocs(interviewsRef);
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
 
-      // Filtrer : entretiens où l'utilisateur est concerné
-      const userInterviews = data.filter(interview =>
-        interview.subjectId === user.uid ||
-        interview.createdBy === user.uid ||
-        interview.feedbackRequests?.some(fr => fr.reviewerId === user.uid)
-      );
+      console.log('📋 Entretiens 360 chargés:', data.length, data);
+
+      // Admin voit TOUT, sinon filtrer par utilisateur concerné
+      const isAdmin = user.isAdmin || user.role === 'admin';
+
+      const userInterviews = isAdmin
+        ? data
+        : data.filter(interview =>
+            interview.subjectId === user.uid ||
+            interview.createdBy === user.uid ||
+            interview.feedbackRequests?.some(fr => fr.reviewerId === user.uid)
+          );
+
+      console.log('📋 Entretiens visibles:', userInterviews.length, isAdmin ? '(admin)' : '(filtré)');
+
+      // Trier par date (plus récent en premier)
+      userInterviews.sort((a, b) => {
+        const dateA = a.scheduledDate?.toDate?.() || new Date(a.scheduledDate);
+        const dateB = b.scheduledDate?.toDate?.() || new Date(b.scheduledDate);
+        return dateB - dateA;
+      });
 
       setInterviews(userInterviews);
     } catch (error) {
@@ -142,6 +153,7 @@ const Interview360Section = ({ user, allUsers = [] }) => {
   // Filtrer par statut
   const filteredInterviews = useMemo(() => {
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Début de journée pour inclure aujourd'hui
 
     return interviews.filter(interview => {
       const scheduledDate = interview.scheduledDate?.toDate?.() || new Date(interview.scheduledDate);
@@ -152,7 +164,8 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
       switch (activeTab) {
         case 'upcoming':
-          return !isCompleted && scheduledDate >= now;
+          // Tous les entretiens non complétés (aujourd'hui et futurs)
+          return !isCompleted;
         case 'pending':
           return hasPendingFeedback;
         case 'completed':
@@ -165,17 +178,18 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
   // Stats
   const stats = useMemo(() => {
-    const now = new Date();
+    const isAdmin = user?.isAdmin || user?.role === 'admin';
+
     const pendingFeedbacks = interviews.filter(i =>
       i.feedbackRequests?.some(fr => fr.reviewerId === user?.uid && !fr.completed)
     ).length;
 
-    const myInterviews = interviews.filter(i => i.subjectId === user?.uid);
-    const upcomingCount = myInterviews.filter(i => {
-      const date = i.scheduledDate?.toDate?.() || new Date(i.scheduledDate);
-      return date >= now && i.status !== 'completed';
-    }).length;
+    // Admin voit tous les entretiens, sinon seulement les siens
+    const myInterviews = isAdmin
+      ? interviews
+      : interviews.filter(i => i.subjectId === user?.uid || i.createdBy === user?.uid);
 
+    const upcomingCount = myInterviews.filter(i => i.status !== 'completed').length;
     const completedCount = myInterviews.filter(i => i.status === 'completed').length;
 
     // Moyenne des scores reçus
@@ -197,9 +211,12 @@ const Interview360Section = ({ user, allUsers = [] }) => {
   // Créer un entretien
   const handleCreateInterview = async (formData) => {
     try {
+      console.log('📝 Création entretien 360 avec données:', formData);
+
       const interviewData = {
         ...formData,
         createdBy: user.uid,
+        createdByName: user.displayName || user.email,
         createdAt: serverTimestamp(),
         status: 'scheduled',
         feedbackRequests: formData.reviewers.map(reviewer => ({
@@ -212,17 +229,29 @@ const Interview360Section = ({ user, allUsers = [] }) => {
         feedbackResponses: []
       };
 
+      console.log('📝 Données à sauvegarder:', interviewData);
+
       const docRef = await addDoc(collection(db, 'interviews_360'), interviewData);
 
-      setInterviews(prev => [{
-        id: docRef.id,
-        ...interviewData
-      }, ...prev]);
+      console.log('✅ Entretien créé avec ID:', docRef.id);
 
+      // Ajouter à la liste locale avec l'ID
+      const newInterview = {
+        id: docRef.id,
+        ...interviewData,
+        createdAt: new Date() // Pour l'affichage local
+      };
+
+      setInterviews(prev => [newInterview, ...prev]);
       setShowCreateModal(false);
+
+      // Recharger les entretiens pour s'assurer de la synchro
+      await loadInterviews();
+
       return { success: true };
     } catch (error) {
-      console.error('Erreur création entretien:', error);
+      console.error('❌ Erreur création entretien:', error);
+      alert('Erreur lors de la création: ' + error.message);
       return { success: false, error };
     }
   };
@@ -662,14 +691,31 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
   };
 
   const handleSubmit = async () => {
-    if (!form.subjectId || !form.scheduledDate || form.reviewers.length === 0) return;
+    if (!form.subjectId || !form.scheduledDate || form.reviewers.length === 0) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    console.log('🚀 Soumission formulaire entretien 360:', form);
 
     setSaving(true);
-    await onCreate({
-      ...form,
-      scheduledDate: new Date(form.scheduledDate)
-    });
-    setSaving(false);
+    try {
+      const result = await onCreate({
+        ...form,
+        scheduledDate: new Date(form.scheduledDate)
+      });
+
+      if (result?.success) {
+        console.log('✅ Entretien créé avec succès');
+      } else {
+        console.error('❌ Échec création:', result?.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+      alert('Erreur: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
