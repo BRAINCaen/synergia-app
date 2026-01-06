@@ -122,14 +122,18 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
       console.log('📋 Entretiens 360 chargés:', data.length, data);
 
-      // Filtrer : entretiens où l'utilisateur est concerné
-      const userInterviews = data.filter(interview =>
-        interview.subjectId === user.uid ||
-        interview.createdBy === user.uid ||
-        interview.feedbackRequests?.some(fr => fr.reviewerId === user.uid)
-      );
+      // Admin voit TOUT, sinon filtrer par utilisateur concerné
+      const isAdmin = user.isAdmin || user.role === 'admin';
 
-      console.log('📋 Entretiens pour cet utilisateur:', userInterviews.length);
+      const userInterviews = isAdmin
+        ? data
+        : data.filter(interview =>
+            interview.subjectId === user.uid ||
+            interview.createdBy === user.uid ||
+            interview.feedbackRequests?.some(fr => fr.reviewerId === user.uid)
+          );
+
+      console.log('📋 Entretiens visibles:', userInterviews.length, isAdmin ? '(admin)' : '(filtré)');
 
       // Trier par date (plus récent en premier)
       userInterviews.sort((a, b) => {
@@ -174,14 +178,16 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
   // Stats
   const stats = useMemo(() => {
+    const isAdmin = user?.isAdmin || user?.role === 'admin';
+
     const pendingFeedbacks = interviews.filter(i =>
       i.feedbackRequests?.some(fr => fr.reviewerId === user?.uid && !fr.completed)
     ).length;
 
-    // Tous les entretiens concernant l'utilisateur (créateur ou sujet)
-    const myInterviews = interviews.filter(i =>
-      i.subjectId === user?.uid || i.createdBy === user?.uid
-    );
+    // Admin voit tous les entretiens, sinon seulement les siens
+    const myInterviews = isAdmin
+      ? interviews
+      : interviews.filter(i => i.subjectId === user?.uid || i.createdBy === user?.uid);
 
     const upcomingCount = myInterviews.filter(i => i.status !== 'completed').length;
     const completedCount = myInterviews.filter(i => i.status === 'completed').length;
