@@ -766,12 +766,13 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
                   subjectName: user?.displayName || user?.email || ''
                 }));
               }}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 focus:outline-none"
+              className="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 focus:outline-none"
+              style={{ colorScheme: 'dark' }}
               required
             >
-              <option value="">Sélectionner un collaborateur</option>
+              <option value="" className="bg-gray-800 text-white">Sélectionner un collaborateur</option>
               {allUsers.map(user => (
-                <option key={user.id} value={user.id}>
+                <option key={user.id} value={user.id} className="bg-gray-800 text-white">
                   {user.displayName || user.email}
                 </option>
               ))}
@@ -785,10 +786,11 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
               <select
                 value={form.type}
                 onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 focus:outline-none"
+                className="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 focus:outline-none"
+                style={{ colorScheme: 'dark' }}
               >
                 {Object.values(INTERVIEW_360_TYPES).map(type => (
-                  <option key={type.id} value={type.id}>
+                  <option key={type.id} value={type.id} className="bg-gray-800 text-white">
                     {type.emoji} {type.label}
                   </option>
                 ))}
@@ -800,7 +802,8 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
                 type="date"
                 value={form.scheduledDate}
                 onChange={(e) => setForm(f => ({ ...f, scheduledDate: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 focus:outline-none"
+                className="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-500 focus:outline-none"
+                style={{ colorScheme: 'dark' }}
                 required
               />
             </div>
