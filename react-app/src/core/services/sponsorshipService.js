@@ -482,6 +482,28 @@ class SponsorshipService {
   }
 
   /**
+   * Obtenir TOUS les parrainages (pour admin) - tous statuts confondus
+   */
+  async getAllSponsorships() {
+    try {
+      const q = query(
+        collection(db, this.collectionName),
+        orderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        role: 'admin'
+      }));
+    } catch (error) {
+      console.error('Erreur récupération tous parrainages:', error);
+      return [];
+    }
+  }
+
+  /**
    * Obtenir un parrainage par ID
    */
   async getSponsorship(sponsorshipId) {
@@ -832,6 +854,25 @@ class SponsorshipService {
       unsub1();
       unsub2();
     };
+  }
+
+  /**
+   * S'abonner à TOUS les parrainages en temps réel (pour admin)
+   */
+  subscribeToAllSponsorships(callback) {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('createdAt', 'desc')
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const sponsorships = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        role: 'admin'
+      }));
+      callback(sponsorships);
+    });
   }
 }
 

@@ -28,14 +28,23 @@ export const useSponsorship = () => {
 
     setLoading(true);
 
+    // Admin voit TOUS les parrainages, sinon seulement les siens
+    const isAdmin = user.isAdmin || user.role === 'admin';
+
     // S'abonner aux parrainages en temps réel
-    const unsubscribe = sponsorshipService.subscribeToUserSponsorships(
-      user.uid,
-      (updatedSponsorships) => {
-        setSponsorships(updatedSponsorships);
-        setLoading(false);
-      }
-    );
+    const unsubscribe = isAdmin
+      ? sponsorshipService.subscribeToAllSponsorships((updatedSponsorships) => {
+          console.log(`🤝 [SPONSORSHIP] Admin: ${updatedSponsorships.length} parrainages chargés`);
+          setSponsorships(updatedSponsorships);
+          setLoading(false);
+        })
+      : sponsorshipService.subscribeToUserSponsorships(
+          user.uid,
+          (updatedSponsorships) => {
+            setSponsorships(updatedSponsorships);
+            setLoading(false);
+          }
+        );
 
     // Charger les stats
     loadStats();
@@ -44,7 +53,7 @@ export const useSponsorship = () => {
     loadAvailableUsers();
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, user?.isAdmin, user?.role]);
 
   // Charger les stats
   const loadStats = useCallback(async () => {
