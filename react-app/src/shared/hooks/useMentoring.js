@@ -58,8 +58,13 @@ export const useMentoring = (options = {}) => {
 
     setLoading(true);
     try {
-      // Charger les sessions
-      const userSessions = await mentoringService.getUserSessions(user.uid);
+      // Admin voit TOUTES les sessions, sinon seulement les siennes
+      const isAdmin = user.isAdmin || user.role === 'admin';
+      const userSessions = isAdmin
+        ? await mentoringService.getAllSessions()
+        : await mentoringService.getUserSessions(user.uid);
+
+      console.log(`📋 [MENTORING] ${isAdmin ? 'Admin: toutes les' : 'User:'} ${userSessions.length} sessions chargées`);
       setSessions(userSessions);
 
       // Charger les sessions a venir
@@ -94,19 +99,31 @@ export const useMentoring = (options = {}) => {
       return;
     }
 
-    // Temps reel
+    // Temps reel - Admin voit tout
     setLoading(true);
+    const isAdmin = user.isAdmin || user.role === 'admin';
 
-    const unsubscribe = mentoringService.subscribeToUserSessions(user.uid, (newSessions) => {
-      // Trier par date
-      const sorted = newSessions.sort((a, b) => {
-        const dateA = a.scheduledDate?.toDate?.() || a.createdAt?.toDate?.() || new Date();
-        const dateB = b.scheduledDate?.toDate?.() || b.createdAt?.toDate?.() || new Date();
-        return dateB - dateA;
-      });
-      setSessions(sorted);
-      setLoading(false);
-    });
+    const unsubscribe = isAdmin
+      ? mentoringService.subscribeToAllSessions((newSessions) => {
+          console.log(`📋 [MENTORING] Admin RT: ${newSessions.length} sessions`);
+          const sorted = newSessions.sort((a, b) => {
+            const dateA = a.scheduledDate?.toDate?.() || a.createdAt?.toDate?.() || new Date();
+            const dateB = b.scheduledDate?.toDate?.() || b.createdAt?.toDate?.() || new Date();
+            return dateB - dateA;
+          });
+          setSessions(sorted);
+          setLoading(false);
+        })
+      : mentoringService.subscribeToUserSessions(user.uid, (newSessions) => {
+          // Trier par date
+          const sorted = newSessions.sort((a, b) => {
+            const dateA = a.scheduledDate?.toDate?.() || a.createdAt?.toDate?.() || new Date();
+            const dateB = b.scheduledDate?.toDate?.() || b.createdAt?.toDate?.() || new Date();
+            return dateB - dateA;
+          });
+          setSessions(sorted);
+          setLoading(false);
+        });
 
     // Charger aussi stats et users (pas en temps reel)
     (async () => {
@@ -121,7 +138,7 @@ export const useMentoring = (options = {}) => {
     })();
 
     return () => unsubscribe();
-  }, [user?.uid, realTime, loadData]);
+  }, [user?.uid, user?.isAdmin, user?.role, realTime, loadData]);
 
   /**
    * Creer une nouvelle session
@@ -318,6 +335,24 @@ export const useMentoring = (options = {}) => {
   }, []);
 
   /**
+   * Mettre à jour la progression d'un objectif individuel
+   * Permet au formateur de valider les objectifs au fur et à mesure
+   */
+  const updateObjectiveProgress = useCallback(async (sessionId, objectiveIndex, completed) => {
+    try {
+      const result = await mentoringService.updateObjectiveProgress(sessionId, objectiveIndex, completed);
+      if (!result.success) {
+        setError(result.error);
+      }
+      return result;
+    } catch (err) {
+      console.error('Erreur mise à jour objectif:', err);
+      setError(err.message);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  /**
    * Rafraichir les donnees
    */
   const refresh = useCallback(async () => {
@@ -351,6 +386,7 @@ export const useMentoring = (options = {}) => {
     submitFeedback,
     getSession,
     refresh,
+    updateObjectiveProgress,
 
     // Documents
     addDocument,

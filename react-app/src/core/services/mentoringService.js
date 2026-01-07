@@ -630,6 +630,73 @@ class MentoringService {
   // ==========================================
 
   /**
+   * Obtenir TOUTES les sessions (pour admins)
+   */
+  async getAllSessions(status = null) {
+    try {
+      let q = query(
+        collection(db, this.collectionName),
+        orderBy('createdAt', 'desc'),
+        limit(200)
+      );
+
+      if (status) {
+        q = query(
+          collection(db, this.collectionName),
+          where('status', '==', status),
+          orderBy('createdAt', 'desc'),
+          limit(200)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        role: 'admin' // Pour identifier la vue admin
+      }));
+    } catch (error) {
+      console.error('Erreur recuperation toutes sessions:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Mettre à jour la progression d'un objectif individuel
+   * Permet au mentor de cocher les objectifs au fur et à mesure
+   */
+  async updateObjectiveProgress(sessionId, objectiveIndex, completed) {
+    try {
+      const sessionRef = doc(db, this.collectionName, sessionId);
+      const sessionDoc = await getDoc(sessionRef);
+
+      if (!sessionDoc.exists()) {
+        return { success: false, error: 'Session non trouvée' };
+      }
+
+      const session = sessionDoc.data();
+
+      // Initialiser objectivesProgress s'il n'existe pas
+      const objectivesProgress = session.objectivesProgress || {};
+      objectivesProgress[objectiveIndex] = {
+        completed,
+        completedAt: completed ? new Date().toISOString() : null
+      };
+
+      await updateDoc(sessionRef, {
+        objectivesProgress,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log(`✅ Objectif ${objectiveIndex} mis à jour: ${completed ? 'validé' : 'non validé'}`);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur mise à jour objectif:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Obtenir les sessions d'un utilisateur
    */
   async getUserSessions(userId, role = 'both', status = null) {
@@ -857,6 +924,26 @@ class MentoringService {
       unsub1();
       unsub2();
     };
+  }
+
+  /**
+   * S'abonner à TOUTES les sessions en temps réel (pour admins)
+   */
+  subscribeToAllSessions(callback) {
+    const q = query(
+      collection(db, this.collectionName),
+      orderBy('createdAt', 'desc'),
+      limit(200)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const sessions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        role: 'admin'
+      }));
+      callback(sessions);
+    });
   }
 
   // ==========================================

@@ -863,11 +863,12 @@ const formatFileSize = (bytes) => {
 // COMPOSANT SESSION CARD
 // ==========================================
 
-const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAddDocument, onRemoveDocument, onEdit, currentUserId }) => {
+const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAddDocument, onRemoveDocument, onEdit, onUpdateObjective, currentUserId }) => {
   const { MENTORING_STATUS, SESSION_TYPES, DIFFICULTY_LEVELS } = useMentoring();
   const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [updatingObjective, setUpdatingObjective] = useState(null);
 
   const status = MENTORING_STATUS[session.status] || MENTORING_STATUS.scheduled;
   const sessionType = SESSION_TYPES[session.type] || SESSION_TYPES.skill_transfer;
@@ -978,22 +979,79 @@ const SessionCard = ({ session, onStart, onComplete, onCancel, onFeedback, onAdd
                 </div>
               )}
 
-              {/* Objectifs */}
+              {/* Objectifs - validation progressive */}
               {session.objectives?.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">Objectifs</h4>
-                  <div className="space-y-1">
-                    {session.objectives.map((obj, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
-                        <div className={`w-4 h-4 rounded flex items-center justify-center ${
-                          session.objectivesCompleted?.includes(i) ? 'bg-emerald-500' : 'bg-white/10'
-                        }`}>
-                          {session.objectivesCompleted?.includes(i) && <Check className="w-3 h-3 text-white" />}
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">
+                    Objectifs
+                    {isOwner && session.status !== 'completed' && session.status !== 'cancelled' && (
+                      <span className="ml-2 text-xs text-purple-400">(Cochez au fur et à mesure)</span>
+                    )}
+                  </h4>
+                  <div className="space-y-2">
+                    {session.objectives.map((obj, i) => {
+                      // Vérifier si l'objectif est validé (via objectivesProgress ou objectivesCompleted)
+                      const isCompleted = session.objectivesProgress?.[i]?.completed ||
+                                         session.objectivesCompleted?.includes(i);
+                      const canToggle = isOwner && session.status !== 'completed' && session.status !== 'cancelled';
+                      const isUpdating = updatingObjective === i;
+
+                      const handleToggle = async () => {
+                        if (!onUpdateObjective || !canToggle || isUpdating) return;
+                        setUpdatingObjective(i);
+                        await onUpdateObjective(session.id, i, !isCompleted);
+                        setUpdatingObjective(null);
+                      };
+
+                      return (
+                        <div
+                          key={i}
+                          className={`flex items-center gap-2 text-sm p-2 rounded-lg transition-all ${
+                            canToggle ? 'hover:bg-white/5 cursor-pointer' : ''
+                          } ${isCompleted ? 'bg-emerald-500/10' : ''}`}
+                          onClick={canToggle ? handleToggle : undefined}
+                        >
+                          <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${
+                            isCompleted ? 'bg-emerald-500' : 'bg-white/10 border border-white/20'
+                          } ${canToggle ? 'hover:border-purple-400' : ''}`}>
+                            {isUpdating ? (
+                              <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : isCompleted ? (
+                              <Check className="w-3 h-3 text-white" />
+                            ) : null}
+                          </div>
+                          <span className={`flex-1 ${isCompleted ? 'text-emerald-300 line-through' : 'text-gray-300'}`}>
+                            {obj}
+                          </span>
+                          {isCompleted && session.objectivesProgress?.[i]?.completedAt && (
+                            <span className="text-xs text-gray-500">
+                              {new Date(session.objectivesProgress[i].completedAt).toLocaleDateString('fr-FR')}
+                            </span>
+                          )}
                         </div>
-                        <span className="text-gray-300">{obj}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  {/* Progress bar */}
+                  {session.objectives.length > 1 && (
+                    <div className="mt-3">
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-300"
+                          style={{
+                            width: `${(session.objectives.filter((_, i) =>
+                              session.objectivesProgress?.[i]?.completed || session.objectivesCompleted?.includes(i)
+                            ).length / session.objectives.length) * 100}%`
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 text-right">
+                        {session.objectives.filter((_, i) =>
+                          session.objectivesProgress?.[i]?.completed || session.objectivesCompleted?.includes(i)
+                        ).length} / {session.objectives.length} validés
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1832,6 +1890,7 @@ const MentoringPage = () => {
     submitFeedback,
     addDocument,
     removeDocument,
+    updateObjectiveProgress,
     SESSION_TYPES,
     MENTORING_TOPICS,
     FEEDBACK_RATINGS,
@@ -2481,6 +2540,7 @@ const MentoringPage = () => {
                     onAddDocument={addDocument}
                     onRemoveDocument={removeDocument}
                     onEdit={setEditSession}
+                    onUpdateObjective={updateObjectiveProgress}
                   />
                 ))}
               </div>
@@ -2550,6 +2610,7 @@ const MentoringPage = () => {
                   onAddDocument={addDocument}
                   onRemoveDocument={removeDocument}
                   onEdit={setEditSession}
+                  onUpdateObjective={updateObjectiveProgress}
                 />
               ))
             )}
