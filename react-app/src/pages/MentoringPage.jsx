@@ -7,7 +7,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, Calendar, Clock, Star, Plus, X, Check, Play,
+  Users, User, Calendar, Clock, Star, Plus, X, Check, Play,
   MessageSquare, Award, TrendingUp, ChevronRight, Filter,
   AlertTriangle, Shield, CheckCircle, FileText, Download,
   Trash2, Upload, File, FileSpreadsheet, FileImage, Video,
@@ -225,25 +225,42 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
     description: '',
     xpReward: 50,
     category: 'work',
-    color: 'blue'
+    color: 'blue',
+    targetType: 'all', // 'all' = tous les alternants, 'specific' = un seul
+    targetUserId: null // ID de l'alternant ciblé si targetType = 'specific'
   });
 
+  // Obtenir l'ID utilisateur de l'alternant courant (pour filtrer les objectifs)
+  const currentAlternantUserId = alternanceData?.userId || alternanceData?.id || user?.uid;
+
   // Combiner les objectifs : défaut (avec modifications) + personnalisés - supprimés
+  // Puis filtrer selon le ciblage (pour les alternants)
   const allObjectives = [
     // Objectifs par défaut (avec modifications appliquées), filtrer les supprimés
+    // Les objectifs par défaut s'appliquent à tous (targetType: 'all' implicite)
     ...SCHOOL_OBJECTIVES
       .filter(obj => !deletedObjectiveIds.includes(obj.id))
       .map(obj => {
         const mods = modifiedObjectives[obj.id];
-        return mods ? { ...obj, ...mods, isModifiedDefault: true } : obj;
+        return mods ? { ...obj, ...mods, isModifiedDefault: true, targetType: mods.targetType || 'all' } : { ...obj, targetType: 'all' };
       }),
-    // Objectifs personnalisés
+    // Objectifs personnalisés (avec targetType)
     ...customObjectives.map(obj => ({
       ...obj,
       icon: OBJECTIVE_CATEGORIES[obj.category]?.icon || Target,
-      isCustom: true
+      isCustom: true,
+      targetType: obj.targetType || 'all' // Par défaut 'all' pour compatibilité
     }))
-  ];
+  ]
+    // Filtrer les objectifs selon le ciblage (pour les alternants uniquement)
+    .filter(obj => {
+      // Tuteurs et admins voient tout
+      if (isTutor || isAdmin) return true;
+      // Alternants : voir seulement les objectifs ciblés à 'all' ou spécifiquement à eux
+      if (obj.targetType === 'all') return true;
+      if (obj.targetType === 'specific' && obj.targetUserId === currentAlternantUserId) return true;
+      return false;
+    });
 
   // Pour les tuteurs/admins, permettre de sélectionner un alternant
   const currentAlternantData = selectedAlternantId
@@ -285,7 +302,9 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
       description: '',
       xpReward: 50,
       category: 'work',
-      color: 'blue'
+      color: 'blue',
+      targetType: 'all',
+      targetUserId: null
     });
     setShowObjectiveModal(true);
   };
@@ -297,7 +316,9 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
       description: objective.description,
       xpReward: objective.xpReward,
       category: objective.category,
-      color: objective.color
+      color: objective.color,
+      targetType: objective.targetType || 'all',
+      targetUserId: objective.targetUserId || null
     });
     setShowObjectiveModal(true);
   };
@@ -305,6 +326,12 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
   const handleSaveObjective = async () => {
     if (!objectiveForm.title.trim()) {
       alert('❌ Le titre est obligatoire');
+      return;
+    }
+
+    // Validation: si ciblage spécifique, vérifier qu'un alternant est sélectionné
+    if (objectiveForm.targetType === 'specific' && !objectiveForm.targetUserId) {
+      alert('❌ Veuillez sélectionner un alternant pour un objectif ciblé');
       return;
     }
 
@@ -599,6 +626,25 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
                   </h4>
                   <p className="text-gray-400 text-xs line-clamp-2">{objective.description}</p>
 
+                  {/* Indicateur de ciblage (visible pour tuteurs/admins) */}
+                  {canValidate && (
+                    <div className="mt-1.5 flex items-center gap-1">
+                      {objective.targetType === 'specific' ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          <User className="w-2.5 h-2.5" />
+                          {tutoredAlternants.find(a => (a.userId || a.id) === objective.targetUserId)?.userName ||
+                           tutoredAlternants.find(a => (a.userId || a.id) === objective.targetUserId)?.displayName ||
+                           '1 alternant'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                          <Users className="w-2.5 h-2.5" />
+                          Tous
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Compteur si répétable */}
                   {count > 0 && objective.frequency !== 'once' && (
                     <div className="mt-2 text-xs text-gray-500">
@@ -816,6 +862,56 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
                     ))}
                   </div>
                 </div>
+
+                {/* Ciblage - visible seulement pour tuteurs/admins */}
+                {(isTutor || isAdmin) && tutoredAlternants.length > 0 && (
+                  <div className="border-t border-white/10 pt-4 mt-2">
+                    <label className="block text-sm text-gray-400 mb-2">Déployer sur</label>
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setObjectiveForm(prev => ({ ...prev, targetType: 'all', targetUserId: null }))}
+                        className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                          objectiveForm.targetType === 'all'
+                            ? 'bg-indigo-500 text-white'
+                            : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <Users className="w-4 h-4 inline mr-2" />
+                        Tous les alternants
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setObjectiveForm(prev => ({ ...prev, targetType: 'specific' }))}
+                        className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                          objectiveForm.targetType === 'specific'
+                            ? 'bg-indigo-500 text-white'
+                            : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <User className="w-4 h-4 inline mr-2" />
+                        Un seul alternant
+                      </button>
+                    </div>
+
+                    {/* Sélecteur d'alternant si targetType = specific */}
+                    {objectiveForm.targetType === 'specific' && (
+                      <select
+                        value={objectiveForm.targetUserId || ''}
+                        onChange={(e) => setObjectiveForm(prev => ({ ...prev, targetUserId: e.target.value || null }))}
+                        className="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                        style={{ colorScheme: 'dark' }}
+                      >
+                        <option value="" className="bg-gray-800 text-white">Sélectionner un alternant...</option>
+                        {tutoredAlternants.map(alt => (
+                          <option key={alt.id} value={alt.userId || alt.id} className="bg-gray-800 text-white">
+                            {alt.userName || alt.displayName || alt.email || 'Alternant'}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 mt-6">
