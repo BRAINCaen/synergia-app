@@ -226,8 +226,9 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
     xpReward: 50,
     category: 'work',
     color: 'blue',
-    targetType: 'all', // 'all' = tous les alternants, 'specific' = un seul
-    targetUserId: null // ID de l'alternant ciblé si targetType = 'specific'
+    targetType: 'all', // 'all' = tous les alternants, 'multiple' = plusieurs, 'specific' = un seul
+    targetUserId: null, // ID de l'alternant ciblé si targetType = 'specific'
+    targetUserIds: [] // IDs des alternants ciblés si targetType = 'multiple'
   });
 
   // Pour les tuteurs/admins, permettre de sélectionner un alternant
@@ -263,8 +264,10 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
     .filter(obj => {
       // Objectifs pour tous : toujours affichés
       if (obj.targetType === 'all') return true;
-      // Objectifs ciblés : afficher UNIQUEMENT pour l'alternant concerné
+      // Objectifs ciblés sur un seul : afficher UNIQUEMENT pour l'alternant concerné
       if (obj.targetType === 'specific' && obj.targetUserId === viewedAlternantUserId) return true;
+      // Objectifs ciblés sur plusieurs : afficher si l'alternant fait partie de la liste
+      if (obj.targetType === 'multiple' && obj.targetUserIds?.includes(viewedAlternantUserId)) return true;
       return false;
     });
 
@@ -305,7 +308,8 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
       category: 'work',
       color: 'blue',
       targetType: 'all',
-      targetUserId: null
+      targetUserId: null,
+      targetUserIds: []
     });
     setShowObjectiveModal(true);
   };
@@ -319,7 +323,8 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
       category: objective.category,
       color: objective.color,
       targetType: objective.targetType || 'all',
-      targetUserId: objective.targetUserId || null
+      targetUserId: objective.targetUserId || null,
+      targetUserIds: objective.targetUserIds || []
     });
     setShowObjectiveModal(true);
   };
@@ -333,6 +338,12 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
     // Validation: si ciblage spécifique, vérifier qu'un alternant est sélectionné
     if (objectiveForm.targetType === 'specific' && !objectiveForm.targetUserId) {
       alert('❌ Veuillez sélectionner un alternant pour un objectif ciblé');
+      return;
+    }
+
+    // Validation: si ciblage multiple, vérifier qu'au moins un alternant est sélectionné
+    if (objectiveForm.targetType === 'multiple' && (!objectiveForm.targetUserIds || objectiveForm.targetUserIds.length === 0)) {
+      alert('❌ Veuillez sélectionner au moins un alternant');
       return;
     }
 
@@ -868,30 +879,42 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
                 {(isTutor || isAdmin) && tutoredAlternants.length > 0 && (
                   <div className="border-t border-white/10 pt-4 mt-2">
                     <label className="block text-sm text-gray-400 mb-2">Déployer sur</label>
-                    <div className="flex gap-2 mb-3">
+                    <div className="flex gap-2 mb-3 flex-wrap">
                       <button
                         type="button"
-                        onClick={() => setObjectiveForm(prev => ({ ...prev, targetType: 'all', targetUserId: null }))}
-                        className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                        onClick={() => setObjectiveForm(prev => ({ ...prev, targetType: 'all', targetUserId: null, targetUserIds: [] }))}
+                        className={`flex-1 min-w-[120px] px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                           objectiveForm.targetType === 'all'
                             ? 'bg-indigo-500 text-white'
                             : 'bg-white/5 text-gray-300 hover:bg-white/10'
                         }`}
                       >
                         <Users className="w-4 h-4 inline mr-2" />
-                        Tous les alternants
+                        Tous
                       </button>
                       <button
                         type="button"
-                        onClick={() => setObjectiveForm(prev => ({ ...prev, targetType: 'specific' }))}
-                        className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                        onClick={() => setObjectiveForm(prev => ({ ...prev, targetType: 'multiple', targetUserId: null }))}
+                        className={`flex-1 min-w-[120px] px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                          objectiveForm.targetType === 'multiple'
+                            ? 'bg-indigo-500 text-white'
+                            : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <Users className="w-4 h-4 inline mr-2" />
+                        Plusieurs
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setObjectiveForm(prev => ({ ...prev, targetType: 'specific', targetUserIds: [] }))}
+                        className={`flex-1 min-w-[120px] px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                           objectiveForm.targetType === 'specific'
                             ? 'bg-indigo-500 text-white'
                             : 'bg-white/5 text-gray-300 hover:bg-white/10'
                         }`}
                       >
                         <User className="w-4 h-4 inline mr-2" />
-                        Un seul alternant
+                        Un seul
                       </button>
                     </div>
 
@@ -910,6 +933,50 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
                           </option>
                         ))}
                       </select>
+                    )}
+
+                    {/* Multi-sélection d'alternants si targetType = multiple */}
+                    {objectiveForm.targetType === 'multiple' && (
+                      <div className="bg-gray-800/50 border border-white/10 rounded-xl p-3 max-h-48 overflow-y-auto">
+                        <p className="text-xs text-gray-500 mb-2">Cochez les alternants concernés :</p>
+                        {tutoredAlternants.map(alt => {
+                          const altId = alt.userId || alt.id;
+                          const isChecked = objectiveForm.targetUserIds?.includes(altId);
+                          return (
+                            <label
+                              key={alt.id}
+                              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setObjectiveForm(prev => ({
+                                      ...prev,
+                                      targetUserIds: [...(prev.targetUserIds || []), altId]
+                                    }));
+                                  } else {
+                                    setObjectiveForm(prev => ({
+                                      ...prev,
+                                      targetUserIds: (prev.targetUserIds || []).filter(id => id !== altId)
+                                    }));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-gray-900"
+                              />
+                              <span className="text-white text-sm">
+                                {alt.userName || alt.displayName || alt.email || 'Alternant'}
+                              </span>
+                            </label>
+                          );
+                        })}
+                        {objectiveForm.targetUserIds?.length > 0 && (
+                          <p className="text-xs text-indigo-400 mt-2 pt-2 border-t border-white/10">
+                            {objectiveForm.targetUserIds.length} alternant{objectiveForm.targetUserIds.length > 1 ? 's' : ''} sélectionné{objectiveForm.targetUserIds.length > 1 ? 's' : ''}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
