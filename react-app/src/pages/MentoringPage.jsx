@@ -2367,12 +2367,26 @@ const MentoringPage = () => {
 
       if (isCustom) {
         // Objectif personnalisé : mise à jour dans alternance_objectives
-        const { doc: docFn, updateDoc } = await import('firebase/firestore');
-        await updateDoc(docFn(db, 'alternance_objectives', objectiveId), {
-          ...objectiveData,
-          updatedAt: serverTimestamp(),
-          updatedBy: user?.uid
-        });
+        const { doc: docFn, updateDoc, getDoc, setDoc } = await import('firebase/firestore');
+        const docRef = docFn(db, 'alternance_objectives', objectiveId);
+
+        // Vérifier si le document existe
+        const docSnapshot = await getDoc(docRef);
+        if (docSnapshot.exists()) {
+          await updateDoc(docRef, {
+            ...objectiveData,
+            updatedAt: serverTimestamp(),
+            updatedBy: user?.uid
+          });
+        } else {
+          // Le document n'existe pas, le créer avec setDoc
+          console.warn(`⚠️ Document ${objectiveId} n'existe pas, création...`);
+          await setDoc(docRef, {
+            ...objectiveData,
+            createdAt: serverTimestamp(),
+            createdBy: user?.uid
+          });
+        }
 
         setCustomObjectives(prev => prev.map(obj =>
           obj.id === objectiveId ? { ...obj, ...objectiveData } : obj
@@ -2404,8 +2418,18 @@ const MentoringPage = () => {
 
       if (isCustom) {
         // Objectif personnalisé : supprimer de alternance_objectives
-        const { doc: docFn, deleteDoc } = await import('firebase/firestore');
-        await deleteDoc(docFn(db, 'alternance_objectives', objectiveId));
+        const { doc: docFn, deleteDoc, getDoc } = await import('firebase/firestore');
+        const docRef = docFn(db, 'alternance_objectives', objectiveId);
+
+        // Vérifier si le document existe avant de le supprimer
+        const docSnapshot = await getDoc(docRef);
+        if (docSnapshot.exists()) {
+          await deleteDoc(docRef);
+        } else {
+          console.warn(`⚠️ Document ${objectiveId} n'existe pas dans Firestore, suppression locale uniquement`);
+        }
+
+        // Toujours supprimer du state local
         setCustomObjectives(prev => prev.filter(obj => obj.id !== objectiveId));
       } else {
         // Objectif par défaut : ajouter l'ID aux suppressions dans alternance_settings
