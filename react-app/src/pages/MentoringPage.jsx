@@ -230,11 +230,18 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
     targetUserId: null // ID de l'alternant ciblé si targetType = 'specific'
   });
 
-  // Obtenir l'ID utilisateur de l'alternant courant (pour filtrer les objectifs)
-  const currentAlternantUserId = alternanceData?.userId || alternanceData?.id || user?.uid;
+  // Pour les tuteurs/admins, permettre de sélectionner un alternant
+  // IMPORTANT: doit être calculé AVANT allObjectives pour le filtrage
+  const currentAlternantData = selectedAlternantId
+    ? tutoredAlternants.find(a => a.id === selectedAlternantId) || alternanceData
+    : alternanceData;
+
+  // Obtenir l'ID utilisateur de l'alternant actuellement affiché (pour filtrer les objectifs)
+  // Si un tuteur sélectionne un alternant, on utilise son ID pour le filtrage
+  const viewedAlternantUserId = currentAlternantData?.userId || currentAlternantData?.id || user?.uid;
 
   // Combiner les objectifs : défaut (avec modifications) + personnalisés - supprimés
-  // Puis filtrer selon le ciblage (pour les alternants)
+  // Puis filtrer selon le ciblage ET l'alternant actuellement affiché
   const allObjectives = [
     // Objectifs par défaut (avec modifications appliquées), filtrer les supprimés
     // Les objectifs par défaut s'appliquent à tous (targetType: 'all' implicite)
@@ -252,20 +259,14 @@ const AlternanceSection = ({ user, onValidateObjective, onCreateObjective, onUpd
       targetType: obj.targetType || 'all' // Par défaut 'all' pour compatibilité
     }))
   ]
-    // Filtrer les objectifs selon le ciblage (pour les alternants uniquement)
+    // Filtrer les objectifs selon le ciblage
     .filter(obj => {
-      // Tuteurs et admins voient tout
-      if (isTutor || isAdmin) return true;
-      // Alternants : voir seulement les objectifs ciblés à 'all' ou spécifiquement à eux
+      // Objectifs pour tous : toujours affichés
       if (obj.targetType === 'all') return true;
-      if (obj.targetType === 'specific' && obj.targetUserId === currentAlternantUserId) return true;
+      // Objectifs ciblés : afficher UNIQUEMENT pour l'alternant concerné
+      if (obj.targetType === 'specific' && obj.targetUserId === viewedAlternantUserId) return true;
       return false;
     });
-
-  // Pour les tuteurs/admins, permettre de sélectionner un alternant
-  const currentAlternantData = selectedAlternantId
-    ? tutoredAlternants.find(a => a.id === selectedAlternantId) || alternanceData
-    : alternanceData;
 
   // Déterminer si l'utilisateur peut valider (tuteur ou admin)
   const canValidate = isTutor || isAdmin;
