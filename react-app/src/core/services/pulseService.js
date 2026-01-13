@@ -363,46 +363,58 @@ class PulseService {
 
   /**
    * Obtenir les statistiques de pulse d'un utilisateur
+   * Les stats sont réinitialisées chaque lundi (début de semaine)
    */
   async getUserPulseStats(userId) {
     try {
       const history = await this.getUserPulseHistory(userId, 30);
 
-      if (history.length === 0) {
+      // Calculer le début de la semaine courante (lundi)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dayOfWeek = today.getDay(); // 0 = dimanche, 1 = lundi, ...
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Si dimanche, 6 jours depuis lundi
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - daysFromMonday);
+      const startOfWeekStr = startOfWeek.toISOString().split('T')[0];
+
+      // Filtrer l'historique pour ne garder que les pulses de cette semaine
+      const weekHistory = history.filter(p => p.date >= startOfWeekStr);
+
+      if (weekHistory.length === 0) {
         return {
           streak: 0,
           totalPulses: 0,
           averageMood: 0,
           averageEnergy: 0,
           bestDay: null,
-          trend: 'stable'
+          trend: 'stable',
+          weekStart: startOfWeekStr
         };
       }
 
-      // Calculer la serie
+      // Calculer la série (streak) de cette semaine uniquement
       let streak = 0;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i <= daysFromMonday; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() - i);
         const dateStr = checkDate.toISOString().split('T')[0];
 
-        const hasPulse = history.some(p => p.date === dateStr);
+        const hasPulse = weekHistory.some(p => p.date === dateStr);
         if (hasPulse) {
           streak++;
         } else if (i > 0) {
+          // Si ce n'est pas aujourd'hui et pas de pulse, arrêter le streak
           break;
         }
       }
 
-      // Moyennes
-      const avgMood = history.reduce((s, p) => s + (p.moodValue || 3), 0) / history.length;
-      const avgEnergy = history.reduce((s, p) => s + (p.energyValue || 3), 0) / history.length;
+      // Moyennes de la semaine
+      const avgMood = weekHistory.reduce((s, p) => s + (p.moodValue || 3), 0) / weekHistory.length;
+      const avgEnergy = weekHistory.reduce((s, p) => s + (p.energyValue || 3), 0) / weekHistory.length;
 
-      // Meilleur jour
-      const bestPulse = history.reduce((best, p) => {
+      // Meilleur jour de la semaine
+      const bestPulse = weekHistory.reduce((best, p) => {
         const score = (p.moodValue || 3) + (p.energyValue || 3);
         const bestScore = (best?.moodValue || 0) + (best?.energyValue || 0);
         return score > bestScore ? p : best;
@@ -410,11 +422,12 @@ class PulseService {
 
       return {
         streak,
-        totalPulses: history.length,
+        totalPulses: weekHistory.length,
         averageMood: avgMood.toFixed(1),
         averageEnergy: avgEnergy.toFixed(1),
         bestDay: bestPulse,
-        history
+        weekStart: startOfWeekStr,
+        history: weekHistory
       };
     } catch (error) {
       console.error('Erreur stats pulse:', error);
