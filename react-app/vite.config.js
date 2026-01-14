@@ -9,6 +9,18 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
+
+  // Configuration Vitest
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.jsx'],
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    coverage: {
+      reporter: ['text', 'json', 'html'],
+      exclude: ['node_modules/', 'src/test/']
+    }
+  },
   
   resolve: {
     alias: {
