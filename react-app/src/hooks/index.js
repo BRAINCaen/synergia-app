@@ -15,4 +15,6 @@ export {
   useTeamCleanup
 } from './useTeam.js';
 
-console.log('✅ Hooks exportés sans duplication');
+// Hooks HR
+export { default as useLeaves } from './useLeaves.js';
+export { default as useTimesheet } from './useTimesheet.js';
