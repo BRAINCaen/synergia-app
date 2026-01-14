@@ -1,5 +1,5 @@
 // ==========================================
-// 📁 components/godmod/index.js
+// components/godmod/index.js
 // EXPORTS PRINCIPAUX GODMOD
 // ==========================================
 
@@ -15,4 +15,16 @@ export {
 } from './common.jsx';
 
 // Tabs
-export { DashboardTab } from './tabs';
+export {
+  DashboardTab,
+  UsersTab,
+  QuestsTab,
+  BadgesTab,
+  CampaignsTab,
+  FormationsTab,
+  InterviewsTab,
+  RewardsTab,
+  SponsorshipsTab,
+  HistoryTab,
+  SettingsTab
+} from './tabs';
