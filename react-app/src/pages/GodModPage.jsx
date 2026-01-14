@@ -17,6 +17,17 @@ import {
 } from 'lucide-react';
 import Layout from '../components/layout/Layout.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
+// Composants extraits
+import {
+  SectionHeader,
+  StatCard,
+  DataCard,
+  TabContent,
+  ActionButton,
+  Badge as BadgeComponent,
+  EmptyState,
+  DashboardTab
+} from '../components/godmod';
 import {
   collection, doc, getDocs, getDoc, updateDoc, deleteDoc, addDoc,
   query, where, orderBy, serverTimestamp, increment, limit as firestoreLimit,
@@ -639,127 +650,13 @@ const GodModPage = () => {
 };
 
 // ==========================================
-// COMPOSANTS UTILITAIRES
+// COMPOSANTS UTILITAIRES LOCAUX
 // ==========================================
 
 const StatBadge = ({ label, value, color }) => (
   <div className={`px-4 py-2 bg-${color}-500/20 border border-${color}-500/30 rounded-lg`}>
     <div className={`text-lg font-bold text-${color}-400`}>{value}</div>
     <div className="text-xs text-gray-400">{label}</div>
-  </div>
-);
-
-const TabContent = ({ children }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-  >
-    {children}
-  </motion.div>
-);
-
-const SectionHeader = ({ icon: Icon, title, count, action }) => (
-  <div className="flex items-center justify-between mb-6">
-    <h2 className="text-xl font-bold text-white flex items-center gap-3">
-      <Icon className="w-6 h-6 text-purple-400" />
-      {title}
-      {count !== undefined && (
-        <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-sm">
-          {count}
-        </span>
-      )}
-    </h2>
-    {action}
-  </div>
-);
-
-const DataCard = ({ children, className = '' }) => (
-  <div className={`bg-gray-900/50 rounded-xl p-4 border border-gray-700 hover:border-purple-500/50 transition-all ${className}`}>
-    {children}
-  </div>
-);
-
-const ActionButton = ({ icon: Icon, label, onClick, color = 'purple', small = false }) => (
-  <button
-    onClick={onClick}
-    className={`${small ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'} bg-${color}-600 hover:bg-${color}-700 text-white rounded-lg font-medium flex items-center gap-1 transition-all`}
-  >
-    <Icon className={small ? 'w-3 h-3' : 'w-4 h-4'} />
-    {label && <span>{label}</span>}
-  </button>
-);
-
-// ==========================================
-// TAB: DASHBOARD
-// ==========================================
-
-const DashboardTab = ({ stats, users }) => {
-  // Top users par XP
-  const topUsers = useMemo(() => {
-    return [...users]
-      .sort((a, b) => (b.gamification?.totalXp || 0) - (a.gamification?.totalXp || 0))
-      .slice(0, 10);
-  }, [users]);
-
-  return (
-    <div className="space-y-6">
-      <SectionHeader icon={BarChart3} title="Vue d'ensemble" />
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <StatCard icon={Users} label="Utilisateurs" value={stats.totalUsers} color="blue" />
-        <StatCard icon={Zap} label="XP Total" value={stats.totalXp.toLocaleString()} color="yellow" />
-        <StatCard icon={Award} label="Badges" value={stats.totalBadges} color="purple" />
-        <StatCard icon={Target} label="Quetes actives" value={stats.activeQuests} color="green" />
-        <StatCard icon={Clock} label="En attente" value={stats.pendingValidations} color="orange" />
-        <StatCard icon={Flag} label="Campagnes" value={stats.activeCampaigns} color="red" />
-        <StatCard icon={GraduationCap} label="Formations" value={stats.activeFormations} color="cyan" />
-        <StatCard icon={MessageSquare} label="Entretiens" value={stats.totalInterviews} color="pink" />
-        <StatCard icon={Gift} label="Recompenses" value={stats.totalRewards} color="indigo" />
-        <StatCard icon={UserPlus} label="Parrainages" value={stats.totalSponsorships} color="emerald" />
-      </div>
-
-      {/* Top Users */}
-      <div className="mt-8">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Medal className="w-5 h-5 text-yellow-500" />
-          Top 10 Utilisateurs
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {topUsers.map((u, idx) => (
-            <DataCard key={u.id}>
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                  idx === 0 ? 'bg-yellow-500 text-black' :
-                  idx === 1 ? 'bg-gray-300 text-black' :
-                  idx === 2 ? 'bg-orange-600 text-white' :
-                  'bg-gray-700 text-gray-300'
-                }`}>
-                  {idx + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="text-white font-medium">{u.displayName || 'Sans nom'}</div>
-                  <div className="text-sm text-gray-400">{u.email}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-yellow-500 font-bold">{(u.gamification?.totalXp || 0).toLocaleString()} XP</div>
-                  <div className="text-xs text-gray-500">Niv. {u.gamification?.level || 1}</div>
-                </div>
-              </div>
-            </DataCard>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard = ({ icon: Icon, label, value, color }) => (
-  <div className={`bg-${color}-500/10 border border-${color}-500/30 rounded-xl p-4`}>
-    <Icon className={`w-6 h-6 text-${color}-400 mb-2`} />
-    <div className={`text-2xl font-bold text-${color}-400`}>{value}</div>
-    <div className="text-sm text-gray-400">{label}</div>
   </div>
 );
 
