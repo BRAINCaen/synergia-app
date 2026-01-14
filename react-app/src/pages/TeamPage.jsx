@@ -6,19 +6,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, Crown, Trophy, Star, Zap, Filter, Search,
-  Phone, MapPin, Calendar, Award, Target, TrendingUp, Eye, UserPlus,
-  X, RefreshCw, Settings, MoreVertical, Heart, Shield, Flame,
-  Clock, CheckCircle, AlertCircle, Plus, Edit,
-  Trash2, Ban, UserX, UserCheck, Lock, Unlock, AlertTriangle
+  Users, Trophy, Zap, Search, Award, Target, TrendingUp, Eye, UserPlus,
+  RefreshCw, Shield, Edit, Trash2, Ban, UserCheck, Lock
 } from 'lucide-react';
 
-// 🎯 IMPORT DU LAYOUT AVEC MENU HAMBURGER
+// IMPORT DU LAYOUT AVEC MENU HAMBURGER
 import Layout from '../components/layout/Layout.jsx';
 
-// 🖼️ IMPORT DU COMPOSANT AVATAR UNIVERSEL
+// IMPORT DU COMPOSANT AVATAR UNIVERSEL
 import UserAvatar from '../components/common/UserAvatar.jsx';
-import DetailedPixelAvatar, { DEFAULT_DETAILED_CONFIG } from '../components/customization/DetailedPixelAvatar.jsx';
+import DetailedPixelAvatar from '../components/customization/DetailedPixelAvatar.jsx';
+
+// Extracted modal components
+import { MemberProfileModal, MemberEditModal, MemberDeleteModal } from '../components/team/modals';
 
 
 // 🔥 HOOKS ET SERVICES FIREBASE
@@ -1093,438 +1093,39 @@ const loadAllTeamMembers = async () => {
           )}
         </div>
 
-    {/* MODAL PROFIL MEMBRE AVEC QUÊTES DÉTAILLÉES */}
+        {/* MODALS */}
         <AnimatePresence>
           {showMemberModal && selectedMember && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto"
-              onClick={() => setShowMemberModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-6 max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto"
-              >
-{/* HEADER DU MODAL */}
-<div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
-  <div className="flex items-center gap-3 sm:gap-4">
-    <UserAvatar
-      user={selectedMember}
-      size="xl"
-      showBorder={true}
-      className="shrink-0"
-    />
-    <div className="min-w-0">
-      <h3 className="text-lg sm:text-2xl font-bold text-white truncate">{selectedMember.name}</h3>
-      <p className="text-gray-400 text-sm sm:text-base">{selectedMember.role}</p>
-      <p className="text-gray-500 text-xs sm:text-sm truncate">{selectedMember.email}</p>
-    </div>
-  </div>
-  <button
-    onClick={() => setShowMemberModal(false)}
-    className="p-2 hover:bg-white/10 rounded-xl transition-colors shrink-0"
-  >
-    <X className="w-5 h-5 text-gray-400" />
-  </button>
-</div>
-
-{/* STATISTIQUES RAPIDES */}
-<div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
-  <div className="bg-yellow-500/10 rounded-xl p-3 sm:p-4 border border-yellow-500/20">
-    <div className="flex items-center gap-2 mb-2">
-      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-      <span className="text-yellow-400 text-xs sm:text-sm">XP Total</span>
-    </div>
-    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.totalXp?.toLocaleString() || 0}</div>
-    <div className="text-xs text-gray-400 mt-1">Niveau {selectedMember.level || 1}</div>
-  </div>
-
-  <div className="bg-blue-500/10 rounded-xl p-3 sm:p-4 border border-blue-500/20">
-    <div className="flex items-center gap-2 mb-2">
-      <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
-      <span className="text-blue-400 text-xs sm:text-sm">En cours</span>
-    </div>
-    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.questsInProgress || 0}</div>
-    <div className="text-xs text-gray-400 mt-1">quêtes actives</div>
-  </div>
-
-  <div className="bg-green-500/10 rounded-xl p-3 sm:p-4 border border-green-500/20">
-    <div className="flex items-center gap-2 mb-2">
-      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-      <span className="text-green-400 text-xs sm:text-sm">Accomplies</span>
-    </div>
-    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.questsCompleted || 0}</div>
-    <div className="text-xs text-gray-400 mt-1">quêtes validées</div>
-  </div>
-
-  <div className="bg-purple-500/10 rounded-xl p-3 sm:p-4 border border-purple-500/20">
-    <div className="flex items-center gap-2 mb-2">
-      <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
-      <span className="text-purple-400 text-xs sm:text-sm">Badges</span>
-    </div>
-    <div className="text-xl sm:text-2xl font-bold text-white">{selectedMember.badgesCount || 0}</div>
-    <div className="text-xs text-gray-400 mt-1">débloqués</div>
-  </div>
-</div>
-
-{/* PROGRESSION NIVEAU */}
-<div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/10">
-  <div className="flex items-center justify-between mb-2">
-    <span className="text-gray-300 font-medium text-sm sm:text-base">Niveau {selectedMember.level || 1}</span>
-    <span className="text-gray-400 text-xs sm:text-sm">
-      {selectedMember.currentLevelXp || 0} / {selectedMember.nextLevelXpRequired || 100} XP
-    </span>
-  </div>
-  <div className="w-full bg-white/10 rounded-full h-2">
-    <div
-      className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-500"
-      style={{ width: `${selectedMember.xpProgress || 0}%` }}
-    />
-  </div>
-  <div className="text-xs text-gray-400 mt-1 text-right">
-    {Math.round(selectedMember.xpProgress || 0)}% jusqu'au niveau suivant
-  </div>
-</div>
-
-{/* LISTE DES QUÊTES */}
-<div className="bg-white/5 rounded-xl p-4 border border-white/10">
-  <div className="flex items-center gap-3 mb-4">
-    <Target className="w-5 h-5 text-purple-400" />
-    <h4 className="text-base sm:text-lg font-bold text-white">
-      Quêtes assignées ({selectedMember.questsTotal || 0})
-    </h4>
-  </div>
-
-  {(!selectedMember.quests || selectedMember.quests.length === 0) ? (
-    <div className="text-center py-8">
-      <Target className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-      <p className="text-gray-400">Aucune quête assignée pour le moment</p>
-    </div>
-  ) : (
-    <div className="space-y-3 max-h-96 overflow-y-auto">
-      {selectedMember.quests.map((quest) => {
-        const statusConfig = {
-          'todo': { color: 'text-gray-400', bg: 'bg-gray-500/20', icon: Clock, label: 'À faire' },
-          'in_progress': { color: 'text-blue-400', bg: 'bg-blue-500/20', icon: Zap, label: 'En cours' },
-          'pending': { color: 'text-orange-400', bg: 'bg-orange-500/20', icon: AlertCircle, label: 'En attente' },
-          'completed': { color: 'text-green-400', bg: 'bg-green-500/20', icon: CheckCircle, label: 'Accomplie' },
-          'validated': { color: 'text-purple-400', bg: 'bg-purple-500/20', icon: Trophy, label: 'Validée' }
-        };
-
-        const config = statusConfig[quest.status] || statusConfig['todo'];
-        const StatusIcon = config.icon;
-
-        return (
-          <div
-            key={quest.id}
-            className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-purple-500/30 transition-all"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                <h5 className="text-white font-medium mb-1">{quest.title}</h5>
-                {quest.description && (
-                  <p className="text-gray-400 text-sm line-clamp-2">{quest.description}</p>
-                )}
-              </div>
-              <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${config.bg} ${config.color} text-xs font-medium ml-2`}>
-                <StatusIcon className="w-3 h-3" />
-                {config.label}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 text-xs text-gray-400 mt-3">
-              {quest.priority && (
-                <span className={`flex items-center gap-1 ${
-                  quest.priority === 'urgent' ? 'text-red-400' :
-                  quest.priority === 'high' ? 'text-orange-400' :
-                  quest.priority === 'medium' ? 'text-yellow-400' : 'text-green-400'
-                }`}>
-                  <AlertCircle className="w-3 h-3" />
-                  {quest.priority}
-                </span>
-              )}
-              {quest.difficulty && (
-                <span className="flex items-center gap-1">
-                  <Star className="w-3 h-3" />
-                  {quest.difficulty}
-                </span>
-              )}
-              {quest.xpReward && (
-                <span className="flex items-center gap-1 text-yellow-400">
-                  <Zap className="w-3 h-3" />
-                  +{quest.xpReward} XP
-                </span>
-              )}
-              {quest.dueDate && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(quest.dueDate).toLocaleDateString()}
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  )}
-</div>
-
-{/* INFORMATIONS SUPPLÉMENTAIRES */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-6">
-  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-    <h5 className="text-white font-medium mb-3 flex items-center gap-2 text-sm sm:text-base">
-      <MapPin className="w-4 h-4 text-gray-400" />
-      Informations
-    </h5>
-    <div className="space-y-2 text-xs sm:text-sm">
-      <div className="flex justify-between">
-        <span className="text-gray-400">Département:</span>
-        <span className="text-white">{selectedMember.department || 'Non spécifié'}</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-gray-400">Statut:</span>
-        <span className={`font-medium ${
-          selectedMember.status === 'actif' ? 'text-green-400' :
-          selectedMember.status === 'suspendu' ? 'text-orange-400' :
-          selectedMember.status === 'bloqué' ? 'text-red-400' : 'text-gray-400'
-        }`}>
-          {selectedMember.status || 'actif'}
-        </span>
-      </div>
-      {selectedMember.phone && (
-        <div className="flex justify-between">
-          <span className="text-gray-400">Téléphone:</span>
-          <span className="text-white">{selectedMember.phone}</span>
-        </div>
-      )}
-      {selectedMember.location && (
-        <div className="flex justify-between">
-          <span className="text-gray-400">Localisation:</span>
-          <span className="text-white">{selectedMember.location}</span>
-        </div>
-      )}
-    </div>
-  </div>
-
-  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-    <h5 className="text-white font-medium mb-3 flex items-center gap-2 text-sm sm:text-base">
-      <TrendingUp className="w-4 h-4 text-gray-400" />
-      Performance
-    </h5>
-    <div className="space-y-2 text-xs sm:text-sm">
-      <div className="flex justify-between">
-        <span className="text-gray-400">Taux de complétion:</span>
-        <span className="text-white font-medium">{selectedMember.completionRate || 0}%</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-gray-400">XP cette semaine:</span>
-        <span className="text-yellow-400 font-medium">+{selectedMember.weeklyXp || 0}</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-gray-400">XP ce mois:</span>
-        <span className="text-yellow-400 font-medium">+{selectedMember.monthlyXp || 0}</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-gray-400">Dernière activité:</span>
-        <span className="text-white">
-          {selectedMember.lastActivity
-            ? new Date(selectedMember.lastActivity).toLocaleDateString()
-            : 'Inconnue'}
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
-
-{/* BADGES */}
-{selectedMember.badges && selectedMember.badges.length > 0 && (
-  <div className="bg-white/5 rounded-xl p-4 mt-4 border border-white/10">
-    <h5 className="text-white font-medium mb-3 flex items-center gap-2 text-sm sm:text-base">
-      <Award className="w-4 h-4 text-gray-400" />
-      Badges débloqués ({selectedMember.badges.length})
-    </h5>
-    <div className="flex flex-wrap gap-2 sm:gap-3">
-      {selectedMember.badges.slice(0, 12).map((badge, index) => (
-        <div
-          key={index}
-          className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-xl p-2 sm:p-3 flex items-center gap-2"
-          title={badge.name || badge}
-        >
-          <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-          <span className="text-white text-xs sm:text-sm font-medium">
-            {typeof badge === 'string' ? badge : badge.name || 'Badge'}
-          </span>
-        </div>
-      ))}
-      {selectedMember.badges.length > 12 && (
-        <div className="bg-white/5 rounded-xl p-2 sm:p-3 flex items-center justify-center text-gray-400 text-xs sm:text-sm border border-white/10">
-          +{selectedMember.badges.length - 12} autres
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
-{/* ACTIONS */}
-{isAdmin && (
-  <div className="flex gap-3 mt-6 pt-4 border-t border-white/10">
-    <button
-      onClick={() => {
-        setShowMemberModal(false);
-        handleEditMember(selectedMember);
-      }}
-      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl transition-colors text-sm sm:text-base"
-    >
-      <Edit className="w-5 h-5" />
-      Modifier le profil
-    </button>
-  </div>
-)}
-              </motion.div>
-            </motion.div>
+            <MemberProfileModal
+              member={selectedMember}
+              isAdmin={isAdmin}
+              onClose={() => setShowMemberModal(false)}
+              onEdit={() => {
+                setShowMemberModal(false);
+                handleEditMember(selectedMember);
+              }}
+            />
           )}
         </AnimatePresence>
 
-        {/* MODAL ÉDITION */}
         <AnimatePresence>
           {showEditModal && selectedMember && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowEditModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white">Modifier le membre</h3>
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="p-2 hover:bg-white/10 rounded-xl transition-colors"
-                  >
-                    <X className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Nom</label>
-                    <input
-                      type="text"
-                      value={selectedMember.name}
-                      onChange={(e) => setSelectedMember({...selectedMember, name: e.target.value})}
-                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Rôle</label>
-                    <input
-                      type="text"
-                      value={selectedMember.role}
-                      onChange={(e) => setSelectedMember({...selectedMember, role: e.target.value})}
-                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Département</label>
-                    <input
-                      type="text"
-                      value={selectedMember.department}
-                      onChange={(e) => setSelectedMember({...selectedMember, department: e.target.value})}
-                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Statut</label>
-                    <select
-                      value={selectedMember.status}
-                      onChange={(e) => setSelectedMember({...selectedMember, status: e.target.value})}
-                      className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:border-purple-500"
-                    >
-                      <option value="actif" className="bg-slate-900">Actif</option>
-                      <option value="inactif" className="bg-slate-900">Inactif</option>
-                      <option value="suspendu" className="bg-slate-900">Suspendu</option>
-                      <option value="bloqué" className="bg-slate-900">Bloqué</option>
-                    </select>
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      onClick={() => setShowEditModal(false)}
-                      className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-colors"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={handleSaveEdit}
-                      className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors"
-                    >
-                      Enregistrer
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
+            <MemberEditModal
+              member={selectedMember}
+              onMemberChange={setSelectedMember}
+              onClose={() => setShowEditModal(false)}
+              onSave={handleSaveEdit}
+            />
           )}
         </AnimatePresence>
 
-        {/* MODAL SUPPRESSION */}
         <AnimatePresence>
           {showDeleteModal && selectedMember && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowDeleteModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full"
-              >
-                <div className="flex items-center gap-3 mb-6 text-red-500">
-                  <AlertTriangle className="w-6 h-6" />
-                  <h3 className="text-xl font-bold">Suppression définitive</h3>
-                </div>
-
-                <p className="text-gray-300 mb-6">
-                  Êtes-vous absolument certain de vouloir supprimer <strong>{selectedMember.name}</strong> ?
-                  Cette action est irréversible et toutes les données seront perdues.
-                </p>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleDeleteMember}
-                    className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
+            <MemberDeleteModal
+              member={selectedMember}
+              onClose={() => setShowDeleteModal(false)}
+              onDelete={handleDeleteMember}
+            />
           )}
         </AnimatePresence>
 
