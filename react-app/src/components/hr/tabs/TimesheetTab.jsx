@@ -4,10 +4,8 @@
 // ==========================================
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Clock, Calendar, RefreshCw, Download, X, UserCheck, UserX, FileText
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Clock, Download, RefreshCw } from 'lucide-react';
 import { db } from '../../../core/firebase.js';
 import {
   collection, query, where, orderBy, onSnapshot, doc, updateDoc, serverTimestamp
@@ -15,17 +13,14 @@ import {
 import GlassCard from '../GlassCard.jsx';
 import timesheetExportService from '../../../core/services/timesheetExportService.js';
 
-// Mois en français
-const MONTHS_FR = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-];
+// Sous-composants
+import { TimesheetFilters, TimesheetDayGroup, TimesheetExportModal } from './timesheet';
 
 const TimesheetTab = ({ timesheets, employees, onRefresh, currentUserId }) => {
   const [timeEntries, setTimeEntries] = useState([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState('all');
-  const [dateFilter, setDateFilter] = useState('month'); // 'today', 'week', 'month', 'all'
+  const [dateFilter, setDateFilter] = useState('month');
 
   // États pour l'export Excel
   const [showExportModal, setShowExportModal] = useState(false);
@@ -40,7 +35,6 @@ const TimesheetTab = ({ timesheets, employees, onRefresh, currentUserId }) => {
       try {
         setLoadingEntries(true);
 
-        // Calculer les dates de filtre
         const now = new Date();
         let startDate = new Date();
 
@@ -51,7 +45,7 @@ const TimesheetTab = ({ timesheets, employees, onRefresh, currentUserId }) => {
         } else if (dateFilter === 'month') {
           startDate.setMonth(startDate.getMonth() - 1);
         } else {
-          startDate = new Date(2020, 0, 1); // Tout l'historique
+          startDate = new Date(2020, 0, 1);
         }
 
         const entriesQuery = query(
@@ -76,7 +70,6 @@ const TimesheetTab = ({ timesheets, employees, onRefresh, currentUserId }) => {
             }
           });
 
-          // Filtrer par utilisateur si nécessaire
           const filteredEntries = selectedUserId === 'all'
             ? entries
             : entries.filter(e => e.userId === selectedUserId);
@@ -180,13 +173,6 @@ const TimesheetTab = ({ timesheets, employees, onRefresh, currentUserId }) => {
     }
   };
 
-  // Générer les années disponibles (5 ans en arrière)
-  const availableYears = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = 0; i <= 5; i++) {
-    availableYears.push(currentYear - i);
-  }
-
   return (
     <motion.div
       key="timesheet"
@@ -229,33 +215,13 @@ const TimesheetTab = ({ timesheets, employees, onRefresh, currentUserId }) => {
         </div>
 
         {/* Filtres */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          {/* Filtre par période */}
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="bg-gray-800/50 border border-gray-700/50 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="today">Aujourd'hui</option>
-            <option value="week">7 derniers jours</option>
-            <option value="month">30 derniers jours</option>
-            <option value="all">Tout l'historique</option>
-          </select>
-
-          {/* Filtre par employé */}
-          <select
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-            className="bg-gray-800/50 border border-gray-700/50 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1"
-          >
-            <option value="all">Tous les employés</option>
-            {employees.map(emp => (
-              <option key={emp.id} value={emp.id}>
-                {emp.firstName} {emp.lastName}
-              </option>
-            ))}
-          </select>
-        </div>
+        <TimesheetFilters
+          dateFilter={dateFilter}
+          setDateFilter={setDateFilter}
+          selectedUserId={selectedUserId}
+          setSelectedUserId={setSelectedUserId}
+          employees={employees}
+        />
 
         {/* Contenu */}
         {loadingEntries ? (
@@ -278,200 +244,36 @@ const TimesheetTab = ({ timesheets, employees, onRefresh, currentUserId }) => {
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(groupedEntries).map(([dayKey, dayEntries]) => {
-              const dayDate = new Date(dayKey);
-              const dayTotal = calculateDayTotal(dayEntries);
-
-              return (
-                <div key={dayKey} className="bg-gray-800/30 rounded-xl p-4">
-                  {/* En-tête du jour */}
-                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-700/50">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <Calendar className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-white font-semibold">
-                          {dayDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        </p>
-                        <p className="text-gray-400 text-sm">{dayEntries.length} pointage(s)</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-green-400">{dayTotal}</p>
-                      <p className="text-xs text-gray-400">Total journée</p>
-                    </div>
-                  </div>
-
-                  {/* Liste des pointages du jour */}
-                  <div className="space-y-2">
-                    {dayEntries.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center justify-between p-3 bg-gray-900/30 rounded-xl hover:bg-gray-800/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${entry.type === 'arrival' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                            {entry.type === 'arrival' ? (
-                              <UserCheck className="w-4 h-4 text-green-400" />
-                            ) : (
-                              <UserX className="w-4 h-4 text-red-400" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-white">
-                              {entry.type === 'arrival' ? 'Arrivée' : 'Départ'}
-                            </div>
-                            {selectedUserId === 'all' && (
-                              <div className="text-xs text-gray-400">
-                                {getEmployeeName(entry.userId)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg font-bold text-white">{formatHour(entry.timestamp)}</span>
-                          <button
-                            onClick={() => deleteTimeEntry(entry.id)}
-                            className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <X className="w-4 h-4 text-red-400" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+            {Object.entries(groupedEntries).map(([dayKey, dayEntries]) => (
+              <TimesheetDayGroup
+                key={dayKey}
+                dayKey={dayKey}
+                dayEntries={dayEntries}
+                selectedUserId={selectedUserId}
+                getEmployeeName={getEmployeeName}
+                deleteTimeEntry={deleteTimeEntry}
+                calculateDayTotal={calculateDayTotal}
+                formatHour={formatHour}
+              />
+            ))}
           </div>
         )}
       </GlassCard>
 
       {/* Modal Export Excel */}
-      <AnimatePresence>
-        {showExportModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setShowExportModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl w-full max-w-md p-6"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Download className="w-5 h-5 text-blue-400" />
-                  Export des Pointages
-                </h3>
-                <button
-                  onClick={() => setShowExportModal(false)}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-
-              {/* Info box */}
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <FileText className="w-5 h-5 text-blue-400 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="text-blue-300 font-medium mb-1">Export Excel complet</p>
-                    <p className="text-gray-400">
-                      Génère un fichier Excel modifiable avec les arrivées, départs, heures travaillées, congés et statistiques.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {/* Mois */}
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">Mois</label>
-                  <select
-                    value={exportMonth}
-                    onChange={(e) => setExportMonth(parseInt(e.target.value))}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                  >
-                    {MONTHS_FR.map((month, index) => (
-                      <option key={index} value={index} className="bg-slate-900">
-                        {month}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Année */}
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">Année</label>
-                  <select
-                    value={exportYear}
-                    onChange={(e) => setExportYear(parseInt(e.target.value))}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                  >
-                    {availableYears.map((year) => (
-                      <option key={year} value={year} className="bg-slate-900">
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Employé */}
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">Employé</label>
-                  <select
-                    value={exportEmployeeId}
-                    onChange={(e) => setExportEmployeeId(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="all" className="bg-slate-900">Tous les employés</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id} className="bg-slate-900">
-                        {emp.firstName} {emp.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowExportModal(false)}
-                  className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleExportExcel}
-                  disabled={exporting}
-                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {exporting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                      Génération...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      Télécharger
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <TimesheetExportModal
+        showExportModal={showExportModal}
+        setShowExportModal={setShowExportModal}
+        exportMonth={exportMonth}
+        setExportMonth={setExportMonth}
+        exportYear={exportYear}
+        setExportYear={setExportYear}
+        exportEmployeeId={exportEmployeeId}
+        setExportEmployeeId={setExportEmployeeId}
+        employees={employees}
+        handleExportExcel={handleExportExcel}
+        exporting={exporting}
+      />
     </motion.div>
   );
 };
