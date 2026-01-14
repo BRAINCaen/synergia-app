@@ -17,4 +17,4 @@ export { default as PayrollTab } from './tabs/PayrollTab.jsx';
 export { default as SettingsTab } from './tabs/SettingsTab.jsx';
 
 // Modals
-export { NewEmployeeModal, NewScheduleModal } from './modals';
+export { NewEmployeeModal, NewScheduleModal, EmployeeDetailModal } from './modals';
