@@ -63,6 +63,22 @@ import { db } from '../core/firebase.js';
 // Icône pour notes
 import { StickyNote, Lightbulb, History, Save } from 'lucide-react';
 
+// Composants Planning extraits
+import {
+  AddShiftModal,
+  EditShiftModal,
+  LeaveRequestModal,
+  LeaveAdminPanel,
+  NotesModal
+} from '../components/planning/modals';
+import {
+  PlanningHeader,
+  LeaveBalanceWidget,
+  WeekStats,
+  WeekNavigator,
+  AlertBanners
+} from '../components/planning/sections';
+
 // Composants UI
 const GlassCard = ({ children, className = '' }) => (
   <motion.div
@@ -1928,100 +1944,17 @@ const PlanningAdvancedPage = () => {
           )}
 
           {/* MODAL ÉDITION NOTES */}
-          <AnimatePresence>
-            {showNotesModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-                onClick={() => setShowNotesModal(false)}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 50 }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto border-t sm:border border-gray-700"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500/20 rounded-xl">
-                        <StickyNote className="w-6 h-6 text-blue-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-white">Notes de planning</h2>
-                        <p className="text-gray-400 text-sm">
-                          Semaine {getISOWeekNumber(getWeekStart(currentWeek)).weekNumber} / {getISOWeekNumber(getWeekStart(currentWeek)).year}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowNotesModal(false)}
-                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="block text-gray-300 text-sm font-medium mb-2">
-                      Notes et remarques pour cette semaine
-                    </label>
-                    <p className="text-gray-500 text-xs mb-3">
-                      Ces notes seront rappelées l'année prochaine sur la même semaine.
-                    </p>
-                    <textarea
-                      value={editingNoteText}
-                      onChange={(e) => setEditingNoteText(e.target.value)}
-                      placeholder="Ex: Prévoir plus de personnel le soir, trop de monde pendant les vacances..."
-                      rows={6}
-                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    />
-                  </div>
-
-                  {/* Rappel année précédente dans le modal */}
-                  {lastYearNotes && (
-                    <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <History className="w-4 h-4 text-amber-400" />
-                        <span className="text-amber-300 text-sm font-medium">
-                          Note de {lastYearNotes.year}
-                        </span>
-                      </div>
-                      <p className="text-amber-200/80 text-sm">{lastYearNotes.notes}</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShowNotesModal(false)}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl transition-colors font-medium"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={savePlanningNote}
-                      disabled={savingNote}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {savingNote ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Sauvegarde...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          Sauvegarder
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <NotesModal
+            show={showNotesModal}
+            onClose={() => setShowNotesModal(false)}
+            weekNumber={getISOWeekNumber(getWeekStart(currentWeek)).weekNumber}
+            year={getISOWeekNumber(getWeekStart(currentWeek)).year}
+            editingNoteText={editingNoteText}
+            setEditingNoteText={setEditingNoteText}
+            lastYearNotes={lastYearNotes}
+            savingNote={savingNote}
+            onSave={savePlanningNote}
+          />
 
           {/* MODAL DIAGNOSTIC */}
           <AnimatePresence>
@@ -2118,338 +2051,29 @@ const PlanningAdvancedPage = () => {
           </AnimatePresence>
 
           {/* 🏖️ MODAL DEMANDE DE CONGÉS */}
-          <AnimatePresence>
-            {showLeaveRequestModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-                onClick={() => setShowLeaveRequestModal(false)}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 50 }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto border-t sm:border border-gray-700"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-amber-500/20 rounded-xl">
-                        <Palmtree className="w-6 h-6 text-amber-400" />
-                      </div>
-                      <h2 className="text-xl font-bold text-white">Demande de congés</h2>
-                    </div>
-                    <button
-                      onClick={() => setShowLeaveRequestModal(false)}
-                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-
-                  {/* Solde actuel */}
-                  <div className="mb-5 p-3 bg-gray-700/30 rounded-xl border border-gray-600/50">
-                    <p className="text-gray-400 text-xs mb-2">Mon solde disponible (jours complets)</p>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="text-amber-400 text-sm">🏖️ CP: {getAvailableBalance('paid_leave')}j</span>
-                      <span className="text-purple-400 text-sm">🎁 Bonus: {getAvailableBalance('bonus_day')}j</span>
-                      <span className="text-green-400 text-sm">⏰ RTT: {getAvailableBalance('rtt')}j</span>
-                    </div>
-                  </div>
-
-                  {/* Formulaire */}
-                  <div className="space-y-4">
-                    {/* Type de demande */}
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Type de demande</label>
-                      <select
-                        value={leaveRequestForm.leaveType}
-                        onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, leaveType: e.target.value })}
-                        className="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none"
-                      >
-                        <optgroup label="📊 Congés comptabilisés (jours complets)">
-                          {Object.entries(LEAVE_TYPES)
-                            .filter(([_, type]) => type.category === 'counted')
-                            .map(([id, type]) => (
-                              <option key={id} value={id}>
-                                {type.emoji} {type.label} ({getAvailableBalance(id)}j dispo)
-                              </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="📋 Demandes spécifiques (illimité)">
-                          {Object.entries(LEAVE_TYPES)
-                            .filter(([_, type]) => type.category === 'specific')
-                            .map(([id, type]) => (
-                              <option key={id} value={id}>
-                                {type.emoji} {type.label}
-                              </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="📝 Absences justifiées">
-                          {Object.entries(LEAVE_TYPES)
-                            .filter(([_, type]) => type.category === 'justified')
-                            .map(([id, type]) => (
-                              <option key={id} value={id}>
-                                {type.emoji} {type.label}
-                              </option>
-                            ))}
-                        </optgroup>
-                      </select>
-                    </div>
-
-                    {/* Info demande spécifique */}
-                    {LEAVE_TYPES[leaveRequestForm.leaveType]?.category === 'specific' && (
-                      <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                        <p className="text-blue-300 text-sm">
-                          💡 Les demandes spécifiques sont <strong>illimitées</strong> et ne déduisent pas de vos compteurs.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">
-                          {LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay || LEAVE_TYPES[leaveRequestForm.leaveType]?.isEvening
-                            ? 'Date'
-                            : 'Date début'}
-                        </label>
-                        <input
-                          type="date"
-                          value={leaveRequestForm.startDate}
-                          onChange={(e) => setLeaveRequestForm({
-                            ...leaveRequestForm,
-                            startDate: e.target.value,
-                            endDate: LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay || LEAVE_TYPES[leaveRequestForm.leaveType]?.isEvening
-                              ? e.target.value
-                              : leaveRequestForm.endDate
-                          })}
-                          className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
-                        />
-                      </div>
-                      {!(LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay || LEAVE_TYPES[leaveRequestForm.leaveType]?.isEvening) && (
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">Date fin</label>
-                          <input
-                            type="date"
-                            value={leaveRequestForm.endDate}
-                            onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, endDate: e.target.value })}
-                            className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
-                          />
-                        </div>
-                      )}
-                      {LEAVE_TYPES[leaveRequestForm.leaveType]?.isHalfDay && (
-                        <div>
-                          <label className="block text-gray-400 text-sm mb-2">Période</label>
-                          <select
-                            value={leaveRequestForm.halfDayPeriod || 'morning'}
-                            onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, halfDayPeriod: e.target.value })}
-                            className="w-full bg-gray-700 text-white px-3 py-2.5 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none text-sm"
-                          >
-                            <option value="morning">🌅 Matin</option>
-                            <option value="afternoon">☀️ Après-midi</option>
-                          </select>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Motif */}
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">
-                        Motif {LEAVE_TYPES[leaveRequestForm.leaveType]?.category === 'specific' ? '(recommandé)' : '(optionnel)'}
-                      </label>
-                      <textarea
-                        value={leaveRequestForm.reason}
-                        onChange={(e) => setLeaveRequestForm({ ...leaveRequestForm, reason: e.target.value })}
-                        placeholder={LEAVE_TYPES[leaveRequestForm.leaveType]?.category === 'specific'
-                          ? "Ex: RDV médical, obligation personnelle..."
-                          : "Ex: Vacances familiales..."}
-                        rows={2}
-                        className="w-full bg-gray-700 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-amber-500 focus:outline-none resize-none text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Boutons */}
-                  <div className="flex gap-3 mt-6">
-                    <button
-                      onClick={() => setShowLeaveRequestModal(false)}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-xl transition-colors font-medium"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={handleSubmitLeaveRequest}
-                      disabled={submittingLeave || !leaveRequestForm.startDate || !leaveRequestForm.endDate}
-                      className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-3 rounded-xl transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {submittingLeave ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" />
-                          Envoyer
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Mes demandes récentes */}
-                  {myLeaveRequests.length > 0 && (
-                    <div className="mt-6 pt-5 border-t border-gray-700">
-                      <p className="text-gray-400 text-sm mb-3">Mes demandes récentes</p>
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {myLeaveRequests.slice(0, 3).map((req) => {
-                          const status = REQUEST_STATUS[req.status];
-                          return (
-                            <div
-                              key={req.id}
-                              className={`p-2 rounded-lg ${status.bgColor} border ${status.borderColor} text-sm`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className={status.color}>
-                                  {status.emoji} {LEAVE_TYPES[req.leaveType]?.label}
-                                </span>
-                                <span className="text-gray-400 text-xs">
-                                  {new Date(req.startDate).toLocaleDateString('fr-FR')}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <LeaveRequestModal
+            show={showLeaveRequestModal}
+            onClose={() => setShowLeaveRequestModal(false)}
+            leaveBalance={leaveBalance}
+            leaveRequestForm={leaveRequestForm}
+            setLeaveRequestForm={setLeaveRequestForm}
+            submitting={submittingLeave}
+            onSubmit={handleSubmitLeaveRequest}
+            myLeaveRequests={myLeaveRequests}
+            LEAVE_TYPES={LEAVE_TYPES}
+            REQUEST_STATUS={REQUEST_STATUS}
+            getAvailableBalance={getAvailableBalance}
+          />
 
           {/* 📋 MODAL ADMIN - VALIDATION DES DEMANDES */}
-          <AnimatePresence>
-            {showLeaveAdminPanel && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-                onClick={() => setShowLeaveAdminPanel(false)}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 50 }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto border-t sm:border border-gray-700"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-pink-500/20 rounded-xl">
-                        <CalendarDays className="w-6 h-6 text-pink-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-white">Demandes de congés</h2>
-                        <p className="text-gray-400 text-sm">{pendingLeaveRequests.length} en attente</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowLeaveAdminPanel(false)}
-                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-
-                  {pendingLeaveRequests.length === 0 ? (
-                    <div className="text-center py-8">
-                      <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
-                      <p className="text-white font-medium">Aucune demande en attente</p>
-                      <p className="text-gray-400 text-sm">Toutes les demandes ont été traitées</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {pendingLeaveRequests.map((request) => {
-                        const leaveType = LEAVE_TYPES[request.leaveType];
-                        return (
-                          <div
-                            key={request.id}
-                            className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50"
-                          >
-                            {/* Header demande */}
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xl">
-                                  {request.userAvatar || '👤'}
-                                </div>
-                                <div>
-                                  <p className="text-white font-medium">{request.userName}</p>
-                                  <p className="text-gray-400 text-xs">
-                                    {request.createdAt?.toLocaleDateString?.() || 'Date inconnue'}
-                                  </p>
-                                </div>
-                              </div>
-                              <div
-                                className="px-2 py-1 rounded-lg text-xs font-medium"
-                                style={{ backgroundColor: `${leaveType?.color}20`, color: leaveType?.color }}
-                              >
-                                {leaveType?.emoji} {leaveType?.label}
-                              </div>
-                            </div>
-
-                            {/* Détails */}
-                            <div className="bg-gray-800/50 rounded-lg p-3 mb-3">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-400">Période:</span>
-                                <span className="text-white font-medium">
-                                  {new Date(request.startDate).toLocaleDateString('fr-FR')}
-                                  {request.startDate !== request.endDate && (
-                                    <> → {new Date(request.endDate).toLocaleDateString('fr-FR')}</>
-                                  )}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between text-sm mt-1">
-                                <span className="text-gray-400">Durée:</span>
-                                <span className="text-amber-400 font-medium">
-                                  {request.numberOfDays} jour{request.numberOfDays > 1 ? 's' : ''}
-                                  {request.halfDay && ` (${request.halfDayPeriod === 'morning' ? 'matin' : 'après-midi'})`}
-                                </span>
-                              </div>
-                              {request.reason && (
-                                <div className="mt-2 pt-2 border-t border-gray-700">
-                                  <p className="text-gray-400 text-xs">Motif:</p>
-                                  <p className="text-gray-300 text-sm">{request.reason}</p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRejectLeave(request.id)}
-                                className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                Refuser
-                              </button>
-                              <button
-                                onClick={() => handleApproveLeave(request.id)}
-                                className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                                Approuver
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <LeaveAdminPanel
+            show={showLeaveAdminPanel}
+            onClose={() => setShowLeaveAdminPanel(false)}
+            pendingRequests={pendingLeaveRequests}
+            onApprove={handleApproveLeave}
+            onReject={handleRejectLeave}
+            LEAVE_TYPES={LEAVE_TYPES}
+          />
 
           {/* ALERTE AUCUN SHIFT */}
           {shifts.length === 0 && !loading && (
@@ -2577,306 +2201,40 @@ const PlanningAdvancedPage = () => {
           </GlassCard>
 
           {/* MODAL CRÉATION SHIFT */}
-          <AnimatePresence>
-            {showAddShiftModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                onClick={closeAddShiftModal}
-              >
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-white">➕ Nouveau Shift</h2>
-                    <button
-                      onClick={closeAddShiftModal}
-                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-
-                  {selectedCell && (
-                    <div className="mb-4 p-3 bg-purple-500/20 rounded-lg border border-purple-500/50">
-                      <p className="text-purple-300 text-sm">
-                        <strong>{getEmployeeName(selectedCell.employeeId)}</strong> - {new Date(selectedCell.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                      </p>
-                    </div>
-                  )}
-
-                  {complianceAlerts.length > 0 && (
-                    <div className="mb-4 space-y-2">
-                      {complianceAlerts.map((alert, idx) => (
-                        <div 
-                          key={idx}
-                          className={`p-3 rounded-lg border ${
-                            alert.type === 'error' ? 'bg-red-500/10 border-red-500/50' : 'bg-yellow-500/10 border-yellow-500/50'
-                          }`}
-                        >
-                          <p className={`text-sm ${
-                            alert.type === 'error' ? 'text-red-300' : 'text-yellow-300'
-                          }`}>
-                            {alert.message}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Heure début</label>
-                        <input
-                          type="time"
-                          value={newShift.startTime}
-                          onChange={(e) => {
-                            setNewShift({ ...newShift, startTime: e.target.value });
-                            if (selectedCell) {
-                              const alerts = checkShiftCompliance(
-                                { ...newShift, startTime: e.target.value },
-                                selectedCell.employeeId,
-                                selectedCell.date
-                              );
-                              setComplianceAlerts(alerts);
-                            }
-                          }}
-                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Heure fin</label>
-                        <input
-                          type="time"
-                          value={newShift.endTime}
-                          onChange={(e) => {
-                            setNewShift({ ...newShift, endTime: e.target.value });
-                            if (selectedCell) {
-                              const alerts = checkShiftCompliance(
-                                { ...newShift, endTime: e.target.value },
-                                selectedCell.employeeId,
-                                selectedCell.date
-                              );
-                              setComplianceAlerts(alerts);
-                            }
-                          }}
-                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Poste / Absence</label>
-                      {getAllShiftTypes().length > 0 ? (
-                        <select
-                          value={newShift.position}
-                          onChange={(e) => handleShiftTypeChange(e.target.value)}
-                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
-                        >
-                          {getAllShiftTypes().map((type) => (
-                            <option key={type.id} value={type.name}>
-                              {type.isAbsence ? '🏖️ ' : '📌 '}{type.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <p className="text-red-400 text-sm">⚠️ Aucun poste configuré dans HR Settings</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
-                      <div 
-                        className="w-full h-10 rounded-lg border-2 border-gray-600"
-                        style={{ backgroundColor: newShift.color }}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
-                      <textarea
-                        value={newShift.notes}
-                        onChange={(e) => setNewShift({ ...newShift, notes: e.target.value })}
-                        placeholder="Ajouter une note..."
-                        rows={3}
-                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 mt-6">
-                    <button
-                      onClick={closeAddShiftModal}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={handleCreateShift}
-                      className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
-                    >
-                      Créer le shift
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <AddShiftModal
+            show={showAddShiftModal}
+            onClose={closeAddShiftModal}
+            selectedCell={selectedCell}
+            newShift={newShift}
+            setNewShift={setNewShift}
+            complianceAlerts={complianceAlerts}
+            onCheckCompliance={(shift, employeeId, date) => {
+              const alerts = checkShiftCompliance(shift, employeeId, date);
+              setComplianceAlerts(alerts);
+            }}
+            shiftTypes={getAllShiftTypes()}
+            onShiftTypeChange={handleShiftTypeChange}
+            onCreateShift={handleCreateShift}
+            getEmployeeName={getEmployeeName}
+          />
 
           {/* MODAL ÉDITION SHIFT */}
-          <AnimatePresence>
-            {showEditShiftModal && editingShift && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                onClick={closeEditShiftModal}
-              >
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-white">✏️ Modifier Shift</h2>
-                    <button
-                      onClick={closeEditShiftModal}
-                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-
-                  <div className="mb-4 p-3 bg-blue-500/20 rounded-lg border border-blue-500/50">
-                    <p className="text-blue-300 text-sm">
-                      <strong>{getEmployeeName(editingShift.employeeId)}</strong> - {new Date(editingShift.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    </p>
-                  </div>
-
-                  {complianceAlerts.length > 0 && (
-                    <div className="mb-4 space-y-2">
-                      {complianceAlerts.map((alert, idx) => (
-                        <div 
-                          key={idx}
-                          className={`p-3 rounded-lg border ${
-                            alert.type === 'error' ? 'bg-red-500/10 border-red-500/50' : 'bg-yellow-500/10 border-yellow-500/50'
-                          }`}
-                        >
-                          <p className={`text-sm ${
-                            alert.type === 'error' ? 'text-red-300' : 'text-yellow-300'
-                          }`}>
-                            {alert.message}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Heure début</label>
-                        <input
-                          type="time"
-                          value={newShift.startTime}
-                          onChange={(e) => {
-                            setNewShift({ ...newShift, startTime: e.target.value });
-                            const alerts = checkShiftCompliance(
-                              { ...newShift, startTime: e.target.value },
-                              editingShift.employeeId,
-                              editingShift.date
-                            );
-                            setComplianceAlerts(alerts);
-                          }}
-                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Heure fin</label>
-                        <input
-                          type="time"
-                          value={newShift.endTime}
-                          onChange={(e) => {
-                            setNewShift({ ...newShift, endTime: e.target.value });
-                            const alerts = checkShiftCompliance(
-                              { ...newShift, endTime: e.target.value },
-                              editingShift.employeeId,
-                              editingShift.date
-                            );
-                            setComplianceAlerts(alerts);
-                          }}
-                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Poste / Absence</label>
-                      {getAllShiftTypes().length > 0 ? (
-                        <select
-                          value={newShift.position}
-                          onChange={(e) => handleShiftTypeChange(e.target.value)}
-                          className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
-                        >
-                          {getAllShiftTypes().map((type) => (
-                            <option key={type.id} value={type.name}>
-                              {type.isAbsence ? '🏖️ ' : '📌 '}{type.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <p className="text-red-400 text-sm">⚠️ Aucun poste configuré dans HR Settings</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Couleur</label>
-                      <div 
-                        className="w-full h-10 rounded-lg border-2 border-gray-600"
-                        style={{ backgroundColor: newShift.color }}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 text-sm mb-2">Notes (optionnel)</label>
-                      <textarea
-                        value={newShift.notes}
-                        onChange={(e) => setNewShift({ ...newShift, notes: e.target.value })}
-                        placeholder="Ajouter une note..."
-                        rows={3}
-                        className="w-full bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 mt-6">
-                    <button
-                      onClick={closeEditShiftModal}
-                      className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={handleUpdateShift}
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-3 rounded-lg transition-colors font-semibold"
-                    >
-                      Modifier le shift
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <EditShiftModal
+            show={showEditShiftModal}
+            onClose={closeEditShiftModal}
+            editingShift={editingShift}
+            newShift={newShift}
+            setNewShift={setNewShift}
+            complianceAlerts={complianceAlerts}
+            onCheckCompliance={(shift, employeeId, date) => {
+              const alerts = checkShiftCompliance(shift, employeeId, date);
+              setComplianceAlerts(alerts);
+            }}
+            shiftTypes={getAllShiftTypes()}
+            onShiftTypeChange={handleShiftTypeChange}
+            onUpdateShift={handleUpdateShift}
+            getEmployeeName={getEmployeeName}
+          />
 
           {/* PLANNING TABLE */}
           <GlassCard className="!p-2 sm:!p-6">
