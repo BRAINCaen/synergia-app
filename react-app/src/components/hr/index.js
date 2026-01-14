@@ -14,3 +14,7 @@ export { default as TrainingTab } from './tabs/TrainingTab.jsx';
 export { default as TimesheetTab } from './tabs/TimesheetTab.jsx';
 export { default as DocumentsTab } from './tabs/DocumentsTab.jsx';
 export { default as PayrollTab } from './tabs/PayrollTab.jsx';
+export { default as SettingsTab } from './tabs/SettingsTab.jsx';
+
+// Modals
+export { NewEmployeeModal, NewScheduleModal } from './modals';
