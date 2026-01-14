@@ -44,6 +44,8 @@ import { rewardsService } from '../core/services/rewardsService.js';
 
 // 🎯 IMPORT DU LAYOUT
 import Layout from '../components/layout/Layout.jsx';
+// Composants extraits
+import { UserRedemptionModal } from '../components/admin-rewards';
 
 // Firebase imports
 import {
@@ -1459,166 +1461,19 @@ const AdminRewardsPage = () => {
           )}
 
           {/* 👤 MODAL GESTION PAR UTILISATEUR */}
-          {showUserModal && selectedRewardForUsers && (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-              <motion.div
-                className="bg-slate-800 border border-white/20 rounded-xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{selectedRewardForUsers.icon}</span>
-                    <div>
-                      <h3 className="text-xl font-bold text-white">{selectedRewardForUsers.name}</h3>
-                      <p className="text-gray-400 text-sm">Utilisateurs ayant échangé cette récompense</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowUserModal(false);
-                      setSelectedRewardForUsers(null);
-                      setUsersWhoRedeemed([]);
-                    }}
-                    className="text-gray-400 hover:text-white p-2"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-
-                {/* Info limite */}
-                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-sm text-amber-300">
-                    🔒 <strong>Limite :</strong> 1 échange par utilisateur. Cliquez sur <RotateCcw className="w-4 h-4 inline mx-1" /> pour remettre la récompense à disposition.
-                  </p>
-                </div>
-
-                {/* Contenu */}
-                {loadingUsers ? (
-                  <div className="flex items-center justify-center py-12">
-                    <RefreshCw className="w-8 h-8 text-purple-400 animate-spin" />
-                    <span className="ml-3 text-gray-400">Chargement...</span>
-                  </div>
-                ) : usersWhoRedeemed.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">Aucun utilisateur n'a encore échangé cette récompense</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {usersWhoRedeemed.map((userInfo) => (
-                      <div
-                        key={userInfo.userId}
-                        className={`bg-white/5 border rounded-xl p-4 ${
-                          userInfo.canRedeem
-                            ? 'border-green-500/30'
-                            : 'border-amber-500/30'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              userInfo.canRedeem
-                                ? 'bg-green-500/20'
-                                : 'bg-amber-500/20'
-                            }`}>
-                              {userInfo.canRedeem ? (
-                                <UserCheck className="w-5 h-5 text-green-400" />
-                              ) : (
-                                <UserX className="w-5 h-5 text-amber-400" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-white">{userInfo.userName}</p>
-                              <p className="text-sm text-gray-400">{userInfo.userEmail}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <p className={`text-sm font-medium ${
-                                userInfo.canRedeem ? 'text-green-400' : 'text-amber-400'
-                              }`}>
-                                {userInfo.canRedeem ? '✅ Peut échanger' : `⚠️ ${userInfo.totalRedemptions}/1 échangé`}
-                              </p>
-                              {userInfo.redemptions.length > 0 && (
-                                <p className="text-xs text-gray-500">
-                                  Dernier : {userInfo.redemptions[0]?.requestedAt
-                                    ? new Date(userInfo.redemptions[0].requestedAt).toLocaleDateString('fr-FR')
-                                    : '-'}
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Bouton reset si l'utilisateur a atteint sa limite */}
-                            {!userInfo.canRedeem && (
-                              <button
-                                onClick={() => resetUserRedemption(userInfo.userId, selectedRewardForUsers.id)}
-                                disabled={resettingUser === userInfo.userId}
-                                className={`p-2 rounded-lg transition-colors ${
-                                  resettingUser === userInfo.userId
-                                    ? 'bg-gray-600 cursor-wait'
-                                    : 'bg-green-600 hover:bg-green-700'
-                                }`}
-                                title="Remettre à disposition"
-                              >
-                                {resettingUser === userInfo.userId ? (
-                                  <RefreshCw className="w-5 h-5 text-white animate-spin" />
-                                ) : (
-                                  <RotateCcw className="w-5 h-5 text-white" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Historique des échanges */}
-                        {userInfo.redemptions.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <p className="text-xs text-gray-500 mb-2">Historique :</p>
-                            <div className="flex flex-wrap gap-2">
-                              {userInfo.redemptions.map((r, idx) => (
-                                <span
-                                  key={idx}
-                                  className={`text-xs px-2 py-1 rounded-full ${
-                                    r.resetByAdmin
-                                      ? 'bg-gray-500/20 text-gray-400 line-through'
-                                      : r.status === 'approved'
-                                        ? 'bg-green-500/20 text-green-400'
-                                        : r.status === 'pending'
-                                          ? 'bg-amber-500/20 text-amber-400'
-                                          : 'bg-red-500/20 text-red-400'
-                                  }`}
-                                >
-                                  {r.status === 'approved' ? '✓' : r.status === 'pending' ? '⏳' : '✗'}
-                                  {r.resetByAdmin && ' (reset)'}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Footer */}
-                <div className="mt-6 pt-4 border-t border-white/10 flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowUserModal(false);
-                      setSelectedRewardForUsers(null);
-                      setUsersWhoRedeemed([]);
-                    }}
-                    className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                  >
-                    Fermer
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
+          <UserRedemptionModal
+            show={showUserModal}
+            onClose={() => {
+              setShowUserModal(false);
+              setSelectedRewardForUsers(null);
+              setUsersWhoRedeemed([]);
+            }}
+            selectedReward={selectedRewardForUsers}
+            usersWhoRedeemed={usersWhoRedeemed}
+            loadingUsers={loadingUsers}
+            resettingUser={resettingUser}
+            onResetUserRedemption={resetUserRedemption}
+          />
         </div>
       </div>
     </Layout>
