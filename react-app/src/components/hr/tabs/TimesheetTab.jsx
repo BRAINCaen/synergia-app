@@ -8,12 +8,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, Calendar, RefreshCw, Download, X, UserCheck, UserX, FileText
 } from 'lucide-react';
-import { db } from '../../../firebase';
+import { db } from '../../../core/firebase.js';
 import {
   collection, query, where, orderBy, onSnapshot, doc, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import GlassCard from '../GlassCard.jsx';
-import { timesheetExportService } from '../../../services/timesheetExportService';
+import timesheetExportService from '../../../core/services/timesheetExportService.js';
 
 // Mois en français
 const MONTHS_FR = [

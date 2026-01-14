@@ -12,3 +12,5 @@ export { default as LeavesTab } from './tabs/LeavesTab.jsx';
 export { default as InterviewsTab } from './tabs/InterviewsTab.jsx';
 export { default as TrainingTab } from './tabs/TrainingTab.jsx';
 export { default as TimesheetTab } from './tabs/TimesheetTab.jsx';
+export { default as DocumentsTab } from './tabs/DocumentsTab.jsx';
+export { default as PayrollTab } from './tabs/PayrollTab.jsx';
