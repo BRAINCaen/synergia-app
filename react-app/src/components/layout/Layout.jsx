@@ -20,6 +20,9 @@ import { ideaService } from '../../core/services/ideaService.js';
 // 🤖 ASSISTANT IA NOVA
 import AIAssistant from '../ai/AIAssistant.jsx';
 
+// 🎬 ANIMATIONS DE RÉCOMPENSES
+import { RewardAnimationsProvider } from '../../shared/animations';
+
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD + BADGES
 const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {} }) => {
@@ -641,10 +644,12 @@ const Layout = memo(({ children }) => {
         onDismiss={dismissToast}
       />
 
-      {/* CONTENU */}
-      <main style={{ minHeight: '100vh', paddingTop: '70px' }}>
-        {children}
-      </main>
+      {/* CONTENU AVEC ANIMATIONS */}
+      <RewardAnimationsProvider enabled={true}>
+        <main style={{ minHeight: '100vh', paddingTop: '70px' }}>
+          {children}
+        </main>
+      </RewardAnimationsProvider>
 
       {/* 🤖 ASSISTANT IA NOVA */}
       <AIAssistant />
