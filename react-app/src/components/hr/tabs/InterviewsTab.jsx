@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, CheckCircle, AlertTriangle, Clock, Plus, Eye, UserCheck } from 'lucide-react';
-import { db } from '../../../firebase';
+import { db } from '../../../core/firebase.js';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import GlassCard from '../GlassCard.jsx';
 import StatCard from '../StatCard.jsx';
