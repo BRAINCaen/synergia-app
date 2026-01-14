@@ -10,115 +10,34 @@ import {
   Calendar,
   Clock,
   FileText,
-  Download,
-  Upload,
-  Plus,
-  Search,
-  Filter,
-  Edit,
-  Trash2,
-  Eye,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
   Settings,
-  Save,
   RefreshCw,
-  Copy,
-  Clipboard,
-  Target,
-  TrendingUp,
-  Award,
-  Shield,
-  Bell,
-  Mail,
-  Phone,
-  MapPin,
-  Briefcase,
   DollarSign,
-  PieChart,
-  BarChart,
   Activity,
-  Calendar as CalendarIcon,
-  Clock as ClockIcon,
-  User as UserIcon,
-  UserPlus,
-  UserCheck,
-  UserX,
-  Repeat,
-  Share2,
-  Lock,
-  Unlock,
-  Archive,
-  Printer,
-  Send,
-  X,
-  Info,
-  ChevronRight,
-  ChevronDown,
-  ToggleLeft,
-  ToggleRight,
-  Building,
-  Palette,
-  UserCog,
-  Flag,
-  Moon,
-  Sun,
-  AlertCircle as AlertCircleIcon,
-  Folder,
-  FolderOpen,
-  File,
-  FilePlus,
-  FileSearch,
-  FileSpreadsheet,
-  Loader2,
-  Pen,
-  PenTool,
-  MessageCircle,
-  AlertOctagon,
-  CheckSquare,
-  Square,
   Heart
 } from 'lucide-react';
 
 // 🎯 IMPORTS
 import Layout from '../components/layout/Layout.jsx';
-import UserAvatar from '../components/common/UserAvatar.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
-import leaveAccrualService from '../core/services/leaveAccrualService.js';
 import WellbeingDashboard from '../components/wellbeing/WellbeingDashboard.jsx';
 
 // 🔥 FIREBASE
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  where, 
+import {
+  collection,
+  getDocs,
+  query,
   orderBy,
-  addDoc,
-  updateDoc,
-  deleteDoc,
   doc,
-  serverTimestamp,
-  onSnapshot,
-  getDoc,
-  setDoc
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../core/firebase.js';
-import hrDocumentService, { DOCUMENT_TYPES } from '../core/services/hrDocumentService.js';
-import timesheetExportService, { MONTHS_FR, exportPayrollComplete } from '../core/services/timesheetExportService.js';
-import notificationService from '../core/services/notificationService.js';
 
 // 🎨 COMPOSANTS HR EXTRAITS
 import {
-  GlassCard,
   StatCard,
-  SignatureCanvas,
-  EmployeeCard,
   EmployeesTab,
   LeavesTab,
-  InterviewsTab,
-  TrainingTab,
   TimesheetTab,
   DocumentsTab,
   PayrollTab,
