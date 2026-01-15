@@ -23,9 +23,12 @@ import AIAssistant from '../ai/AIAssistant.jsx';
 // 🎬 ANIMATIONS DE RÉCOMPENSES
 import { RewardAnimationsProvider } from '../../shared/animations';
 
+// 🎨 THEME PRESET SYSTEM
+import { useThemePreset } from '../../shared/themes';
+
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD + BADGES
-const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {} }) => {
+const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {}, vocabulary = {} }) => {
   console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen, 'badges:', menuBadges);
 
   if (!isOpen) return null;
@@ -42,39 +45,42 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
     return 0;
   };
 
+  // 🎨 Helper pour obtenir le label traduit
+  const t = (key, fallback) => vocabulary[key] || fallback;
+
   const menuItems = [
     { section: 'PRINCIPAL', items: [
-      { path: '/pulse', label: 'Poste de Garde', icon: '🛡️' },
-      { path: '/dashboard', label: 'Mon Aventure', icon: '🚀' },
-      { path: '/infos', label: 'Le Crieur', icon: '📢', hasBadge: true },
-      { path: '/tasks', label: 'Quêtes', icon: '⚔️' },
-      { path: '/projects', label: 'Conquêtes', icon: '👑' }
+      { path: '/pulse', label: t('pulse', 'Poste de Garde'), icon: '🛡️' },
+      { path: '/dashboard', label: t('dashboard', 'Mon Aventure'), icon: '🚀' },
+      { path: '/infos', label: t('infos', 'Le Crieur'), icon: '📢', hasBadge: true },
+      { path: '/tasks', label: t('tasks', 'Quêtes'), icon: '⚔️' },
+      { path: '/projects', label: t('projects', 'Conquêtes'), icon: '👑' }
     ]},
     { section: 'GAMIFICATION', items: [
-      { path: '/badges', label: 'Badges', icon: '🏆' },
-      { path: '/skills', label: 'Competences', icon: '🌳' },
-      { path: '/rewards', label: 'Recompenses', icon: '🎁' },
+      { path: '/badges', label: t('badges', 'Badges'), icon: '🏆' },
+      { path: '/skills', label: t('skills', 'Competences'), icon: '🌳' },
+      { path: '/rewards', label: t('rewards', 'Recompenses'), icon: '🎁' },
       { path: '/customization', label: 'Personnalisation', icon: '🎨' }
     ]},
     { section: 'ÉQUIPE', items: [
-      { path: '/team', label: 'Équipe', icon: '👥' },
-      { path: '/taverne', label: 'Taverne', icon: '🍺' },
-      { path: '/mentoring', label: 'Académie', icon: '🎓' },
-      { path: '/settings', label: 'Paramètres', icon: '⚙️' }
+      { path: '/team', label: t('team', 'Équipe'), icon: '👥' },
+      { path: '/taverne', label: t('tavern', 'Taverne'), icon: '🍺' },
+      { path: '/mentoring', label: t('mentoring', 'Académie'), icon: '🎓' },
+      { path: '/settings', label: t('settings', 'Paramètres'), icon: '⚙️' }
     ]},
     { section: 'OUTILS', items: [
       { path: '/onboarding', label: 'Intégration', icon: '🎯' },
-      { path: '/hr', label: 'RH', icon: '🏢' },
-      { path: '/planning', label: 'Planning', icon: '📅' }
+      { path: '/hr', label: t('hr', 'RH'), icon: '🏢' },
+      { path: '/planning', label: t('planning', 'Planning'), icon: '📅' }
     ]},
     { section: 'AIDE', items: [
       { path: '/tutorial', label: 'Guide & Tutoriel', icon: '📚' }
     ]},
     { section: 'ADMIN', items: [
       { path: '/admin/analytics', label: 'Analytics', icon: '📊' },
-      { path: '/admin/task-validation', label: 'Validation Quêtes', icon: '🛡️' },
-      { path: '/admin/objective-validation', label: 'Gestion Campagnes', icon: '🎯' },
-      { path: '/admin/rewards', label: 'Validation Récompenses', icon: '🎁' },
+      { path: '/admin/task-validation', label: `Validation ${t('tasks', 'Quêtes')}`, icon: '🛡️' },
+      { path: '/admin/objective-validation', label: `Gestion ${t('challenges', 'Campagnes')}`, icon: '🎯' },
+      { path: '/admin/rewards', label: `Validation ${t('rewards', 'Récompenses')}`, icon: '🎁' },
       { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
       { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
       { path: '/admin/ranks', label: 'Gestion des Rangs', icon: '🎖️' },
@@ -408,6 +414,9 @@ const Layout = memo(({ children }) => {
   // 🎨 MODULE 16: Theme hook
   const { isDark, toggleTheme } = useTheme();
 
+  // 🎨 Theme Preset (Gaming/Corporate/Startup)
+  const { theme } = useThemePreset();
+
   // 🔔 CHARGER LES COMPTEURS DE BADGES MENU (infos non lues, idées non votées)
   useEffect(() => {
     if (!user?.uid) return;
@@ -624,6 +633,7 @@ const Layout = memo(({ children }) => {
         userEmail={user?.email}
         userIsAdmin={hasAdminMenuAccess(user)}
         menuBadges={menuBadges}
+        vocabulary={theme?.vocabulary || {}}
       />
 
       {/* 🔔 MODULE 6: CENTRE DE NOTIFICATIONS AMÉLIORÉ */}

@@ -20,6 +20,9 @@ import { CelebrationProvider } from './shared/providers/CelebrationProvider.jsx'
 // 🔔 PUSH NOTIFICATIONS PROMPT
 import PushNotificationPrompt from './components/notifications/PushNotificationPrompt.jsx';
 
+// 🎨 THEME PRESET PROVIDER (Gaming/Corporate/Startup)
+import { ThemePresetProvider } from './shared/themes';
+
 const App = () => {
   const [appReady, setAppReady] = useState(false);
   const [error, setError] = useState(null);
@@ -129,10 +132,12 @@ const App = () => {
     <Router>
       {/* 🎨 MODULE 16: THEME PROVIDER */}
       <ThemeProvider>
-        {/* 🎉 CELEBRATION EFFECTS PROVIDER */}
-        <CelebrationProvider>
-          {/* 🔔 PUSH NOTIFICATIONS PROMPT */}
-          <PushNotificationPrompt />
+        {/* 🎨 THEME PRESET (Gaming/Corporate/Startup) */}
+        <ThemePresetProvider>
+          {/* 🎉 CELEBRATION EFFECTS PROVIDER */}
+          <CelebrationProvider>
+            {/* 🔔 PUSH NOTIFICATIONS PROMPT */}
+            <PushNotificationPrompt />
 
           <Suspense
             fallback={
@@ -146,8 +151,9 @@ const App = () => {
           >
             {/* ✅ ROUTER COMPLET AVEC TOUTES LES PAGES */}
             <AppRoutes />
-          </Suspense>
-        </CelebrationProvider>
+            </Suspense>
+          </CelebrationProvider>
+        </ThemePresetProvider>
       </ThemeProvider>
     </Router>
   );

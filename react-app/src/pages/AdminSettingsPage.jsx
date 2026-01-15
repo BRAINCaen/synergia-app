@@ -53,6 +53,9 @@ import { exportService } from '../core/services/exportService.js';
 // Hooks
 import { useAuthStore } from '../shared/stores/authStore.js';
 
+// 🎨 Theme Selector
+import { ThemeSelector } from '../shared/themes';
+
 // Notifications
 const showNotification = (message, type = 'info') => {
   const notification = document.createElement('div');
@@ -304,7 +307,7 @@ const AdminSettingsPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('app');
+  const [activeTab, setActiveTab] = useState('themePreset');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(false);
   const [allUsers, setAllUsers] = useState([]); // Liste de tous les utilisateurs pour la sélection
@@ -465,6 +468,7 @@ const AdminSettingsPage = () => {
 
   // 📑 DÉFINITION DES ONGLETS
   const tabs = [
+    { id: 'themePreset', label: 'Style', icon: Sparkles, color: 'purple' },
     { id: 'app', label: 'Application', icon: Monitor, color: 'blue' },
     { id: 'gamification', label: 'Gamification', icon: Award, color: 'yellow' },
     { id: 'boosts', label: 'Boosts', icon: Rocket, color: 'orange' },
@@ -554,6 +558,23 @@ const AdminSettingsPage = () => {
 
   // 🎨 RENDU DES SECTIONS
   const renderSection = (sectionId) => {
+    // 🎨 Section spéciale pour le sélecteur de thème
+    if (sectionId === 'themePreset') {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700"
+        >
+          <ThemeSelector
+            onChangeSuccess={(themeId) => {
+              showNotification(`Thème "${themeId}" appliqué avec succès !`, 'success');
+            }}
+          />
+        </motion.div>
+      );
+    }
+
     const sectionData = settings[sectionId];
     if (!sectionData) return null;
 
