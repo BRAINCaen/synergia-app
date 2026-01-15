@@ -320,7 +320,7 @@ const AlternanceSection = ({
               <option value="">Mon profil</option>
               {tutoredAlternants.map(alt => (
                 <option key={alt.id} value={alt.id}>
-                  {alt.displayName || alt.name} - {alt.schoolName}
+                  {alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'} - {alt.schoolName || 'École non renseignée'}
                 </option>
               ))}
             </select>
@@ -612,7 +612,7 @@ const AlternanceSection = ({
                           >
                             <option value="">Sélectionner...</option>
                             {tutoredAlternants.map(alt => (
-                              <option key={alt.id} value={alt.id}>{alt.displayName || alt.name}</option>
+                              <option key={alt.id} value={alt.id}>{alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'}</option>
                             ))}
                           </select>
                         )}
