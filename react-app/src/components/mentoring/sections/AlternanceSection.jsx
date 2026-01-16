@@ -286,62 +286,147 @@ const AlternanceSection = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header avec progression */}
-      <div className="bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl p-6 border border-white/10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-indigo-500/30 rounded-xl">
-              <School className="w-6 h-6 text-indigo-400" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">Parcours Alternance</h3>
-              <p className="text-sm text-gray-400">{alternantInfo.schoolName} - {alternantInfo.diploma}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-white">{alternantInfo.totalXpEarned || 0} XP</div>
-            <div className="text-xs text-gray-400">gagnés cette année</div>
-          </div>
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="mt-8 sm:mt-10 bg-gradient-to-br from-indigo-900/30 via-purple-900/20 to-pink-900/20 backdrop-blur-xl border border-indigo-500/20 rounded-2xl p-4 sm:p-6 overflow-hidden relative"
+    >
+      {/* Effet décoratif */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-br from-pink-500/10 to-rose-500/10 rounded-full blur-3xl" />
 
-        {/* Barre de progression */}
-        <div className="mb-4">
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
-            <span>Année {alternantInfo.currentYear}/{alternantInfo.totalYears}</span>
-            <span>{Math.round(progressPercent)}% du parcours</span>
-          </div>
-          <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
+      {/* Header */}
+      <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          {/* Photo de l'alternant si tuteur/admin */}
+          {canValidate && currentAlternantData?.userPhoto ? (
+            <img
+              src={currentAlternantData.userPhoto}
+              alt={currentAlternantData.userName}
+              className="w-12 h-12 rounded-xl border-2 border-indigo-500/50 object-cover"
             />
+          ) : (
+            <div className="p-3 bg-gradient-to-br from-indigo-500/30 to-purple-500/30 backdrop-blur-xl border border-white/10 rounded-xl">
+              <School className="w-7 h-7 text-indigo-300" />
+            </div>
+          )}
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              {/* Afficher le nom de l'alternant si tuteur/admin avec sélection */}
+              {canValidate && currentAlternantData?.userName ? (
+                <>
+                  {currentAlternantData.userName}
+                  <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">
+                    Alternant
+                  </span>
+                </>
+              ) : (
+                <>
+                  Parcours Alternance
+                  <span className="px-2 py-0.5 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">
+                    {isAlternant ? 'Mon parcours' : isTutor ? 'Tuteur' : 'Admin'}
+                  </span>
+                </>
+              )}
+            </h2>
+            <p className="text-gray-400 text-sm">
+              {canValidate && currentAlternantData?.userName
+                ? `Validez les objectifs scolaires de ${currentAlternantData.userName.split(' ')[0]}`
+                : isAlternant ? 'Gagne de l\'XP avec ton parcours scolaire !' : 'Suivez et validez les objectifs de vos alternants'
+              }
+            </p>
           </div>
         </div>
 
-        {/* Sélecteur d'alternant pour tuteurs/admins */}
-        {(isTutor || isAdmin) && tutoredAlternants.length > 0 && (
-          <div className="mt-4 p-3 bg-white/5 rounded-xl">
-            <label className="block text-xs text-gray-400 mb-2">Sélectionner un alternant :</label>
+        {/* Sélecteur d'alternant + stats */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          {canValidate && tutoredAlternants.length > 0 && (
             <select
               value={selectedAlternantId || ''}
               onChange={(e) => setSelectedAlternantId(e.target.value || null)}
-              className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm"
+              className="px-3 py-2 bg-slate-800 border border-white/20 rounded-xl text-white text-sm focus:border-indigo-500 focus:outline-none min-w-[200px]"
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="">Mon profil</option>
+              <option value="" className="bg-slate-800 text-white">
+                Choisir un alternant...
+              </option>
               {tutoredAlternants.map(alt => (
-                <option key={alt.id} value={alt.id}>
-                  {alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'} - {alt.schoolName || 'École non renseignée'}
+                <option key={alt.id} value={alt.id} className="bg-slate-800 text-white">
+                  {alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'}
                 </option>
               ))}
             </select>
+          )}
+
+          {/* Stats rapides */}
+          <div className="flex gap-3">
+            <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+              <div className="text-xs text-gray-400">XP Scolaire</div>
+              <div className="text-lg font-bold text-indigo-400 flex items-center gap-1">
+                <Zap className="w-4 h-4" />
+                {alternantInfo.totalXpEarned || 0}
+              </div>
+            </div>
+            <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+              <div className="text-xs text-gray-400">Objectifs</div>
+              <div className="text-lg font-bold text-emerald-400">
+                {alternantInfo.completedObjectives?.length || 0}
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Infos école et progression */}
+      <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Carte info école */}
+        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+          <div className="flex items-center gap-3 mb-3">
+            <School className="w-5 h-5 text-indigo-400" />
+            <span className="text-white font-medium">Mon parcours</span>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">École</span>
+              <span className="text-white">{alternantInfo.schoolName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Diplôme visé</span>
+              <span className="text-white">{alternantInfo.diploma}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Année</span>
+              <span className="text-white">{alternantInfo.currentYear}/{alternantInfo.totalYears}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progression vers le diplôme */}
+        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-400" />
+              <span className="text-white font-medium">Vers le diplôme</span>
+            </div>
+            <span className="text-amber-400 font-bold">{Math.round(progressPercent)}%</span>
+          </div>
+          <div className="relative h-4 bg-white/10 rounded-full overflow-hidden mb-3">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 1, ease: 'easeOut' }}
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full"
+            />
+          </div>
+          <p className="text-gray-400 text-xs text-center">
+            Continue comme ça ! Chaque objectif te rapproche du diplôme
+          </p>
+        </div>
       </div>
 
       {/* Filtres par catégorie */}
-      <div className="flex flex-wrap gap-2">
+      <div className="relative flex flex-wrap gap-2 mb-4">
         <button
           onClick={() => setSelectedCategory('all')}
           className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -602,10 +687,11 @@ const AlternanceSection = ({
                     <select
                       value={objectiveForm.category}
                       onChange={(e) => setObjectiveForm({ ...objectiveForm, category: e.target.value })}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
+                      className="w-full bg-slate-800 border border-white/20 rounded-xl px-4 py-2 text-white"
+                      style={{ colorScheme: 'dark' }}
                     >
                       {Object.entries(OBJECTIVE_CATEGORIES).map(([key, cat]) => (
-                        <option key={key} value={key}>{cat.label}</option>
+                        <option key={key} value={key} className="bg-slate-800 text-white">{cat.label}</option>
                       ))}
                     </select>
                   </div>
@@ -702,11 +788,12 @@ const AlternanceSection = ({
                           <select
                             value={objectiveForm.targetUserId || ''}
                             onChange={(e) => setObjectiveForm({ ...objectiveForm, targetUserId: e.target.value })}
-                            className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm ml-6"
+                            className="w-full bg-slate-800 border border-white/20 rounded-lg px-3 py-2 text-white text-sm ml-6"
+                            style={{ colorScheme: 'dark' }}
                           >
-                            <option value="">Sélectionner...</option>
+                            <option value="" className="bg-slate-800 text-white">Sélectionner...</option>
                             {tutoredAlternants.map(alt => (
-                              <option key={alt.id} value={alt.userId || alt.id}>{alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'}</option>
+                              <option key={alt.id} value={alt.userId || alt.id} className="bg-slate-800 text-white">{alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'}</option>
                             ))}
                           </select>
                         )}
@@ -734,7 +821,7 @@ const AlternanceSection = ({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 
