@@ -2396,6 +2396,464 @@ class ExportService {
     };
   }
 
+  // ==========================================
+  // EXPORT POINTAGE SIGNÉ
+  // ==========================================
+
+  /**
+   * Générer un PDF récapitulatif des pointages signés du mois
+   * @param {Object} params - Paramètres
+   * @param {number} params.month - Mois (0-11)
+   * @param {number} params.year - Année
+   * @param {Object} params.user - Utilisateur qui a signé
+   * @param {string} params.signatureData - Image de la signature (base64)
+   * @param {string} params.signedAt - Date de signature
+   * @param {Array} params.pointages - Liste des pointages du mois
+   * @param {Array} params.leaves - Liste des congés du mois
+   * @returns {Object} - { success, blob, fileName }
+   */
+  async exportSignedTimesheetToPDF(params) {
+    const { month, year, user, signatureData, signedAt, pointages = [], leaves = [] } = params;
+
+    const MONTHS_FR = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    const DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // ==========================================
+    // HEADER
+    // ==========================================
+    doc.setFillColor(...SYNERGIA_COLORS.dark);
+    doc.rect(0, 0, pageWidth, 50, 'F');
+
+    // Titre
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('POINTAGES SIGNÉS', 15, 25);
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${MONTHS_FR[month]} ${year}`, 15, 38);
+
+    // Logo et date
+    doc.setFontSize(10);
+    doc.text('SYNERGIA', pageWidth - 40, 20);
+    const signedDate = signedAt ? new Date(signedAt) : new Date();
+    doc.text(`Signé le ${signedDate.toLocaleDateString('fr-FR')}`, pageWidth - 65, 35);
+    doc.text(`à ${signedDate.toLocaleTimeString('fr-FR')}`, pageWidth - 55, 43);
+
+    yPosition = 60;
+
+    // ==========================================
+    // INFORMATIONS EMPLOYÉ
+    // ==========================================
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(15, yPosition, pageWidth - 30, 35, 3, 3, 'F');
+
+    doc.setTextColor(...SYNERGIA_COLORS.primary);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(user?.displayName || user?.email || 'Employé', 25, yPosition + 15);
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Email: ${user?.email || 'N/A'}`, 25, yPosition + 25);
+
+    // Résumé heures à droite
+    const totalHours = this.calculateMonthlyHours(pointages);
+    doc.setTextColor(...SYNERGIA_COLORS.success);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${totalHours.toFixed(1)}h`, pageWidth - 45, yPosition + 18);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text('Total heures', pageWidth - 50, yPosition + 28);
+
+    yPosition += 45;
+
+    // ==========================================
+    // RÉSUMÉ DU MOIS
+    // ==========================================
+    doc.setTextColor(...SYNERGIA_COLORS.dark);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Résumé du mois', 15, yPosition);
+    yPosition += 10;
+
+    // Calculer les statistiques
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const workedDays = this.getUniqueWorkedDays(pointages);
+    const leaveDays = this.countLeaveDays(leaves, year, month);
+
+    const summaryData = [
+      ['Métrique', 'Valeur'],
+      ['Jours travaillés', `${workedDays} jours`],
+      ['Heures totales', `${totalHours.toFixed(1)} heures`],
+      ['Moyenne journalière', workedDays > 0 ? `${(totalHours / workedDays).toFixed(1)} heures` : '-'],
+      ['Jours de congés', `${leaveDays} jours`],
+      ['Période', `${MONTHS_FR[month]} ${year}`]
+    ];
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [summaryData[0]],
+      body: summaryData.slice(1),
+      theme: 'striped',
+      headStyles: {
+        fillColor: SYNERGIA_COLORS.primary,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252]
+      },
+      styles: {
+        fontSize: 10,
+        cellPadding: 5
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 60 },
+        1: { cellWidth: 'auto' }
+      }
+    });
+
+    yPosition = doc.lastAutoTable.finalY + 15;
+
+    // ==========================================
+    // DÉTAIL DES POINTAGES PAR JOUR
+    // ==========================================
+    if (yPosition > pageHeight - 100) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setTextColor(...SYNERGIA_COLORS.dark);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Détail des pointages', 15, yPosition);
+    yPosition += 10;
+
+    // Grouper les pointages par jour
+    const dailyPointages = this.groupPointagesByDay(pointages, year, month);
+
+    const detailData = [['Date', 'Jour', 'Arrivée', 'Départ', 'Heures', 'Statut']];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const date = new Date(year, month, day);
+      const dayName = DAYS_FR[date.getDay()];
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+      const dayPointages = dailyPointages[dateStr] || [];
+      const leave = this.getLeaveForDay(leaves, dateStr);
+
+      let arrival = '-';
+      let departure = '-';
+      let hours = '-';
+      let status = isWeekend ? 'Weekend' : 'Absent';
+
+      if (leave) {
+        status = this.getLeaveTypeLabel(leave.type || leave.leaveType);
+      } else if (dayPointages.length > 0) {
+        const arrivals = dayPointages.filter(p => p.type === 'arrival' || p.action === 'arrival');
+        const departures = dayPointages.filter(p => p.type === 'departure' || p.action === 'departure');
+
+        if (arrivals.length > 0) {
+          const firstArrival = arrivals.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
+          arrival = this.formatTime(firstArrival.timestamp);
+        }
+
+        if (departures.length > 0) {
+          const lastDeparture = departures.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+          departure = this.formatTime(lastDeparture.timestamp);
+        }
+
+        if (arrivals.length > 0 && departures.length > 0) {
+          const dayHours = this.calculateDayHours(dayPointages);
+          hours = `${dayHours.toFixed(1)}h`;
+          status = 'Présent';
+        } else if (arrivals.length > 0) {
+          status = 'Incomplet';
+        }
+      }
+
+      detailData.push([
+        `${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}`,
+        dayName,
+        arrival,
+        departure,
+        hours,
+        status
+      ]);
+    }
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [detailData[0]],
+      body: detailData.slice(1),
+      theme: 'grid',
+      headStyles: {
+        fillColor: SYNERGIA_COLORS.secondary,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 3
+      },
+      columnStyles: {
+        0: { cellWidth: 25, halign: 'center' },
+        1: { cellWidth: 20, halign: 'center' },
+        2: { cellWidth: 25, halign: 'center' },
+        3: { cellWidth: 25, halign: 'center' },
+        4: { cellWidth: 25, halign: 'center' },
+        5: { cellWidth: 'auto', halign: 'center' }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body') {
+          const status = data.row.cells[5]?.text?.[0];
+          if (status === 'Weekend') {
+            data.cell.styles.fillColor = [254, 243, 199]; // Amber light
+          } else if (status === 'Congé payé' || status === 'RTT') {
+            data.cell.styles.fillColor = [220, 252, 231]; // Green light
+          } else if (status === 'Maladie') {
+            data.cell.styles.fillColor = [254, 226, 226]; // Red light
+          } else if (status === 'Absent' || status === 'Incomplet') {
+            data.cell.styles.fillColor = [254, 226, 226]; // Red light
+          }
+        }
+      }
+    });
+
+    yPosition = doc.lastAutoTable.finalY + 20;
+
+    // ==========================================
+    // SIGNATURE
+    // ==========================================
+    if (yPosition > pageHeight - 80) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setTextColor(...SYNERGIA_COLORS.dark);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Signature électronique', 15, yPosition);
+    yPosition += 10;
+
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(15, yPosition, pageWidth - 30, 60, 3, 3, 'F');
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Je soussigné(e) ${user?.displayName || user?.email || 'l\'employé'} certifie que`, 25, yPosition + 12);
+    doc.text(`les pointages ci-dessus pour ${MONTHS_FR[month]} ${year} sont exacts.`, 25, yPosition + 22);
+
+    // Ajouter la signature si disponible
+    if (signatureData) {
+      try {
+        doc.addImage(signatureData, 'PNG', pageWidth - 80, yPosition + 8, 50, 40);
+      } catch (e) {
+        console.warn('Impossible d\'ajouter l\'image de signature:', e);
+      }
+    }
+
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Signé électroniquement le ${signedDate.toLocaleDateString('fr-FR')} à ${signedDate.toLocaleTimeString('fr-FR')}`, 25, yPosition + 50);
+
+    // ==========================================
+    // FOOTER
+    // ==========================================
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `SYNERGIA - Pointages signés - ${MONTHS_FR[month]} ${year} - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Générer le blob pour stockage
+    const pdfBlob = doc.output('blob');
+    const userNameClean = (user?.displayName || user?.email || 'user').replace(/[^a-zA-Z0-9]/g, '-');
+    const fileName = `pointages-signes-${userNameClean}-${MONTHS_FR[month]}-${year}.pdf`;
+
+    return {
+      success: true,
+      blob: pdfBlob,
+      fileName,
+      doc
+    };
+  }
+
+  // ==========================================
+  // HELPERS POUR POINTAGES SIGNÉS
+  // ==========================================
+
+  /**
+   * Calculer les heures totales du mois
+   */
+  calculateMonthlyHours(pointages) {
+    const dailyHours = {};
+
+    pointages.forEach(p => {
+      const date = p.date || (p.timestamp ? new Date(p.timestamp).toISOString().split('T')[0] : null);
+      if (!date) return;
+
+      if (!dailyHours[date]) {
+        dailyHours[date] = { arrivals: [], departures: [] };
+      }
+
+      if (p.type === 'arrival' || p.action === 'arrival') {
+        dailyHours[date].arrivals.push(new Date(p.timestamp));
+      } else if (p.type === 'departure' || p.action === 'departure') {
+        dailyHours[date].departures.push(new Date(p.timestamp));
+      }
+    });
+
+    let totalHours = 0;
+    Object.values(dailyHours).forEach(day => {
+      if (day.arrivals.length > 0 && day.departures.length > 0) {
+        const firstArrival = new Date(Math.min(...day.arrivals));
+        const lastDeparture = new Date(Math.max(...day.departures));
+        const hours = (lastDeparture - firstArrival) / (1000 * 60 * 60);
+        if (hours > 0 && hours < 24) {
+          totalHours += hours;
+        }
+      }
+    });
+
+    return totalHours;
+  }
+
+  /**
+   * Obtenir le nombre de jours travaillés uniques
+   */
+  getUniqueWorkedDays(pointages) {
+    const uniqueDays = new Set();
+    pointages.forEach(p => {
+      const date = p.date || (p.timestamp ? new Date(p.timestamp).toISOString().split('T')[0] : null);
+      if (date && (p.type === 'arrival' || p.action === 'arrival')) {
+        uniqueDays.add(date);
+      }
+    });
+    return uniqueDays.size;
+  }
+
+  /**
+   * Compter les jours de congé dans le mois
+   */
+  countLeaveDays(leaves, year, month) {
+    let count = 0;
+    const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
+
+    leaves.forEach(leave => {
+      const start = leave.startDate?.split('T')[0] || leave.startDate;
+      const end = leave.endDate?.split('T')[0] || leave.endDate;
+
+      if (start && end && start <= endOfMonth && end >= startOfMonth) {
+        // Calculer les jours qui tombent dans le mois
+        const effectiveStart = start > startOfMonth ? start : startOfMonth;
+        const effectiveEnd = end < endOfMonth ? end : endOfMonth;
+
+        const startDate = new Date(effectiveStart);
+        const endDate = new Date(effectiveEnd);
+        const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        count += days;
+      }
+    });
+
+    return count;
+  }
+
+  /**
+   * Grouper les pointages par jour
+   */
+  groupPointagesByDay(pointages, year, month) {
+    const grouped = {};
+    pointages.forEach(p => {
+      const date = p.date || (p.timestamp ? new Date(p.timestamp).toISOString().split('T')[0] : null);
+      if (date) {
+        if (!grouped[date]) grouped[date] = [];
+        grouped[date].push(p);
+      }
+    });
+    return grouped;
+  }
+
+  /**
+   * Obtenir le congé pour un jour donné
+   */
+  getLeaveForDay(leaves, dateStr) {
+    return leaves.find(leave => {
+      const start = leave.startDate?.split('T')[0] || leave.startDate;
+      const end = leave.endDate?.split('T')[0] || leave.endDate;
+      return dateStr >= start && dateStr <= end;
+    });
+  }
+
+  /**
+   * Obtenir le label du type de congé
+   */
+  getLeaveTypeLabel(type) {
+    const labels = {
+      'paid': 'Congé payé',
+      'rtt': 'RTT',
+      'sick': 'Maladie',
+      'unpaid': 'Sans solde',
+      'family': 'Congé familial',
+      'other': 'Autre absence'
+    };
+    return labels[type] || 'Congé';
+  }
+
+  /**
+   * Formater l'heure
+   */
+  formatTime(timestamp) {
+    if (!timestamp) return '-';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /**
+   * Calculer les heures d'une journée
+   */
+  calculateDayHours(dayPointages) {
+    const arrivals = dayPointages
+      .filter(p => p.type === 'arrival' || p.action === 'arrival')
+      .map(p => new Date(p.timestamp));
+    const departures = dayPointages
+      .filter(p => p.type === 'departure' || p.action === 'departure')
+      .map(p => new Date(p.timestamp));
+
+    if (arrivals.length === 0 || departures.length === 0) return 0;
+
+    const firstArrival = new Date(Math.min(...arrivals));
+    const lastDeparture = new Date(Math.max(...departures));
+    const hours = (lastDeparture - firstArrival) / (1000 * 60 * 60);
+
+    return hours > 0 && hours < 24 ? hours : 0;
+  }
+
   /**
    * Formater le label d'un critère
    */

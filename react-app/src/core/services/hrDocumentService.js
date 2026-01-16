@@ -79,6 +79,13 @@ export const DOCUMENT_TYPES = {
     emoji: '📊',
     color: '#8B5CF6',
     folder: 'Évaluations'
+  },
+  signed_timesheet: {
+    id: 'signed_timesheet',
+    label: 'Pointage signé',
+    emoji: '✍️',
+    color: '#10B981',
+    folder: 'Pointages signés'
   }
 };
 
