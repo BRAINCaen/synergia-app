@@ -9,7 +9,7 @@ import {
   X, Check, Plus, Edit3, Trash2, Users, User, ChevronRight
 } from 'lucide-react';
 
-// School objectives constants
+// School objectives constants - Objectifs par défaut
 export const SCHOOL_OBJECTIVES = [
   {
     id: 'attendance',
@@ -22,82 +22,63 @@ export const SCHOOL_OBJECTIVES = [
     frequency: 'monthly'
   },
   {
-    id: 'school_grades',
-    category: 'academic',
+    id: 'good_grade',
+    category: 'notes',
+    title: 'Bonne note obtenue',
+    description: 'Note supérieure à 14/20 sur un examen',
+    icon: Medal,
+    xpReward: 200,
+    color: 'amber',
+    frequency: 'per_event'
+  },
+  {
+    id: 'excellent_grade',
+    category: 'notes',
     title: 'Excellence académique',
-    description: 'Maintenir une moyenne supérieure à 14/20',
-    icon: School,
-    xpReward: 100,
-    color: 'blue',
+    description: 'Note supérieure à 16/20 sur un examen',
+    icon: Trophy,
+    xpReward: 300,
+    color: 'yellow',
+    frequency: 'per_event'
+  },
+  {
+    id: 'semester_pass',
+    category: 'milestones',
+    title: 'Semestre validé',
+    description: 'Validation de tous les modules du semestre',
+    icon: Target,
+    xpReward: 300,
+    color: 'purple',
     frequency: 'semester'
   },
   {
-    id: 'project_delivery',
-    category: 'work',
-    title: 'Projet rendu à temps',
-    description: 'Livrer un projet/rapport dans les délais',
-    icon: Target,
-    xpReward: 75,
-    color: 'purple',
-    frequency: 'project'
-  },
-  {
-    id: 'presentation',
-    category: 'communication',
-    title: 'Présentation réussie',
-    description: 'Présenter un travail devant un jury ou l\'équipe',
-    icon: Medal,
-    xpReward: 80,
-    color: 'amber',
-    frequency: 'event'
-  },
-  {
-    id: 'initiative',
-    category: 'work',
-    title: 'Prise d\'initiative',
-    description: 'Proposer une amélioration ou un nouveau projet',
-    icon: Zap,
-    xpReward: 60,
-    color: 'cyan',
-    frequency: 'quarterly'
-  },
-  {
-    id: 'skills_progress',
-    category: 'milestones',
-    title: 'Progression compétences',
-    description: 'Valider une nouvelle compétence technique',
-    icon: Trophy,
-    xpReward: 90,
-    color: 'indigo',
-    frequency: 'milestone'
-  },
-  {
-    id: 'school_report',
-    category: 'academic',
-    title: 'Rapport de stage validé',
-    description: 'Rendre un rapport de qualité validé par le tuteur',
-    icon: PenTool,
-    xpReward: 120,
-    color: 'rose',
-    frequency: 'annual'
-  },
-  {
-    id: 'diploma_progress',
+    id: 'year_pass',
     category: 'milestones',
     title: 'Année validée',
-    description: 'Valider son année scolaire avec succès',
+    description: 'Passage en année supérieure confirmé',
+    icon: School,
+    xpReward: 500,
+    color: 'blue',
+    frequency: 'yearly'
+  },
+  {
+    id: 'diploma',
+    category: 'milestones',
+    title: 'Diplôme obtenu !',
+    description: 'Félicitations ! Diplôme en poche !',
     icon: Sparkles,
-    xpReward: 200,
+    xpReward: 1000,
     color: 'gradient',
-    frequency: 'annual'
+    frequency: 'once'
   }
 ];
 
 export const OBJECTIVE_CATEGORIES = {
   presence: { label: 'Présence', icon: ClipboardCheck, color: 'emerald' },
-  academic: { label: 'Académique', icon: School, color: 'blue' },
-  work: { label: 'Travail', icon: Target, color: 'purple' },
-  communication: { label: 'Communication', icon: Medal, color: 'amber' },
+  notes: { label: 'Notes', icon: Medal, color: 'amber' },
+  travaux: { label: 'Travaux', icon: PenTool, color: 'blue' },
+  projets: { label: 'Projets', icon: Target, color: 'purple' },
+  competences: { label: 'Compétences', icon: Zap, color: 'cyan' },
   milestones: { label: 'Étapes clés', icon: Trophy, color: 'indigo' }
 };
 
@@ -290,14 +271,16 @@ const AlternanceSection = ({
 
   const getColorClasses = (color) => {
     const colors = {
-      emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400' },
-      blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400' },
-      purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400' },
-      amber: { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400' },
-      cyan: { bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', text: 'text-cyan-400' },
-      indigo: { bg: 'bg-indigo-500/20', border: 'border-indigo-500/30', text: 'text-indigo-400' },
-      rose: { bg: 'bg-rose-500/20', border: 'border-rose-500/30', text: 'text-rose-400' },
-      gradient: { bg: 'bg-gradient-to-r from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30', text: 'text-purple-400' }
+      emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400', gradient: 'from-emerald-500 to-teal-500' },
+      blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', gradient: 'from-blue-500 to-cyan-500' },
+      purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400', gradient: 'from-purple-500 to-pink-500' },
+      amber: { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400', gradient: 'from-amber-500 to-yellow-500' },
+      yellow: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400', gradient: 'from-yellow-400 to-amber-400' },
+      cyan: { bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', text: 'text-cyan-400', gradient: 'from-cyan-500 to-blue-500' },
+      indigo: { bg: 'bg-indigo-500/20', border: 'border-indigo-500/30', text: 'text-indigo-400', gradient: 'from-indigo-500 to-purple-500' },
+      rose: { bg: 'bg-rose-500/20', border: 'border-rose-500/30', text: 'text-rose-400', gradient: 'from-rose-500 to-pink-500' },
+      pink: { bg: 'bg-pink-500/20', border: 'border-pink-500/30', text: 'text-pink-400', gradient: 'from-pink-500 to-rose-500' },
+      gradient: { bg: 'bg-gradient-to-r from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30', text: 'text-purple-400', gradient: 'from-purple-500 to-pink-500' }
     };
     return colors[color] || colors.blue;
   };
@@ -390,19 +373,8 @@ const AlternanceSection = ({
         })}
       </div>
 
-      {/* Bouton créer objectif (tuteur/admin) */}
-      {canValidate && (
-        <button
-          onClick={handleOpenCreateObjective}
-          className="w-full py-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 rounded-xl flex items-center justify-center gap-2 text-purple-300 transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Créer un objectif personnalisé</span>
-        </button>
-      )}
-
-      {/* Liste des objectifs */}
-      <div className="grid gap-4">
+      {/* Liste des objectifs - Grille 3 colonnes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filteredObjectives.map((objective) => {
           const Icon = objective.icon || Target;
           const colorClasses = getColorClasses(objective.color);
@@ -416,90 +388,111 @@ const AlternanceSection = ({
           return (
             <motion.div
               key={objective.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.02, y: -2 }}
               className={`relative p-4 rounded-xl border transition-all ${
                 isCompleted
-                  ? 'bg-emerald-500/10 border-emerald-500/30'
-                  : `${colorClasses.bg} ${colorClasses.border}`
+                  ? `${colorClasses.bg} ${colorClasses.border} ring-1 ring-${objective.color}-500/30`
+                  : 'bg-white/5 border-white/10 hover:border-white/20'
               }`}
             >
-              {/* Badge custom/modified */}
-              {(objective.isCustom || objective.isModifiedDefault) && (
-                <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-500/30 rounded-full text-[10px] text-purple-300">
-                  {objective.isCustom ? 'Personnalisé' : 'Modifié'}
+              {/* Badge XP en haut à droite */}
+              <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-bold ${colorClasses.bg} ${colorClasses.text} border ${colorClasses.border}`}>
+                +{objective.xpReward} XP
+              </div>
+
+              {/* Boutons edit/delete pour tuteur/admin */}
+              {canValidate && (
+                <div className="absolute top-2 right-12 flex gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleOpenEditObjective(objective); }}
+                    className="p-1 rounded bg-blue-500/20 hover:bg-blue-500/40 text-blue-400 transition-colors"
+                    title="Modifier"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteObjective(objective); }}
+                    className="p-1 rounded bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               )}
 
-              <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-xl ${isCompleted ? 'bg-emerald-500/30' : colorClasses.bg}`}>
-                  {isCompleted ? (
-                    <Check className="w-6 h-6 text-emerald-400" />
-                  ) : (
-                    <Icon className={`w-6 h-6 ${colorClasses.text}`} />
-                  )}
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg ${colorClasses.bg}`}>
+                  <Icon className={`w-5 h-5 ${colorClasses.text}`} />
                 </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-white font-medium text-sm mb-0.5 flex items-center gap-2">
+                    {objective.title}
+                    {isCompleted && <Check className="w-4 h-4 text-emerald-400" />}
+                  </h4>
+                  <p className="text-gray-400 text-xs line-clamp-2">{objective.description}</p>
 
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className={`font-bold ${isCompleted ? 'text-emerald-300' : 'text-white'}`}>
-                      {objective.title}
-                    </h4>
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${
-                      isCompleted ? 'bg-emerald-500/30 text-emerald-300' : `${colorClasses.bg} ${colorClasses.text}`
-                    }`}>
-                      +{objective.xpReward} XP
-                    </span>
+                  {/* Indicateur de ciblage */}
+                  <div className="mt-1.5 flex items-center gap-1">
+                    {objective.targetType === 'specific' ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        <User className="w-2.5 h-2.5" />
+                        {tutoredAlternants.find(a => (a.userId || a.id) === objective.targetUserId)?.userName ||
+                         tutoredAlternants.find(a => (a.userId || a.id) === objective.targetUserId)?.displayName ||
+                         '1 alternant'}
+                      </span>
+                    ) : objective.targetType === 'multiple' ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                        <Users className="w-2.5 h-2.5" />
+                        {objective.targetUserIds?.length || 0} alternants
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                        <Users className="w-2.5 h-2.5" />
+                        Tous
+                      </span>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-400">{objective.description}</p>
 
-                  {/* Compteur pour objectifs répétables */}
-                  {count > 0 && isRepeatable && (
+                  {/* Compteur si validé et répétable */}
+                  {count > 0 && (
                     <div className="mt-2 text-xs text-gray-500">
                       Validé {count} fois
                     </div>
                   )}
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 mt-3">
-                    {canValidateThis && (
-                      <button
-                        onClick={() => handleValidate(objective)}
-                        className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm flex items-center gap-1 transition-all"
-                      >
-                        <Check className="w-4 h-4" />
-                        {isCompleted && isRepeatable ? 'Revalider' : 'Valider'}
-                      </button>
-                    )}
-                    {canValidate && (
-                      <>
-                        <button
-                          onClick={() => handleOpenEditObjective(objective)}
-                          className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
-                        >
-                          <Edit3 className="w-4 h-4 text-gray-400" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteObjective(objective)}
-                          className="p-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-all"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                        </button>
-                      </>
-                    )}
-                    {isCompleted && !canValidate && (
-                      <span className="text-xs text-emerald-400">✓ Objectif validé !</span>
-                    )}
-                    {isCompleted && canValidate && !isRepeatable && (
-                      <span className="text-xs text-emerald-400">✓ Déjà validé (unique)</span>
-                    )}
-                  </div>
                 </div>
               </div>
+
+              {/* Bouton valider (tuteur ou admin) */}
+              {canValidate && (
+                <button
+                  onClick={() => handleValidate(objective)}
+                  disabled={isCompleted && !isRepeatable}
+                  className={`mt-3 w-full py-2 rounded-lg text-xs font-medium transition-all ${
+                    isCompleted && !isRepeatable
+                      ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
+                      : `bg-gradient-to-r ${colorClasses.gradient || `from-${objective.color}-500 to-${objective.color}-600`} text-white hover:opacity-90`
+                  }`}
+                >
+                  {isCompleted && !isRepeatable ? '✓ Déjà validé' : 'Valider cet objectif'}
+                </button>
+              )}
             </motion.div>
           );
         })}
       </div>
+
+      {/* Bouton créer objectif (tuteur/admin) */}
+      {canValidate && (
+        <div className="mt-4">
+          <button
+            onClick={handleOpenCreateObjective}
+            className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-500/30 hover:border-indigo-500/50 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-400 font-medium text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Créer un objectif personnalisé
+          </button>
+        </div>
+      )}
 
       {/* Modal validation */}
       <AnimatePresence>
