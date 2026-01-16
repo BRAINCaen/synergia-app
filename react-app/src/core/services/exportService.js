@@ -2133,6 +2133,289 @@ class ExportService {
   }
 
   // ==========================================
+  // EXPORT FEEDBACK 360° PDF
+  // ==========================================
+
+  /**
+   * Générer un rapport PDF de feedback 360°
+   * @param {Object} interview - Données de l'entretien 360°
+   * @param {Object} subjectUser - Utilisateur concerné par le feedback
+   * @returns {Object} - { success, blob, fileName }
+   */
+  async exportFeedback360ToPDF(interview, subjectUser) {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // ==========================================
+    // HEADER
+    // ==========================================
+    doc.setFillColor(...SYNERGIA_COLORS.dark);
+    doc.rect(0, 0, pageWidth, 50, 'F');
+
+    // Titre
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('FEEDBACK 360°', 15, 25);
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Rapport d'évaluation - ${interview.title || 'Entretien'}`, 15, 38);
+
+    // Date et logo
+    doc.setFontSize(10);
+    doc.text('SYNERGIA', pageWidth - 40, 20);
+    const completedDate = interview.completedAt?.toDate?.() || new Date();
+    doc.text(`Complété le ${completedDate.toLocaleDateString('fr-FR')}`, pageWidth - 65, 35);
+
+    yPosition = 60;
+
+    // ==========================================
+    // INFORMATIONS COLLABORATEUR
+    // ==========================================
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(15, yPosition, pageWidth - 30, 35, 3, 3, 'F');
+
+    doc.setTextColor(...SYNERGIA_COLORS.primary);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(subjectUser?.displayName || interview.subjectName || 'Collaborateur', 25, yPosition + 15);
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Email: ${subjectUser?.email || 'N/A'}`, 25, yPosition + 25);
+
+    // Stats résumé à droite
+    const responses = interview.feedbackResponses || [];
+    const avgScore = responses.length > 0
+      ? (responses.reduce((acc, r) => {
+          const scores = Object.values(r.ratings || {});
+          return acc + (scores.reduce((a, b) => a + b, 0) / scores.length);
+        }, 0) / responses.length).toFixed(1)
+      : 'N/A';
+
+    doc.setTextColor(...SYNERGIA_COLORS.success);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${avgScore}/5`, pageWidth - 45, yPosition + 18);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text('Score moyen', pageWidth - 50, yPosition + 28);
+
+    yPosition += 45;
+
+    // ==========================================
+    // SYNTHÈSE DES FORCES ET AXES D'AMÉLIORATION
+    // ==========================================
+    doc.setTextColor(...SYNERGIA_COLORS.dark);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('💪 Forces identifiées', 15, yPosition);
+    yPosition += 8;
+
+    // Calculer les forces (scores >= 4) et axes d'amélioration (scores <= 2)
+    const criteriaScores = {};
+    responses.forEach(response => {
+      Object.entries(response.ratings || {}).forEach(([criterion, score]) => {
+        if (!criteriaScores[criterion]) {
+          criteriaScores[criterion] = { total: 0, count: 0 };
+        }
+        criteriaScores[criterion].total += score;
+        criteriaScores[criterion].count += 1;
+      });
+    });
+
+    const criteriaAverages = Object.entries(criteriaScores).map(([criterion, data]) => ({
+      criterion,
+      average: data.total / data.count
+    })).sort((a, b) => b.average - a.average);
+
+    const strengths = criteriaAverages.filter(c => c.average >= 4);
+    const improvements = criteriaAverages.filter(c => c.average < 3);
+
+    // Afficher les forces
+    doc.setFillColor(220, 252, 231); // Green light
+    doc.roundedRect(15, yPosition, pageWidth - 30, Math.max(25, strengths.length * 8 + 10), 3, 3, 'F');
+    yPosition += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(22, 101, 52); // Green dark
+
+    if (strengths.length > 0) {
+      strengths.forEach(s => {
+        doc.text(`✓ ${this.formatCriterionLabel(s.criterion)} (${s.average.toFixed(1)}/5)`, 25, yPosition);
+        yPosition += 7;
+      });
+    } else {
+      doc.text('Pas de force particulière identifiée (scores < 4)', 25, yPosition);
+      yPosition += 7;
+    }
+
+    yPosition += 10;
+
+    // Axes d'amélioration
+    doc.setTextColor(...SYNERGIA_COLORS.dark);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📈 Axes d\'amélioration', 15, yPosition);
+    yPosition += 8;
+
+    doc.setFillColor(254, 243, 199); // Amber light
+    doc.roundedRect(15, yPosition, pageWidth - 30, Math.max(25, improvements.length * 8 + 10), 3, 3, 'F');
+    yPosition += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(146, 64, 14); // Amber dark
+
+    if (improvements.length > 0) {
+      improvements.forEach(i => {
+        doc.text(`→ ${this.formatCriterionLabel(i.criterion)} (${i.average.toFixed(1)}/5)`, 25, yPosition);
+        yPosition += 7;
+      });
+    } else {
+      doc.text('Aucun axe critique identifié (tous scores >= 3)', 25, yPosition);
+      yPosition += 7;
+    }
+
+    yPosition += 15;
+
+    // ==========================================
+    // DÉTAIL DES SCORES PAR CRITÈRE
+    // ==========================================
+    if (yPosition > pageHeight - 80) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setTextColor(...SYNERGIA_COLORS.dark);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('📊 Détail des scores par critère', 15, yPosition);
+    yPosition += 10;
+
+    const tableData = criteriaAverages.map(c => [
+      this.formatCriterionLabel(c.criterion),
+      c.average.toFixed(1) + '/5',
+      this.getProgressBar(c.average * 20),
+      c.average >= 4 ? '★ Force' : c.average < 3 ? '⚠ À améliorer' : 'Correct'
+    ]);
+
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Critère', 'Score', 'Progression', 'Évaluation']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: SYNERGIA_COLORS.primary,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      styles: {
+        fontSize: 9,
+        cellPadding: 4
+      },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 25, halign: 'center' },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 35, halign: 'center' }
+      }
+    });
+
+    yPosition = doc.lastAutoTable.finalY + 15;
+
+    // ==========================================
+    // COMMENTAIRES DES ÉVALUATEURS
+    // ==========================================
+    if (yPosition > pageHeight - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setTextColor(...SYNERGIA_COLORS.dark);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('💬 Commentaires des évaluateurs', 15, yPosition);
+    yPosition += 10;
+
+    responses.forEach((response, index) => {
+      if (yPosition > pageHeight - 40) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Cadre commentaire
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(15, yPosition, pageWidth - 30, 30, 2, 2, 'F');
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...SYNERGIA_COLORS.primary);
+      doc.text(`Évaluateur ${index + 1}`, 20, yPosition + 8);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      const comment = response.generalComment || response.comments || 'Pas de commentaire';
+      const truncatedComment = comment.length > 150 ? comment.substring(0, 150) + '...' : comment;
+      doc.text(truncatedComment, 20, yPosition + 18, { maxWidth: pageWidth - 50 });
+
+      yPosition += 35;
+    });
+
+    // ==========================================
+    // FOOTER
+    // ==========================================
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        `SYNERGIA - Feedback 360° - Confidentiel - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Générer le blob pour stockage
+    const pdfBlob = doc.output('blob');
+    const fileName = `feedback360-${subjectUser?.displayName || 'user'}-${new Date().toISOString().split('T')[0]}.pdf`;
+
+    return {
+      success: true,
+      blob: pdfBlob,
+      fileName,
+      doc // Pour permettre le téléchargement direct si besoin
+    };
+  }
+
+  /**
+   * Formater le label d'un critère
+   */
+  formatCriterionLabel(criterion) {
+    const labels = {
+      communication: 'Communication',
+      collaboration: 'Collaboration',
+      performance: 'Performance',
+      initiative: 'Initiative',
+      adaptability: 'Adaptabilité',
+      leadership: 'Leadership',
+      technical: 'Compétences techniques',
+      organization: 'Organisation',
+      creativity: 'Créativité',
+      reliability: 'Fiabilité'
+    };
+    return labels[criterion] || criterion.charAt(0).toUpperCase() + criterion.slice(1);
+  }
+
+  // ==========================================
   // HELPERS
   // ==========================================
 

@@ -1026,6 +1026,69 @@ const MentoringPage = () => {
     }
   };
 
+  // Handler pour mettre à jour les infos d'un alternant (école, diplôme, etc.)
+  const handleUpdateAlternantInfo = async (alternantUserId, infoData) => {
+    if (!alternantUserId) {
+      alert('❌ Aucun alternant sélectionné');
+      return false;
+    }
+
+    try {
+      console.log('📝 [ALTERNANT INFO] Mise à jour pour:', alternantUserId, infoData);
+
+      // 1. Mettre à jour dans alternance_tracking
+      const altRef = collection(db, 'alternance_tracking');
+      const existingDoc = await getDocs(query(altRef, where('userId', '==', alternantUserId)));
+
+      if (!existingDoc.empty) {
+        const { updateDoc, doc: docFn } = await import('firebase/firestore');
+        await updateDoc(docFn(db, 'alternance_tracking', existingDoc.docs[0].id), {
+          schoolName: infoData.schoolName || 'École non renseignée',
+          diploma: infoData.diploma || 'Diplôme en cours',
+          options: infoData.options || '',
+          currentYear: infoData.currentYear || 1,
+          totalYears: infoData.totalYears || 2,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Créer le document s'il n'existe pas
+        await addDoc(collection(db, 'alternance_tracking'), {
+          userId: alternantUserId,
+          schoolName: infoData.schoolName || 'École non renseignée',
+          diploma: infoData.diploma || 'Diplôme en cours',
+          options: infoData.options || '',
+          currentYear: infoData.currentYear || 1,
+          totalYears: infoData.totalYears || 2,
+          completedObjectives: [],
+          totalXpEarned: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      // 2. Mettre à jour le state local
+      if (alternantUserId === user?.uid) {
+        setAlternanceData(prev => ({
+          ...prev,
+          ...infoData
+        }));
+      } else {
+        setTutoredAlternants(prev => prev.map(alt =>
+          (alt.userId || alt.id) === alternantUserId
+            ? { ...alt, ...infoData }
+            : alt
+        ));
+      }
+
+      alert('✅ Informations mises à jour !');
+      return true;
+    } catch (error) {
+      console.error('Erreur mise à jour infos alternant:', error);
+      alert('❌ Erreur lors de la mise à jour');
+      return false;
+    }
+  };
+
   // Fonction pour valider un objectif scolaire
   // alternantData peut être passé pour valider pour un alternant spécifique (tuteur/admin)
   const handleValidateSchoolObjective = async (objectiveData, targetAlternant = null) => {
@@ -1808,6 +1871,7 @@ const MentoringPage = () => {
               onCreateObjective={handleCreateObjective}
               onUpdateObjective={handleUpdateObjective}
               onDeleteObjective={handleDeleteObjective}
+              onUpdateAlternantInfo={handleUpdateAlternantInfo}
               customObjectives={customObjectives}
               deletedObjectiveIds={deletedObjectiveIds}
               modifiedObjectives={modifiedObjectives}

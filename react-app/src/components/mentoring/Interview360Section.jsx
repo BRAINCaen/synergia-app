@@ -285,8 +285,19 @@ const Interview360Section = ({ user, allUsers = [] }) => {
         feedbackResponses: updatedResponses,
         feedbackRequests: updatedRequests,
         status: allCompleted ? 'completed' : 'in_progress',
+        completedAt: allCompleted ? serverTimestamp() : null,
         updatedAt: serverTimestamp()
       });
+
+      // Si tous les feedbacks sont complétés, générer le PDF et l'ajouter aux documents RH
+      if (allCompleted) {
+        await generateAndStoreFeedbackPDF({
+          ...interview,
+          feedbackResponses: updatedResponses,
+          feedbackRequests: updatedRequests,
+          status: 'completed'
+        });
+      }
 
       setInterviews(prev => prev.map(i =>
         i.id === interviewId
@@ -306,6 +317,72 @@ const Interview360Section = ({ user, allUsers = [] }) => {
       console.error('Erreur soumission feedback:', error);
       return { success: false, error };
     }
+  };
+
+  // Générer le PDF du feedback et le stocker dans les documents RH
+  const generateAndStoreFeedbackPDF = async (completedInterview) => {
+    try {
+      console.log('📄 Génération du PDF de feedback 360°...');
+
+      // Import dynamique des services
+      const { exportService } = await import('../../core/services/exportService.js');
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const { storage } = await import('../../core/firebase.js');
+      const hrDocService = (await import('../../core/services/hrDocumentService.js')).default;
+
+      // Trouver l'utilisateur sujet du feedback
+      const subjectUser = allUsers.find(u => u.id === completedInterview.subjectId || u.uid === completedInterview.subjectId);
+
+      // Générer le PDF
+      const pdfResult = await exportService.exportFeedback360ToPDF(completedInterview, subjectUser);
+
+      if (!pdfResult.success) {
+        console.error('❌ Erreur génération PDF');
+        return;
+      }
+
+      // Upload vers Firebase Storage
+      const storageRef = ref(storage, `hr_documents/${completedInterview.subjectId}/feedback360/${pdfResult.fileName}`);
+      await uploadBytes(storageRef, pdfResult.blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Créer l'entrée dans les documents RH
+      await hrDocService.createDocument({
+        employeeId: completedInterview.subjectId,
+        employeeName: subjectUser?.displayName || completedInterview.subjectName || 'Collaborateur',
+        type: 'feedback360',
+        title: `Feedback 360° - ${completedInterview.title || 'Évaluation'}`,
+        description: `Rapport de feedback 360° complété le ${new Date().toLocaleDateString('fr-FR')}. Score moyen: ${calculateAverageScore(completedInterview.feedbackResponses)}/5`,
+        fileUrl: downloadURL,
+        fileName: pdfResult.fileName,
+        fileSize: pdfResult.blob.size,
+        period: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+        uploadedBy: user.uid,
+        uploadedByName: user.displayName || user.email,
+        metadata: {
+          interviewId: completedInterview.id,
+          interviewType: completedInterview.type,
+          feedbackCount: completedInterview.feedbackResponses?.length || 0,
+          averageScore: calculateAverageScore(completedInterview.feedbackResponses)
+        }
+      });
+
+      console.log('✅ PDF de feedback 360° généré et stocké dans les documents RH');
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la génération/stockage du PDF:', error);
+    }
+  };
+
+  // Calculer le score moyen des feedbacks
+  const calculateAverageScore = (responses) => {
+    if (!responses || responses.length === 0) return 'N/A';
+    const avgScore = responses.reduce((acc, r) => {
+      const scores = Object.values(r.ratings || {});
+      if (scores.length === 0) return acc;
+      return acc + (scores.reduce((a, b) => a + b, 0) / scores.length);
+    }, 0) / responses.length;
+    return avgScore.toFixed(1);
   };
 
   if (loading) {

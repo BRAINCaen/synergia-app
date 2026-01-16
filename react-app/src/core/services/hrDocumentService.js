@@ -65,6 +65,20 @@ export const DOCUMENT_TYPES = {
     emoji: '📎',
     color: '#6B7280',
     folder: 'Autres'
+  },
+  feedback360: {
+    id: 'feedback360',
+    label: 'Feedback 360°',
+    emoji: '🔄',
+    color: '#06B6D4',
+    folder: 'Feedbacks 360°'
+  },
+  evaluation: {
+    id: 'evaluation',
+    label: 'Évaluation',
+    emoji: '📊',
+    color: '#8B5CF6',
+    folder: 'Évaluations'
   }
 };
 
