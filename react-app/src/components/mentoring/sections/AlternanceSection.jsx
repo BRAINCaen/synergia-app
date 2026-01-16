@@ -245,18 +245,35 @@ const AlternanceSection = ({
     setShowValidateModal(true);
   };
 
-  const confirmValidation = () => {
-    if (selectedObjective) {
-      const targetUserId = (isTutor || isAdmin) && selectedAlternantId
-        ? selectedAlternantId
-        : user?.uid;
-      onValidateObjective(selectedObjective.id, targetUserId, validationNote);
+  // Confirmer la validation d'un objectif - passer un objet complet + l'alternant cible
+  const confirmValidation = async () => {
+    if (!selectedObjective || !onValidateObjective) {
+      setShowValidateModal(false);
+      return;
     }
-    setShowValidateModal(false);
+
+    // Passer l'alternant sélectionné pour que l'XP aille à la bonne personne
+    const success = await onValidateObjective({
+      objectiveId: selectedObjective.id,
+      xpReward: selectedObjective.xpReward,
+      note: validationNote,
+      validatedAt: new Date().toISOString()
+    }, currentAlternantData);
+
+    if (success) {
+      setShowValidateModal(false);
+      setSelectedObjective(null);
+    }
   };
 
-  const isObjectiveCompleted = (objId) => {
-    return alternantInfo.completedObjectives?.includes(objId);
+  // Vérifier si un objectif a été validé (completedObjectives contient des OBJETS avec objectiveId)
+  const isObjectiveCompleted = (objectiveId) => {
+    return alternantInfo.completedObjectives?.some(c => c.objectiveId === objectiveId);
+  };
+
+  // Obtenir le nombre de validations d'un objectif (pour les objectifs répétables)
+  const getObjectiveCount = (objectiveId) => {
+    return alternantInfo.completedObjectives?.filter(c => c.objectiveId === objectiveId).length || 0;
   };
 
   const getColorClasses = (color) => {
@@ -378,6 +395,11 @@ const AlternanceSection = ({
           const Icon = objective.icon || Target;
           const colorClasses = getColorClasses(objective.color);
           const isCompleted = isObjectiveCompleted(objective.id);
+          const count = getObjectiveCount(objective.id);
+          // Un objectif est répétable si sa fréquence n'est pas 'once'
+          const isRepeatable = objective.frequency !== 'once';
+          // Peut valider si: tuteur/admin ET (pas encore validé OU répétable)
+          const canValidateThis = canValidate && (!isCompleted || isRepeatable);
 
           return (
             <motion.div
@@ -419,15 +441,22 @@ const AlternanceSection = ({
                   </div>
                   <p className="text-sm text-gray-400">{objective.description}</p>
 
+                  {/* Compteur pour objectifs répétables */}
+                  {count > 0 && isRepeatable && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      Validé {count} fois
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-3">
-                    {!isCompleted && canValidate && (
+                    {canValidateThis && (
                       <button
                         onClick={() => handleValidate(objective)}
                         className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm flex items-center gap-1 transition-all"
                       >
                         <Check className="w-4 h-4" />
-                        Valider
+                        {isCompleted && isRepeatable ? 'Revalider' : 'Valider'}
                       </button>
                     )}
                     {canValidate && (
@@ -446,8 +475,11 @@ const AlternanceSection = ({
                         </button>
                       </>
                     )}
-                    {isCompleted && (
-                      <span className="text-xs text-emerald-400">Objectif validé !</span>
+                    {isCompleted && !canValidate && (
+                      <span className="text-xs text-emerald-400">✓ Objectif validé !</span>
+                    )}
+                    {isCompleted && canValidate && !isRepeatable && (
+                      <span className="text-xs text-emerald-400">✓ Déjà validé (unique)</span>
                     )}
                   </div>
                 </div>
