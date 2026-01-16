@@ -102,6 +102,7 @@ const AlternanceSection = ({
   const [selectedObjective, setSelectedObjective] = useState(null);
   const [validationNote, setValidationNote] = useState('');
   const [selectedAlternantId, setSelectedAlternantId] = useState(null);
+  const [showManagePanel, setShowManagePanel] = useState(false);
 
   const [showObjectiveModal, setShowObjectiveModal] = useState(false);
   const [editingObjective, setEditingObjective] = useState(null);
@@ -230,6 +231,44 @@ const AlternanceSection = ({
     if (window.confirm(`Supprimer l'objectif "${objective.title}" ?`)) {
       onDeleteObjective(objective.id, objective.isCustom);
     }
+  };
+
+  // Grouper les objectifs personnalisés par titre pour détecter les doublons
+  const groupedCustomObjectives = customObjectives.reduce((acc, obj) => {
+    const key = obj.title?.toLowerCase().trim() || 'sans-titre';
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(obj);
+    return acc;
+  }, {});
+
+  // Compter les doublons
+  const duplicatesCount = Object.values(groupedCustomObjectives).filter(group => group.length > 1).reduce((acc, group) => acc + group.length - 1, 0);
+
+  // Supprimer tous les doublons (garder le premier de chaque groupe)
+  const handleDeleteAllDuplicates = async () => {
+    const duplicatesToDelete = [];
+    Object.values(groupedCustomObjectives).forEach(group => {
+      if (group.length > 1) {
+        // Garder le premier, supprimer les autres
+        group.slice(1).forEach(obj => duplicatesToDelete.push(obj));
+      }
+    });
+
+    if (duplicatesToDelete.length === 0) {
+      alert('Aucun doublon à supprimer !');
+      return;
+    }
+
+    if (!window.confirm(`Supprimer ${duplicatesToDelete.length} doublon(s) ? (Le premier de chaque groupe sera conservé)`)) {
+      return;
+    }
+
+    for (const obj of duplicatesToDelete) {
+      await onDeleteObjective(obj.id, true);
+    }
+    alert(`✅ ${duplicatesToDelete.length} doublon(s) supprimé(s) !`);
   };
 
   const handleValidate = (objective) => {
@@ -576,8 +615,123 @@ const AlternanceSection = ({
             <Plus className="w-4 h-4" />
             Créer un objectif personnalisé
           </button>
+
+          {/* Bouton gérer les objectifs */}
+          {customObjectives.length > 0 && (
+            <button
+              onClick={() => setShowManagePanel(!showManagePanel)}
+              className={`w-full py-3 rounded-xl border text-sm transition-all flex items-center justify-center gap-2 ${
+                showManagePanel
+                  ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+              }`}
+            >
+              <Edit3 className="w-4 h-4" />
+              Gérer les objectifs personnalisés ({customObjectives.length})
+              {duplicatesCount > 0 && (
+                <span className="px-2 py-0.5 bg-red-500/30 text-red-400 rounded-full text-xs">
+                  {duplicatesCount} doublon{duplicatesCount > 1 ? 's' : ''}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       )}
+
+      {/* Panneau de gestion des objectifs personnalisés */}
+      <AnimatePresence>
+        {showManagePanel && canValidate && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-slate-800/50 rounded-xl border border-white/10 p-4 mt-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-white font-medium flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-amber-400" />
+                  Gestion des objectifs personnalisés
+                </h4>
+                {duplicatesCount > 0 && (
+                  <button
+                    onClick={handleDeleteAllDuplicates}
+                    className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-xs flex items-center gap-1 transition-all"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Supprimer tous les doublons ({duplicatesCount})
+                  </button>
+                )}
+              </div>
+
+              {/* Liste groupée par titre */}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {Object.entries(groupedCustomObjectives).map(([titleKey, objectives]) => (
+                  <div key={titleKey} className={`rounded-lg border p-3 ${
+                    objectives.length > 1
+                      ? 'bg-red-500/10 border-red-500/30'
+                      : 'bg-white/5 border-white/10'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-medium text-sm">
+                        {objectives[0]?.title || 'Sans titre'}
+                      </span>
+                      {objectives.length > 1 && (
+                        <span className="px-2 py-0.5 bg-red-500/30 text-red-400 rounded text-xs">
+                          {objectives.length} doublons
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {objectives.map((obj, idx) => (
+                        <div key={obj.id} className="flex items-center justify-between bg-black/20 rounded-lg p-2 text-xs">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 font-mono">{obj.id.slice(0, 8)}...</span>
+                              <span className={`px-1.5 py-0.5 rounded ${
+                                obj.targetType === 'all'
+                                  ? 'bg-indigo-500/20 text-indigo-400'
+                                  : obj.targetType === 'multiple'
+                                  ? 'bg-purple-500/20 text-purple-400'
+                                  : 'bg-amber-500/20 text-amber-400'
+                              }`}>
+                                {obj.targetType === 'all' ? 'Tous' :
+                                 obj.targetType === 'multiple' ? `${obj.targetUserIds?.length || 0} alt.` :
+                                 '1 alt.'}
+                              </span>
+                              <span className="text-emerald-400">+{obj.xpReward} XP</span>
+                            </div>
+                            {objectives.length > 1 && idx === 0 && (
+                              <span className="text-emerald-400 text-[10px]">✓ Sera conservé</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Supprimer "${obj.title}" (ID: ${obj.id.slice(0, 8)}...) ?`)) {
+                                onDeleteObjective(obj.id, true);
+                              }
+                            }}
+                            className="p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded transition-colors ml-2"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {customObjectives.length === 0 && (
+                <p className="text-gray-500 text-sm text-center py-4">
+                  Aucun objectif personnalisé
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modal validation */}
       <AnimatePresence>
