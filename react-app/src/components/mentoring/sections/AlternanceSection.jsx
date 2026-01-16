@@ -221,6 +221,18 @@ const AlternanceSection = ({
       return;
     }
 
+    // Validation: si ciblage spécifique, vérifier qu'un alternant est sélectionné
+    if (objectiveForm.targetType === 'specific' && !objectiveForm.targetUserId) {
+      alert('Veuillez sélectionner un alternant pour un objectif ciblé');
+      return;
+    }
+
+    // Validation: si ciblage multiple, vérifier qu'au moins un alternant est sélectionné
+    if (objectiveForm.targetType === 'multiple' && (!objectiveForm.targetUserIds || objectiveForm.targetUserIds.length === 0)) {
+      alert('Veuillez sélectionner au moins un alternant');
+      return;
+    }
+
     if (editingObjective) {
       if (editingObjective.isCustom) {
         onUpdateObjective(editingObjective.id, objectiveForm);
@@ -624,6 +636,63 @@ const AlternanceSection = ({
 
                     {tutoredAlternants.length > 0 && (
                       <>
+                        {/* Option: Plusieurs alternants */}
+                        <label className="flex items-center gap-2 p-2 bg-white/5 rounded-lg cursor-pointer">
+                          <input
+                            type="radio"
+                            name="targetType"
+                            checked={objectiveForm.targetType === 'multiple'}
+                            onChange={() => setObjectiveForm({ ...objectiveForm, targetType: 'multiple', targetUserId: null })}
+                            className="text-purple-500"
+                          />
+                          <Users className="w-4 h-4 text-gray-400" />
+                          <span className="text-white text-sm">Plusieurs alternants</span>
+                        </label>
+
+                        {objectiveForm.targetType === 'multiple' && (
+                          <div className="ml-6 bg-white/5 border border-white/10 rounded-xl p-3 max-h-48 overflow-y-auto">
+                            <p className="text-xs text-gray-500 mb-2">Cochez les alternants concernés :</p>
+                            {tutoredAlternants.map(alt => {
+                              const altId = alt.userId || alt.id;
+                              const isChecked = objectiveForm.targetUserIds?.includes(altId);
+                              return (
+                                <label
+                                  key={alt.id}
+                                  className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setObjectiveForm(prev => ({
+                                          ...prev,
+                                          targetUserIds: [...(prev.targetUserIds || []), altId]
+                                        }));
+                                      } else {
+                                        setObjectiveForm(prev => ({
+                                          ...prev,
+                                          targetUserIds: (prev.targetUserIds || []).filter(id => id !== altId)
+                                        }));
+                                      }
+                                    }}
+                                    className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-purple-500"
+                                  />
+                                  <span className="text-white text-sm">
+                                    {alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                            {objectiveForm.targetUserIds?.length > 0 && (
+                              <p className="text-xs text-purple-400 mt-2 pt-2 border-t border-white/10">
+                                {objectiveForm.targetUserIds.length} alternant{objectiveForm.targetUserIds.length > 1 ? 's' : ''} sélectionné{objectiveForm.targetUserIds.length > 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Option: Un alternant spécifique */}
                         <label className="flex items-center gap-2 p-2 bg-white/5 rounded-lg cursor-pointer">
                           <input
                             type="radio"
@@ -644,7 +713,7 @@ const AlternanceSection = ({
                           >
                             <option value="">Sélectionner...</option>
                             {tutoredAlternants.map(alt => (
-                              <option key={alt.id} value={alt.id}>{alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'}</option>
+                              <option key={alt.id} value={alt.userId || alt.id}>{alt.userName || alt.displayName || alt.name || alt.email || 'Alternant'}</option>
                             ))}
                           </select>
                         )}
