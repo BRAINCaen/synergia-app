@@ -88,6 +88,7 @@ const AlternanceSection = ({
   onCreateObjective,
   onUpdateObjective,
   onDeleteObjective,
+  onUpdateAlternantInfo,
   alternanceData,
   isAdmin,
   isTutor,
@@ -103,6 +104,14 @@ const AlternanceSection = ({
   const [validationNote, setValidationNote] = useState('');
   const [selectedAlternantId, setSelectedAlternantId] = useState(null);
   const [showManagePanel, setShowManagePanel] = useState(false);
+  const [showEditInfoModal, setShowEditInfoModal] = useState(false);
+  const [editInfoForm, setEditInfoForm] = useState({
+    schoolName: '',
+    diploma: '',
+    currentYear: 1,
+    totalYears: 2,
+    options: ''
+  });
 
   const [showObjectiveModal, setShowObjectiveModal] = useState(false);
   const [editingObjective, setEditingObjective] = useState(null);
@@ -271,6 +280,37 @@ const AlternanceSection = ({
     alert(`✅ ${duplicatesToDelete.length} doublon(s) supprimé(s) !`);
   };
 
+  // Ouvrir le modal d'édition des infos alternant
+  const handleOpenEditInfo = () => {
+    setEditInfoForm({
+      schoolName: currentAlternantData?.schoolName || '',
+      diploma: currentAlternantData?.diploma || '',
+      currentYear: currentAlternantData?.currentYear || 1,
+      totalYears: currentAlternantData?.totalYears || 2,
+      options: currentAlternantData?.options || ''
+    });
+    setShowEditInfoModal(true);
+  };
+
+  // Sauvegarder les infos alternant
+  const handleSaveAlternantInfo = async () => {
+    if (!onUpdateAlternantInfo) {
+      alert('❌ Fonction de mise à jour non disponible');
+      return;
+    }
+
+    const targetUserId = currentAlternantData?.userId || currentAlternantData?.id;
+    if (!targetUserId) {
+      alert('❌ Aucun alternant sélectionné');
+      return;
+    }
+
+    const success = await onUpdateAlternantInfo(targetUserId, editInfoForm);
+    if (success) {
+      setShowEditInfoModal(false);
+    }
+  };
+
   const handleValidate = (objective) => {
     setSelectedObjective(objective);
     setValidationNote('');
@@ -424,6 +464,15 @@ const AlternanceSection = ({
           <div className="flex items-center gap-3 mb-3">
             <School className="w-5 h-5 text-indigo-400" />
             <span className="text-white font-medium">Mon parcours</span>
+            {canValidate && (
+              <button
+                onClick={handleOpenEditInfo}
+                className="p-1 bg-white/10 hover:bg-white/20 rounded-lg transition-colors ml-auto"
+                title="Modifier les informations"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-gray-400" />
+              </button>
+            )}
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -434,6 +483,12 @@ const AlternanceSection = ({
               <span className="text-gray-400">Diplôme visé</span>
               <span className="text-white">{alternantInfo.diploma}</span>
             </div>
+            {alternantInfo.options && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">Options</span>
+                <span className="text-white">{alternantInfo.options}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-400">Année</span>
               <span className="text-white">{alternantInfo.currentYear}/{alternantInfo.totalYears}</span>
@@ -969,6 +1024,118 @@ const AlternanceSection = ({
                   className="flex-1 py-2 bg-purple-500 hover:bg-purple-600 rounded-xl text-white transition-all"
                 >
                   {editingObjective ? 'Enregistrer' : 'Créer'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal édition infos alternant */}
+      <AnimatePresence>
+        {showEditInfoModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowEditInfoModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 rounded-2xl border border-white/10 p-6 max-w-md w-full"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-indigo-500/20 rounded-xl">
+                  <School className="w-6 h-6 text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Informations scolaires</h3>
+                  <p className="text-sm text-gray-400">
+                    {currentAlternantData?.userName || 'Alternant'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Centre de formation / École</label>
+                  <input
+                    type="text"
+                    value={editInfoForm.schoolName}
+                    onChange={(e) => setEditInfoForm({ ...editInfoForm, schoolName: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
+                    placeholder="Ex: IUT de Caen, AFTEC, CESI..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Diplôme préparé</label>
+                  <input
+                    type="text"
+                    value={editInfoForm.diploma}
+                    onChange={(e) => setEditInfoForm({ ...editInfoForm, diploma: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
+                    placeholder="Ex: BUT TC, Licence Pro, Master..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Options / Spécialité</label>
+                  <input
+                    type="text"
+                    value={editInfoForm.options}
+                    onChange={(e) => setEditInfoForm({ ...editInfoForm, options: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white"
+                    placeholder="Ex: Marketing Digital, Business Development..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Année en cours</label>
+                    <select
+                      value={editInfoForm.currentYear}
+                      onChange={(e) => setEditInfoForm({ ...editInfoForm, currentYear: parseInt(e.target.value) })}
+                      className="w-full bg-slate-800 border border-white/20 rounded-xl px-4 py-2 text-white"
+                      style={{ colorScheme: 'dark' }}
+                    >
+                      {[1, 2, 3, 4, 5].map(y => (
+                        <option key={y} value={y} className="bg-slate-800 text-white">Année {y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Durée totale</label>
+                    <select
+                      value={editInfoForm.totalYears}
+                      onChange={(e) => setEditInfoForm({ ...editInfoForm, totalYears: parseInt(e.target.value) })}
+                      className="w-full bg-slate-800 border border-white/20 rounded-xl px-4 py-2 text-white"
+                      style={{ colorScheme: 'dark' }}
+                    >
+                      {[1, 2, 3, 4, 5].map(y => (
+                        <option key={y} value={y} className="bg-slate-800 text-white">{y} an{y > 1 ? 's' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowEditInfoModal(false)}
+                  className="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveAlternantInfo}
+                  className="flex-1 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-xl text-white transition-all"
+                >
+                  Enregistrer
                 </button>
               </div>
             </motion.div>
