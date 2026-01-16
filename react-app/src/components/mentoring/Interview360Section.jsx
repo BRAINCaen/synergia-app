@@ -98,6 +98,7 @@ const Interview360Section = ({ user, allUsers = [] }) => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedInterview, setSelectedInterview] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming'); // upcoming, pending, completed
   const [expandedId, setExpandedId] = useState(null);
@@ -319,6 +320,54 @@ const Interview360Section = ({ user, allUsers = [] }) => {
     }
   };
 
+  // Supprimer un entretien (créateur ou admin)
+  const handleDeleteInterview = async (interviewId) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet entretien 360° ? Cette action est irréversible.')) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'interviews_360', interviewId));
+      setInterviews(prev => prev.filter(i => i.id !== interviewId));
+      console.log('🗑️ Entretien 360° supprimé:', interviewId);
+    } catch (error) {
+      console.error('❌ Erreur suppression entretien:', error);
+      alert('Erreur lors de la suppression: ' + error.message);
+    }
+  };
+
+  // Modifier un entretien
+  const handleUpdateInterview = async (interviewId, updatedData) => {
+    try {
+      const interviewRef = doc(db, 'interviews_360', interviewId);
+
+      await updateDoc(interviewRef, {
+        ...updatedData,
+        updatedAt: serverTimestamp()
+      });
+
+      setInterviews(prev => prev.map(i =>
+        i.id === interviewId ? { ...i, ...updatedData } : i
+      ));
+
+      setShowEditModal(false);
+      setSelectedInterview(null);
+      console.log('✅ Entretien 360° modifié:', interviewId);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur modification entretien:', error);
+      alert('Erreur lors de la modification: ' + error.message);
+      return { success: false, error };
+    }
+  };
+
+  // Vérifier si l'utilisateur peut modifier/supprimer
+  const canEditOrDelete = (interview) => {
+    const isAdmin = user?.isAdmin || user?.role === 'admin';
+    const isCreator = interview.createdBy === user?.uid;
+    return isAdmin || isCreator;
+  };
+
   // Générer le PDF du feedback et le stocker dans les documents RH
   const generateAndStoreFeedbackPDF = async (completedInterview) => {
     try {
@@ -513,6 +562,12 @@ const Interview360Section = ({ user, allUsers = [] }) => {
                 setSelectedInterview(interview);
                 setShowFeedbackModal(true);
               }}
+              canEdit={canEditOrDelete(interview)}
+              onEdit={() => {
+                setSelectedInterview(interview);
+                setShowEditModal(true);
+              }}
+              onDelete={() => handleDeleteInterview(interview.id)}
             />
           ))
         )}
@@ -546,6 +601,23 @@ const Interview360Section = ({ user, allUsers = [] }) => {
           />
         )}
       </AnimatePresence>
+
+      {/* Modal modification */}
+      <AnimatePresence>
+        {showEditModal && selectedInterview && (
+          <EditInterview360Modal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedInterview(null);
+            }}
+            interview={selectedInterview}
+            onUpdate={handleUpdateInterview}
+            allUsers={allUsers}
+            currentUser={user}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -554,12 +626,13 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 // CARTE ENTRETIEN 360
 // ==========================================
 
-const Interview360Card = ({ interview, user, expanded, onToggle, onGiveFeedback }) => {
+const Interview360Card = ({ interview, user, expanded, onToggle, onGiveFeedback, canEdit, onEdit, onDelete }) => {
   const type = INTERVIEW_360_TYPES[interview.type] || INTERVIEW_360_TYPES.quarterly;
   const scheduledDate = interview.scheduledDate?.toDate?.() || new Date(interview.scheduledDate);
   const isSubject = interview.subjectId === user?.uid;
   const myFeedbackRequest = interview.feedbackRequests?.find(fr => fr.reviewerId === user?.uid);
   const needsMyFeedback = myFeedbackRequest && !myFeedbackRequest.completed;
+  const isCompleted = interview.status === 'completed';
 
   // Calcul progression feedback
   const totalRequests = interview.feedbackRequests?.length || 0;
@@ -637,6 +710,32 @@ const Interview360Card = ({ interview, user, expanded, onToggle, onGiveFeedback 
                 <Send className="w-3.5 h-3.5" />
                 Donner feedback
               </motion.button>
+            )}
+
+            {/* Boutons modifier/supprimer */}
+            {canEdit && !isCompleted && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit();
+                  }}
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                  title="Modifier"
+                >
+                  <Edit3 className="w-4 h-4 text-blue-400" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
+                  title="Supprimer"
+                >
+                  <Trash2 className="w-4 h-4 text-red-400" />
+                </button>
+              </div>
             )}
 
             <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -734,29 +833,65 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
     title: '',
     description: '',
     scheduledDate: '',
-    reviewers: []
+    reviewers: [],
+    includeCreator: false,
+    creatorSourceType: 'peer'
   });
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState({}); // { odId: sourceType }
+  const [showUserList, setShowUserList] = useState(false);
 
   if (!isOpen) return null;
 
-  const filteredUsers = allUsers.filter(u =>
+  // Utilisateurs disponibles (pas le sujet, pas déjà sélectionnés)
+  const availableUsers = allUsers.filter(u =>
     u.id !== form.subjectId &&
-    !form.reviewers.some(r => r.id === u.id) &&
-    (u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     u.email?.toLowerCase().includes(searchTerm.toLowerCase()))
+    !form.reviewers.some(r => r.id === u.id)
   );
 
-  const addReviewer = (user, sourceType) => {
+  const filteredUsers = availableUsers.filter(u =>
+    u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Sélectionner/désélectionner un utilisateur avec checkbox
+  const toggleUserSelection = (user) => {
+    setSelectedUsers(prev => {
+      const newSelected = { ...prev };
+      if (newSelected[user.id]) {
+        delete newSelected[user.id];
+      } else {
+        newSelected[user.id] = 'peer'; // Type par défaut
+      }
+      return newSelected;
+    });
+  };
+
+  // Changer le type de source pour un utilisateur sélectionné
+  const changeUserSourceType = (userId, sourceType) => {
+    setSelectedUsers(prev => ({
+      ...prev,
+      [userId]: sourceType
+    }));
+  };
+
+  // Ajouter tous les utilisateurs sélectionnés aux reviewers
+  const addSelectedUsers = () => {
+    const newReviewers = Object.entries(selectedUsers).map(([userId, sourceType]) => {
+      const user = allUsers.find(u => u.id === userId);
+      return {
+        id: userId,
+        name: user?.displayName || user?.email || 'Utilisateur',
+        sourceType
+      };
+    });
+
     setForm(f => ({
       ...f,
-      reviewers: [...f.reviewers, {
-        id: user.id,
-        name: user.displayName || user.email,
-        sourceType
-      }]
+      reviewers: [...f.reviewers, ...newReviewers]
     }));
+    setSelectedUsers({});
     setSearchTerm('');
   };
 
@@ -768,17 +903,31 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
   };
 
   const handleSubmit = async () => {
-    if (!form.subjectId || !form.scheduledDate || form.reviewers.length === 0) {
-      alert('Veuillez remplir tous les champs obligatoires');
+    if (!form.subjectId || !form.scheduledDate || (form.reviewers.length === 0 && !form.includeCreator)) {
+      alert('Veuillez remplir tous les champs obligatoires et ajouter au moins un évaluateur');
       return;
     }
 
     console.log('🚀 Soumission formulaire entretien 360:', form);
 
+    // Ajouter le créateur si coché
+    let finalReviewers = [...form.reviewers];
+    if (form.includeCreator && currentUser) {
+      const creatorAlreadyAdded = finalReviewers.some(r => r.id === currentUser.uid);
+      if (!creatorAlreadyAdded) {
+        finalReviewers.push({
+          id: currentUser.uid,
+          name: currentUser.displayName || currentUser.email,
+          sourceType: form.creatorSourceType
+        });
+      }
+    }
+
     setSaving(true);
     try {
       const result = await onCreate({
         ...form,
+        reviewers: finalReviewers,
         scheduledDate: new Date(form.scheduledDate)
       });
 
@@ -898,10 +1047,47 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
             />
           </div>
 
+          {/* Option pour participer soi-même */}
+          <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.includeCreator}
+                onChange={(e) => setForm(f => ({ ...f, includeCreator: e.target.checked }))}
+                className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-cyan-500"
+              />
+              <div className="flex-1">
+                <span className="text-white font-medium">Je souhaite participer à ce feedback</span>
+                <p className="text-gray-400 text-sm mt-1">Vous serez ajouté comme évaluateur pour donner votre feedback</p>
+                {form.includeCreator && (
+                  <div className="mt-3">
+                    <label className="text-sm text-gray-400 mb-1 block">Mon rôle :</label>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.values(FEEDBACK_SOURCES).map(source => (
+                        <button
+                          key={source.id}
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, creatorSourceType: source.id }))}
+                          className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-all ${
+                            form.creatorSourceType === source.id
+                              ? 'bg-cyan-500/30 border border-cyan-500/50 text-cyan-300'
+                              : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          {source.emoji} {source.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+
           {/* Reviewers */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Personnes sollicitées * ({form.reviewers.length})
+              Personnes sollicitées * ({form.reviewers.length}{form.includeCreator ? ' + vous' : ''})
             </label>
 
             {/* Liste des reviewers ajoutés */}
@@ -929,42 +1115,78 @@ const CreateInterview360Modal = ({ isOpen, onClose, onCreate, allUsers, currentU
               </div>
             )}
 
-            {/* Recherche */}
-            <div className="relative">
+            {/* Recherche et sélection multiple */}
+            <div className="space-y-3">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setShowUserList(true)}
                 placeholder="Rechercher un collaborateur..."
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none"
               />
 
-              {searchTerm && filteredUsers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-white/10 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto">
-                  {filteredUsers.slice(0, 5).map(user => (
-                    <div key={user.id} className="p-2 hover:bg-white/5">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-white text-sm">{user.displayName || user.email}</span>
+              {/* Liste avec checkboxes */}
+              {(showUserList || searchTerm) && filteredUsers.length > 0 && (
+                <div className="bg-gray-800 border border-white/10 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                  {filteredUsers.slice(0, 10).map(user => {
+                    const isSelected = !!selectedUsers[user.id];
+                    const sourceType = selectedUsers[user.id] || 'peer';
+                    return (
+                      <div
+                        key={user.id}
+                        className={`p-3 border-b border-white/5 last:border-b-0 transition-colors ${
+                          isSelected ? 'bg-cyan-500/10' : 'hover:bg-white/5'
+                        }`}
+                      >
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleUserSelection(user)}
+                            className="w-5 h-5 rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-cyan-500"
+                          />
+                          <span className="text-white flex-1">{user.displayName || user.email}</span>
+                        </label>
+                        {isSelected && (
+                          <div className="flex flex-wrap gap-1 mt-2 ml-8">
+                            {Object.values(FEEDBACK_SOURCES).map(source => (
+                              <button
+                                key={source.id}
+                                type="button"
+                                onClick={() => changeUserSourceType(user.id, source.id)}
+                                className={`px-2 py-1 text-xs rounded-lg flex items-center gap-1 transition-all ${
+                                  sourceType === source.id
+                                    ? 'bg-cyan-500/30 border border-cyan-500/50 text-cyan-300'
+                                    : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'
+                                }`}
+                              >
+                                {source.emoji} {source.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex gap-1">
-                        {Object.values(FEEDBACK_SOURCES).map(source => (
-                          <button
-                            key={source.id}
-                            type="button"
-                            onClick={() => addReviewer(user, source.id)}
-                            className={`px-2 py-1 text-xs bg-${source.color}-500/20 hover:bg-${source.color}-500/30 text-${source.color}-300 rounded-lg flex items-center gap-1`}
-                          >
-                            {source.emoji} {source.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
+
+              {/* Bouton ajouter les sélectionnés */}
+              {Object.keys(selectedUsers).length > 0 && (
+                <button
+                  type="button"
+                  onClick={addSelectedUsers}
+                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  Ajouter {Object.keys(selectedUsers).length} personne(s) sélectionnée(s)
+                </button>
+              )}
             </div>
+
             <p className="text-xs text-gray-500 mt-2">
-              Ajoutez au moins une personne pour chaque type de feedback souhaité
+              Cochez les personnes à solliciter et choisissez leur rôle (Manager, Collègue, etc.)
             </p>
           </div>
         </div>
@@ -1133,6 +1355,335 @@ const FeedbackModal360 = ({ isOpen, onClose, interview, onSubmit, currentUser })
             </button>
           </div>
         </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ==========================================
+// MODAL MODIFICATION ENTRETIEN 360
+// ==========================================
+
+const EditInterview360Modal = ({ isOpen, onClose, interview, onUpdate, allUsers, currentUser }) => {
+  const [form, setForm] = useState({
+    title: interview?.title || '',
+    description: interview?.description || '',
+    type: interview?.type || 'quarterly',
+    scheduledDate: interview?.scheduledDate?.toDate?.()
+      ? interview.scheduledDate.toDate().toISOString().split('T')[0]
+      : interview?.scheduledDate
+        ? new Date(interview.scheduledDate).toISOString().split('T')[0]
+        : '',
+    reviewers: interview?.feedbackRequests?.map(fr => ({
+      id: fr.reviewerId,
+      name: fr.reviewerName,
+      sourceType: fr.sourceType,
+      completed: fr.completed
+    })) || []
+  });
+  const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState({});
+
+  if (!isOpen || !interview) return null;
+
+  // Utilisateurs disponibles
+  const availableUsers = allUsers.filter(u =>
+    u.id !== interview.subjectId &&
+    !form.reviewers.some(r => r.id === u.id)
+  );
+
+  const filteredUsers = availableUsers.filter(u =>
+    u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const toggleUserSelection = (user) => {
+    setSelectedUsers(prev => {
+      const newSelected = { ...prev };
+      if (newSelected[user.id]) {
+        delete newSelected[user.id];
+      } else {
+        newSelected[user.id] = 'peer';
+      }
+      return newSelected;
+    });
+  };
+
+  const changeUserSourceType = (userId, sourceType) => {
+    setSelectedUsers(prev => ({
+      ...prev,
+      [userId]: sourceType
+    }));
+  };
+
+  const addSelectedUsers = () => {
+    const newReviewers = Object.entries(selectedUsers).map(([userId, sourceType]) => {
+      const user = allUsers.find(u => u.id === userId);
+      return {
+        id: userId,
+        name: user?.displayName || user?.email || 'Utilisateur',
+        sourceType,
+        completed: false
+      };
+    });
+
+    setForm(f => ({
+      ...f,
+      reviewers: [...f.reviewers, ...newReviewers]
+    }));
+    setSelectedUsers({});
+    setSearchTerm('');
+  };
+
+  const removeReviewer = (userId) => {
+    // Ne pas permettre de supprimer un reviewer qui a déjà répondu
+    const reviewer = form.reviewers.find(r => r.id === userId);
+    if (reviewer?.completed) {
+      alert('Impossible de supprimer un évaluateur qui a déjà répondu.');
+      return;
+    }
+    setForm(f => ({
+      ...f,
+      reviewers: f.reviewers.filter(r => r.id !== userId)
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.scheduledDate || form.reviewers.length === 0) {
+      alert('Veuillez conserver au moins un évaluateur et une date');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Reconstruire les feedbackRequests
+      const feedbackRequests = form.reviewers.map(r => {
+        // Conserver les données existantes pour les reviewers qui n'ont pas changé
+        const existingRequest = interview.feedbackRequests?.find(fr => fr.reviewerId === r.id);
+        return existingRequest || {
+          reviewerId: r.id,
+          reviewerName: r.name,
+          sourceType: r.sourceType,
+          completed: false,
+          requestedAt: new Date().toISOString()
+        };
+      });
+
+      await onUpdate(interview.id, {
+        title: form.title,
+        description: form.description,
+        type: form.type,
+        scheduledDate: new Date(form.scheduledDate),
+        feedbackRequests
+      });
+    } catch (error) {
+      console.error('Erreur:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-white/10 rounded-2xl w-full max-w-2xl my-8"
+      >
+        {/* Header */}
+        <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-xl">
+              <Edit3 className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Modifier l'entretien 360°</h3>
+              <p className="text-gray-400 text-sm">Pour {interview.subjectName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Contenu */}
+        <div className="p-4 sm:p-6 space-y-4">
+          {/* Type et date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))}
+                className="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+                style={{ colorScheme: 'dark' }}
+              >
+                {Object.values(INTERVIEW_360_TYPES).map(type => (
+                  <option key={type.id} value={type.id} className="bg-gray-800 text-white">
+                    {type.emoji} {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Date</label>
+              <input
+                type="date"
+                value={form.scheduledDate}
+                onChange={(e) => setForm(f => ({ ...f, scheduledDate: e.target.value }))}
+                className="w-full bg-gray-800 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+                style={{ colorScheme: 'dark' }}
+              />
+            </div>
+          </div>
+
+          {/* Titre */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Titre</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Ex: Bilan Q1 2024"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Reviewers actuels */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Évaluateurs ({form.reviewers.length})
+            </label>
+
+            {form.reviewers.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {form.reviewers.map(reviewer => {
+                  const source = FEEDBACK_SOURCES[reviewer.sourceType] || FEEDBACK_SOURCES.peer;
+                  return (
+                    <div
+                      key={reviewer.id}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
+                        reviewer.completed
+                          ? 'bg-green-500/20 border border-green-500/30'
+                          : `bg-${source.color}-500/20 border border-${source.color}-500/30`
+                      }`}
+                    >
+                      <span className="text-sm">{reviewer.completed ? '✅' : source.emoji}</span>
+                      <span className="text-sm text-white">{reviewer.name}</span>
+                      {reviewer.completed ? (
+                        <span className="text-xs text-green-400">(répondu)</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => removeReviewer(reviewer.id)}
+                          className="p-0.5 hover:bg-white/20 rounded-full"
+                        >
+                          <X className="w-3 h-3 text-gray-400" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Ajouter de nouveaux reviewers */}
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Ajouter un évaluateur..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+              />
+
+              {searchTerm && filteredUsers.length > 0 && (
+                <div className="bg-gray-800 border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                  {filteredUsers.slice(0, 5).map(user => {
+                    const isSelected = !!selectedUsers[user.id];
+                    const sourceType = selectedUsers[user.id] || 'peer';
+                    return (
+                      <div
+                        key={user.id}
+                        className={`p-3 border-b border-white/5 last:border-b-0 ${
+                          isSelected ? 'bg-blue-500/10' : 'hover:bg-white/5'
+                        }`}
+                      >
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleUserSelection(user)}
+                            className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-blue-500"
+                          />
+                          <span className="text-white flex-1">{user.displayName || user.email}</span>
+                        </label>
+                        {isSelected && (
+                          <div className="flex flex-wrap gap-1 mt-2 ml-8">
+                            {Object.values(FEEDBACK_SOURCES).map(source => (
+                              <button
+                                key={source.id}
+                                type="button"
+                                onClick={() => changeUserSourceType(user.id, source.id)}
+                                className={`px-2 py-1 text-xs rounded-lg flex items-center gap-1 ${
+                                  sourceType === source.id
+                                    ? 'bg-blue-500/30 border border-blue-500/50 text-blue-300'
+                                    : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'
+                                }`}
+                              >
+                                {source.emoji} {source.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {Object.keys(selectedUsers).length > 0 && (
+                <button
+                  type="button"
+                  onClick={addSelectedUsers}
+                  className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  Ajouter {Object.keys(selectedUsers).length} personne(s)
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 sm:p-6 border-t border-white/10 flex justify-end gap-3 bg-gray-900/50 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving || form.reviewers.length === 0}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {saving && <RefreshCw className="w-4 h-4 animate-spin" />}
+            Enregistrer les modifications
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   );
