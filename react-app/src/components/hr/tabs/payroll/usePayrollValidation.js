@@ -128,6 +128,115 @@ const usePayrollValidation = ({
     }
   }, [validationPeriods, selectedMonth, selectedYear, employees, currentUser]);
 
+  // Générer et stocker le PDF des pointages signés
+  const generateAndStoreSignedTimesheetPDF = useCallback(async (signatureData, signedAt) => {
+    try {
+      console.log('📄 Génération du PDF des pointages signés...');
+
+      // Importer les services dynamiquement
+      const { exportService } = await import('../../../../core/services/exportService.js');
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      const { storage } = await import('../../../../core/firebase.js');
+      const hrDocService = (await import('../../../../core/services/hrDocumentService.js')).default;
+      const { collection, getDocs, query, where, orderBy } = await import('firebase/firestore');
+
+      // Récupérer les pointages du mois pour l'utilisateur
+      const startDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const endMonth = selectedMonth === 11 ? 0 : selectedMonth + 1;
+      const endYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
+      const endDate = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-01`;
+
+      const pointagesQuery = query(
+        collection(db, 'pointages'),
+        where('userId', '==', currentUser.uid),
+        where('date', '>=', startDate),
+        where('date', '<', endDate),
+        orderBy('date', 'asc')
+      );
+
+      const pointagesSnapshot = await getDocs(pointagesQuery);
+      const pointages = [];
+      pointagesSnapshot.forEach(doc => {
+        const data = doc.data();
+        pointages.push({
+          id: doc.id,
+          ...data,
+          timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp)
+        });
+      });
+
+      // Récupérer les congés approuvés du mois
+      const leavesQuery = query(
+        collection(db, 'leaveRequests'),
+        where('userId', '==', currentUser.uid),
+        where('status', '==', 'approved')
+      );
+
+      const leavesSnapshot = await getDocs(leavesQuery);
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const monthEndDate = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${lastDay}`;
+      const leaves = [];
+
+      leavesSnapshot.forEach(doc => {
+        const data = doc.data();
+        const leaveStart = data.startDate?.split('T')[0] || data.startDate;
+        const leaveEnd = data.endDate?.split('T')[0] || data.endDate;
+
+        if (leaveStart <= monthEndDate && leaveEnd >= startDate) {
+          leaves.push({
+            id: doc.id,
+            ...data,
+            startDate: leaveStart,
+            endDate: leaveEnd
+          });
+        }
+      });
+
+      // Générer le PDF
+      const pdfResult = await exportService.exportSignedTimesheetToPDF({
+        month: selectedMonth,
+        year: selectedYear,
+        user: currentUser,
+        signatureData,
+        signedAt,
+        pointages,
+        leaves
+      });
+
+      if (!pdfResult.success) {
+        console.error('❌ Erreur génération PDF');
+        return;
+      }
+
+      // Uploader le PDF dans Firebase Storage
+      const storagePath = `hr_documents/${currentUser.uid}/signed_timesheets/${pdfResult.fileName}`;
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, pdfResult.blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Créer le document RH
+      await hrDocService.createDocument({
+        employeeId: currentUser.uid,
+        employeeName: currentUser.displayName || currentUser.email,
+        type: 'signed_timesheet',
+        title: `Pointages signés - ${MONTHS_FR[selectedMonth]} ${selectedYear}`,
+        description: `Récapitulatif des pointages du mois de ${MONTHS_FR[selectedMonth]} ${selectedYear}, signé électroniquement le ${new Date(signedAt).toLocaleDateString('fr-FR')}`,
+        fileUrl: downloadURL,
+        fileName: pdfResult.fileName,
+        fileSize: pdfResult.blob.size,
+        mimeType: 'application/pdf',
+        period: `${MONTHS_FR[selectedMonth]} ${selectedYear}`,
+        uploadedBy: currentUser.uid,
+        uploadedByName: currentUser.displayName || currentUser.email
+      });
+
+      console.log('✅ PDF des pointages signés généré et stocké');
+    } catch (error) {
+      console.error('❌ Erreur génération/stockage PDF pointages:', error);
+      // Ne pas bloquer la signature si le PDF échoue
+    }
+  }, [currentUser, selectedMonth, selectedYear]);
+
   // Signer les pointages
   const handleSignTimesheet = useCallback(async (signatureData) => {
     if (!currentUser?.uid || !selectedValidation) return null;
@@ -135,13 +244,14 @@ const usePayrollValidation = ({
     try {
       const periodId = selectedValidation.id;
       const validationRef = doc(db, 'timesheetValidations', periodId);
+      const signedAt = new Date().toISOString();
 
       const updatedSignatures = {
         ...selectedValidation.employeeSignatures,
         [currentUser.uid]: {
           status: 'signed',
           signature: signatureData,
-          signedAt: new Date().toISOString(),
+          signedAt,
           signedByName: currentUser.displayName || currentUser.email
         }
       };
@@ -163,6 +273,9 @@ const usePayrollValidation = ({
         employeeSignatures: updatedSignatures,
         status: newStatus
       }]);
+
+      // Générer et stocker le PDF des pointages signés (en arrière-plan)
+      generateAndStoreSignedTimesheetPDF(signatureData, signedAt);
 
       // Notifications
       const managerId = selectedValidation.requestedBy;
@@ -193,7 +306,7 @@ const usePayrollValidation = ({
       console.error('Erreur signature:', error);
       throw error;
     }
-  }, [currentUser, selectedValidation, selectedMonth, selectedYear]);
+  }, [currentUser, selectedValidation, selectedMonth, selectedYear, generateAndStoreSignedTimesheetPDF]);
 
   // Envoyer à la paie
   const handleSendToPayroll = useCallback(async (onExportPayroll) => {
