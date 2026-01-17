@@ -43,6 +43,7 @@ import AdminRolePermissionsPage from '../pages/AdminRolePermissionsPage.jsx';
 import AdminRanksPage from '../pages/AdminRanksPage.jsx'; // 🎖️ MODULE RANGS
 import AdminSyncPage from '../pages/AdminSyncPage.jsx';
 import AdminAnalyticsPage from '../pages/AdminAnalyticsPage.jsx'; // 📊 ADMIN ANALYTICS
+import IntegrationsPage from '../pages/IntegrationsPage.jsx'; // 🔌 MODULE INTÉGRATIONS
 import LoginPage from '../pages/Login.jsx';
 
 // Protection des routes
@@ -111,6 +112,7 @@ const AppRoutes = () => {
         <Route path="/admin/ranks" element={<AdminRanksPage />} /> {/* 🎖️ MODULE RANGS */}
         <Route path="/admin/sync" element={<AdminSyncPage />} />
         <Route path="/admin/analytics" element={<AdminAnalyticsPage />} /> {/* 📊 ADMIN ANALYTICS */}
+        <Route path="/admin/integrations" element={<IntegrationsPage />} /> {/* 🔌 INTÉGRATIONS */}
       </Route>
 
       {/* Redirection par défaut */}
