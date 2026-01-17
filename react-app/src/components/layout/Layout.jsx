@@ -81,6 +81,7 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
       { path: '/admin/task-validation', label: `Validation ${t('tasks', 'Quêtes')}`, icon: '🛡️' },
       { path: '/admin/objective-validation', label: `Gestion ${t('challenges', 'Campagnes')}`, icon: '🎯' },
       { path: '/admin/rewards', label: `Validation ${t('rewards', 'Récompenses')}`, icon: '🎁' },
+      { path: '/admin/integrations', label: 'Intégrations', icon: '🔌' },
       { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
       { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
       { path: '/admin/ranks', label: 'Gestion des Rangs', icon: '🎖️' },
