@@ -26,9 +26,12 @@ import { RewardAnimationsProvider } from '../../shared/animations';
 // 🎨 THEME PRESET SYSTEM
 import { useThemePreset } from '../../shared/themes';
 
+// ⚙️ HOOK PARAMÈTRES SYSTÈME
+import useSystemSettings from '../../shared/hooks/useSystemSettings.js';
+
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD + BADGES
-const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {}, vocabulary = {}, onLogout }) => {
+const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {}, vocabulary = {}, onLogout, isModuleEnabled }) => {
   console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen, 'badges:', menuBadges);
 
   if (!isOpen) return null;
@@ -48,55 +51,76 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
   // 🎨 Helper pour obtenir le label traduit
   const t = (key, fallback) => vocabulary[key] || fallback;
 
+  // ⚙️ Helper pour vérifier si un module est activé
+  const checkModule = (moduleId) => {
+    if (!isModuleEnabled) return true; // Si pas de fonction, tout est activé
+    return isModuleEnabled(moduleId);
+  };
+
+  // 📋 MENU ITEMS AVEC MAPPING DES MODULES
+  // module: null = toujours visible, sinon filtré selon les paramètres admin
   const menuItems = [
     { section: 'PRINCIPAL', items: [
-      { path: '/pulse', label: t('pulse', 'Poste de Garde'), icon: '🛡️' },
-      { path: '/dashboard', label: t('dashboard', 'Mon Aventure'), icon: '🚀' },
-      { path: '/infos', label: t('infos', 'Le Crieur'), icon: '📢', hasBadge: true },
-      { path: '/tasks', label: t('tasks', 'Quêtes'), icon: '⚔️' },
-      { path: '/projects', label: t('projects', 'Conquêtes'), icon: '👑' }
+      { path: '/pulse', label: t('pulse', 'Poste de Garde'), icon: '🛡️', module: 'pulse' },
+      { path: '/dashboard', label: t('dashboard', 'Mon Aventure'), icon: '🚀', module: 'gamification' },
+      { path: '/infos', label: t('infos', 'Le Crieur'), icon: '📢', hasBadge: true, module: 'gamification' },
+      { path: '/tasks', label: t('tasks', 'Quêtes'), icon: '⚔️', module: 'gamification' },
+      { path: '/projects', label: t('projects', 'Conquêtes'), icon: '👑', module: 'gamification' }
     ]},
     { section: 'GAMIFICATION', items: [
-      { path: '/badges', label: t('badges', 'Badges'), icon: '🏆' },
-      { path: '/skills', label: t('skills', 'Competences'), icon: '🌳' },
-      { path: '/rewards', label: t('rewards', 'Recompenses'), icon: '🎁' },
-      { path: '/customization', label: 'Personnalisation', icon: '🎨' }
+      { path: '/badges', label: t('badges', 'Badges'), icon: '🏆', module: 'gamification' },
+      { path: '/skills', label: t('skills', 'Competences'), icon: '🌳', module: 'skills' },
+      { path: '/rewards', label: t('rewards', 'Recompenses'), icon: '🎁', module: 'rewards' },
+      { path: '/customization', label: 'Personnalisation', icon: '🎨', module: 'customization' }
     ]},
     { section: 'ÉQUIPE', items: [
-      { path: '/team', label: t('team', 'Équipe'), icon: '👥' },
-      { path: '/taverne', label: t('tavern', 'Taverne'), icon: '🍺' },
-      { path: '/mentoring', label: t('mentoring', 'Académie'), icon: '🎓' },
-      { path: '/settings', label: t('settings', 'Paramètres'), icon: '⚙️' }
+      { path: '/team', label: t('team', 'Équipe'), icon: '👥', module: 'gamification' },
+      { path: '/taverne', label: t('tavern', 'Taverne'), icon: '🍺', module: 'gamification' },
+      { path: '/mentoring', label: t('mentoring', 'Académie'), icon: '🎓', module: 'mentoring' },
+      { path: '/settings', label: t('settings', 'Paramètres'), icon: '⚙️', module: null } // Toujours visible
     ]},
     { section: 'OUTILS', items: [
-      { path: '/onboarding', label: 'Intégration', icon: '🎯' },
-      { path: '/hr', label: t('hr', 'RH'), icon: '🏢' },
-      { path: '/planning', label: t('planning', 'Planning'), icon: '📅' }
+      { path: '/onboarding', label: 'Intégration', icon: '🎯', module: 'hr' },
+      { path: '/hr', label: t('hr', 'RH'), icon: '🏢', module: 'hr' },
+      { path: '/planning', label: t('planning', 'Planning'), icon: '📅', module: 'planning' }
     ]},
     { section: 'AIDE', items: [
-      { path: '/tutorial', label: 'Guide & Tutoriel', icon: '📚' }
+      { path: '/tutorial', label: 'Guide & Tutoriel', icon: '📚', module: null } // Toujours visible
     ]},
     { section: 'ADMIN', items: [
-      { path: '/admin/analytics', label: 'Analytics', icon: '📊' },
-      { path: '/admin/task-validation', label: `Validation ${t('tasks', 'Quêtes')}`, icon: '🛡️' },
-      { path: '/admin/objective-validation', label: `Gestion ${t('challenges', 'Campagnes')}`, icon: '🎯' },
-      { path: '/admin/rewards', label: `Validation ${t('rewards', 'Récompenses')}`, icon: '🎁' },
-      { path: '/admin/integrations', label: 'Intégrations', icon: '🔌' },
-      { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️' },
-      { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐' },
-      { path: '/admin/ranks', label: 'Gestion des Rangs', icon: '🎖️' },
-      { path: '/admin/sync', label: 'Synchronisation', icon: '🔄' }
+      { path: '/admin/analytics', label: 'Analytics', icon: '📊', module: null },
+      { path: '/admin/task-validation', label: `Validation ${t('tasks', 'Quêtes')}`, icon: '🛡️', module: 'gamification' },
+      { path: '/admin/objective-validation', label: `Gestion ${t('challenges', 'Campagnes')}`, icon: '🎯', module: 'challenges' },
+      { path: '/admin/rewards', label: `Validation ${t('rewards', 'Récompenses')}`, icon: '🎁', module: 'rewards' },
+      { path: '/admin/integrations', label: 'Intégrations', icon: '🔌', module: null },
+      { path: '/admin/settings', label: 'Paramètres Admin', icon: '⚙️', module: null },
+      { path: '/admin/role-permissions', label: 'Permissions & Rôles', icon: '🔐', module: null },
+      { path: '/admin/ranks', label: 'Gestion des Rangs', icon: '🎖️', module: 'ranks' },
+      { path: '/admin/sync', label: 'Synchronisation', icon: '🔄', module: null }
     ]}
   ];
 
-  // 🔐 FILTRER LE MENU ADMIN SI L'UTILISATEUR N'A PAS LES DROITS
-  const filteredMenuItems = menuItems.filter(section => {
-    // Cacher la section ADMIN si pas de droits admin
-    if (section.section === 'ADMIN' && !hasAdminAccess) {
-      return false;
-    }
-    return true;
-  });
+  // 🔐 FILTRER LE MENU SELON LES MODULES ACTIVÉS ET LES DROITS ADMIN
+  const filteredMenuItems = menuItems
+    .filter(section => {
+      // Cacher la section ADMIN si pas de droits admin
+      if (section.section === 'ADMIN' && !hasAdminAccess) {
+        return false;
+      }
+      return true;
+    })
+    .map(section => ({
+      ...section,
+      // Filtrer les items de chaque section selon les modules activés
+      items: section.items.filter(item => {
+        // Si pas de module spécifié, toujours visible
+        if (!item.module) return true;
+        // Sinon vérifier si le module est activé
+        return checkModule(item.module);
+      })
+    }))
+    // Cacher les sections vides après filtrage
+    .filter(section => section.items.length > 0);
 
   // 👑 AJOUTER GODMOD SI L'UTILISATEUR EST ALAN
   if (isGodMode) {
@@ -454,6 +478,9 @@ const Layout = memo(({ children }) => {
   // 🎨 Theme Preset (Gaming/Corporate/Startup)
   const { theme } = useThemePreset();
 
+  // ⚙️ Paramètres système pour synchronisation menu
+  const { isModuleEnabled } = useSystemSettings();
+
   // 🔔 CHARGER LES COMPTEURS DE BADGES MENU (infos non lues, idées non votées)
   useEffect(() => {
     if (!user?.uid) return;
@@ -673,7 +700,7 @@ const Layout = memo(({ children }) => {
         )}
       </button>
 
-      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE + GODMOD + BADGES */}
+      {/* 🔒 MENU PREMIUM - ISOLATION COMPLÈTE + GODMOD + BADGES + FILTRAGE MODULES */}
       <HamburgerMenuStable
         isOpen={menuOpen}
         onClose={closeMenu}
@@ -683,6 +710,7 @@ const Layout = memo(({ children }) => {
         menuBadges={menuBadges}
         vocabulary={theme?.vocabulary || {}}
         onLogout={handleLogout}
+        isModuleEnabled={isModuleEnabled}
       />
 
       {/* 🔔 MODULE 6: CENTRE DE NOTIFICATIONS AMÉLIORÉ */}
