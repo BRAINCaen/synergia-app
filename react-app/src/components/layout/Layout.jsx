@@ -28,7 +28,7 @@ import { useThemePreset } from '../../shared/themes';
 
 
 // 🔒 COMPOSANT MENU PREMIUM AVEC DESIGN HARMONISÉ + GODMOD + BADGES
-const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {}, vocabulary = {} }) => {
+const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail, userIsAdmin, menuBadges = {}, vocabulary = {}, onLogout }) => {
   console.log('🎯 [MENU] Rendu composant menu - isOpen:', isOpen, 'badges:', menuBadges);
 
   if (!isOpen) return null;
@@ -359,6 +359,42 @@ const HamburgerMenuStable = memo(({ isOpen, onClose, navigateFunction, userEmail
           borderTop: '1px solid rgba(75, 85, 99, 0.3)',
           background: 'rgba(17, 24, 39, 0.5)'
         }}>
+          {/* 🚪 BOUTON DÉCONNEXION */}
+          <button
+            onClick={() => {
+              onClose();
+              if (onLogout) onLogout();
+            }}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              marginBottom: '12px',
+              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              color: '#f87171',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.25) 100%)';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%)';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>🚪</span>
+            Se déconnecter
+          </button>
+
           <p style={{
             fontSize: '12px',
             color: 'rgba(107, 114, 128, 1)',
@@ -410,7 +446,7 @@ const Layout = memo(({ children }) => {
   const [menuBadges, setMenuBadges] = useState({ infos: 0, ideas: 0 });
   const menuOpenRef = useRef(false);
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, signOut } = useAuthStore();
 
   // 🎨 MODULE 16: Theme hook
   const { isDark, toggleTheme } = useTheme();
@@ -479,6 +515,17 @@ const Layout = memo(({ children }) => {
     console.log('🧭 [LAYOUT] Navigation vers:', path);
     navigate(path);
   }, [navigate]);
+
+  // 🚪 Fonction de déconnexion
+  const handleLogout = useCallback(async () => {
+    console.log('🚪 [LAYOUT] Déconnexion demandée');
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('❌ [LAYOUT] Erreur déconnexion:', error);
+    }
+  }, [signOut, navigate]);
 
   // Debug logging
   if (menuOpenRef.current !== menuOpen) {
@@ -635,6 +682,7 @@ const Layout = memo(({ children }) => {
         userIsAdmin={hasAdminMenuAccess(user)}
         menuBadges={menuBadges}
         vocabulary={theme?.vocabulary || {}}
+        onLogout={handleLogout}
       />
 
       {/* 🔔 MODULE 6: CENTRE DE NOTIFICATIONS AMÉLIORÉ */}
