@@ -10,7 +10,7 @@ import {
   Loader, Bell, ChevronDown, ChevronUp,
   // BOITE A IDEES
   Lightbulb, ThumbsUp, ThumbsDown, MessageSquare, TrendingUp, Sparkles, XOctagon,
-  RefreshCw, Vote, X
+  RefreshCw, Vote, X, Check, CheckCircle
 } from 'lucide-react';
 
 import Layout from '../components/layout/Layout.jsx';
