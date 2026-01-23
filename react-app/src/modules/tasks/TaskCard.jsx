@@ -444,8 +444,8 @@ const TaskCard = ({
                 )}
               </button>
             )}
-            {/* Bouton Désassigner pour les admins */}
-            {isAdmin && !isTaskOwner && onAdminUnassign && assignedTo.length > 0 && task.status !== 'completed' && task.status !== 'validated' && (
+            {/* Bouton Désassigner pour les admins (même si créateur, pour désassigner les autres) */}
+            {isAdmin && onAdminUnassign && assignedTo.length > 0 && task.status !== 'completed' && task.status !== 'validated' && (
               <button
                 onClick={handleAdminUnassign}
                 disabled={volunteering}
