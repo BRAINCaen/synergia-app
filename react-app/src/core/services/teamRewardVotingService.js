@@ -133,6 +133,34 @@ class TeamRewardVotingService {
   }
 
   /**
+   * Recuperer une session cloturee (en attente de validation)
+   */
+  async getClosedSession() {
+    try {
+      const q = query(
+        collection(db, this.SESSIONS_COLLECTION),
+        where('status', '==', VOTE_SESSION_STATUS.CLOSED)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        return null;
+      }
+
+      const doc = snapshot.docs[0];
+      return {
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date()
+      };
+    } catch (error) {
+      console.error('❌ Erreur recuperation session cloturee:', error);
+      return null;
+    }
+  }
+
+  /**
    * Recuperer une session par ID
    */
   async getSession(sessionId) {
@@ -518,15 +546,18 @@ class TeamRewardVotingService {
    */
   subscribeToActiveSession(callback) {
     try {
+      // Requete simplifiee pour eviter les index composites
       const q = query(
         collection(db, this.SESSIONS_COLLECTION),
-        where('status', 'in', [VOTE_SESSION_STATUS.ACTIVE, VOTE_SESSION_STATUS.CLOSED]),
-        orderBy('createdAt', 'desc')
+        where('status', '==', VOTE_SESSION_STATUS.ACTIVE)
       );
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
-          callback(null);
+          // Verifier s'il y a une session cloturee en attente
+          this.getClosedSession().then(closedSession => {
+            callback(closedSession);
+          });
           return;
         }
 
@@ -536,6 +567,9 @@ class TeamRewardVotingService {
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate?.() || new Date()
         });
+      }, (error) => {
+        console.error('❌ Erreur subscription session:', error);
+        callback(null);
       });
 
       return unsubscribe;
