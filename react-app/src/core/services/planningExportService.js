@@ -73,10 +73,10 @@ class PlanningExportService {
       const fileName = `planning_semaine_${weekStart}_${weekEnd}.pdf`;
       doc.save(fileName);
 
-      console.log('✅ PDF hebdomadaire officiel généré:', fileName);
+      console.log('[OK] PDF hebdomadaire officiel genere:', fileName);
       return { success: true, fileName };
     } catch (error) {
-      console.error('❌ Erreur génération PDF hebdomadaire:', error);
+      console.error('[ERROR] Erreur generation PDF hebdomadaire:', error);
       throw error;
     }
   }
@@ -86,8 +86,8 @@ class PlanningExportService {
    */
   addWeeklyStats(doc, stats, y) {
     const statsData = [
-      ['Total Heures', `${stats?.totalHours || 0}h`, 'Shifts Planifiés', stats?.shiftsCount || 0],
-      ['Employés Planifiés', stats?.employeesScheduled || 0, 'Taux de Couverture', `${stats?.coverage || 0}%`]
+      ['Total Heures', `${stats?.totalHours || 0}h`, 'Shifts Planifies', stats?.shiftsCount || 0],
+      ['Employes Planifies', stats?.employeesScheduled || 0, 'Taux de Couverture', `${stats?.coverage || 0}%`]
     ];
 
     doc.autoTable({
@@ -117,7 +117,7 @@ class PlanningExportService {
     const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
     // En-têtes du tableau
-    const headers = ['Employé', ...dayNames];
+    const headers = ['Employe', ...dayNames];
 
     // Corps du tableau
     const body = employees.map(employee => {
@@ -147,59 +147,59 @@ class PlanningExportService {
           dayShifts.forEach((shift, idx) => {
             if (idx > 0) cellContent += '\n---\n';
 
-            // Shift planifié
-            cellContent += `📅 ${shift.startTime}-${shift.endTime}`;
+            // Shift planifie
+            cellContent += `[P] ${shift.startTime}-${shift.endTime}`;
             if (shift.position) {
               cellContent += `\n${shift.position}`;
             }
 
-            // Vérifier s'il y a des anomalies
+            // Verifier s'il y a des anomalies
             const shiftAnomaly = anomalies[shift.id];
             if (shiftAnomaly) {
               if (shiftAnomaly.type === 'late') {
-                cellContent += `\n⚠️ Retard: ${shiftAnomaly.lateMinutes}min`;
+                cellContent += `\n/!\\ Retard: ${shiftAnomaly.lateMinutes}min`;
               } else if (shiftAnomaly.type === 'early_departure') {
-                cellContent += `\n⚠️ Départ anticipé`;
+                cellContent += `\n/!\\ Depart anticipe`;
               } else if (shiftAnomaly.type === 'missing') {
-                cellContent += `\n❌ Absent`;
+                cellContent += `\n[X] Absent`;
               } else if (shiftAnomaly.type === 'overtime') {
-                cellContent += `\n⏰ Heures sup`;
+                cellContent += `\n[+] Heures sup`;
               }
             }
           });
 
-          // Ajouter les pointages réels si disponibles
+          // Ajouter les pointages reels si disponibles
           if (dayPointageData.length > 0) {
             const arrivals = dayPointageData.filter(p => p.type === 'arrival');
             const departures = dayPointageData.filter(p => p.type === 'departure');
 
             if (arrivals.length > 0 || departures.length > 0) {
-              cellContent += '\n──────────';
-              cellContent += '\n⏱️ Pointages:';
+              cellContent += '\n----------';
+              cellContent += '\nPointages:';
 
               if (arrivals[0]?.timestamp) {
                 const arrTime = this.formatTime(arrivals[0].timestamp);
-                cellContent += `\n→ ${arrTime}`;
+                cellContent += `\n> ${arrTime}`;
               }
               if (departures[departures.length - 1]?.timestamp) {
                 const depTime = this.formatTime(departures[departures.length - 1].timestamp);
-                cellContent += `\n← ${depTime}`;
+                cellContent += `\n< ${depTime}`;
               }
             }
           }
         } else if (dayPointageData.length > 0) {
-          // Pointages sans shift planifié (hors planning)
-          cellContent = '⚡ Hors planning';
+          // Pointages sans shift planifie (hors planning)
+          cellContent = '[HP] Hors planning';
           const arrivals = dayPointageData.filter(p => p.type === 'arrival');
           const departures = dayPointageData.filter(p => p.type === 'departure');
 
           if (arrivals[0]?.timestamp) {
             const arrTime = this.formatTime(arrivals[0].timestamp);
-            cellContent += `\n→ ${arrTime}`;
+            cellContent += `\n> ${arrTime}`;
           }
           if (departures[departures.length - 1]?.timestamp) {
             const depTime = this.formatTime(departures[departures.length - 1].timestamp);
-            cellContent += `\n← ${depTime}`;
+            cellContent += `\n< ${depTime}`;
           }
         } else {
           cellContent = '-';
@@ -244,11 +244,11 @@ class PlanningExportService {
         // Colorer les cellules selon le contenu
         if (data.section === 'body' && data.column.index > 0) {
           const text = data.cell.text.join(' ');
-          if (text.includes('❌')) {
+          if (text.includes('[X]')) {
             data.cell.styles.fillColor = [254, 226, 226]; // Rouge clair
-          } else if (text.includes('⚠️')) {
+          } else if (text.includes('/!\\')) {
             data.cell.styles.fillColor = [254, 243, 199]; // Jaune clair
-          } else if (text.includes('⚡')) {
+          } else if (text.includes('[HP]')) {
             data.cell.styles.fillColor = [219, 234, 254]; // Bleu clair
           }
         }
@@ -260,10 +260,10 @@ class PlanningExportService {
   }
 
   /**
-   * AJOUTER LA LÉGENDE
+   * AJOUTER LA LEGENDE
    */
   addLegend(doc, y) {
-    // Vérifier s'il y a assez de place, sinon nouvelle page
+    // Verifier s'il y a assez de place, sinon nouvelle page
     if (y > doc.internal.pageSize.height - 40) {
       doc.addPage();
       y = 20;
@@ -272,18 +272,18 @@ class PlanningExportService {
     doc.setFontSize(8);
     doc.setTextColor(107, 114, 128);
     doc.setFont('helvetica', 'bold');
-    doc.text('Légende:', 14, y);
+    doc.text('Legende:', 14, y);
 
     doc.setFont('helvetica', 'normal');
     const legendItems = [
-      '📅 Shift planifié',
-      '⏱️ Pointages réels',
-      '→ Arrivée',
-      '← Départ',
-      '⚠️ Anomalie (retard/départ anticipé)',
-      '❌ Absence',
-      '⚡ Hors planning',
-      '⏰ Heures supplémentaires'
+      '[P] Shift planifie',
+      'Pointages reels',
+      '> Arrivee',
+      '< Depart',
+      '/!\\ Anomalie (retard/depart anticipe)',
+      '[X] Absence',
+      '[HP] Hors planning',
+      '[+] Heures supplementaires'
     ];
 
     let xPos = 14;
@@ -333,10 +333,10 @@ class PlanningExportService {
       const fileName = `planning_mensuel_${monthStart}.pdf`;
       doc.save(fileName);
 
-      console.log('✅ PDF mensuel généré:', fileName);
+      console.log('[OK] PDF mensuel genere:', fileName);
       return { success: true, fileName };
     } catch (error) {
-      console.error('❌ Erreur génération PDF mensuel:', error);
+      console.error('[ERROR] Erreur generation PDF mensuel:', error);
       throw error;
     }
   }
@@ -347,7 +347,7 @@ class PlanningExportService {
   addMonthlyStats(doc, stats, y) {
     const statsData = [
       ['Total Heures Mois', `${stats?.totalHours || 0}h`, 'Shifts Mensuels', stats?.shiftsCount || 0],
-      ['Moyenne/Jour', `${stats?.avgDailyHours || 0}h`, 'Employés Actifs', stats?.activeEmployees || 0]
+      ['Moyenne/Jour', `${stats?.avgDailyHours || 0}h`, 'Employes Actifs', stats?.activeEmployees || 0]
     ];
 
     doc.autoTable({
@@ -375,7 +375,7 @@ class PlanningExportService {
     const monthDates = this.generateMonthDates(monthStart);
 
     // Créer un résumé par jour
-    const headers = ['Date', 'Jour', 'Employés Planifiés', 'Total Heures', 'Shifts'];
+    const headers = ['Date', 'Jour', 'Employes Planifies', 'Total Heures', 'Shifts'];
 
     const body = monthDates.map(date => {
       const dateObj = new Date(date);
@@ -465,10 +465,10 @@ class PlanningExportService {
       const fileName = `comparaison_${employeeName.replace(/\s+/g, '_')}_${startDate}_${endDate}.pdf`;
       doc.save(fileName);
 
-      console.log('✅ PDF comparaison généré:', fileName);
+      console.log('[OK] PDF comparaison genere:', fileName);
       return { success: true, fileName };
     } catch (error) {
-      console.error('❌ Erreur génération PDF comparaison:', error);
+      console.error('[ERROR] Erreur generation PDF comparaison:', error);
       throw error;
     }
   }
@@ -478,8 +478,8 @@ class PlanningExportService {
    */
   addComparisonSummary(doc, summary, y) {
     const summaryData = [
-      ['Heures Planifiées', `${summary?.totalPlanned || 0}h`, 'Heures Travaillées', `${summary?.totalWorked || 0}h`],
-      ['Différence', `${(summary?.totalDifference || 0) >= 0 ? '+' : ''}${summary?.totalDifference || 0}h`, 'Jours Comparés', summary?.daysCompared || 0]
+      ['Heures Planifiees', `${summary?.totalPlanned || 0}h`, 'Heures Travaillees', `${summary?.totalWorked || 0}h`],
+      ['Difference', `${(summary?.totalDifference || 0) >= 0 ? '+' : ''}${summary?.totalDifference || 0}h`, 'Jours Compares', summary?.daysCompared || 0]
     ];
 
     doc.autoTable({
@@ -503,19 +503,19 @@ class PlanningExportService {
    * AJOUTER LE TABLEAU DE COMPARAISON DÉTAILLÉ
    */
   addComparisonTable(doc, days, startY) {
-    const headers = ['Date', 'Heures Planifiées', 'Heures Travaillées', 'Différence', 'Statut'];
+    const headers = ['Date', 'Heures Planifiees', 'Heures Travaillees', 'Difference', 'Statut'];
 
     const body = (days || []).map(day => {
       const dateFormatted = new Date(day.date).toLocaleDateString('fr-FR');
       const difference = (day.difference || 0) >= 0 ? `+${day.difference || 0}h` : `${day.difference || 0}h`;
 
       const statusText = {
-        'ok': 'OK ✓',
+        'ok': 'OK',
         'overtime': 'Heures Sup',
         'undertime': 'Sous-temps',
         'absent': 'Absent',
-        'not-scheduled': 'Non planifié',
-        'no-data': 'Pas de données'
+        'not-scheduled': 'Non planifie',
+        'no-data': 'Pas de donnees'
       }[day.status] || day.status;
 
       return [
@@ -585,22 +585,22 @@ class PlanningExportService {
     doc.setTextColor(0, 0, 0);
     doc.text(title, 14, 20);
 
-    // Période
+    // Periode
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(107, 114, 128);
-    const periodText = `Période: du ${new Date(startDate).toLocaleDateString('fr-FR')} au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+    const periodText = `Periode: du ${new Date(startDate).toLocaleDateString('fr-FR')} au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
     doc.text(periodText, 14, 26);
 
-    // Date de génération (à droite)
-    const genDate = `Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`;
+    // Date de generation (a droite)
+    const genDate = `Genere le ${new Date().toLocaleDateString('fr-FR')} a ${new Date().toLocaleTimeString('fr-FR')}`;
     doc.setFontSize(8);
     doc.text(genDate, doc.internal.pageSize.width - 14, 12, { align: 'right' });
 
     // Mention document officiel
     doc.setFontSize(7);
     doc.setTextColor(139, 92, 246);
-    doc.text('Document officiel - À conserver', doc.internal.pageSize.width - 14, 17, { align: 'right' });
+    doc.text('Document officiel - A conserver', doc.internal.pageSize.width - 14, 17, { align: 'right' });
 
     // Ligne de séparation
     doc.setDrawColor(139, 92, 246);
@@ -707,7 +707,7 @@ class PlanningExportService {
    * Note: Nécessite la bibliothèque xlsx
    */
   async generateExcel(data) {
-    console.warn('⚠️ Export Excel à implémenter avec la bibliothèque xlsx');
+    console.warn('[WARN] Export Excel a implementer avec la bibliotheque xlsx');
     // TODO: Implémenter avec xlsx si nécessaire
     return { success: false, message: 'Export Excel non implémenté' };
   }
