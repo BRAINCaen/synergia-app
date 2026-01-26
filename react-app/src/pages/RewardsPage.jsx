@@ -20,6 +20,7 @@ import Layout from '../components/layout/Layout.jsx';
 import { RewardDetailModal, PurchaseSuccessAnimation, WishlistCard } from '../components/shop';
 // Composants extraits
 import { StatCard, FilterBottomSheet, RewardCard } from '../components/rewards';
+import TeamRewardVoting from '../components/rewards/TeamRewardVoting.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 import { useTeamPool } from '../shared/hooks/useTeamPool.js';
@@ -944,10 +945,19 @@ const RewardsPage = () => {
                     </div>
                     <div className="flex items-start gap-2">
                       <span>🎁</span>
-                      <p className="text-gray-400">Achetez des recompenses pour l'equipe</p>
+                      <p className="text-gray-400">Votez ensemble pour choisir la recompense</p>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* SECTION VOTE RECOMPENSE EQUIPE */}
+              <div className="mt-4">
+                <TeamRewardVoting
+                  teamRewards={allRewards.filter(r => r.type === 'team')}
+                  teamPoolXP={poolStats?.totalXP || teamPoolXP || 0}
+                  isAdmin={userIsAdmin}
+                />
               </div>
             </motion.div>
           )}
