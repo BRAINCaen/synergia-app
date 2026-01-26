@@ -138,7 +138,7 @@ const RewardsPage = () => {
   } = useTeamPool({ autoInit: true, realTimeUpdates: true, enableContributions: true });
 
   // Hook equipe (pour connaitre le nombre de membres)
-  const { members: teamMembers } = useTeam({ autoLoad: true });
+  const { members: teamMembers = [] } = useTeam({ autoLoad: true });
 
   // Ecouter pool equipe
   useEffect(() => {
@@ -960,7 +960,7 @@ const RewardsPage = () => {
                 <TeamRewardVoting
                   teamRewards={allRewards.filter(r => r.type === 'team')}
                   teamPoolXP={poolStats?.totalXP || teamPoolXP || 0}
-                  teamSize={teamMembers?.length || 1}
+                  teamSize={(teamMembers && teamMembers.length) ? teamMembers.length : 1}
                   isAdmin={userIsAdmin}
                 />
               </div>
