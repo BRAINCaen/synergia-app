@@ -24,6 +24,7 @@ import TeamRewardVoting from '../components/rewards/TeamRewardVoting.jsx';
 import { useAuthStore } from '../shared/stores/authStore.js';
 import { isAdmin } from '../core/services/adminService.js';
 import { useTeamPool } from '../shared/hooks/useTeamPool.js';
+import { useTeam } from '../shared/hooks/useTeam.js';
 
 import {
   collection, query, orderBy, where, getDocs, doc, getDoc,
@@ -135,6 +136,9 @@ const RewardsPage = () => {
     stats: poolStats, loading: poolLoading, contributing,
     contributeManually, refreshPoolData, autoContributionRate
   } = useTeamPool({ autoInit: true, realTimeUpdates: true, enableContributions: true });
+
+  // Hook equipe (pour connaitre le nombre de membres)
+  const { members: teamMembers } = useTeam({ autoLoad: true });
 
   // Ecouter pool equipe
   useEffect(() => {
@@ -956,6 +960,7 @@ const RewardsPage = () => {
                 <TeamRewardVoting
                   teamRewards={allRewards.filter(r => r.type === 'team')}
                   teamPoolXP={poolStats?.totalXP || teamPoolXP || 0}
+                  teamSize={teamMembers?.length || 1}
                   isAdmin={userIsAdmin}
                 />
               </div>

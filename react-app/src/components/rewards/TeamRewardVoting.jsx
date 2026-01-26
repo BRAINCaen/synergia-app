@@ -30,6 +30,7 @@ import { useAuthStore } from '../../shared/stores/authStore.js';
 const TeamRewardVoting = ({
   teamRewards = [],
   teamPoolXP = 0,
+  teamSize = 1,
   isAdmin = false,
   onRewardApproved
 }) => {
@@ -67,7 +68,8 @@ const TeamRewardVoting = ({
     const result = await teamRewardVotingService.createVoteSession(
       user.uid,
       user.displayName || user.email,
-      teamPoolXP
+      teamPoolXP,
+      teamSize
     );
 
     if (!result.success) {
@@ -423,7 +425,7 @@ const TeamRewardVoting = ({
             <h3 className="text-white font-bold">Vote recompense equipe</h3>
             <p className="text-gray-400 text-sm">
               {session?.status === VOTE_SESSION_STATUS.ACTIVE
-                ? `${session.totalVoters} votant(s) - Choisissez ensemble !`
+                ? `${session.totalVoters}/${session.teamSize || teamSize} ont vote`
                 : session?.status === VOTE_SESSION_STATUS.CLOSED
                   ? 'En attente de validation'
                   : 'Decidez ensemble comment utiliser les XP equipe'}
@@ -467,8 +469,8 @@ const TeamRewardVoting = ({
                 <>
                   {renderVotingList()}
 
-                  {/* Bouton cloturer */}
-                  {session.totalVoters >= VOTE_THRESHOLDS.MIN_VOTES_TO_PROPOSE && (
+                  {/* Bouton cloturer - seulement si tout le monde a vote */}
+                  {session.totalVoters >= (session.teamSize || teamSize) && (
                     <div className="mt-4 pt-4 border-t border-white/10">
                       <button
                         onClick={handleCloseSession}
@@ -477,17 +479,17 @@ const TeamRewardVoting = ({
                         <CheckCircle className="w-5 h-5" />
                         Cloturer le vote et proposer
                       </button>
-                      <p className="text-gray-500 text-xs text-center mt-2">
-                        Minimum {VOTE_THRESHOLDS.MIN_VOTES_TO_PROPOSE} votes atteint !
+                      <p className="text-green-400 text-xs text-center mt-2">
+                        Tout le monde a vote !
                       </p>
                     </div>
                   )}
 
-                  {session.totalVoters < VOTE_THRESHOLDS.MIN_VOTES_TO_PROPOSE && (
+                  {session.totalVoters < (session.teamSize || teamSize) && (
                     <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2">
                       <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
                       <p className="text-amber-300 text-sm">
-                        Encore {VOTE_THRESHOLDS.MIN_VOTES_TO_PROPOSE - session.totalVoters} vote(s) necessaire(s) pour cloturer
+                        En attente: {(session.teamSize || teamSize) - session.totalVoters} personne(s) n'ont pas encore vote
                       </p>
                     </div>
                   )}
