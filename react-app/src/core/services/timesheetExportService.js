@@ -109,9 +109,104 @@ class TimesheetExportService {
   }
 
   /**
-   * Récupérer les congés approuvés d'un mois
+   * Recuperer les conges approuves d'un mois
+   * Lit depuis les deux collections: leaveRequests ET leave_requests
    */
   async getMonthlyLeaves(year, month, employeeId = null) {
+    try {
+      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
+
+      const leaves = [];
+
+      // 1. Collection leaveRequests
+      try {
+        let q1;
+        if (employeeId) {
+          q1 = query(
+            collection(db, 'leaveRequests'),
+            where('userId', '==', employeeId),
+            where('status', '==', 'approved')
+          );
+        } else {
+          q1 = query(
+            collection(db, 'leaveRequests'),
+            where('status', '==', 'approved')
+          );
+        }
+
+        const snapshot1 = await getDocs(q1);
+        snapshot1.forEach(doc => {
+          const data = doc.data();
+          const leaveStart = data.startDate?.split?.('T')?.[0] || data.startDate;
+          const leaveEnd = data.endDate?.split?.('T')?.[0] || data.endDate;
+
+          if (leaveStart <= endDate && leaveEnd >= startDate) {
+            leaves.push({
+              id: doc.id,
+              ...data,
+              startDate: leaveStart,
+              endDate: leaveEnd,
+              source: 'leaveRequests'
+            });
+          }
+        });
+      } catch (e) {
+        console.warn('Erreur collection leaveRequests:', e.message);
+      }
+
+      // 2. Collection leave_requests
+      try {
+        let q2;
+        if (employeeId) {
+          q2 = query(
+            collection(db, 'leave_requests'),
+            where('userId', '==', employeeId),
+            where('status', '==', 'approved')
+          );
+        } else {
+          q2 = query(
+            collection(db, 'leave_requests'),
+            where('status', '==', 'approved')
+          );
+        }
+
+        const snapshot2 = await getDocs(q2);
+        snapshot2.forEach(doc => {
+          const data = doc.data();
+          const leaveStart = data.startDate?.split?.('T')?.[0] || data.startDate;
+          const leaveEnd = data.endDate?.split?.('T')?.[0] || data.endDate;
+
+          // Eviter les doublons
+          const exists = leaves.some(l => l.id === doc.id);
+          if (!exists && leaveStart <= endDate && leaveEnd >= startDate) {
+            leaves.push({
+              id: doc.id,
+              ...data,
+              startDate: leaveStart,
+              endDate: leaveEnd,
+              source: 'leave_requests'
+            });
+          }
+        });
+      } catch (e) {
+        console.warn('Erreur collection leave_requests:', e.message);
+      }
+
+      console.log(`✅ ${leaves.length} conges/absences trouves`);
+      return leaves;
+    } catch (error) {
+      console.error('Erreur recuperation conges:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recuperer les shifts du planning pour un mois
+   * Pour detecter les jours de formation, repos, etc.
+   */
+  async getMonthlyShifts(year, month, employeeId = null) {
     try {
       const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(year, month + 1, 0).getDate();
@@ -120,41 +215,72 @@ class TimesheetExportService {
       let q;
       if (employeeId) {
         q = query(
-          collection(db, 'leaveRequests'),
-          where('userId', '==', employeeId),
-          where('status', '==', 'approved')
+          collection(db, 'shifts'),
+          where('employeeId', '==', employeeId),
+          where('date', '>=', startDate),
+          where('date', '<=', endDate)
         );
       } else {
         q = query(
-          collection(db, 'leaveRequests'),
-          where('status', '==', 'approved')
+          collection(db, 'shifts'),
+          where('date', '>=', startDate),
+          where('date', '<=', endDate)
         );
       }
 
       const snapshot = await getDocs(q);
-      const leaves = [];
+      const shifts = [];
 
       snapshot.forEach(doc => {
         const data = doc.data();
-        // Vérifier si le congé intersecte avec le mois
-        const leaveStart = data.startDate?.split('T')[0] || data.startDate;
-        const leaveEnd = data.endDate?.split('T')[0] || data.endDate;
-
-        if (leaveStart <= endDate && leaveEnd >= startDate) {
-          leaves.push({
-            id: doc.id,
-            ...data,
-            startDate: leaveStart,
-            endDate: leaveEnd
-          });
-        }
+        shifts.push({
+          id: doc.id,
+          ...data
+        });
       });
 
-      return leaves;
+      console.log(`✅ ${shifts.length} shifts trouves dans le planning`);
+      return shifts;
     } catch (error) {
-      console.error('❌ Erreur récupération congés:', error);
+      console.error('Erreur recuperation shifts:', error);
       return [];
     }
+  }
+
+  /**
+   * Determiner le type special d'un shift (formation, repos, etc.)
+   */
+  getShiftSpecialType(shift) {
+    if (!shift?.position) return null;
+
+    const position = shift.position.toLowerCase();
+
+    // Formation / CFA / Ecole
+    if (position.includes('formation') || position.includes('cfa') ||
+        position.includes('ecole') || position.includes('école') ||
+        position.includes('cours') || position.includes('alternance')) {
+      return { type: 'formation', label: 'Formation', color: 'FFDBEAFE' }; // Blue 100
+    }
+
+    // Repos / OFF / RTT
+    if (position.includes('repos') || position === 'off' || position === 'rtt' ||
+        position.includes('jour off') || position.includes('recup')) {
+      return { type: 'repos', label: 'Repos', color: 'FFE0E7FF' }; // Indigo 100
+    }
+
+    // Maladie
+    if (position.includes('maladie') || position.includes('arret') ||
+        position.includes('medical')) {
+      return { type: 'maladie', label: 'Arret maladie', color: 'FFFECACA' }; // Red 100
+    }
+
+    // Conges
+    if (position.includes('conge') || position.includes('cp') ||
+        position.includes('vacances')) {
+      return { type: 'conges', label: 'Conges', color: 'FFBBF7D0' }; // Green 200
+    }
+
+    return null;
   }
 
   /**
@@ -243,45 +369,48 @@ class TimesheetExportService {
    */
   async exportMonthlyTimesheet(year, month, options = {}) {
     const {
-      employeeId = null, // null = tous les employés
+      employeeId = null, // null = tous les employes
       includeDetails = true,
       includeSummary = true,
-      companyName = 'Synergia'
+      companyName = 'Synergia',
+      deductPause = false // NE PAS deduire la pause par defaut (deja incluse dans les heures)
     } = options;
 
     console.log(`📊 Export pointages ${MONTHS_FR[month]} ${year}...`);
 
-    // Récupérer les données
-    const [employees, pointages, leaves] = await Promise.all([
+    // Recuperer les donnees (incluant maintenant les shifts du planning)
+    const [employees, pointages, leaves, shifts] = await Promise.all([
       this.getEmployees(),
       this.getMonthlyPointages(year, month, employeeId),
-      this.getMonthlyLeaves(year, month, employeeId)
+      this.getMonthlyLeaves(year, month, employeeId),
+      this.getMonthlyShifts(year, month, employeeId)
     ]);
 
-    // Filtrer les employés si nécessaire
+    // Filtrer les employes si necessaire
     const targetEmployees = employeeId
       ? employees.filter(e => e.id === employeeId)
       : employees;
 
     if (targetEmployees.length === 0) {
-      throw new Error('Aucun employé trouvé');
+      throw new Error('Aucun employe trouve');
     }
 
-    // Créer le workbook
+    // Creer le workbook
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Synergia';
     workbook.created = new Date();
     workbook.modified = new Date();
 
-    // Générer une feuille par employé
+    // Generer une feuille par employe
     for (const employee of targetEmployees) {
       const employeePointages = pointages.filter(p => p.userId === employee.id);
       const employeeLeaves = leaves.filter(l => l.userId === employee.id);
+      const employeeShifts = shifts.filter(s => s.employeeId === employee.id);
 
-      await this.createEmployeeSheet(workbook, employee, year, month, employeePointages, employeeLeaves, companyName);
+      await this.createEmployeeSheet(workbook, employee, year, month, employeePointages, employeeLeaves, employeeShifts, companyName, deductPause);
     }
 
-    // Ajouter la feuille récapitulative si demandé
+    // Ajouter la feuille recapitulative si demande
     if (includeSummary && targetEmployees.length > 1) {
       await this.createSummarySheet(workbook, targetEmployees, year, month, pointages, leaves, companyName);
     }
@@ -311,7 +440,7 @@ class TimesheetExportService {
   /**
    * Créer la feuille d'un employé
    */
-  async createEmployeeSheet(workbook, employee, year, month, pointages, leaves, companyName) {
+  async createEmployeeSheet(workbook, employee, year, month, pointages, leaves, shifts, companyName, deductPause = false) {
     const sheetName = (employee.displayName || 'Employé').substring(0, 31); // Max 31 chars
     const sheet = workbook.addWorksheet(sheetName, {
       properties: { tabColor: { argb: '6366F1' } }
@@ -397,11 +526,13 @@ class TimesheetExportService {
     sheet.getRow(rowNum).height = 25;
     rowNum++;
 
-    // Données journalières
+    // Donnees journalieres
     let totalHours = 0;
     let totalOvertimeHours = 0;
     let totalDaysWorked = 0;
     let totalLeaveDays = 0;
+    let totalFormationDays = 0;
+    let totalReposDays = 0;
     const dailyHoursThreshold = 7; // Heures normales par jour
 
     for (let day = 1; day <= daysInMonth; day++) {
@@ -410,43 +541,68 @@ class TimesheetExportService {
       const dayOfWeek = date.getDay();
       const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
 
-      // Récupérer les pointages du jour
+      // Recuperer les pointages du jour
       const dayPointages = pointages.filter(p => p.date === dateStr);
       const arrivals = dayPointages.filter(p => p.type === 'arrival').sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       const departures = dayPointages.filter(p => p.type === 'departure').sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-      // Vérifier les congés
+      // Verifier les conges
       const leave = this.getLeaveForDate(dateStr, leaves, employee.id);
+
+      // Verifier les shifts du planning pour ce jour
+      const dayShifts = shifts.filter(s => s.date === dateStr);
+      const specialShift = dayShifts.length > 0 ? this.getShiftSpecialType(dayShifts[0]) : null;
 
       // Calculer les heures
       let hoursWorked = 0;
       let arrivalTime = '-';
       let departureTime = '-';
+      let pauseTime = '-';
       let status = '';
       let remarks = '';
       let rowColor = null;
 
       if (leave) {
-        // Jour de congé
-        status = leave.leaveTypeLabel || leave.leaveType || 'Congé';
+        // Jour de conge
+        status = leave.leaveTypeLabel || leave.leaveType || 'Conge';
         remarks = leave.reason || '';
         totalLeaveDays++;
 
-        // Couleur selon type de congé
-        if (leave.leaveType?.includes('cp') || leave.leaveType?.includes('conge')) {
+        // Couleur selon type de conge
+        const leaveTypeLower = (leave.leaveType || '').toLowerCase();
+        if (leaveTypeLower.includes('paid') || leaveTypeLower.includes('cp') || leaveTypeLower.includes('conge')) {
           rowColor = COLORS.conge;
-        } else if (leave.leaveType?.includes('rtt')) {
+        } else if (leaveTypeLower.includes('rtt')) {
           rowColor = COLORS.rtt;
-        } else if (leave.leaveType?.includes('maladie') || leave.leaveType?.includes('medical')) {
+        } else if (leaveTypeLower.includes('sick') || leaveTypeLower.includes('maladie') || leaveTypeLower.includes('medical')) {
           rowColor = COLORS.maladie;
+          status = 'Arret maladie';
+        } else if (leaveTypeLower.includes('family') || leaveTypeLower.includes('familial')) {
+          rowColor = COLORS.absence;
+          status = leave.leaveTypeLabel || 'Evenement familial';
         } else {
           rowColor = COLORS.absence;
+        }
+      } else if (specialShift) {
+        // Jour special du planning (formation, repos planifie, etc.)
+        status = specialShift.label;
+        rowColor = specialShift.color;
+        remarks = dayShifts[0]?.position || '';
+
+        if (specialShift.type === 'formation') {
+          totalFormationDays++;
+        } else if (specialShift.type === 'repos') {
+          totalReposDays++;
+        } else if (specialShift.type === 'maladie') {
+          totalLeaveDays++;
+        } else if (specialShift.type === 'conges') {
+          totalLeaveDays++;
         }
       } else if (isWeekendDay) {
         status = 'Weekend';
         rowColor = COLORS.weekend;
       } else if (arrivals.length > 0) {
-        // Jour travaillé
+        // Jour travaille
         const firstArrival = arrivals[0];
         const lastDeparture = departures[departures.length - 1];
 
@@ -456,9 +612,11 @@ class TimesheetExportService {
           departureTime = new Date(lastDeparture.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
           hoursWorked = this.calculateHoursWorked(firstArrival.timestamp, lastDeparture.timestamp);
 
-          // Déduire pause (30min si > 6h)
-          if (hoursWorked > 6) {
+          // NE PAS deduire pause automatiquement (pause incluse dans les heures de travail)
+          // Sauf si explicitement demande via options
+          if (deductPause && hoursWorked > 6) {
             hoursWorked -= 0.5; // 30 min pause
+            pauseTime = '0h30';
           }
 
           totalHours += hoursWorked;
@@ -469,13 +627,25 @@ class TimesheetExportService {
             totalOvertimeHours += hoursWorked - dailyHoursThreshold;
           }
         } else {
-          status = 'Départ manquant';
+          status = 'Depart manquant';
           rowColor = COLORS.warning;
         }
       } else if (!isWeekendDay) {
-        // Jour ouvré sans pointage
-        status = 'Absence';
-        rowColor = COLORS.absence;
+        // Jour ouvre sans pointage - Verifier s'il y a un shift planifie normal
+        if (dayShifts.length > 0 && !specialShift) {
+          // Il y avait un shift planifie mais pas de pointage
+          status = 'Non pointe';
+          remarks = `Prevu: ${dayShifts[0]?.startTime || ''}-${dayShifts[0]?.endTime || ''}`;
+          rowColor = COLORS.warning;
+        } else if (dayShifts.length === 0) {
+          // Pas de shift planifie = jour de repos naturel
+          status = 'Repos';
+          rowColor = 'FFE0E7FF'; // Indigo 100
+          totalReposDays++;
+        } else {
+          status = 'Absence';
+          rowColor = COLORS.absence;
+        }
       }
 
       // Ajouter la ligne
@@ -484,7 +654,7 @@ class TimesheetExportService {
       dataRow.getCell(2).value = DAYS_FR[dayOfWeek];
       dataRow.getCell(3).value = arrivalTime;
       dataRow.getCell(4).value = departureTime;
-      dataRow.getCell(5).value = hoursWorked > 6 ? '0h30' : '-';
+      dataRow.getCell(5).value = pauseTime;
       dataRow.getCell(6).value = hoursWorked > 0 ? this.formatDuration(hoursWorked) : '-';
       dataRow.getCell(7).value = hoursWorked > dailyHoursThreshold ? this.formatDuration(hoursWorked - dailyHoursThreshold) : '-';
       dataRow.getCell(8).value = status;
@@ -527,11 +697,13 @@ class TimesheetExportService {
 
     // Statistiques
     const stats = [
-      ['Jours travaillés', totalDaysWorked, 'jours'],
-      ['Jours de congés', totalLeaveDays, 'jours'],
-      ['Total heures travaillées', this.formatDuration(totalHours), ''],
-      ['Heures supplémentaires', this.formatDuration(totalOvertimeHours), ''],
-      ['Moyenne journalière', this.formatDuration(totalDaysWorked > 0 ? totalHours / totalDaysWorked : 0), '']
+      ['Jours travailles', totalDaysWorked, 'jours'],
+      ['Jours de conges/absences', totalLeaveDays, 'jours'],
+      ['Jours de formation', totalFormationDays, 'jours'],
+      ['Jours de repos', totalReposDays, 'jours'],
+      ['Total heures travaillees', this.formatDuration(totalHours), ''],
+      ['Heures supplementaires', this.formatDuration(totalOvertimeHours), ''],
+      ['Moyenne journaliere', this.formatDuration(totalDaysWorked > 0 ? totalHours / totalDaysWorked : 0), '']
     ];
 
     stats.forEach(([label, value, unit]) => {
