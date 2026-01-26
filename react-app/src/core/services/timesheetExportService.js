@@ -52,30 +52,31 @@ class TimesheetExportService {
   // ==========================================
 
   /**
-   * Récupérer les pointages d'un mois pour un ou tous les employés
+   * Recuperer les pointages d'un mois pour un ou tous les employes
+   * Lit depuis la collection 'timeEntries' (badgeuse)
    */
   async getMonthlyPointages(year, month, employeeId = null) {
     try {
-      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const endMonth = month === 11 ? 0 : month + 1;
-      const endYear = month === 11 ? year + 1 : year;
-      const endDate = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-01`;
+      // Creer des objets Date pour la comparaison (timeEntries stocke date comme Timestamp)
+      const startDate = new Date(year, month, 1, 0, 0, 0);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59); // Dernier jour du mois
+
+      console.log(`📊 Recherche pointages du ${startDate.toLocaleDateString()} au ${endDate.toLocaleDateString()}`);
 
       let q;
       if (employeeId) {
         q = query(
-          collection(db, 'pointages'),
+          collection(db, 'timeEntries'),
           where('userId', '==', employeeId),
           where('date', '>=', startDate),
-          where('date', '<', endDate),
-          orderBy('date', 'asc'),
-          orderBy('timestamp', 'asc')
+          where('date', '<=', endDate),
+          orderBy('date', 'asc')
         );
       } else {
         q = query(
-          collection(db, 'pointages'),
+          collection(db, 'timeEntries'),
           where('date', '>=', startDate),
-          where('date', '<', endDate),
+          where('date', '<=', endDate),
           orderBy('date', 'asc')
         );
       }
@@ -85,16 +86,24 @@ class TimesheetExportService {
 
       snapshot.forEach(doc => {
         const data = doc.data();
+        // Ignorer les entrees supprimees
+        if (data.status === 'deleted') return;
+
+        const dateValue = data.date?.toDate?.() || new Date(data.date);
+        const dateStr = dateValue.toISOString().split('T')[0];
+
         pointages.push({
           id: doc.id,
           ...data,
+          date: dateStr, // Convertir en string pour compatibilite
           timestamp: data.timestamp?.toDate?.() || new Date(data.timestamp)
         });
       });
 
+      console.log(`✅ ${pointages.length} pointages trouves dans timeEntries`);
       return pointages;
     } catch (error) {
-      console.error('❌ Erreur récupération pointages:', error);
+      console.error('❌ Erreur recuperation pointages:', error);
       return [];
     }
   }
