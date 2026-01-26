@@ -260,7 +260,7 @@ class LeaveRequestService {
       // Déterminer si c'est une demande spécifique (illimité)
       const isSpecificRequest = leaveTypeConfig.category === 'specific';
       const isCountedLeave = leaveTypeConfig.category === 'counted';
-      const isHalfDayType = leaveTypeConfig.isHalfDay || leaveTypeConfig.isEvening;
+      const isHalfDayType = !!(leaveTypeConfig.isHalfDay || leaveTypeConfig.isEvening);
 
       // Calculer le nombre de jours
       const start = new Date(startDate);
