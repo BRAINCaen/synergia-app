@@ -165,6 +165,9 @@ const PlanningAdvancedPage = () => {
   // Export
   const [exporting, setExporting] = useState(false);
 
+  // Sélecteur de semaine rapide
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
+
   // 🔍 ANOMALIES POINTAGE
   const [shiftAnomalies, setShiftAnomalies] = useState({});
   const [showAnomalies, setShowAnomalies] = useState(true);
@@ -707,6 +710,15 @@ const PlanningAdvancedPage = () => {
 
   const goToToday = () => {
     setCurrentWeek(new Date());
+  };
+
+  // Aller à une semaine spécifique (à partir d'une date)
+  const goToWeek = (dateString) => {
+    if (dateString) {
+      const selectedDate = new Date(dateString);
+      setCurrentWeek(selectedDate);
+      setShowWeekPicker(false);
+    }
   };
 
   // ==========================================
@@ -2178,9 +2190,47 @@ const PlanningAdvancedPage = () => {
                   <ChevronLeft className="w-5 h-5 text-white" />
                 </button>
 
-                <div className="text-center min-w-[180px] sm:min-w-[220px]">
-                  <p className="text-gray-400 text-xs sm:text-sm">Semaine en cours</p>
-                  <p className="text-white font-semibold text-sm sm:text-lg">{formatWeekRange()}</p>
+                {/* Zone cliquable pour sélection rapide de semaine */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowWeekPicker(!showWeekPicker)}
+                    className="text-center min-w-[180px] sm:min-w-[220px] p-2 rounded-lg hover:bg-gray-700/50 transition-colors cursor-pointer group"
+                    title="Cliquer pour choisir une semaine"
+                  >
+                    <p className="text-gray-400 text-xs sm:text-sm group-hover:text-purple-400 transition-colors flex items-center justify-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Semaine en cours
+                    </p>
+                    <p className="text-white font-semibold text-sm sm:text-lg group-hover:text-purple-300 transition-colors">
+                      {formatWeekRange()}
+                    </p>
+                  </button>
+
+                  {/* Picker de semaine */}
+                  <AnimatePresence>
+                    {showWeekPicker && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-gray-800 border border-gray-600 rounded-xl p-4 shadow-xl min-w-[260px]"
+                      >
+                        <p className="text-gray-400 text-sm mb-3 text-center">Aller à la semaine du :</p>
+                        <input
+                          type="date"
+                          onChange={(e) => goToWeek(e.target.value)}
+                          className="w-full bg-gray-700 text-white px-4 py-3 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-center cursor-pointer"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => setShowWeekPicker(false)}
+                          className="w-full mt-3 text-gray-400 hover:text-white text-sm py-2 transition-colors"
+                        >
+                          Fermer
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 <button
@@ -2199,6 +2249,14 @@ const PlanningAdvancedPage = () => {
               </button>
             </div>
           </GlassCard>
+
+          {/* Overlay pour fermer le picker */}
+          {showWeekPicker && (
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setShowWeekPicker(false)}
+            />
+          )}
 
           {/* MODAL CRÉATION SHIFT */}
           <AddShiftModal
