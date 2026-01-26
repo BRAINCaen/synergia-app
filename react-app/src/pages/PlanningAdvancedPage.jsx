@@ -2210,10 +2210,10 @@ const PlanningAdvancedPage = () => {
                   <AnimatePresence>
                     {showWeekPicker && (
                       <motion.div
-                        initial={{ opacity: 0, y: -10 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-gray-800 border border-gray-600 rounded-xl p-4 shadow-xl min-w-[260px]"
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-gray-800 border border-gray-600 rounded-xl p-4 shadow-xl min-w-[260px]"
                       >
                         <p className="text-gray-400 text-sm mb-3 text-center">Aller à la semaine du :</p>
                         <input
