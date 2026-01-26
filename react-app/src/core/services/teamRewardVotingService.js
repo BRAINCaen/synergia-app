@@ -39,8 +39,8 @@ export const VOTE_SESSION_STATUS = {
  * Seuils pour les votes
  */
 export const VOTE_THRESHOLDS = {
-  MIN_VOTES_TO_PROPOSE: 3,    // Nombre minimum de votes pour proposer a l'admin
-  QUORUM_PERCENTAGE: 50       // % de l'equipe qui doit voter pour valider
+  REQUIRE_ALL_MEMBERS: true,  // Tout le monde doit voter
+  QUORUM_PERCENTAGE: 100      // % de l'equipe qui doit voter pour valider
 };
 
 class TeamRewardVotingService {
@@ -59,8 +59,9 @@ class TeamRewardVotingService {
    * @param {string} creatorId - ID du createur
    * @param {string} creatorName - Nom du createur
    * @param {number} teamXP - XP equipe disponibles
+   * @param {number} teamSize - Nombre de membres dans l'equipe
    */
-  async createVoteSession(creatorId, creatorName, teamXP) {
+  async createVoteSession(creatorId, creatorName, teamXP, teamSize = 1) {
     try {
       // Verifier qu'il n'y a pas deja une session active
       const existingSession = await this.getActiveSession();
@@ -75,6 +76,7 @@ class TeamRewardVotingService {
         createdBy: creatorId,
         creatorName: creatorName,
         teamXPAvailable: teamXP,
+        teamSize: teamSize,  // Nombre total de membres qui doivent voter
         status: VOTE_SESSION_STATUS.ACTIVE,
         votes: {},           // { rewardId: [{ odId, odName, votedAt }] }
         voteCounts: {},      // { rewardId: count } pour tri rapide
@@ -357,11 +359,13 @@ class TeamRewardVotingService {
         }
       });
 
-      // Verifier le seuil minimum
-      if (maxVotes < VOTE_THRESHOLDS.MIN_VOTES_TO_PROPOSE) {
+      // Verifier que tout le monde a vote
+      const teamSize = session.teamSize || 1;
+      if (session.totalVoters < teamSize) {
+        const remaining = teamSize - session.totalVoters;
         return {
           success: false,
-          error: `Minimum ${VOTE_THRESHOLDS.MIN_VOTES_TO_PROPOSE} votes requis pour proposer une recompense`
+          error: `Il manque encore ${remaining} vote(s). Tout le monde doit voter !`
         };
       }
 
