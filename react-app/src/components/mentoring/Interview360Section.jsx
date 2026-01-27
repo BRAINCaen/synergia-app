@@ -373,15 +373,13 @@ const Interview360Section = ({ user, allUsers = [] }) => {
     return isAdmin || isCreator;
   };
 
-  // Générer le PDF du feedback et le stocker dans les documents RH
+  // Générer le PDF du feedback et le télécharger directement
   const generateAndStoreFeedbackPDF = async (completedInterview) => {
     try {
       console.log('📄 Génération du PDF de feedback 360°...');
 
       // Import dynamique des services
       const { exportService } = await import('../../core/services/exportService.js');
-      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-      const { storage } = await import('../../core/firebase.js');
       const hrDocService = (await import('../../core/services/hrDocumentService.js')).default;
 
       // Trouver l'utilisateur sujet du feedback
@@ -392,39 +390,54 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
       if (!pdfResult.success) {
         console.error('❌ Erreur génération PDF');
-        return;
+        throw new Error('Erreur lors de la génération du PDF');
       }
 
-      // Upload vers Firebase Storage
-      const storageRef = ref(storage, `hr_documents/${completedInterview.subjectId}/feedback360/${pdfResult.fileName}`);
-      await uploadBytes(storageRef, pdfResult.blob);
-      const downloadURL = await getDownloadURL(storageRef);
+      // Télécharger directement le PDF sur l'ordinateur de l'utilisateur
+      const downloadUrl = URL.createObjectURL(pdfResult.blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = pdfResult.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
 
-      // Créer l'entrée dans les documents RH
-      await hrDocService.createDocument({
-        employeeId: completedInterview.subjectId,
-        employeeName: subjectUser?.displayName || completedInterview.subjectName || 'Collaborateur',
-        type: 'feedback360',
-        title: `Feedback 360° - ${completedInterview.title || 'Évaluation'}`,
-        description: `Rapport de feedback 360° complété le ${new Date().toLocaleDateString('fr-FR')}. Score moyen: ${calculateAverageScore(completedInterview.feedbackResponses)}/5`,
-        fileUrl: downloadURL,
-        fileName: pdfResult.fileName,
-        fileSize: pdfResult.blob.size,
-        period: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
-        uploadedBy: user.uid,
-        uploadedByName: user.displayName || user.email,
-        metadata: {
-          interviewId: completedInterview.id,
-          interviewType: completedInterview.type,
-          feedbackCount: completedInterview.feedbackResponses?.length || 0,
-          averageScore: calculateAverageScore(completedInterview.feedbackResponses)
-        }
-      });
+      console.log('✅ PDF téléchargé:', pdfResult.fileName);
 
-      console.log('✅ PDF de feedback 360° généré et stocké dans les documents RH');
+      // Créer l'entrée dans les documents RH (sans fileUrl car téléchargé localement)
+      try {
+        await hrDocService.createDocument({
+          employeeId: completedInterview.subjectId,
+          employeeName: subjectUser?.displayName || completedInterview.subjectName || 'Collaborateur',
+          type: 'feedback360',
+          title: `Feedback 360° - ${completedInterview.title || 'Évaluation'}`,
+          description: `Rapport de feedback 360° complété le ${new Date().toLocaleDateString('fr-FR')}. Score moyen: ${calculateAverageScore(completedInterview.feedbackResponses)}/5. PDF téléchargé localement.`,
+          fileUrl: null,
+          fileName: pdfResult.fileName,
+          fileSize: pdfResult.blob.size,
+          period: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+          uploadedBy: user.uid,
+          uploadedByName: user.displayName || user.email,
+          metadata: {
+            interviewId: completedInterview.id,
+            interviewType: completedInterview.type,
+            feedbackCount: completedInterview.feedbackResponses?.length || 0,
+            averageScore: calculateAverageScore(completedInterview.feedbackResponses),
+            downloadedLocally: true
+          }
+        });
+        console.log('✅ Entrée créée dans les documents RH');
+      } catch (hrError) {
+        console.warn('⚠️ Impossible de créer l\'entrée HR document:', hrError);
+        // Le PDF est quand même téléchargé, on ne bloque pas
+      }
+
+      console.log('✅ PDF de feedback 360° généré et téléchargé');
 
     } catch (error) {
-      console.error('❌ Erreur lors de la génération/stockage du PDF:', error);
+      console.error('❌ Erreur lors de la génération du PDF:', error);
+      throw error;
     }
   };
 
@@ -711,10 +724,10 @@ const Interview360Card = ({ interview, user, allUsers, expanded, onToggle, onGiv
     setGeneratingPDF(true);
     try {
       await onRegeneratePDF();
-      alert('PDF genere et stocke dans les documents RH !');
+      alert('PDF genere et telecharge ! Une entree a ete creee dans les documents RH.');
     } catch (error) {
       console.error('Erreur generation PDF:', error);
-      alert('Erreur lors de la generation du PDF');
+      alert('Erreur lors de la generation du PDF: ' + error.message);
     } finally {
       setGeneratingPDF(false);
     }
