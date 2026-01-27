@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Calendar, Clock, Plus, X, Check, MessageSquare,
   Star, TrendingUp, ChevronRight, ChevronDown, AlertCircle,
-  UserCheck, Send, RefreshCw, Target, Award, Eye, Edit3, Trash2
+  UserCheck, Send, RefreshCw, Target, Award, Eye, Edit3, Trash2,
+  FileDown, Loader2
 } from 'lucide-react';
 import {
   collection,
@@ -102,6 +103,10 @@ const Interview360Section = ({ user, allUsers = [] }) => {
   const [selectedInterview, setSelectedInterview] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming'); // upcoming, pending, completed
   const [expandedId, setExpandedId] = useState(null);
+  const [generatingAllPDFs, setGeneratingAllPDFs] = useState(false);
+
+  // Verifier si admin
+  const isAdmin = user?.isAdmin || user?.role === 'admin';
 
   // Charger les entretiens
   useEffect(() => {
@@ -434,6 +439,43 @@ const Interview360Section = ({ user, allUsers = [] }) => {
     return avgScore.toFixed(1);
   };
 
+  // Generer les PDFs pour tous les feedbacks completes (admin)
+  const generateAllMissingPDFs = async () => {
+    if (!isAdmin) return;
+
+    const completedInterviews = interviews.filter(i =>
+      i.status === 'completed' &&
+      i.feedbackResponses?.length > 0
+    );
+
+    if (completedInterviews.length === 0) {
+      alert('Aucun entretien complete avec des feedbacks');
+      return;
+    }
+
+    if (!confirm(`Generer les PDFs pour ${completedInterviews.length} entretien(s) complete(s) ?`)) {
+      return;
+    }
+
+    setGeneratingAllPDFs(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const interview of completedInterviews) {
+      try {
+        await generateAndStoreFeedbackPDF(interview);
+        successCount++;
+        console.log(`✅ PDF genere pour ${interview.subjectName}`);
+      } catch (error) {
+        errorCount++;
+        console.error(`❌ Erreur PDF pour ${interview.subjectName}:`, error);
+      }
+    }
+
+    setGeneratingAllPDFs(false);
+    alert(`Generation terminee !\n✅ ${successCount} PDF(s) genere(s)\n❌ ${errorCount} erreur(s)`);
+  };
+
   if (loading) {
     return (
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
@@ -464,15 +506,41 @@ const Interview360Section = ({ user, allUsers = [] }) => {
           </div>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-4 py-2 rounded-xl font-medium transition-all text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Programmer
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {/* Bouton admin pour generer tous les PDFs */}
+          {isAdmin && stats.completedCount > 0 && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={generateAllMissingPDFs}
+              disabled={generatingAllPDFs}
+              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-3 py-2 rounded-xl font-medium transition-all text-sm disabled:opacity-50"
+              title="Generer les PDFs de tous les feedbacks completes"
+            >
+              {generatingAllPDFs ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generation...
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-4 h-4" />
+                  Generer PDFs
+                </>
+              )}
+            </motion.button>
+          )}
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-4 py-2 rounded-xl font-medium transition-all text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Programmer
+          </motion.button>
+        </div>
       </div>
 
       {/* Stats rapides */}
@@ -556,6 +624,7 @@ const Interview360Section = ({ user, allUsers = [] }) => {
               key={interview.id}
               interview={interview}
               user={user}
+              allUsers={allUsers}
               expanded={expandedId === interview.id}
               onToggle={() => setExpandedId(expandedId === interview.id ? null : interview.id)}
               onGiveFeedback={() => {
@@ -568,6 +637,7 @@ const Interview360Section = ({ user, allUsers = [] }) => {
                 setShowEditModal(true);
               }}
               onDelete={() => handleDeleteInterview(interview.id)}
+              onRegeneratePDF={() => generateAndStoreFeedbackPDF(interview)}
             />
           ))
         )}
@@ -626,13 +696,29 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 // CARTE ENTRETIEN 360
 // ==========================================
 
-const Interview360Card = ({ interview, user, expanded, onToggle, onGiveFeedback, canEdit, onEdit, onDelete }) => {
+const Interview360Card = ({ interview, user, allUsers, expanded, onToggle, onGiveFeedback, canEdit, onEdit, onDelete, onRegeneratePDF }) => {
+  const [generatingPDF, setGeneratingPDF] = useState(false);
   const type = INTERVIEW_360_TYPES[interview.type] || INTERVIEW_360_TYPES.quarterly;
   const scheduledDate = interview.scheduledDate?.toDate?.() || new Date(interview.scheduledDate);
   const isSubject = interview.subjectId === user?.uid;
   const myFeedbackRequest = interview.feedbackRequests?.find(fr => fr.reviewerId === user?.uid);
   const needsMyFeedback = myFeedbackRequest && !myFeedbackRequest.completed;
   const isCompleted = interview.status === 'completed';
+  const isAdmin = user?.role === 'admin' || user?.isAdmin;
+
+  // Generer et telecharger le PDF
+  const handleGeneratePDF = async () => {
+    setGeneratingPDF(true);
+    try {
+      await onRegeneratePDF();
+      alert('PDF genere et stocke dans les documents RH !');
+    } catch (error) {
+      console.error('Erreur generation PDF:', error);
+      alert('Erreur lors de la generation du PDF');
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
 
   // Calcul progression feedback
   const totalRequests = interview.feedbackRequests?.length || 0;
@@ -787,13 +873,34 @@ const Interview360Card = ({ interview, user, expanded, onToggle, onGiveFeedback,
                 </div>
               </div>
 
-              {/* Résultats si complété et sujet */}
-              {interview.status === 'completed' && isSubject && interview.feedbackResponses?.length > 0 && (
+              {/* Résultats si complété et sujet ou admin */}
+              {interview.status === 'completed' && (isSubject || isAdmin) && interview.feedbackResponses?.length > 0 && (
                 <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
-                  <h5 className="text-sm font-medium text-cyan-300 mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Synthèse des résultats
-                  </h5>
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Synthese des resultats
+                    </h5>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleGeneratePDF}
+                      disabled={generatingPDF}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white text-sm rounded-lg disabled:opacity-50"
+                    >
+                      {generatingPDF ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Generation...
+                        </>
+                      ) : (
+                        <>
+                          <FileDown className="w-4 h-4" />
+                          Generer PDF
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {DEFAULT_CRITERIA.map(criterion => {
                       const ratings = interview.feedbackResponses
