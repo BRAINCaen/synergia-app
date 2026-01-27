@@ -2162,13 +2162,13 @@ class ExportService {
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Rapport d'évaluation - ${interview.title || 'Entretien'}`, 15, 38);
+    doc.text(`Rapport d'evaluation - ${interview.title || 'Entretien'}`, 15, 38);
 
     // Date et logo
     doc.setFontSize(10);
     doc.text('SYNERGIA', pageWidth - 40, 20);
     const completedDate = interview.completedAt?.toDate?.() || new Date();
-    doc.text(`Complété le ${completedDate.toLocaleDateString('fr-FR')}`, pageWidth - 65, 35);
+    doc.text(`Complete le ${completedDate.toLocaleDateString('fr-FR')}`, pageWidth - 65, 35);
 
     yPosition = 60;
 
@@ -2214,7 +2214,7 @@ class ExportService {
     doc.setTextColor(...SYNERGIA_COLORS.dark);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('💪 Forces identifiées', 15, yPosition);
+    doc.text('FORCES IDENTIFIEES', 15, yPosition);
     yPosition += 8;
 
     // Calculer les forces (scores >= 4) et axes d'amélioration (scores <= 2)
@@ -2248,11 +2248,11 @@ class ExportService {
 
     if (strengths.length > 0) {
       strengths.forEach(s => {
-        doc.text(`✓ ${this.formatCriterionLabel(s.criterion)} (${s.average.toFixed(1)}/5)`, 25, yPosition);
+        doc.text(`[+] ${this.formatCriterionLabel(s.criterion)} (${s.average.toFixed(1)}/5)`, 25, yPosition);
         yPosition += 7;
       });
     } else {
-      doc.text('Pas de force particulière identifiée (scores < 4)', 25, yPosition);
+      doc.text('Pas de force particuliere identifiee (scores < 4)', 25, yPosition);
       yPosition += 7;
     }
 
@@ -2262,7 +2262,7 @@ class ExportService {
     doc.setTextColor(...SYNERGIA_COLORS.dark);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('📈 Axes d\'amélioration', 15, yPosition);
+    doc.text('AXES D\'AMELIORATION', 15, yPosition);
     yPosition += 8;
 
     doc.setFillColor(254, 243, 199); // Amber light
@@ -2275,11 +2275,11 @@ class ExportService {
 
     if (improvements.length > 0) {
       improvements.forEach(i => {
-        doc.text(`→ ${this.formatCriterionLabel(i.criterion)} (${i.average.toFixed(1)}/5)`, 25, yPosition);
+        doc.text(`> ${this.formatCriterionLabel(i.criterion)} (${i.average.toFixed(1)}/5)`, 25, yPosition);
         yPosition += 7;
       });
     } else {
-      doc.text('Aucun axe critique identifié (tous scores >= 3)', 25, yPosition);
+      doc.text('Aucun axe critique identifie (tous scores >= 3)', 25, yPosition);
       yPosition += 7;
     }
 
@@ -2296,19 +2296,19 @@ class ExportService {
     doc.setTextColor(...SYNERGIA_COLORS.dark);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('📊 Détail des scores par critère', 15, yPosition);
+    doc.text('DETAIL DES SCORES PAR CRITERE', 15, yPosition);
     yPosition += 10;
 
     const tableData = criteriaAverages.map(c => [
       this.formatCriterionLabel(c.criterion),
       c.average.toFixed(1) + '/5',
       this.getProgressBar(c.average * 20),
-      c.average >= 4 ? '★ Force' : c.average < 3 ? '⚠ À améliorer' : 'Correct'
+      c.average >= 4 ? '[+] Force' : c.average < 3 ? '[!] A ameliorer' : 'Correct'
     ]);
 
     doc.autoTable({
       startY: yPosition,
-      head: [['Critère', 'Score', 'Progression', 'Évaluation']],
+      head: [['Critere', 'Score', 'Progression', 'Evaluation']],
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -2341,7 +2341,7 @@ class ExportService {
     doc.setTextColor(...SYNERGIA_COLORS.dark);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('💬 Commentaires des évaluateurs', 15, yPosition);
+    doc.text('COMMENTAIRES DES EVALUATEURS', 15, yPosition);
     yPosition += 10;
 
     responses.forEach((response, index) => {
@@ -2361,8 +2361,18 @@ class ExportService {
 
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(80, 80, 80);
-      const comment = response.generalComment || response.comments || 'Pas de commentaire';
-      const truncatedComment = comment.length > 150 ? comment.substring(0, 150) + '...' : comment;
+      // response.comments peut etre un objet, on prend globalComment ou on extrait le texte
+      let comment = response.globalComment || response.generalComment || '';
+      if (!comment && response.comments) {
+        // Si comments est un objet, extraire les valeurs textuelles
+        if (typeof response.comments === 'object') {
+          comment = Object.values(response.comments).filter(c => typeof c === 'string').join(' | ') || 'Pas de commentaire';
+        } else if (typeof response.comments === 'string') {
+          comment = response.comments;
+        }
+      }
+      if (!comment) comment = 'Pas de commentaire';
+      const truncatedComment = String(comment).length > 150 ? String(comment).substring(0, 150) + '...' : String(comment);
       doc.text(truncatedComment, 20, yPosition + 18, { maxWidth: pageWidth - 50 });
 
       yPosition += 35;
