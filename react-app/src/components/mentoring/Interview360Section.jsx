@@ -373,7 +373,7 @@ const Interview360Section = ({ user, allUsers = [] }) => {
     return isAdmin || isCreator;
   };
 
-  // Générer le PDF du feedback et le télécharger directement
+  // Générer le PDF du feedback et le stocker dans les documents RH
   const generateAndStoreFeedbackPDF = async (completedInterview) => {
     try {
       console.log('📄 Génération du PDF de feedback 360°...');
@@ -393,6 +393,18 @@ const Interview360Section = ({ user, allUsers = [] }) => {
         throw new Error('Erreur lors de la génération du PDF');
       }
 
+      // Convertir le blob en base64 Data URL pour stockage dans Firestore
+      const blobToDataURL = (blob) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      };
+
+      const fileDataUrl = await blobToDataURL(pdfResult.blob);
+
       // Télécharger directement le PDF sur l'ordinateur de l'utilisateur
       const downloadUrl = URL.createObjectURL(pdfResult.blob);
       const link = document.createElement('a');
@@ -405,17 +417,18 @@ const Interview360Section = ({ user, allUsers = [] }) => {
 
       console.log('✅ PDF téléchargé:', pdfResult.fileName);
 
-      // Créer l'entrée dans les documents RH (sans fileUrl car téléchargé localement)
+      // Créer l'entrée dans les documents RH avec le PDF en base64
       try {
         await hrDocService.createDocument({
           employeeId: completedInterview.subjectId,
           employeeName: subjectUser?.displayName || completedInterview.subjectName || 'Collaborateur',
           type: 'feedback360',
           title: `Feedback 360° - ${completedInterview.title || 'Évaluation'}`,
-          description: `Rapport de feedback 360° complété le ${new Date().toLocaleDateString('fr-FR')}. Score moyen: ${calculateAverageScore(completedInterview.feedbackResponses)}/5. PDF téléchargé localement.`,
-          fileUrl: null,
+          description: `Rapport de feedback 360° complété le ${new Date().toLocaleDateString('fr-FR')}. Score moyen: ${calculateAverageScore(completedInterview.feedbackResponses)}/5`,
+          fileUrl: fileDataUrl, // PDF stocké en base64
           fileName: pdfResult.fileName,
           fileSize: pdfResult.blob.size,
+          mimeType: 'application/pdf',
           period: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
           uploadedBy: user.uid,
           uploadedByName: user.displayName || user.email,
@@ -423,17 +436,16 @@ const Interview360Section = ({ user, allUsers = [] }) => {
             interviewId: completedInterview.id,
             interviewType: completedInterview.type,
             feedbackCount: completedInterview.feedbackResponses?.length || 0,
-            averageScore: calculateAverageScore(completedInterview.feedbackResponses),
-            downloadedLocally: true
+            averageScore: calculateAverageScore(completedInterview.feedbackResponses)
           }
         });
-        console.log('✅ Entrée créée dans les documents RH');
+        console.log('✅ Document RH créé avec le PDF');
       } catch (hrError) {
         console.warn('⚠️ Impossible de créer l\'entrée HR document:', hrError);
         // Le PDF est quand même téléchargé, on ne bloque pas
       }
 
-      console.log('✅ PDF de feedback 360° généré et téléchargé');
+      console.log('✅ PDF de feedback 360° généré et stocké');
 
     } catch (error) {
       console.error('❌ Erreur lors de la génération du PDF:', error);
@@ -724,7 +736,7 @@ const Interview360Card = ({ interview, user, allUsers, expanded, onToggle, onGiv
     setGeneratingPDF(true);
     try {
       await onRegeneratePDF();
-      alert('PDF genere et telecharge ! Une entree a ete creee dans les documents RH.');
+      alert('PDF genere et telecharge ! Il est aussi disponible dans les Documents RH.');
     } catch (error) {
       console.error('Erreur generation PDF:', error);
       alert('Erreur lors de la generation du PDF: ' + error.message);
